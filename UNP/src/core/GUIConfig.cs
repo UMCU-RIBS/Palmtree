@@ -13,7 +13,9 @@ namespace UNP {
     public partial class GUIConfig : Form {
 
         private static Dictionary<String, Parameters> paramSets = ParameterManager.getParameterSets();
-
+        private const int labelWidth = 170;
+        private const int itemTopPadding = 10;
+        private const int itemBottomPadding = 10;
 
         public GUIConfig() {
             InitializeComponent();
@@ -26,46 +28,39 @@ namespace UNP {
             foreach (KeyValuePair<String, Parameters> entry in paramSets) {
                 
                 // create a new tab for the paramset and suspend the layout
-                TabPage newTab = new System.Windows.Forms.TabPage();
+                TabPage newTab = new TabPage();
                 newTab.SuspendLayout();
 
                 // add the tab to the control
                 tabControl.Controls.Add(newTab);
 
                 // setup the tab
-                newTab.BackColor = System.Drawing.SystemColors.Control;
-                newTab.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
+                newTab.BackColor = SystemColors.Control;
+                newTab.BorderStyle = BorderStyle.None;
                 newTab.Name = "tab" + entry.Key;
-                newTab.Padding = new System.Windows.Forms.Padding(3);
-                newTab.Size = new System.Drawing.Size(884, 640);
+                newTab.Padding = new Padding(0);
+                newTab.Size = new Size(884, 640);
                 newTab.TabIndex = counter;
                 newTab.Text = entry.Key;
 
-                // add a panel to the tab (this will allow scrolling) and suspend the layout
+                // add a panel to the tab (this will allow scrolling)
                 Panel newPanel = new Panel();
                 newPanel.SuspendLayout();
-                newPanel.BackColor = System.Drawing.SystemColors.Control;
-                newPanel.BorderStyle = System.Windows.Forms.BorderStyle.None;
+                newPanel.BackColor = SystemColors.Control;
+                newPanel.BorderStyle = BorderStyle.None;
                 newPanel.Location = new Point(0, 0);
                 newPanel.Size = new Size(newTab.Width, newTab.Height);
                 newPanel.Name = "pnl" + entry.Key;
                 newPanel.AutoScroll = true;
-                
                 newTab.Controls.Add(newPanel); 
 
-                // loop through the parameters in the 
+                // TODO: check grouping etc
 
-                if (counter < 2) {
-                    // temp add test button
-                    Button btnCancel2 = new Button();
-                    btnCancel2.Location = new System.Drawing.Point(20, 800);
-                    //this.btnCancel2.Name = "btnCancel";
-                    btnCancel2.Size = new System.Drawing.Size(175, 37);
-                    //this.btnCancel2.TabIndex = 1;
-                    btnCancel2.Text = "Cancel";
-                    btnCancel2.UseVisualStyleBackColor = true;
-                    //this.btnCancel2.Click += new System.EventHandler(this.btnCancel_Click);
-                    newPanel.Controls.Add(btnCancel2);
+                // loop through the parameters in the 
+                List<iParam> parameters = entry.Value.getParameters();
+                int y = 20;
+                for (int i = 0; i < parameters.Count; i++) {
+                    addConfigItemToControl(newPanel, parameters[i], ref y);
                 }
 
                 newPanel.Dock = DockStyle.Fill;
@@ -86,6 +81,69 @@ namespace UNP {
 
         }
 
+        private void addConfigItemToControl(Control panel, iParam param, ref int y) {
+
+            // create and add a label
+            Label newLbl = new Label();
+            newLbl.Name = "lbl" + panel.Name + param.Name;
+            newLbl.Location = new Point(10, y + itemTopPadding);
+            newLbl.Size = new System.Drawing.Size(labelWidth, 20);
+            newLbl.Text = param.Name;
+            newLbl.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            newLbl.Parent = panel;
+            newLbl.TextAlign = ContentAlignment.TopRight;
+            panel.Controls.Add(newLbl);
+
+            int itemHeight = 0;
+            if (param is ParamBool) {
+
+                // create and add a checkbox
+                CheckBox newChk = new CheckBox();
+                newChk.Name = "chk" + panel.Name + param.Name;
+                newChk.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
+                newChk.Text = "";
+                newChk.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+                newChk.Checked = ((ParamBool)param).Value;
+                panel.Controls.Add(newChk);
+                itemHeight = 20;
+
+            } else if (param is ParamInt || param is ParamDouble) {
+                
+                // create and add a textbox
+                TextBox newTxt = new TextBox();
+                newTxt.Name = "txt" + panel.Name + param.Name;
+                newTxt.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
+                newTxt.Size = new System.Drawing.Size(200, 20);
+                if (param is ParamInt)      newTxt.Text = ((ParamInt)param).Value.ToString();
+                if (param is ParamDouble)   newTxt.Text = ((ParamDouble)param).Value.ToString();
+                newTxt.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+                panel.Controls.Add(newTxt);
+                itemHeight = 20;
+
+            } else if (param is ParamColor) {
+
+            } else if (param is ParamBoolArr) {
+
+            } else if (param is ParamIntArr) {
+
+                // check if it has a limit range of possibilities
+                //param.Options
+
+            } else if (param is ParamDoubleArr) {
+
+            } else if (param is ParamBoolMat) {
+
+            } else if (param is ParamIntMat) {
+
+            } else if (param is ParamDoubleMat) {
+            
+            }
+
+
+            y = y + itemTopPadding + 20 + itemBottomPadding;
+            
+        }
+
         private void GUIConfig_Load(object sender, EventArgs e) {
             
         }
@@ -95,9 +153,10 @@ namespace UNP {
         }
 
     }
-
+    
     class NoBorderTabControl : TabControl {
         private const int TCM_ADJUSTRECT = 0x1328;
+        private const int WM_PAINT = 0xF;
 
         protected override void WndProc(ref Message m) {
 
@@ -107,13 +166,12 @@ namespace UNP {
                 RECT rect = (RECT)(m.GetLParam(typeof(RECT)));
                 rect.Left = this.Left - this.Margin.Left;
                 rect.Right = this.Right + this.Margin.Right;
-
-                rect.Top = this.Top - this.Margin.Top;
+                //rect.Top = this.Top - this.Margin.Top;
                 rect.Bottom = this.Bottom + this.Margin.Bottom;
                 Marshal.StructureToPtr(rect, m.LParam, true);
 
             }
-            
+
             // call the base class implementation
             base.WndProc(ref m);
         }
@@ -122,5 +180,6 @@ namespace UNP {
             public int Left, Top, Right, Bottom;
         }
     }
+    
 
 }

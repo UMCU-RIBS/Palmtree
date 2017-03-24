@@ -46,6 +46,10 @@ namespace UNP {
             selfName = name;
         }
 
+        public List<iParam> getParameters() {
+            return paramList;
+        }
+
         //public void addParameter(String name, String desc, Param.Types type, String minValue, String maxValue, String stdValue) {
         public iParam addParameter<T>(String name, String desc, String minValue, String maxValue, String stdValue) {
             return addParameter<T>(name, "", desc, minValue, maxValue, stdValue, new String[0]);
@@ -79,43 +83,43 @@ namespace UNP {
             Type paramType = typeof(T);
             if(paramType == typeof(ParamBool) || paramType == typeof(bool) || paramType == typeof(Boolean)) {
                 
-                param = new ParamBool(name, group, desc, minValue, maxValue, stdValue);
+                param = new ParamBool(name, group, desc, minValue, maxValue, stdValue, options);
 
             } else if (paramType == typeof(ParamInt) || paramType == typeof(int)) {
-                
-                param = new ParamInt(name, group, desc, minValue, maxValue, stdValue);
+
+                param = new ParamInt(name, group, desc, minValue, maxValue, stdValue, options);
 
             } else if (paramType == typeof(ParamDouble) || paramType == typeof(double)) {
-                
-                param = new ParamDouble(name, group, desc, minValue, maxValue, stdValue);
+
+                param = new ParamDouble(name, group, desc, minValue, maxValue, stdValue, options);
 
             } else if (paramType == typeof(ParamBoolArr) || paramType == typeof(bool[]) || paramType == typeof(Boolean[])) {
 
-                param = new ParamBoolArr(name, group, desc, minValue, maxValue, stdValue);
+                param = new ParamBoolArr(name, group, desc, minValue, maxValue, stdValue, options);
                 
             } else if (paramType == typeof(ParamIntArr) || paramType == typeof(int[])) {
-                
-                param = new ParamIntArr(name, group, desc, minValue, maxValue, stdValue);
+
+                param = new ParamIntArr(name, group, desc, minValue, maxValue, stdValue, options);
 
             } else if (paramType == typeof(ParamDoubleArr) || paramType == typeof(double[])) {
 
-                param = new ParamDoubleArr(name, group, desc, minValue, maxValue, stdValue);
+                param = new ParamDoubleArr(name, group, desc, minValue, maxValue, stdValue, options);
 
             } else if (paramType == typeof(ParamBoolMat) || paramType == typeof(bool[][]) || paramType == typeof(Boolean[][])) {
 
-                param = new ParamBoolMat(name, group, desc, minValue, maxValue, stdValue);
+                param = new ParamBoolMat(name, group, desc, minValue, maxValue, stdValue, options);
                 
             } else if (paramType == typeof(ParamIntMat) || paramType == typeof(int[][])) {
-                
-                param = new ParamIntMat(name, group, desc, minValue, maxValue, stdValue);
+
+                param = new ParamIntMat(name, group, desc, minValue, maxValue, stdValue, options);
 
             } else if (paramType == typeof(ParamDoubleMat) || paramType == typeof(double[][])) {
 
-                param = new ParamDoubleMat(name, group, desc, minValue, maxValue, stdValue);
+                param = new ParamDoubleMat(name, group, desc, minValue, maxValue, stdValue, options);
 
             } else if (paramType == typeof(ParamColor) || paramType == typeof(RGBColorFloat)) {
 
-                param = new ParamColor(name, group, desc, minValue, maxValue, stdValue);
+                param = new ParamColor(name, group, desc, minValue, maxValue, stdValue, options);
                                        
             } else {
                 
@@ -224,12 +228,13 @@ namespace UNP {
 
     public interface iParam {
 
-        String Name { get; }
-        String Group { get; }
-        String Desc { get; }
-        String MinValue { get; }
-        String MaxValue { get; }
-        String StdValue { get; }
+        String Name         { get; }
+        String Group        { get; }
+        String Desc         { get; }
+        String MinValue     { get; }
+        String MaxValue     { get; }
+        String StdValue     { get; }
+        String[] Options    { get; }
 
         T getValue<T>();
 
@@ -246,9 +251,10 @@ namespace UNP {
         private String stdValue = "";
         private String minValue = "";
         private String maxValue = "";
+        private String[] options = new String[0];
 
 
-        public Param(String name, String group, String desc, String minValue, String maxValue, String stdValue) {
+        public Param(String name, String group, String desc, String minValue, String maxValue, String stdValue, String[] options) {
             this.name = name;
             this.group = group;
             this.desc = desc;
@@ -258,14 +264,16 @@ namespace UNP {
             //set {   this.maxValue = Regex.Replace(value.ToLower(), @"\s+", " ");  }
             this.stdValue = stdValue;
             //set {   this.stdValue = Regex.Replace(value.ToLower(), @"\s+", " ");   }
+            this.options = options;
         }
 
-        public String Name      {   get {   return this.name;       }   }
-        public String Group     {   get {   return this.group;      }   }
-        public String Desc      {   get {   return this.desc;       }   }
-        public String MinValue  {   get {   return this.minValue;   }   }
-        public String MaxValue  {   get {   return this.maxValue;   }   }
-        public String StdValue  {   get {   return this.stdValue;   }   }
+        public String   Name      {   get {   return this.name;       }   }
+        public String   Group     {   get {   return this.group;      }   }
+        public String   Desc      {   get {   return this.desc;       }   }
+        public String   MinValue  {   get {   return this.minValue;   }   }
+        public String   MaxValue  {   get {   return this.maxValue;   }   }
+        public String   StdValue  {   get {   return this.stdValue;   }   }
+        public String[] Options   {   get {   return this.options;    }   }
 
     }
 
@@ -274,7 +282,7 @@ namespace UNP {
 
         private bool value = false;
 
-        public ParamBool(String name, String group, String desc, String minValue, String maxValue, String stdValue) : base(name, group, desc, minValue, maxValue, stdValue) { }
+        public ParamBool(String name, String group, String desc, String minValue, String maxValue, String stdValue, String[] options) : base(name, group, desc, minValue, maxValue, stdValue, options) { }
         public T getValue<T>() {
 
             Type paramType = typeof(T);
@@ -307,7 +315,7 @@ namespace UNP {
 
         private int value = 0;
 
-        public ParamInt(String name, String group, String desc, String minValue, String maxValue, String stdValue) : base(name, group, desc, minValue, maxValue, stdValue) { }
+        public ParamInt(String name, String group, String desc, String minValue, String maxValue, String stdValue, String[] options) : base(name, group, desc, minValue, maxValue, stdValue, options) { }
         public T getValue<T>() {
 
             Type paramType = typeof(T);
@@ -339,7 +347,7 @@ namespace UNP {
 
         private double value = 0.0;
 
-        public ParamDouble(String name, String group, String desc, String minValue, String maxValue, String stdValue) : base(name, group, desc, minValue, maxValue, stdValue) { }
+        public ParamDouble(String name, String group, String desc, String minValue, String maxValue, String stdValue, String[] options) : base(name, group, desc, minValue, maxValue, stdValue, options) { }
         public T getValue<T>() {
 
             Type paramType = typeof(T);
@@ -373,7 +381,7 @@ namespace UNP {
 
         private bool[] value = new bool[0];
 
-        public ParamBoolArr(String name, String group, String desc, String minValue, String maxValue, String stdValue) : base(name, group, desc, minValue, maxValue, stdValue) { }
+        public ParamBoolArr(String name, String group, String desc, String minValue, String maxValue, String stdValue, String[] options) : base(name, group, desc, minValue, maxValue, stdValue, options) { }
         public T getValue<T>() {
 
             Type paramType = typeof(T);
@@ -406,7 +414,7 @@ namespace UNP {
 
         private int[] value = new int[0];
 
-        public ParamIntArr(String name, String group, String desc, String minValue, String maxValue, String stdValue) : base(name, group, desc, minValue, maxValue, stdValue) { }
+        public ParamIntArr(String name, String group, String desc, String minValue, String maxValue, String stdValue, String[] options) : base(name, group, desc, minValue, maxValue, stdValue, options) { }
         public T getValue<T>() {
 
             Type paramType = typeof(T);
@@ -438,7 +446,7 @@ namespace UNP {
 
         private double[] value = new double[0];
 
-        public ParamDoubleArr(String name, String group, String desc, String minValue, String maxValue, String stdValue) : base(name, group, desc, minValue, maxValue, stdValue) { }
+        public ParamDoubleArr(String name, String group, String desc, String minValue, String maxValue, String stdValue, String[] options) : base(name, group, desc, minValue, maxValue, stdValue, options) { }
         public T getValue<T>() {
 
             Type paramType = typeof(T);
@@ -472,7 +480,7 @@ namespace UNP {
 
         private bool[][] value = new bool[0][];
 
-        public ParamBoolMat(String name, String group, String desc, String minValue, String maxValue, String stdValue) : base(name, group, desc, minValue, maxValue, stdValue) { }
+        public ParamBoolMat(String name, String group, String desc, String minValue, String maxValue, String stdValue, String[] options) : base(name, group, desc, minValue, maxValue, stdValue, options) { }
         public T getValue<T>() {
 
             Type paramType = typeof(T);
@@ -505,7 +513,7 @@ namespace UNP {
 
         private int[][] value = new int[0][];
 
-        public ParamIntMat(String name, String group, String desc, String minValue, String maxValue, String stdValue) : base(name, group, desc, minValue, maxValue, stdValue) { }
+        public ParamIntMat(String name, String group, String desc, String minValue, String maxValue, String stdValue, String[] options) : base(name, group, desc, minValue, maxValue, stdValue, options) { }
         public T getValue<T>() {
 
             Type paramType = typeof(T);
@@ -537,7 +545,7 @@ namespace UNP {
 
         private double[][] value = new double[0][];
 
-        public ParamDoubleMat(String name, String group, String desc, String minValue, String maxValue, String stdValue) : base(name, group, desc, minValue, maxValue, stdValue) { }
+        public ParamDoubleMat(String name, String group, String desc, String minValue, String maxValue, String stdValue, String[] options) : base(name, group, desc, minValue, maxValue, stdValue, options) { }
         public T getValue<T>() {
 
             Type paramType = typeof(T);
@@ -569,7 +577,7 @@ namespace UNP {
 
         private RGBColorFloat value = new RGBColorFloat();
 
-        public ParamColor(String name, String group, String desc, String minValue, String maxValue, String stdValue) : base(name, group, desc, minValue, maxValue, stdValue) { }
+        public ParamColor(String name, String group, String desc, String minValue, String maxValue, String stdValue, String[] options) : base(name, group, desc, minValue, maxValue, stdValue, options) { }
         public T getValue<T>() {
 
             Type paramType = typeof(T);
