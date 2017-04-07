@@ -14,19 +14,12 @@ namespace UNP {
 
         public static void Run(Type applicationType) {
 
-            // message
-            if (Environment.Is64BitProcess) {
-                logger.Info("Processes are run in a 64 bit environment");
-            } else {
-                logger.Info("Processes are run in a 32 bit environment");
-            }
-
             // name this thread
             if (Thread.CurrentThread.Name == null)
                 Thread.CurrentThread.Name = "Main Thread";
 
             // create the main (control) object
-            MainThread mainThread = new MainThread(applicationType);
+            MainThread mainThread = new MainThread();
 
             // create the GUI interface object
             GUI gui = new GUI(mainThread);
@@ -42,9 +35,6 @@ namespace UNP {
 
                 // setup the GUI
                 Application.EnableVisualStyles();
-
-                // message
-                logger.Info("starting GUI (thread)");
 
                 // start the GUI
                 Application.Run(gui);
@@ -62,6 +52,30 @@ namespace UNP {
                 Thread.Sleep(50);
                 waitCounter--;
             }
+            
+            // message
+            if (Environment.Is64BitProcess)
+                logger.Info("Processes are run in a 64 bit environment");
+            else
+                logger.Info("Processes are run in a 32 bit environment");
+            
+
+            // setup and initialize the pipeline
+            mainThread.initPipeline(applicationType);
+
+            // debug: load 
+            mainThread.loadDebugConfig();
+
+            /*
+            // debug - auto configure
+            if (mainThread.configureSystem()) {
+                // successfully configured
+
+                // initialize
+                mainThread.initializeSystem();
+
+            }
+            */
 
 		    // start the main thread
             // (do it here, so the UNPThead uses main to run on)

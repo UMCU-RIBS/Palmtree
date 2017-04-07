@@ -11,7 +11,7 @@ namespace UNP.filters {
     class AdaptationFilter : IFilter {
 
         private static Logger logger = LogManager.GetLogger("Adaptation");
-        private static Parameters parameters = ParameterManager.GetParameters("Adaptation");
+        private static Parameters parameters = ParameterManager.GetParameters("Adaptation", Parameters.ParamSetTypes.Filter);
 
         private bool mEnableFilter = false;
         private uint inputChannels = 0;
@@ -44,7 +44,8 @@ namespace UNP.filters {
         public AdaptationFilter() {
 
             // define the parameters
-            parameters.addParameter <bool>      ("EnableFilter",
+            parameters.addParameter <bool>      (
+                "EnableFilter",
                 "Enable AdaptationFilter",
                 "", "", "1");
 
@@ -94,19 +95,6 @@ namespace UNP.filters {
                 "The threshold (on a standard normal distribution) above which a sample will be excluded from buffering",
                 "", "", "2.7");
 
-                        /*
-                        double val;
-                        Console.WriteLine(double.TryParse("-123.0", out val));
-                        Console.WriteLine(double.TryParse("-123.0s", out val));
-                        Console.WriteLine(double.TryParse("-s", out val));
-                        Console.WriteLine(double.TryParse("-12.0 12.0 32.0", out val));
-                        Console.WriteLine(double.TryParse("-12.0, 12.0, 32.0", out val));
-                        */
-
-            String subjectString = "-123.0s";
-            String resultString = Regex.Match(subjectString, @"\d+").Value;
-            Console.WriteLine(resultString);
-            //@"(\d+)");
         }
         
         public Parameters getParameters() {
@@ -119,6 +107,9 @@ namespace UNP.filters {
 
             // set if the filter is enabled
             mEnableFilter = parameters.getValue<bool>("EnableFilter");
+
+            // TODO: add exceptions to parameters, the error here should make configure return false
+            int unit = parameters.getValueInSamples("EnableFilter");
 
             // store the number of input channels, set the number of output channels as the same
             inputChannels = input.getNumberOfChannels();

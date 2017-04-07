@@ -10,7 +10,7 @@ namespace UNP.filters {
     class ClickTranslatorFilter : IFilter {
 
         private static Logger logger = LogManager.GetLogger("ClickTranslator");
-        private static Parameters parameters = ParameterManager.GetParameters("ClickTranslator");
+        private static Parameters parameters = ParameterManager.GetParameters("ClickTranslator", Parameters.ParamSetTypes.Filter);
 
         private bool mEnableFilter = false;
 

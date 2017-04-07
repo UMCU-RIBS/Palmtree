@@ -15,6 +15,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
+using System.Timers;
 
 namespace UNP {
     
@@ -22,10 +23,12 @@ namespace UNP {
 
         private static Logger logger;
 
-        private MainThread mainThread = null;            // reference to the main thread, used to pull information from and push commands to
+        private MainThread mainThread = null;           // reference to the main thread, used to pull information from and push commands to
         private IView view = null;                      // reference to the view, used to pull information from and push commands to
         private bool loaded = false;                    // flag to hold whether the form is loaded
-        
+        private System.Timers.Timer tmrUpdate = null;   // timer to update the GUI
+
+
         public static String getClassName() {
             Type myType = typeof(GUI);
             return myType.Namespace + "." + myType.Name;
@@ -41,10 +44,6 @@ namespace UNP {
 
             // initialize form components
             InitializeComponent();
-
-            // update the console information
-            updateMainInformation();
-
 
         }
 
@@ -77,7 +76,13 @@ namespace UNP {
             
             // check if the form is actually closing
             if (e.Cancel == false) {
-            
+
+                // stop the update timer
+                if (tmrUpdate != null) {
+                    tmrUpdate.Enabled = false;
+                    tmrUpdate = null;
+                }
+
                 // remove references and tell the experiment that the GUI is closed
                 if (view != null)   view = null;
                 if (mainThread != null) {
@@ -89,15 +94,27 @@ namespace UNP {
 
         }
 
+        void tmrUpdate_Tick(object sender, ElapsedEventArgs e) {
+            
+            // retrieve the console information
+            updateMainInformation();
+
+        }
 
 
         private void updateMainInformation() {
 
             // check the main thread reference
             if (mainThread != null) {
-                
+                //Console.WriteLine(mainThread);
+
+                //logger.Info("mainThread.isSystemConfigured() " + mainThread.isSystemConfigured());
+                //logger.Info("mainThread.isSystemInitialized() " + mainThread.isSystemInitialized());
+                //logger.Info("mainThread.isStarted() " + mainThread.isStarted());
+
+
                 // check if the mainthread is configured and initialized
-                if (mainThread.isConfigured() && mainThread.isInitialized()) {
+                if (mainThread.isSystemConfigured() && mainThread.isSystemInitialized()) {
                     // configured and initialized
 
                     // check if the main thread is started
@@ -114,6 +131,7 @@ namespace UNP {
 
                         btnEditConfig.Enabled = true;
                         btnSetConfig.Enabled = true;
+                        //logger.Info("true " + btnStart.Enabled);
                         btnStart.Enabled = true;
                         btnStop.Enabled = false;
                     }
@@ -154,6 +172,17 @@ namespace UNP {
             // log message
             logger.Debug("Logger connected to textbox");
 
+            // message
+            logger.Info("GUI (thread) started");
+
+            // update the console information
+            updateMainInformation();
+
+            // init and start update timer
+            tmrUpdate = new System.Timers.Timer(500);
+            tmrUpdate.Elapsed += new ElapsedEventHandler(tmrUpdate_Tick);
+            tmrUpdate.Enabled = true;
+
             // set the form loaded flag to try
             loaded = true;
 
@@ -165,11 +194,11 @@ namespace UNP {
             if (mainThread != null) {
 
                 // configure the system
-                if (mainThread.configure()) {
+                if (mainThread.configureSystem()) {
                     // configured correctly
 
                     // initialize the system
-                    mainThread.initialize();
+                    mainThread.initializeSystem();
 
                 }
 
@@ -205,13 +234,6 @@ namespace UNP {
                 updateMainInformation();
 
             }
-        }
-
-        private void tmrUpdate_Tick(object sender, EventArgs e) {
-
-            // retrieve the console information
-            updateMainInformation();
-
         }
 
         private void btnEditConfig_Click(object sender, EventArgs e) {

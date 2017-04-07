@@ -10,7 +10,7 @@ namespace UNP.filters {
     public class TimeSmoothingFilter : IFilter {
 
         private static Logger logger = LogManager.GetLogger("TimeSmoothing");
-        private static Parameters parameters = ParameterManager.GetParameters("TimeSmoothing");
+        private static Parameters parameters = ParameterManager.GetParameters("TimeSmoothing", Parameters.ParamSetTypes.Filter);
 
         private bool mEnableFilter = false;
         private uint inputChannels = 0;

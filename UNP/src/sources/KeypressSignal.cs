@@ -12,7 +12,7 @@ namespace UNP.sources {
     class KeypressSignal : ISource {
 
         private static Logger logger = LogManager.GetLogger("KeypressSignal");
-        private static Parameters parameters = ParameterManager.GetParameters("KeypressSignal");
+        private static Parameters parameters = ParameterManager.GetParameters("KeypressSignal", Parameters.ParamSetTypes.Source);
 
         private MainThread pipeline = null;
 
@@ -45,6 +45,17 @@ namespace UNP.sources {
 
         public void initialize() {
 
+        }
+
+
+        /**
+         * function to retrieve the number of samples per second
+         * 
+         * This value could be requested by the main thread and is used to allow parameters
+         * to be converted from seconds to samples
+         **/
+        public int getSamplesPerSecond() {
+            return 0;
         }
 
 

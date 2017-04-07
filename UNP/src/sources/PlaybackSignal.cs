@@ -12,7 +12,7 @@ namespace UNP.sources {
     class PlaybackSignal : ISource {
 
         private static Logger logger = LogManager.GetLogger("PlaybackSignal");
-        private static Parameters parameters = ParameterManager.GetParameters("PlaybackSignal");
+        private static Parameters parameters = ParameterManager.GetParameters("PlaybackSignal", Parameters.ParamSetTypes.Source);
 
         private MainThread pipeline = null;
 
@@ -45,6 +45,17 @@ namespace UNP.sources {
 
         public void initialize() {
 
+        }
+
+
+        /**
+         * function to retrieve the number of samples per second
+         * 
+         * This value could be requested by the main thread and is used to allow parameters
+         * to be converted from seconds to samples
+         **/
+        public int getSamplesPerSecond() {
+            return 0;
         }
 
 	    /**

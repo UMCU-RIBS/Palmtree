@@ -29,13 +29,13 @@ namespace UNP {
         private bool running = true;				                        // flag to define if the UNP thread is still running (setting to false will stop the experiment thread) 
         private bool process = false;                                       // flag to define if the thread is allowed to process samples
 
-        private bool configured = false;                                    // 
-        private bool initialized = false;                                   // 
+        private bool systemConfigured = false;                              // 
+        private bool systemInitialized = false;                             // 
         private bool started = false;                                       // flag to hold whether the system is in a started or stopped state
         private Object lockStarted = new Object();                          // threadsafety lock for starting/stopping the system and processing
 
 
-        private ISource source = null;                                      //
+        private static ISource source = null;                               //
         private List<IFilter> filters = new List<IFilter>();                //
         private IApplication application = null;                            // reference to the view, used to pull information from and push commands to
 
@@ -45,15 +45,21 @@ namespace UNP {
         private int sampleBufferReadIndex = 0;                              // the index where in the (ring) sample buffer of the next sample that should be read
         private int numberOfSamples = 0;                                    // the number of added but unread samples in the (ring) sample buffer
 
-        
-
         /**
          * UNPThread constructor
          * 
          * Creates the source, pipeline filters and application
          * 
          */
-        public MainThread(Type applicationType) {
+        public MainThread() {
+
+            // initialially set as not configured
+            systemConfigured = false;
+            systemInitialized = false;
+
+	    }
+
+        public void initPipeline(Type applicationType) {
 
             // create a source
             source = new GenerateSignal(this);
@@ -80,7 +86,13 @@ namespace UNP {
             }
             */
             application = (IApplication)Activator.CreateInstance(applicationType);
-            
+
+        }
+
+        public void loadDebugConfig() {
+
+
+
 
 
             // (optional/debug) set/load the parameters
@@ -88,11 +100,15 @@ namespace UNP {
             Parameters sourceParameters = source.getParameters();
             sourceParameters.setValue("SourceChannels", 2);
 
+
+
             Parameters timeSmoothingParameters = filters[0].getParameters();
             timeSmoothingParameters.setValue("EnableFilter", true);
 
             Parameters adaptationParameters = filters[1].getParameters();
             adaptationParameters.setValue("EnableFilter", true);
+
+
             /*
             Parameters.setParameterValue("SourceChannels", "2");
             
@@ -101,30 +117,30 @@ namespace UNP {
             Parameters.setParameterValue("AF_WriteIntermediateFile", "0");
             */
 
-            // initialially set as not configured
-            configured = false;
-            initialized = false;
-
-            // debug - auto configure
-            //if (configure()) {
-                // successfully configured
-
-                // initialize
-                //initialize();
-
-            //}
-
-	    }
+        }
 
         /**
          * Configures the system (the source, pipeline filters and application)
          **/
-        public bool configure() {
+        public bool configureSystem() {
 
             // configure source (this will also give the output format information)
             SampleFormat tempFormat = null;
-            if (source != null)     source.configure(out tempFormat);
+            if (source != null) {
 
+                // configure the source
+                if (!source.configure(out tempFormat)) {
+
+                    // message
+                    logger.Error("An error occured while configuring source, stopped");
+
+                    // return failure and go no further
+                    return false;
+
+                }
+
+            }
+            
             // configure the filters
             for (int i = 0; i < filters.Count(); i++) {
 
@@ -134,11 +150,16 @@ namespace UNP {
 
                 // configure the filter
                 if (!filters[i].configure(ref tempFormat, out outputFormat)) {
+                    
+                    
+                    // message
+                    logger.Error("An error occured while configuring filter '" + filters[i].GetType().Name + "', stopped");
+
 
                     // flag as not configured
-                    configured = false;
+                    systemConfigured = false;
 
-                    // return failure
+                    // return failure and go no further
                     return false;
 
                 }
@@ -153,7 +174,7 @@ namespace UNP {
 
 
             // flag as configured
-            configured = true;
+            systemConfigured = true;
 
             // return success
             return true;
@@ -165,8 +186,8 @@ namespace UNP {
          * 
          * @return Whether the system was configured
          */
-        public bool isConfigured() {
-            return configured;
+        public bool isSystemConfigured() {
+            return systemConfigured;
 	    }
 
         /**
@@ -174,10 +195,10 @@ namespace UNP {
          * 
          * 
          **/
-        public void initialize() {
+        public void initializeSystem() {
 
             // check if the system was configured and initialized
-            if (!configured) {
+            if (!systemConfigured) {
 
                 // message
                 logger.Error("Could not initialize the system, first make sure it is configured correctly");
@@ -192,7 +213,7 @@ namespace UNP {
             if (application != null)                    application.initialize();
 
             // flag as initialized
-            initialized = true;
+            systemInitialized = true;
 
         }
 
@@ -201,8 +222,8 @@ namespace UNP {
 	     * 
 	     * @return Whether the system was initialized
 	     */
-	    public bool isInitialized() {
-            return initialized;
+	    public bool isSystemInitialized() {
+            return systemInitialized;
 	    }
 
 
@@ -212,7 +233,7 @@ namespace UNP {
         public void start() {
 
             // check if the system was configured and initialized
-            if (!configured || !initialized) {
+            if (!systemConfigured || !systemInitialized) {
 
                 // message
                 logger.Error("Could not start system, first configure and initialize");
@@ -307,13 +328,12 @@ namespace UNP {
 
         public void run() {
 
-
             // debug messages
             #if (DEBUG_SAMPLES)
                 logger.Error("DEBUG_SAMPLES is enabled");
             #endif
 
-            // check if there is no application instance, and
+            // check if there is no application instance
             if (application == null)    logger.Error("No application instance could be created");
 
             // log message
@@ -481,6 +501,29 @@ namespace UNP {
 
         }
 
+        /**
+         * Static function to return the number of samples per second according the source
+         * Used by Parameters to convert seconds to samples
+         **/
+        public static int SamplesPerSecond() {
+            
+            // check 
+            if (source != null) {
+
+                // retrieve the number of samples per second
+                return source.getSamplesPerSecond();
+
+            } else {
+                
+                // message
+                logger.Error("Trying to retrieve the samples per second before a source was set, returning 0");
+
+                // return 0
+                return 0;
+
+            }
+            
+        }
 
     }
 

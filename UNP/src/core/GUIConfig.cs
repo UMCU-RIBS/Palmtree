@@ -13,7 +13,7 @@ namespace UNP {
     public partial class GUIConfig : Form {
 
         private static Dictionary<String, Parameters> paramSets = ParameterManager.getParameterSets();
-        private const int labelWidth = 170;
+        private const int labelWidth = 230;
         private const int itemTopPadding = 10;
         private const int itemBottomPadding = 10;
 

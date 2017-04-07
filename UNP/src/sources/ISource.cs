@@ -9,8 +9,11 @@ namespace UNP.sources {
     interface ISource {
 
         Parameters getParameters();
+
         bool configure(out SampleFormat output);
         void initialize();
+
+        int getSamplesPerSecond();
 
         void start();
         void stop();

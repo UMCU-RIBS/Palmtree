@@ -12,7 +12,7 @@ namespace UNP.sources {
     class GenerateSignal : ISource {
 
         private static Logger logger = LogManager.GetLogger("GenerateSignal");
-        private static Parameters parameters = ParameterManager.GetParameters("GenerateSignal");
+        private static Parameters parameters = ParameterManager.GetParameters("GenerateSignal", Parameters.ParamSetTypes.Source);
 
         private MainThread pipeline = null;
 
@@ -26,16 +26,23 @@ namespace UNP.sources {
 
         Random rand = new Random(Guid.NewGuid().GetHashCode());
         private uint outputChannels = 0;
-
+        private int samplesPerSecond = 0;                                   // hold the amount of samples per second that the source outputs (used by the mainthead to convert seconds to number of samples)
 
 	    public GenerateSignal(MainThread pipeline) {
 
             // set the reference to the pipeline
             this.pipeline = pipeline;
 
-            parameters.addParameter<ParamInt>   ("SourceChannels",
-                                                "Number of source channels to generate",
-                                                "1", "", "1");
+            parameters.addParameter<ParamInt> (
+                "SourceChannels",
+                "Number of source channels to generate",
+                "1", "", "1");
+
+            parameters.addParameter<ParamDouble> (
+                "SourceSampleRate",
+                "Number of samples per second (hz)",
+                "1", "", "1");
+
             /*
             // define the parameters
             parameters.addParameter("SourceChannels",
@@ -61,6 +68,10 @@ namespace UNP.sources {
             // create a sampleformat
             output = new SampleFormat(outputChannels);
 
+
+            samplesPerSecond = 5;
+
+            // return success
             return true;
 
         }
@@ -70,7 +81,29 @@ namespace UNP.sources {
 
         }
 
+        /**
+         * function to retrieve the number of samples per second
+         * 
+         * This value could be requested by the main thread and is used to allow parameters
+         * to be converted from seconds to samples
+         **/
+        public int getSamplesPerSecond() {
+            
+            // check if the source is not configured yet
+            if (!configured) {
 
+                // message
+                logger.Error("Trying to retrieve the samples per second before the source was configured, first configure the source, returning 0");
+
+                // return 0
+                return 0;
+
+            }
+
+            // return the samples per second
+            return samplesPerSecond;
+
+        }
 
 	    /**
 	     * Start

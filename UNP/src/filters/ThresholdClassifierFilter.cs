@@ -10,7 +10,7 @@ namespace UNP.filters {
     class ThresholdClassifierFilter : IFilter {
 
         private static Logger logger = LogManager.GetLogger("ThresholdClassifier");
-        private static Parameters parameters = ParameterManager.GetParameters("ThresholdClassifier");
+        private static Parameters parameters = ParameterManager.GetParameters("ThresholdClassifier", Parameters.ParamSetTypes.Filter);
 
         private bool mEnableFilter = false;
         private uint inputChannels = 0;

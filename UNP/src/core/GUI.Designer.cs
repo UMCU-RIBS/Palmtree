@@ -32,8 +32,6 @@ namespace UNP
         /// </summary>
         private void InitializeComponent()
         {
-            this.components = new System.ComponentModel.Container();
-            this.tmrUpdate = new System.Windows.Forms.Timer(this.components);
             this.btnStop = new System.Windows.Forms.Button();
             this.btnStart = new System.Windows.Forms.Button();
             this.btnSetConfig = new System.Windows.Forms.Button();
@@ -42,11 +40,6 @@ namespace UNP
             this.btnEditConfig = new System.Windows.Forms.Button();
             this.grpConsole.SuspendLayout();
             this.SuspendLayout();
-            // 
-            // tmrUpdate
-            // 
-            this.tmrUpdate.Interval = 200;
-            this.tmrUpdate.Tick += new System.EventHandler(this.tmrUpdate_Tick);
             // 
             // btnStop
             // 
@@ -148,7 +141,6 @@ namespace UNP
 
         #endregion
 
-        private System.Windows.Forms.Timer tmrUpdate;
         private Button btnStop;
         private Button btnStart;
         private Button btnSetConfig;
