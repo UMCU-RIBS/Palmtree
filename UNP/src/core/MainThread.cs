@@ -107,6 +107,14 @@ namespace UNP {
 
             Parameters adaptationParameters = filters[1].getParameters();
             adaptationParameters.setValue("EnableFilter", true);
+            adaptationParameters.setValue("WriteIntermediateFile", false);
+            adaptationParameters.setValue("Adaptation", "1 1");
+            adaptationParameters.setValue("InitialChannelMeans", "497.46 362.58");
+            adaptationParameters.setValue("InitialChannelStds", "77.93 4.6");
+            adaptationParameters.setValue("BufferLength", "9s");
+            adaptationParameters.setValue("BufferDiscardFirst", "1s");
+            adaptationParameters.setValue("AdaptationMinimalLength", "5s");
+            adaptationParameters.setValue("ExcludeStdThreshold", "0.85 2.7");
 
 
             /*

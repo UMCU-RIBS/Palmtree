@@ -108,28 +108,34 @@ namespace UNP {
                 itemHeight = 20;
 
             } else if (param is ParamInt || param is ParamDouble) {
-                
+
+
+                // check if it has a limit range of possibilities
+                //param.Options
+
                 // create and add a textbox
                 TextBox newTxt = new TextBox();
                 newTxt.Name = "txt" + panel.Name + param.Name;
                 newTxt.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
                 newTxt.Size = new System.Drawing.Size(200, 20);
-                if (param is ParamInt)      newTxt.Text = ((ParamInt)param).Value.ToString();
-                if (param is ParamDouble)   newTxt.Text = ((ParamDouble)param).Value.ToString();
+                newTxt.Text = param.getValue();
                 newTxt.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
                 panel.Controls.Add(newTxt);
                 itemHeight = 20;
 
             } else if (param is ParamColor) {
 
-            } else if (param is ParamBoolArr) {
+            } else if (param is ParamBoolArr || param is ParamIntArr || param is ParamDoubleArr) {
 
-            } else if (param is ParamIntArr) {
-
-                // check if it has a limit range of possibilities
-                //param.Options
-
-            } else if (param is ParamDoubleArr) {
+                // create and add a textbox
+                TextBox newTxt = new TextBox();
+                newTxt.Name = "txt" + panel.Name + param.Name;
+                newTxt.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
+                newTxt.Size = new System.Drawing.Size(200, 20);
+                newTxt.Text = param.getValue();
+                newTxt.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+                panel.Controls.Add(newTxt);
+                itemHeight = 20;
 
             } else if (param is ParamBoolMat) {
 

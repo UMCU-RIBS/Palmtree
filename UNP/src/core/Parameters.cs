@@ -1,6 +1,7 @@
 ﻿using NLog;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -37,7 +38,9 @@ namespace UNP {
     }
 
     public class Parameters {
-        
+
+        public static Char[] ValueDelimiters = new Char[] { ' ', ',', ';', '\n' };
+        public static CultureInfo NumberCulture = CultureInfo.CreateSpecificCulture("en-US");
         private static Logger logger = LogManager.GetLogger("Parameters");
 
         private List<iParam> paramList = new List<iParam>(0);
@@ -207,7 +210,7 @@ namespace UNP {
 
                 // check if the parameter is of the type that just holds a single value
                 if (param is ParamBool || param is ParamInt || param is ParamDouble || param is ParamColor) {
-
+                    
                     // set the standard value as initial value
                     param.setValue(param.StdValue);
 
@@ -278,77 +281,172 @@ namespace UNP {
 
         }
 
-        public void setValue(String paramName, bool paramValue) {
+        public bool setValue(String paramName, bool paramValue) {
             iParam param = getParameter(paramName);
             if (param == null) {
                 logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
-                return;
+                return false;
             }
 
             // check if the parameter is indeed used to store a boolean
             if (param.GetType() != typeof(ParamBool)) {
                 logger.Error("Could not set parameter '" + paramName + "' in parameter set '" + paramSetName + "', trying to set a boolean value in a '" + param.GetType().Name + "' parameter");
-                return;
+                return false;
             }
 
             // set the value
-            ((ParamBool)param).Value = paramValue;
+            if (!((ParamBool)param).setValue(paramValue))   return false;
+
+            // return success
+            return true;
 
         }
 
-        public void setValue(String paramName, int paramValue) {
-            setValue(paramName, paramValue, Units.ValueOrSamples);
+        public bool setValue(String paramName, int paramValue) {
+            return setValue(paramName, paramValue, Units.ValueOrSamples);
         }
-        public void setValue(String paramName, int paramValue, Parameters.Units paramUnit) {
+        public bool setValue(String paramName, int paramValue, Parameters.Units paramUnit) {
             iParam param = getParameter(paramName);
             if (param == null) {
                 logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
-                return;
+                return false;
             }
 
             // check if the parameter is indeed used to store a boolean
             if (param.GetType() != typeof(ParamInt)) {
                 logger.Error("Could not set parameter '" + paramName + "' in parameter set '" + paramSetName + "', trying to set a integer value in a '" + param.GetType().Name + "' parameter");
-                return;
+                return false;
             }
 
             // set the value
-            ((ParamInt)param).Value = paramValue;
-            ((ParamInt)param).Unit = paramUnit;
+            if (!((ParamInt)param).setValue(paramValue))    return false;
+            if (!((ParamInt)param).setUnit(paramUnit))      return false;
+
+            // return success
+            return true;
 
         }
 
-        public void setValue(String paramName, double paramValue) {
-            setValue(paramName, paramValue, Units.ValueOrSamples);
+        public bool setValue(String paramName, double paramValue) {
+            return setValue(paramName, paramValue, Units.ValueOrSamples);
         }
-        public void setValue(String paramName, double paramValue, Parameters.Units paramUnit) {
+        public bool setValue(String paramName, double paramValue, Parameters.Units paramUnit) {
             iParam param = getParameter(paramName);
             if (param == null) {
                 logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
-                return;
+                return false;
             }
 
             // check if the parameter is indeed used to store a boolean
             if (param.GetType() != typeof(ParamDouble)) {
                 logger.Error("Could not set parameter '" + paramName + "' in parameter set '" + paramSetName + "', trying to set a integer value in a '" + param.GetType().Name + "' parameter");
-                return;
+                return false;
             }
 
             // set the value
-            ((ParamDouble)param).Value = paramValue;
-            ((ParamDouble)param).Unit = paramUnit;
+            if (!((ParamDouble)param).setValue(paramValue))     return false;
+            if (!((ParamDouble)param).setUnit(paramUnit))       return false;
+
+            // return success
+            return true;
 
         }
 
-        public void setValue(String paramName, String paramValue) {
+        public bool setValue(String paramName, bool[] paramValue) {
             iParam param = getParameter(paramName);
             if (param == null) {
                 logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
-                return;
+                return false;
+            }
+
+            // check if the parameter is indeed used to store a boolean array
+            if (param.GetType() != typeof(ParamBoolArr)) {
+                logger.Error("Could not set parameter '" + paramName + "' in parameter set '" + paramSetName + "', trying to set a boolean array in a '" + param.GetType().Name + "' parameter");
+                return false;
+            }
+
+            // set the value
+            if (!((ParamBoolArr)param).setValue(paramValue))     return false;
+
+            // return success
+            return true;
+
+        }
+
+        public bool setValue(String paramName, int[] paramValue) {
+            return setValue(paramName, paramValue, new Parameters.Units[paramValue.Length]);
+        }
+        public bool setValue(String paramName, int[] paramValue, Parameters.Units[] paramUnit) {
+            iParam param = getParameter(paramName);
+            if (param == null) {
+                logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
+                return false;
+            }
+
+            // check if the parameter is indeed used to store a boolean
+            if (param.GetType() != typeof(ParamIntArr)) {
+                logger.Error("Could not set parameter '" + paramName + "' in parameter set '" + paramSetName + "', trying to set a integer array in a '" + param.GetType().Name + "' parameter");
+                return false;
+            }
+
+            // check if the parameter value 
+
+
+            // set the value
+            if (!((ParamIntArr)param).setValue(paramValue))     return false;
+            if (!((ParamIntArr)param).setUnit(paramUnit))       return false;
+
+            // return success
+            return true;
+
+        }
+
+        public bool setValue(String paramName, double[] paramValue) {
+            return setValue(paramName, paramValue, new Parameters.Units[paramValue.Length]);
+        }
+        public bool setValue(String paramName, double[] paramValue, Parameters.Units[] paramUnit) {
+            iParam param = getParameter(paramName);
+            if (param == null) {
+                logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
+                return false;
+            }
+
+            // check if the parameter is indeed used to store a boolean
+            if (param.GetType() != typeof(ParamDoubleArr)) {
+                logger.Error("Could not set parameter '" + paramName + "' in parameter set '" + paramSetName + "', trying to set a integer value in a '" + param.GetType().Name + "' parameter");
+                return false;
+            }
+
+            // set the value
+            if (!((ParamDoubleArr)param).setValue(paramValue))      return false;
+            if (!((ParamDoubleArr)param).setUnit(paramUnit))        return false;
+
+            // return success
+            return true;
+
+        }
+
+
+
+
+
+
+
+
+
+
+        public bool setValue(String paramName, String paramValue) {
+            iParam param = getParameter(paramName);
+            if (param == null) {
+                logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
+                return false;
             }
 
             // call setter of the parameter for further processing
-            param.setValue(paramValue);
+            if (!param.setValue(paramValue))    return false;
+
+            // return success
+            return true;
 
         }
 
@@ -364,10 +462,11 @@ namespace UNP {
         String StdValue     { get; }
         String[] Options    { get; }
 
+        String getValue();
         T getValue<T>();
         int getValueInSamples();
         bool setStdValue(String stdValue);
-        void setValue(String value);
+        bool setValue(String value);
 
     }
 
@@ -382,7 +481,7 @@ namespace UNP {
         protected String stdValue = "";
         protected String minValue = "";
         protected String maxValue = "";
-        private String[] options = new String[0];
+        protected String[] options = new String[0];
         private Parameters parentSet = null;
 
         public Param(String name, String group, Parameters parentSet, String desc, String[] options) {
@@ -457,7 +556,7 @@ namespace UNP {
 
             // check if value is numeric and can be converted to an int
             // return false if unsucessful
-            if (!int.TryParse(value, out intValue))     return false;
+            if (!int.TryParse(value, 0, Parameters.NumberCulture, out intValue)) return false;
 
             // successfull parsing, return true
             return true;
@@ -611,8 +710,8 @@ namespace UNP {
 
             // check if value is numeric and can be converted to a double
             // return false if unsucessful
-            if (!double.TryParse(value, out doubleValue))     return false;
-
+            if (!double.TryParse(value, NumberStyles.AllowDecimalPoint, Parameters.NumberCulture, out doubleValue)) return false;
+            
             // successfull parsing, return true
             return true;
 
@@ -705,6 +804,10 @@ namespace UNP {
             maxValue = "1";
         }
 
+        public String getValue() {
+            return (this.value ? "1" : "0");
+        }
+
         public T getValue<T>() {
 
             Type paramType = typeof(T);
@@ -735,15 +838,24 @@ namespace UNP {
             return 0;
 
         }
-        
-        public bool Value {
-            get {   return this.value;  }
-            set {   this.value = value; }
+
+        public override string ToString() {
+            return getValue();
         }
 
-        public void setValue(String value) {
+        public bool Value {
+            get {   return this.value;  }
+        }
+
+        public bool setValue(bool value) {
+            this.value = value;
+            return true;
+        }
+
+        public bool setValue(String value) {
             value = value.ToLower();
             this.value = (value.Equals("1") || value.Equals("true"));
+            return true;
         }
 
     }
@@ -755,6 +867,10 @@ namespace UNP {
         private Parameters.Units unit = Parameters.Units.ValueOrSamples;
 
         public ParamInt(String name, String group, Parameters parentSet, String desc, String[] options) : base(name, group, parentSet, desc, options) { }
+
+        public String getValue() {
+            return this.value.ToString(Parameters.NumberCulture) + (this.unit == Parameters.Units.Seconds ? "s" : "");
+        }
 
         public T getValue<T>() {
 
@@ -798,17 +914,24 @@ namespace UNP {
 
         }
 
+        public override string ToString() {
+            return getValue();
+        }
+
         public int Value {
             get {   return this.value;  }
-            set {   this.value = value; }
         }
 
         public Parameters.Units Unit {
             get {   return this.unit;  }
-            set {   this.unit = value; }
         }
 
-        public void setValue(String value) {
+        public bool setValue(int value) {
+            this.value = value;
+            return true;
+        }
+
+        public bool setValue(String value) {
 
             // try to parse the value
             int intValue;
@@ -817,12 +940,28 @@ namespace UNP {
 
                 // message
                 logger.Error("Could not store the value for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "'), value '" + value + "' could not be parsed as an integer");
-                return;
+                
+                // return failure
+                return false;
 
             }
 
             // assign
             this.value = intValue;
+            this.unit = unit;
+
+            // return success
+            return true;
+
+        }
+
+        public bool setUnit(Parameters.Units unit) {
+
+            // set units
+            this.unit = unit;
+
+            // return success
+            return true;
 
         }
         
@@ -834,6 +973,11 @@ namespace UNP {
         private Parameters.Units unit = Parameters.Units.ValueOrSamples;
 
         public ParamDouble(String name, String group, Parameters parentSet, String desc, String[] options) : base(name, group, parentSet, desc, options) { }
+
+        public String getValue() {
+            return this.value.ToString(Parameters.NumberCulture) + (this.unit == Parameters.Units.Seconds ? "s" : "");
+        }
+
         public T getValue<T>() {
 
             Type paramType = typeof(T);
@@ -893,20 +1037,57 @@ namespace UNP {
 
         }
 
+        public override string ToString() {
+            return getValue();
+        }
+
         public double Value {
             get {   return this.value;  }
-            set {   this.value = value; }
         }
         
         public Parameters.Units Unit {
             get {   return this.unit;  }
-            set {   this.unit = value; }
         }
         
-        public void setValue(String value) {
+        public bool setValue(double value) {
+            this.value = value;
+            return true;
+        }
+
+        public bool setValue(String value) {
+
+            // try to parse the value
+            double doubleValue;
+            Parameters.Units unit;
+            if (!tryParseValue(value, out doubleValue, out unit)) {
+
+                // message
+                logger.Error("Could not store the value for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "'), value '" + value + "' could not be parsed as double");
+                
+                // return failure
+                return false;
+
+            }
+
+            // assign
+            this.value = doubleValue;
+            this.unit = unit;
+
+            // return success
+            return true;
 
         }
 
+        public bool setUnit(Parameters.Units unit) {
+
+            // set units
+            this.unit = unit;
+
+            // return success
+            return true;
+
+        }
+        
     }
 
 
@@ -918,6 +1099,15 @@ namespace UNP {
         public ParamBoolArr(String name, String group, Parameters parentSet, String desc, String[] options) : base(name, group, parentSet, desc, options) {
             minValue = "0";
             maxValue = "1";
+        }
+
+        public String getValue() {
+            String strRet = "";
+            for (int i = 0; i < this.values.Length; i++) {
+                if (i != 0)     strRet += " ";
+                strRet += (this.values[i] ? "1" : "0");
+            }
+            return strRet;
         }
 
         public T getValue<T>() {
@@ -950,13 +1140,36 @@ namespace UNP {
 
         }
 
-        public bool[] Value {
-            get {   return this.values;  }
-            set {   this.values = value; }
+        public override string ToString() {
+            return getValue();
         }
 
-        public void setValue(String value) {
+        public bool[] Value {
+            get {   return this.values;  }
+        }
 
+        public bool setValue(bool[] values) {
+            this.values = values;
+            return true;
+        }
+
+        public bool setValue(String value) {
+
+            // try to split up the string
+            string[] split = value.Split(Parameters.ValueDelimiters, StringSplitOptions.RemoveEmptyEntries);
+
+            // parse the values as booleans
+            bool[] values = new bool[split.Length];
+            for (int i = 0; i < split.Length; i++) {
+                split[i] = split[i].ToLower();
+                values[i] = (split[i].Equals("1") || split[i].Equals("true"));
+            }
+
+            // store the values
+            this.values = values;
+
+            // return success
+            return true;
         }
 
     }
@@ -968,6 +1181,17 @@ namespace UNP {
         private Parameters.Units[] units = new Parameters.Units[0];
 
         public ParamIntArr(String name, String group, Parameters parentSet, String desc, String[] options) : base(name, group, parentSet, desc, options) { }
+
+        public String getValue() {
+            String strRet = "";
+            for (int i = 0; i < this.values.Length; i++) {
+                if (i != 0)     strRet += " ";
+                strRet += this.values[i].ToString(Parameters.NumberCulture);
+                strRet += (this.units[i] == Parameters.Units.Seconds ? "s" : "");
+            }
+            return strRet;
+        }
+
         public T getValue<T>() {
 
             Type paramType = typeof(T);
@@ -996,40 +1220,108 @@ namespace UNP {
             return getValue<int>();
 
         }
+        
+        public override string ToString() {
+            return getValue();
+        }
 
         public int[] Value {
             get {   return this.values;  }
-            set {
-
-                // re-initialize the buffer holding the units for the values
-                units = new Parameters.Units[value.Length];
-
-                // set the values
-                this.values = value;
-
-            }
         }
 
         public Parameters.Units[] Unit {
             get {   return this.units;  }
-            set {
+        }
 
-                // check length
-                if (values.Length != value.Length) {
-                    
-                    // message
-                    logger.Error("Could not set the units for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "'), the given length of the unit array does not match the length of the value array");
-                    
-                    // return without doing anything
-                    return;
-                
-                }
-                
-                this.units = value; 
-            }
+        public bool setValue(int[] values) {
+
+            // re-initialize the buffer holding the units for the values
+            units = new Parameters.Units[values.Length];
+
+            // set the values
+            this.values = values;
+
+            // return success
+            return true;
+
         }
         
-        public void setValue(String value) {
+        public bool setValue(String value) {
+
+            // try to split up the string
+            string[] split = value.Split(Parameters.ValueDelimiters, StringSplitOptions.RemoveEmptyEntries);
+
+            // parse the values as integers
+            int[] values = new int[split.Length];
+            Parameters.Units[] units = new Parameters.Units[split.Length];
+            for (int i = 0; i < split.Length; i++) {
+
+                // try to parse the value
+                int intValue;
+                Parameters.Units unit;
+                if (!tryParseValue(split[i], out intValue, out unit)) {
+
+                    // message
+                    logger.Error("Could not store the values for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "'), the value(s) '" + value + "' could not be parsed as an array of integers due to value '" + split[i] + "'");
+                
+                    // return failure
+                    return false;
+
+                }
+
+                // check if the parameter has options and the unit is set in seconds
+                if (this.options.Length > 0 && unit == Parameters.Units.Seconds) {
+
+                    // message
+                    logger.Warn("Parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') has a list of options, yet one of the values is specified in seconds, this is unlikely to be correct");
+                    
+                }
+
+                // add to the array of integers
+                values[i] = intValue;
+                units[i] = unit;
+
+            }
+
+            // store the values
+            this.values = values;
+            this.units = units;
+
+            // return success
+            return true;
+
+        }
+
+        public bool setUnit(Parameters.Units[] units) {
+
+            // check length
+            if (values.Length != units.Length) {
+                    
+                // message
+                logger.Error("Could not set the units for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "'), the given length of the unit array does not match the length of the value array");
+                    
+                // return without doing anything
+                return false;
+                
+            }
+
+            // check if the parameter has options and any of the units are set in seconds
+            if (this.options.Length > 0) {
+                bool hasSeconds = false;
+                for (int i = 0; i < units.Length; i++) if (units[i] == Parameters.Units.Seconds) hasSeconds = true;
+                if (hasSeconds) {
+
+                    // message
+                    logger.Warn("Parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') has a list of options, yet one of the values is specified in seconds, this is unlikely to be correct");
+                    
+                }
+            }
+
+            // set units
+            this.units = units;
+
+            // return success
+            return true;
 
         }
 
@@ -1041,6 +1333,17 @@ namespace UNP {
         private Parameters.Units[] units = new Parameters.Units[0];
 
         public ParamDoubleArr(String name, String group, Parameters parentSet, String desc, String[] options) : base(name, group, parentSet, desc, options) { }
+        
+        public String getValue() {
+            String strRet = "";
+            for (int i = 0; i < this.values.Length; i++) {
+                if (i != 0)     strRet += " ";
+                strRet += this.values[i].ToString(Parameters.NumberCulture);
+                strRet += (this.units[i] == Parameters.Units.Seconds ? "s" : "");
+            }
+            return strRet;
+        }
+
         public T getValue<T>() {
 
             Type paramType = typeof(T);
@@ -1070,20 +1373,108 @@ namespace UNP {
 
         }
 
+        public override string ToString() {
+            return getValue();
+        }
+
         public double[] Value {
             get {   return this.values;  }
-            set {
+        }
 
-                // re-initialize the buffer holding the units for the values
-                units = new Parameters.Units[value.Length];
-
-                // set the values
-                this.values = value;
-
-            }
+        public Parameters.Units[] Unit {
+            get {   return this.units;  }
         }
         
-        public void setValue(String value) {
+        public bool setValue(double[] values) {
+
+            // re-initialize the buffer holding the units for the values
+            units = new Parameters.Units[values.Length];
+
+            // set the values
+            this.values = values;
+
+            // return success
+            return true;
+
+        }
+
+        
+        public bool setValue(String value) {
+
+            // try to split up the string
+            string[] split = value.Split(Parameters.ValueDelimiters, StringSplitOptions.RemoveEmptyEntries);
+
+            // parse the values as doubles
+            double[] values = new double[split.Length];
+            Parameters.Units[] units = new Parameters.Units[split.Length];
+            for (int i = 0; i < split.Length; i++) {
+
+                // try to parse the value
+                double doubleValue;
+                Parameters.Units unit;
+                if (!tryParseValue(split[i], out doubleValue, out unit)) {
+
+                    // message
+                    logger.Error("Could not store the values for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "'), the value(s) '" + value + "' could not be parsed as an array of doubles due to value '" + split[i] + "'");
+                
+                    // return failure
+                    return false;
+
+                }
+
+                // check if the parameter has options and the unit is set in seconds
+                if (this.options.Length > 0 && unit == Parameters.Units.Seconds) {
+
+                    // message
+                    logger.Warn("Parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') has a list of options, yet one of the values is specified in seconds, this is unlikely to be correct");
+                    
+                }
+
+                // add to the array of doubles
+                values[i] = doubleValue;
+                units[i] = unit;
+
+            }
+
+            // store the values
+            this.values = values;
+            this.units = units;
+
+            // return success
+            return true;
+
+        }
+
+        public bool setUnit(Parameters.Units[] units) {
+
+            // check length
+            if (values.Length != units.Length) {
+                    
+                // message
+                logger.Error("Could not set the units for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "'), the given length of the unit array does not match the length of the value array");
+                    
+                // return without doing anything
+                return false;
+                
+            }
+
+            // check if the parameter has options and any of the units are set in seconds
+            if (this.options.Length > 0) {
+                bool hasSeconds = false;
+                for (int i = 0; i < units.Length; i++) if (units[i] == Parameters.Units.Seconds) hasSeconds = true;
+                if (hasSeconds) {
+
+                    // message
+                    logger.Warn("Parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') has a list of options, yet one of the values is specified in seconds, this is unlikely to be correct");
+                    
+                }
+            }
+
+            // set units
+            this.units = units;
+
+            // return success
+            return true;
 
         }
 
@@ -1098,6 +1489,10 @@ namespace UNP {
         public ParamBoolMat(String name, String group, Parameters parentSet, String desc, String[] options) : base(name, group, parentSet, desc, options) {
             minValue = "0";
             maxValue = "1";
+        }
+
+        public String getValue() {
+            return "";
         }
 
         public T getValue<T>() {
@@ -1130,13 +1525,22 @@ namespace UNP {
 
         }
 
+        public override string ToString() {
+            return getValue();
+        }
+
         public bool[][] Value {
             get {   return this.values;  }
-            set {   this.values = value; }
         }
-        
-        public void setValue(String value) {
 
+        public bool setValue(bool[][] values) {
+            this.values = values;
+            return true;
+        }
+
+        public bool setValue(String value) {
+            // TODO:
+            return true;
         }
 
     }
@@ -1148,6 +1552,11 @@ namespace UNP {
         private Parameters.Units[][] units = new Parameters.Units[0][];
 
         public ParamIntMat(String name, String group, Parameters parentSet, String desc, String[] options) : base(name, group, parentSet, desc, options) { }
+
+        public String getValue() {
+            return "";
+        }
+
         public T getValue<T>() {
 
             Type paramType = typeof(T);
@@ -1177,22 +1586,35 @@ namespace UNP {
 
         }
 
-        public int[][] Value {
-            get {   return this.values;  }
-            set {
-
-                // re-initialize the buffer holding the units for the values
-                units = new Parameters.Units[value.Length][];
-                for (int i = 0; i < value.Length; i++)  units[i] = new Parameters.Units[value[i].Length];
-
-                // set the values
-                this.values = value;
-
-            }
+        public override string ToString() {
+            return getValue();
         }
 
-        public void setValue(String value) {
+        public int[][] Value {
+            get {   return this.values;  }
+        }
 
+        public Parameters.Units[][] Unit {
+            get {   return this.units;  }
+        }
+        
+        public bool setValue(int[][] values) {
+
+            // re-initialize the buffer holding the units for the values
+            units = new Parameters.Units[values.Length][];
+            for (int i = 0; i < values.Length; i++) units[i] = new Parameters.Units[values[i].Length];
+
+            // set the values
+            this.values = values;
+
+            // return success
+            return true;
+
+        }
+
+        public bool setValue(String value) {
+            // TODO:
+            return true;
         }
 
     }
@@ -1203,6 +1625,11 @@ namespace UNP {
         private Parameters.Units[][] units = new Parameters.Units[0][];
 
         public ParamDoubleMat(String name, String group, Parameters parentSet, String desc, String[] options) : base(name, group, parentSet, desc, options) { }
+
+        public String getValue() {
+            return "";
+        }
+
         public T getValue<T>() {
 
             Type paramType = typeof(T);
@@ -1232,23 +1659,36 @@ namespace UNP {
             return getValue<int>();
         }
 
+        public override string ToString() {
+            return getValue();
+        }
+
         public double[][] Value {
             get {   return this.values;  }
-            set {
+        }
 
-                // re-initialize the buffer holding the units for the values
-                units = new Parameters.Units[value.Length][];
-                for (int i = 0; i < value.Length; i++)  units[i] = new Parameters.Units[value[i].Length];
-
-                // set the values
-                this.values = value;
-
-            }
-
+        public Parameters.Units[][] Unit {
+            get {   return this.units;  }
         }
         
-        public void setValue(String value) {
 
+        public bool setValue(double[][] values) {
+
+            // re-initialize the buffer holding the units for the values
+            units = new Parameters.Units[values.Length][];
+            for (int i = 0; i < values.Length; i++) units[i] = new Parameters.Units[values[i].Length];
+
+            // set the values
+            this.values = values;
+
+            // return success
+            return true;
+
+        }
+
+        public bool setValue(String value) {
+            // TODO:
+            return true;
         }
 
     }
@@ -1260,6 +1700,10 @@ namespace UNP {
         public ParamColor(String name, String group, Parameters parentSet, String desc, String[] options) : base(name, group, parentSet, desc, options) {
             minValue = "0";
             maxValue = "16777216";
+        }
+
+        public String getValue() {
+            return "";
         }
 
         public T getValue<T>() {
@@ -1293,17 +1737,26 @@ namespace UNP {
 
         }
 
+        public override string ToString() {
+            return getValue();
+        }
+
         public RGBColorFloat Value {
             get {   return this.value;  }
-            set {   this.value = value; }
         }
-        
+
         public bool setStdValue(String stdValue) {
             return true;
         }
 
-        public void setValue(String value) {
+        public bool setValue(RGBColorFloat value) {
+            this.value = value;
+            return true;
+        }
 
+        public bool setValue(String value) {
+            // TODO:
+            return true;
         }
         
     }
