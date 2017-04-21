@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 
-namespace UNP.helpers {
+namespace UNP.Core.Helpers {
 
     static class ThreadSafeRandom {
 

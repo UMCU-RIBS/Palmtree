@@ -1,4 +1,4 @@
-﻿namespace UNP.views
+﻿namespace UNP.Views
 {
     partial class SharpGLView
     {

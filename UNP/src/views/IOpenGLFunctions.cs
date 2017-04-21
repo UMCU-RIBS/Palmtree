@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace UNP.views {
+namespace UNP.Views {
 
     public interface IOpenGLFunctions {
 

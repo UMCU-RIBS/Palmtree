@@ -1,7 +1,7 @@
 ﻿using NLog;
 using NLog.Config;
 using NLog.Windows.Forms;
-using UNP.views;
+using UNP.Views;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -16,6 +16,7 @@ using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 using System.Timers;
+using UNP.Core;
 
 namespace UNP {
     
@@ -28,6 +29,8 @@ namespace UNP {
         private bool loaded = false;                    // flag to hold whether the form is loaded
         private System.Timers.Timer tmrUpdate = null;   // timer to update the GUI
 
+        GUIConfig frmConfig = null;                     // coniguration form
+        private bool configApplied = false;             // the configuration was applied (and needs to be before starting)
 
         public static String getClassName() {
             Type myType = typeof(GUI);
@@ -131,8 +134,7 @@ namespace UNP {
 
                         btnEditConfig.Enabled = true;
                         btnSetConfig.Enabled = true;
-                        //logger.Info("true " + btnStart.Enabled);
-                        btnStart.Enabled = true;
+                        btnStart.Enabled = configApplied;
                         btnStop.Enabled = false;
                     }
 
@@ -188,6 +190,15 @@ namespace UNP {
 
         }
 
+        private void btnEditConfig_Click(object sender, EventArgs e) {
+
+            //GUIConfigGrid a = new GUIConfigGrid();
+            //a.ShowDialog();
+            if (frmConfig == null)  frmConfig = new GUIConfig();
+            DialogResult dr = frmConfig.ShowDialog();
+            configApplied = (dr == DialogResult.OK);
+        }
+
         private void btnSetConfig_Click(object sender, EventArgs e) {
 
             // check if there is a main thread
@@ -199,6 +210,9 @@ namespace UNP {
 
                     // initialize the system
                     mainThread.initializeSystem();
+
+                    // set configuration as applied
+                    configApplied = true;
 
                 }
 
@@ -212,7 +226,7 @@ namespace UNP {
         private void btnStart_Click(object sender, EventArgs e) {
 
             // check if there is a main thread
-            if (mainThread != null) {
+            if (mainThread != null && configApplied) {
 
                 // start the system
                 mainThread.start();
@@ -224,6 +238,7 @@ namespace UNP {
         }
 
         private void btnStop_Click(object sender, EventArgs e) {
+            
             // check if there is a main thread
             if (mainThread != null) {
 
@@ -234,13 +249,6 @@ namespace UNP {
                 updateMainInformation();
 
             }
-        }
-
-        private void btnEditConfig_Click(object sender, EventArgs e) {
-            GUIConfig frmConfig = new GUIConfig();
-            //mainThread.
-
-            frmConfig.ShowDialog();
         }
 
     }

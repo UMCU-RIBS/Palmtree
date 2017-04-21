@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 
-namespace UNP {
+namespace UNP.Core {
     
     public static class MainBoot {
 

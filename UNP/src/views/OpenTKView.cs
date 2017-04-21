@@ -12,7 +12,7 @@ using System.Windows.Forms;
 using System.Drawing;
 using NLog;
 
-namespace UNP.views {
+namespace UNP.Views {
 
     public abstract partial class OpenTKView : Form, IOpenGLFunctions {
 

@@ -11,14 +11,14 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
-using UNP.applications;
-using UNP.filters;
-using UNP.helpers;
-using UNP.sources;
-using UNP.views;
+using UNP.Applications;
+using UNP.Filters;
+using UNP.Core.Helpers;
+using UNP.Sources;
+using UNP.Views;
+using UNP.Core.Params;
 
-
-namespace UNP {
+namespace UNP.Core {
 
     public class MainThread {
 
@@ -99,11 +99,16 @@ namespace UNP {
             // (the parameter list has already been filled by the constructors of the source, filters and views)
             Parameters sourceParameters = source.getParameters();
             sourceParameters.setValue("SourceChannels", 2);
-
+            sourceParameters.setValue("SourceSampleRate", 5.0);
+            
 
 
             Parameters timeSmoothingParameters = filters[0].getParameters();
             timeSmoothingParameters.setValue("EnableFilter", true);
+            double[][] bufferWeights = new double[2][];     // first dimensions is the colums, second dimension is the rows
+            for (int i = 0; i < bufferWeights.Length; i++)  bufferWeights[i] = new double[] { 0.7, 0.5, 0.2, 0.2, 0 };
+            timeSmoothingParameters.setValue("BufferWeights", bufferWeights);
+
 
             Parameters adaptationParameters = filters[1].getParameters();
             adaptationParameters.setValue("EnableFilter", true);
@@ -116,6 +121,21 @@ namespace UNP {
             adaptationParameters.setValue("AdaptationMinimalLength", "5s");
             adaptationParameters.setValue("ExcludeStdThreshold", "0.85 2.7");
 
+            Parameters thresholdParameters = filters[2].getParameters();            
+            double[][] thresholds = new double[4][];        // first dimensions is the colums, second dimension is the rows
+            thresholds[0] = new double[] { 1 };
+            thresholds[1] = new double[] { 1 };
+            thresholds[2] = new double[] { 0.45 };
+            thresholds[3] = new double[] { 1 };
+            thresholdParameters.setValue("Thresholds", thresholds);
+            
+            /*
+            adaptationParameters.setValue("Adaptation", "1 1");
+            mConfigInputChannels = new uint[1] { 0 };        // 0 = channel 1
+            mConfigOutputChannels = new uint[1] { 0 };        // 0 = channel 1
+            mConfigThresholds = new double[1] { 0.45 };
+            mConfigDirections = new int[1] { 1 };
+            */
 
             /*
             Parameters.setParameterValue("SourceChannels", "2");

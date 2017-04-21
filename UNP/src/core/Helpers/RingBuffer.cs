@@ -3,10 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace UNP.helpers {
+namespace UNP.Core.Helpers {
 
     class RingBuffer {
-
 
         private double[] mData = null;
         private uint mCursor = 0;

@@ -12,7 +12,7 @@ using System.Diagnostics;
 using System.Drawing.Imaging;
 using NLog;
 
-namespace UNP.views {
+namespace UNP.Views {
 
     public abstract partial class SharpGLView : Form, IOpenGLFunctions {
 

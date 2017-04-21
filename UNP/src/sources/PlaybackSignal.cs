@@ -5,9 +5,11 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
-using UNP.helpers;
+using UNP.Core;
+using UNP.Core.Helpers;
+using UNP.Core.Params;
 
-namespace UNP.sources {
+namespace UNP.Sources {
 
     class PlaybackSignal : ISource {
 

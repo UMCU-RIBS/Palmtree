@@ -6,7 +6,7 @@ using SharpFont;
 using NLog;
 using System.Runtime.InteropServices;
 
-namespace UNP.views {
+namespace UNP.Views {
 
     public class glFreeTypeFont {
 
