@@ -7,8 +7,8 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using UNP;
-using UNP.helpers;
-using UNP.views;
+using UNP.Core.Helpers;
+using UNP.Views;
 
 namespace FollowTask {
 

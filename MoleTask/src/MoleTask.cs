@@ -4,8 +4,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using UNP;
-using UNP.applications;
-using UNP.helpers;
+using UNP.Applications;
+using UNP.Core.Helpers;
 
 namespace MoleTask {
 
