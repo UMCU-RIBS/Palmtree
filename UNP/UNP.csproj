@@ -84,65 +84,81 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="src\applications\IApplication.cs" />
-    <Compile Include="src\core\GUIConfig.cs">
+    <Compile Include="src\Applications\IApplication.cs" />
+    <Compile Include="src\Core\GUIConfig.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="src\core\GUIConfig.Designer.cs">
+    <Compile Include="src\Core\GUIConfig.Designer.cs">
       <DependentUpon>GUIConfig.cs</DependentUpon>
     </Compile>
-    <Compile Include="src\core\MainBoot.cs" />
-    <Compile Include="src\core\Parameters.cs" />
-    <Compile Include="src\filters\AdaptationFilter.cs" />
-    <Compile Include="src\filters\ClickTranslatorFilter.cs" />
-    <Compile Include="src\filters\IFilter.cs" />
-    <Compile Include="src\filters\ThresholdClassifierFilter.cs" />
-    <Compile Include="src\helpers\Extensions.cs" />
-    <Compile Include="src\helpers\RGBColor.cs" />
-    <Compile Include="src\helpers\RingBuffer.cs" />
-    <Compile Include="src\helpers\SampleConversion.cs" />
-    <Compile Include="src\helpers\SampleFormat.cs" />
-    <Compile Include="src\core\MainThread.cs" />
-    <Compile Include="src\core\GUI.cs">
+    <Compile Include="src\Core\MainBoot.cs" />
+    <Compile Include="src\Core\Params\iParam.cs" />
+    <Compile Include="src\Core\Params\Param.cs" />
+    <Compile Include="src\Core\Params\ParamBool.cs" />
+    <Compile Include="src\Core\Params\ParamBoolArr.cs" />
+    <Compile Include="src\Core\Params\ParamBoolBase.cs" />
+    <Compile Include="src\Core\Params\ParamBoolMat.cs" />
+    <Compile Include="src\Core\Params\ParamColor.cs" />
+    <Compile Include="src\Core\Params\ParamDouble.cs" />
+    <Compile Include="src\Core\Params\ParamDoubleArr.cs" />
+    <Compile Include="src\Core\Params\ParamDoubleBase.cs" />
+    <Compile Include="src\Core\Params\ParamDoubleMat.cs" />
+    <Compile Include="src\Core\Params\ParameterManager.cs" />
+    <Compile Include="src\Core\Params\Parameters.cs" />
+    <Compile Include="src\Core\Params\ParamInt.cs" />
+    <Compile Include="src\Core\Params\ParamIntArr.cs" />
+    <Compile Include="src\Core\Params\ParamIntBase.cs" />
+    <Compile Include="src\Core\Params\ParamIntMat.cs" />
+    <Compile Include="src\Filters\AdaptationFilter.cs" />
+    <Compile Include="src\Filters\ClickTranslatorFilter.cs" />
+    <Compile Include="src\Filters\IFilter.cs" />
+    <Compile Include="src\Filters\ThresholdClassifierFilter.cs" />
+    <Compile Include="src\Core\Helpers\Extensions.cs" />
+    <Compile Include="src\Core\Helpers\RGBColor.cs" />
+    <Compile Include="src\Core\Helpers\RingBuffer.cs" />
+    <Compile Include="src\Core\Helpers\SampleConversion.cs" />
+    <Compile Include="src\Core\Helpers\SampleFormat.cs" />
+    <Compile Include="src\Core\MainThread.cs" />
+    <Compile Include="src\Core\GUI.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="src\core\GUI.Designer.cs">
+    <Compile Include="src\Core\GUI.Designer.cs">
       <DependentUpon>GUI.cs</DependentUpon>
     </Compile>
     <Compile Include="src\Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="src\filters\TimeSmoothingFilter.cs" />
-    <Compile Include="src\sources\GenerateSignal.cs" />
-    <Compile Include="src\sources\KeypressSignal.cs" />
-    <Compile Include="src\sources\PlaybackSignal.cs" />
-    <Compile Include="src\sources\ISource.cs" />
-    <Compile Include="src\views\glFreeTypeFont.cs" />
-    <Compile Include="src\views\IOpenGLFunctions.cs" />
-    <Compile Include="src\views\SharpGLView.cs">
+    <Compile Include="src\Filters\TimeSmoothingFilter.cs" />
+    <Compile Include="src\Sources\GenerateSignal.cs" />
+    <Compile Include="src\Sources\KeypressSignal.cs" />
+    <Compile Include="src\Sources\PlaybackSignal.cs" />
+    <Compile Include="src\Sources\ISource.cs" />
+    <Compile Include="src\Views\glFreeTypeFont.cs" />
+    <Compile Include="src\Views\IOpenGLFunctions.cs" />
+    <Compile Include="src\Views\SharpGLView.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="src\views\SharpGLView.Designer.cs">
+    <Compile Include="src\Views\SharpGLView.Designer.cs">
       <DependentUpon>SharpGLView.cs</DependentUpon>
     </Compile>
-    <Compile Include="src\views\IView.cs" />
-    <Compile Include="src\views\OpenTKView.cs">
+    <Compile Include="src\Views\IView.cs" />
+    <Compile Include="src\Views\OpenTKView.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="src\views\OpenTKView.Designer.cs">
+    <Compile Include="src\Views\OpenTKView.Designer.cs">
       <DependentUpon>OpenTKView.cs</DependentUpon>
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="src\core\GUI.resx">
+    <EmbeddedResource Include="src\Core\GUI.resx">
       <DependentUpon>GUI.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="src\core\GUIConfig.resx">
+    <EmbeddedResource Include="src\Core\GUIConfig.resx">
       <DependentUpon>GUIConfig.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="src\views\SharpGLView.resx">
+    <EmbeddedResource Include="src\Views\SharpGLView.resx">
       <DependentUpon>SharpGLView.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="src\views\OpenTKView.resx">
+    <EmbeddedResource Include="src\Views\OpenTKView.resx">
       <DependentUpon>OpenTKView.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>

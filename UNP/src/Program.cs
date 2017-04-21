@@ -1,6 +1,7 @@
 ﻿using System;
 using UNP;
-using UNP.applications;
+using UNP.Applications;
+using UNP.Core;
 
 namespace UNP {
     class Program {
@@ -15,7 +16,7 @@ namespace UNP {
             // - autosetconfig = 
             // - autostart = 
             
-            Type t = Type.GetType("UNP.applications.EmptyTask");
+            Type t = Type.GetType("UNP.Applications.EmptyTask");
             MainBoot.Run(t);
 
         }

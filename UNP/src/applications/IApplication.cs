@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using UNP.helpers;
+using UNP.Core.Helpers;
 
-namespace UNP.applications {
+namespace UNP.Applications {
 
     public interface IApplication {
 
