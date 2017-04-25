@@ -10,10 +10,10 @@ namespace UNP.Core.Params {
         private double[] values = new double[0];
         private Parameters.Units[] units = new Parameters.Units[0];
 
-        public ParamDoubleArr(String name, String group, Parameters parentSet, String desc, String[] options) : base(name, group, parentSet, desc, options) { }
+        public ParamDoubleArr(string name, string group, Parameters parentSet, string desc, string[] options) : base(name, group, parentSet, desc, options) { }
         
-        public String getValue() {
-            String strRet = "";
+        public string getValue() {
+            string strRet = "";
             for (int i = 0; i < this.values.Length; i++) {
                 if (i != 0)     strRet += " ";
                 strRet += this.values[i].ToString(Parameters.NumberCulture);
@@ -76,7 +76,7 @@ namespace UNP.Core.Params {
 
         }
 
-        public bool tryValue(String value) {
+        public bool tryValue(string value) {
 
             // try to split up the string
             string[] split = value.Split(Parameters.ArrDelimiters, StringSplitOptions.RemoveEmptyEntries);
@@ -93,7 +93,7 @@ namespace UNP.Core.Params {
 
         }
 
-        public bool setValue(String value) {
+        public bool setValue(string value) {
 
             // try to split up the string
             string[] split = value.Split(Parameters.ArrDelimiters, StringSplitOptions.RemoveEmptyEntries);

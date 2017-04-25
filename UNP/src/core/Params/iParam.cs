@@ -7,20 +7,20 @@ namespace UNP.Core.Params {
 
     public interface iParam {
 
-        String Name         { get; }
-        String Group        { get; }
-        String Desc         { get; }
-        String MinValue     { get; }
-        String MaxValue     { get; }
-        String StdValue     { get; }
-        String[] Options    { get; }
+        string Name         { get; }
+        string Group        { get; }
+        string Desc         { get; }
+        string MinValue     { get; }
+        string MaxValue     { get; }
+        string StdValue     { get; }
+        string[] Options    { get; }
 
-        String getValue();
+        string getValue();
         T getValue<T>();
         int getValueInSamples();
-        bool setStdValue(String stdValue);
-        bool tryValue(String value);
-        bool setValue(String value);
+        bool setStdValue(string stdValue);
+        bool tryValue(string value);
+        bool setValue(string value);
 
     }
 

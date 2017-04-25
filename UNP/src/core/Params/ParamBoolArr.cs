@@ -9,13 +9,13 @@ namespace UNP.Core.Params {
 
         private bool[] values = new bool[0];
 
-        public ParamBoolArr(String name, String group, Parameters parentSet, String desc, String[] options) : base(name, group, parentSet, desc, options) {
+        public ParamBoolArr(string name, string group, Parameters parentSet, string desc, string[] options) : base(name, group, parentSet, desc, options) {
             minValue = "0";
             maxValue = "1";
         }
 
-        public String getValue() {
-            String strRet = "";
+        public string getValue() {
+            string strRet = "";
             for (int i = 0; i < this.values.Length; i++) {
                 if (i != 0)     strRet += " ";
                 strRet += (this.values[i] ? "1" : "0");
@@ -66,11 +66,11 @@ namespace UNP.Core.Params {
             return true;
         }
 
-        public bool tryValue(String value) {
+        public bool tryValue(string value) {
             return true;
         }
 
-        public bool setValue(String value) {
+        public bool setValue(string value) {
 
             // try to split up the string
             string[] split = value.Split(Parameters.ArrDelimiters, StringSplitOptions.RemoveEmptyEntries);

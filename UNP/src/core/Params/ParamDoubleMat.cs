@@ -10,10 +10,20 @@ namespace UNP.Core.Params {
         private double[][] values = new double[0][];
         private Parameters.Units[][] units = new Parameters.Units[0][];
 
-        public ParamDoubleMat(String name, String group, Parameters parentSet, String desc, String[] options) : base(name, group, parentSet, desc, options) { }
+        public ParamDoubleMat(string name, string group, Parameters parentSet, string desc, string[] options) : base(name, group, parentSet, desc, options) { }
 
-        public String getValue() {
-            return "";
+        public string getValue() {
+            string strRet = "";
+            for (int c = 0; c < this.values.Length; c++) {
+                if (c != 0) strRet += ";";
+                for (int r = 0; r < this.values.Length; r++) {
+                    if (r != 0) strRet += " ";
+
+                    strRet += this.values[c][r].ToString(Parameters.NumberCulture);
+                    strRet += (this.units[c][r] == Parameters.Units.Seconds ? "s" : "");
+                }
+            }
+            return strRet;
         }
 
         public T getValue<T>() {
@@ -83,7 +93,7 @@ namespace UNP.Core.Params {
 
         }
 
-        public bool tryValue(String value) {
+        public bool tryValue(string value) {
 
             if (String.IsNullOrEmpty(value))    return true;
             
@@ -104,7 +114,7 @@ namespace UNP.Core.Params {
 
         }
 
-        public bool setValue(String value) {
+        public bool setValue(string value) {
             
             // check if the input is empty
             if (String.IsNullOrEmpty(value)) {

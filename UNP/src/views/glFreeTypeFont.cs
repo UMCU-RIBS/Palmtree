@@ -13,7 +13,7 @@ namespace UNP.Views {
         private static Logger logger = LogManager.GetLogger("Freetype");
 
 		private bool initialized = false;
-        private String font = "";
+        private string font = "";
         public float height = 8;			        ///< Holds the height of the font.
         private uint[] textures = null;	            ///< Holds the texture id's 
         private uint list_base= 0;	                ///< Holds the first display list id
@@ -23,7 +23,7 @@ namespace UNP.Views {
 
 		//The init function will create a font of
 		//of the height h from the file fname.
-		public void init(IOpenGLFunctions glView, String font, uint height) {
+		public void init(IOpenGLFunctions glView, string font, uint height) {
 
             // store the height of the font and the reference to the view providing openGL functions
             this.glView = glView;
@@ -39,7 +39,7 @@ namespace UNP.Views {
 
         }
 
-        public void init(IOpenGLFunctions glView, String font, uint height, String initCharacters) {
+        public void init(IOpenGLFunctions glView, string font, uint height, string initCharacters) {
 
             // store the height of the font and the reference to the view providing openGL functions
             this.glView = glView;
@@ -256,7 +256,7 @@ namespace UNP.Views {
 
 
 	    // print
-	    public void printLine(float x, float y, String text)  {
+	    public void printLine(float x, float y, string text)  {
             if (String.IsNullOrEmpty(text)) return;
             if (!initialized)               return;
             
@@ -302,7 +302,7 @@ namespace UNP.Views {
 
 	    }
 
-	    public int getTextWidth(String text) {
+	    public int getTextWidth(string text) {
             if (String.IsNullOrEmpty(text)) return 0;
             if (!initialized)               return 0;
 

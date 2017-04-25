@@ -10,12 +10,12 @@ namespace UNP.Core.Params {
 
         private RGBColorFloat value = new RGBColorFloat();
 
-        public ParamColor(String name, String group, Parameters parentSet, String desc, String[] options) : base(name, group, parentSet, desc, options) {
+        public ParamColor(string name, string group, Parameters parentSet, string desc, string[] options) : base(name, group, parentSet, desc, options) {
             minValue = "0";
             maxValue = "16777216";
         }
 
-        public String getValue() {
+        public string getValue() {
             return "";
         }
 
@@ -58,7 +58,7 @@ namespace UNP.Core.Params {
             get {   return this.value;  }
         }
 
-        public bool setStdValue(String stdValue) {
+        public bool setStdValue(string stdValue) {
             return true;
         }
 
@@ -67,12 +67,12 @@ namespace UNP.Core.Params {
             return true;
         }
 
-        public bool tryValue(String value) {
+        public bool tryValue(string value) {
             // TODO:
             return true;
         }
 
-        public bool setValue(String value) {
+        public bool setValue(string value) {
             // TODO:
             return true;
         }

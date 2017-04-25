@@ -56,7 +56,7 @@ namespace UNP.Sources {
          * This value could be requested by the main thread and is used to allow parameters
          * to be converted from seconds to samples
          **/
-        public int getSamplesPerSecond() {
+        public double getSamplesPerSecond() {
             return 0;
         }
 

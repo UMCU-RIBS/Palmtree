@@ -83,6 +83,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="src\MoleCell.cs" />
     <Compile Include="src\MoleTask.cs" />
     <Compile Include="src\MoleView.cs">
       <SubType>Form</SubType>

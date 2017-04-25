@@ -83,6 +83,12 @@ namespace UNP.Filters {
             // check if the filter is enabled
             if (mEnableFilter) {
 
+                // check if the number of input channels is higher than 0
+                if (inputChannels <= 0) {
+                    logger.Error("Number of input channels cannot be 0");
+                    return false;
+                }
+
                 // retrieve the activeperiod
                 activePeriod = parameters.getValueInSamples("ActivePeriod");
                 mBufferSize = activePeriod;

@@ -9,12 +9,12 @@ namespace UNP.Core.Params {
 
         private bool value = false;
 
-        public ParamBool(String name, String group, Parameters parentSet, String desc, String[] options) : base(name, group, parentSet, desc, options) {
+        public ParamBool(string name, string group, Parameters parentSet, string desc, string[] options) : base(name, group, parentSet, desc, options) {
             minValue = "0";
             maxValue = "1";
         }
 
-        public String getValue() {
+        public string getValue() {
             return (this.value ? "1" : "0");
         }
 
@@ -62,11 +62,11 @@ namespace UNP.Core.Params {
             return true;
         }
 
-        public bool tryValue(String value) {
+        public bool tryValue(string value) {
             return true;
         }
 
-        public bool setValue(String value) {
+        public bool setValue(string value) {
             value = value.ToLower();
             this.value = (value.Equals("1") || value.Equals("true"));
             return true;

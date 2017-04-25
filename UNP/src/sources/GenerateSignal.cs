@@ -1,6 +1,7 @@
 ﻿using NLog;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -18,7 +19,10 @@ namespace UNP.Sources {
 
         private MainThread pipeline = null;
 
-        public const int threadLoopDelay = 200;			                    // thread loop delay
+        Stopwatch swTimePassed = new Stopwatch();                           // stopwatch object to give an exact amount to time passed inbetween loops
+        private int sampleInterval = 200;                                   // interval between the samples in milliseconds
+        int threadLoopDelay = 0;
+
         private bool running = true;					                    // flag to define if the source thread is still running (setting to false will stop the source thread)
         private bool configured = false;
         private bool initialized = false;
@@ -27,8 +31,8 @@ namespace UNP.Sources {
         private Object lockStarted = new Object();
 
         Random rand = new Random(Guid.NewGuid().GetHashCode());
-        private uint outputChannels = 0;
-        private int samplesPerSecond = 0;                                   // hold the amount of samples per second that the source outputs (used by the mainthead to convert seconds to number of samples)
+        private int outputChannels = 0;
+        private double sampleRate = 0;                                      // hold the amount of samples per second that the source outputs (used by the mainthead to convert seconds to number of samples)
 
 	    public GenerateSignal(MainThread pipeline) {
 
@@ -36,21 +40,15 @@ namespace UNP.Sources {
             this.pipeline = pipeline;
 
             parameters.addParameter<ParamInt> (
-                "SourceChannels",
+                "Channels",
                 "Number of source channels to generate",
                 "1", "", "1");
 
             parameters.addParameter<ParamDouble> (
-                "SourceSampleRate",
-                "Number of samples per second (hz)",
-                "1", "", "1");
+                "SampleRate",
+                "Rate with which samples are generated, in samples per second (hz)",
+                "0", "", "5");
 
-            /*
-            // define the parameters
-            parameters.addParameter("SourceChannels",
-                                    "", 
-                                    Param.Types.Integer, "1", "", "1");
-            */
             // start a new thread
             Thread thread = new Thread(this.run);
             thread.Start();
@@ -64,15 +62,28 @@ namespace UNP.Sources {
         public bool configure(out SampleFormat output) {
             configured = true;
 
-            // 
-            outputChannels = (uint)parameters.getValue<int>("SourceChannels");
+            // retrieve the number of output channels
+            outputChannels = parameters.getValue<int>("Channels");
             
             // create a sampleformat
-            output = new SampleFormat(outputChannels);
+            output = new SampleFormat((uint)outputChannels);
 
+            // check if the number of output channels is higher than 0
+            if (outputChannels <= 0) {
+                logger.Error("Number of output channels cannot be 0");
+                return false;
+            }
 
-            samplesPerSecond = 5;
+            // retrieve the sample rate
+            sampleRate = parameters.getValue<double>("SampleRate");
+            if (sampleRate <= 0) {
+                logger.Error("The sample rate cannot be 0 or lower");
+                return false;
+            }
 
+            // calculate the sample interval
+            sampleInterval = (int)Math.Floor(1000.0 / sampleRate);
+            
             // return success
             return true;
 
@@ -89,7 +100,7 @@ namespace UNP.Sources {
          * This value could be requested by the main thread and is used to allow parameters
          * to be converted from seconds to samples
          **/
-        public int getSamplesPerSecond() {
+        public double getSamplesPerSecond() {
             
             // check if the source is not configured yet
             if (!configured) {
@@ -103,7 +114,7 @@ namespace UNP.Sources {
             }
 
             // return the samples per second
-            return samplesPerSecond;
+            return sampleRate;
 
         }
 
@@ -209,6 +220,9 @@ namespace UNP.Sources {
             // log message
             logger.Debug("Thread started");
 
+            // set an initial start for the stopwatche
+            swTimePassed.Start();
+
 		    // loop while running
 		    while(running) {
 
@@ -232,9 +246,25 @@ namespace UNP.Sources {
 
                 }
 
+
+                // 
 			    // if still running then sleep to allow other processes
-			    if (running && threadLoopDelay != -1) {
-                    Thread.Sleep(threadLoopDelay);
+			    if (running && sampleInterval != -1) {
+
+                    // calculate the exact time that has passed since the last run
+                    swTimePassed.Stop();
+                    int timePassed = (int)swTimePassed.ElapsedMilliseconds;
+
+                    // calculate the time to wait to get the exact sample interval
+                    threadLoopDelay = sampleInterval - timePassed;
+
+                    // sleep for the remainder of the sample interval to get as close to the sample rate as possible (if there is a remainder)
+                    if (threadLoopDelay >= 0) Thread.Sleep(threadLoopDelay);
+
+                    // start the timer to measure the loop time
+                    swTimePassed.Reset();
+                    swTimePassed.Start();
+
 			    }
 			
 		    }

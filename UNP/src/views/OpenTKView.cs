@@ -22,6 +22,7 @@ namespace UNP.Views {
         private const bool vsync = true;
 
         private bool glLoaded = false;              // flag to track whether opengl is done initializing
+        private bool glControlLoaded = false;       // flag to track whether opengl form is done initializing
 
         private Thread mainLoopThread = null;       // thread for animations and rendering
         private bool running = false;               // flag connected to the thread for animations and rendering (set to false to stop the thread)
@@ -31,7 +32,7 @@ namespace UNP.Views {
         private int updateFrequency = 0;            // the update frequency of the main loop (in maximum fps)
         private int updateFrequencySleepTime = 0;   // the 
 
-        Stopwatch swTimePassed = new Stopwatch();   // stopwatch opbject to give an exact amount to time passed inbetween loops/frames
+        Stopwatch swTimePassed = new Stopwatch();   // stopwatch object to give an exact amount to time passed inbetween loops/frames
         private long timeFPS = 0;
         private int fpsCounter = 0;                 // counter for the frames drawn
         protected int fps = 0;                      // the number of fps per second
@@ -92,11 +93,11 @@ namespace UNP.Views {
                 glControlHeight = height;
             }
         }
-        public bool isStarted()                             {   return glLoaded;    }
+        public bool isStarted()                             {   return glLoaded && glControlLoaded;    }
         public bool hasBorder()                             {   return windowBorder;     }
 
         public void setBorder(bool border) {
-            if (!glLoaded) {
+            if (!glLoaded || !glControlLoaded) {
 
                 this.windowBorder = border;
 
@@ -248,6 +249,9 @@ namespace UNP.Views {
             // clear the buffer and show (black screen)
             GL.Clear(ClearBufferMask.ColorBufferBit);
 
+            // set opengl as loaded
+            glLoaded = true;
+
             // call load in the deriving class	
             load();
 
@@ -287,8 +291,9 @@ namespace UNP.Views {
         }
 
         private void glControl_Resize(object sender, EventArgs e) {
-            if (!glLoaded)    return;
-            if (!afterInitialFormResize) return;
+            if (!glLoaded)                  return;
+            if (!glControlLoaded)           return;
+            if (!afterInitialFormResize)    return;
 
             // re-setup the openGL viewport
             setupGLView();
@@ -308,7 +313,7 @@ namespace UNP.Views {
             logger.Debug("Starting view main loop (thread)");
 
             // set opengl as loaded
-            glLoaded = true;
+            glControlLoaded = true;
 
             // set an initial start for the stopwatche
             swTimePassed.Start();
@@ -356,7 +361,8 @@ namespace UNP.Views {
         }
 
         private void glControl_Paint(object sender, PaintEventArgs e) {
-            if (!glLoaded)    return;
+            if (!glLoaded)          return;
+            if (!glControlLoaded)   return;
             
             // clear the buffer
             GL.Clear(ClearBufferMask.ColorBufferBit);
@@ -379,6 +385,29 @@ namespace UNP.Views {
             fpsCounter++;
             
         }
+
+
+        public void drawRectangle(float x1, float y1, float x2, float y2, float lineWidth, float colorR, float colorG, float colorB) {
+	
+	        // set the color
+            GL.Color3(colorR, colorG, colorB);
+
+	        // set no texture
+            GL.BindTexture(TextureTarget.Texture2D, 0);
+
+	        // set the line with
+            GL.LineWidth(lineWidth);
+
+	        // draw the rectangle
+            GL.Begin(BeginMode.LineLoop);
+                GL.Vertex2(x1, y1);
+                GL.Vertex2(x2, y1);
+                GL.Vertex2(x2, y2);
+                GL.Vertex2(x1, y2);
+	        GL.End();
+
+        }
+
 
         public void glColor3(byte red, byte green, byte blue)                   {   GL.Color3(red, green, blue);        }
         public void glColor3(float red, float green, float blue)                {   GL.Color3(red, green, blue);        }
@@ -472,6 +501,7 @@ namespace UNP.Views {
         public void glBeginQuads()       {   GL.Begin(BeginMode.Quads);      }
         public void glBeginTriangles()   {   GL.Begin(BeginMode.Triangles);  }
         public void glBeginPolygon()     {   GL.Begin(BeginMode.Polygon);    }
+        public void glBeginLineLoop()    {   GL.Begin(BeginMode.LineLoop);   }
         public void glEnd()              {   GL.End();                       }
 
 

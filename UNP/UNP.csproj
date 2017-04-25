@@ -92,6 +92,7 @@
       <DependentUpon>GUIConfig.cs</DependentUpon>
     </Compile>
     <Compile Include="src\Core\MainBoot.cs" />
+    <Compile Include="src\Core\Params\ParamStringMat.cs" />
     <Compile Include="src\Core\Params\iParam.cs" />
     <Compile Include="src\Core\Params\Param.cs" />
     <Compile Include="src\Core\Params\ParamBool.cs" />

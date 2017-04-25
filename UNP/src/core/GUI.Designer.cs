@@ -94,9 +94,11 @@ namespace UNP
             // 
             // txtConsole
             // 
+            this.txtConsole.BackColor = System.Drawing.Color.White;
             this.txtConsole.Location = new System.Drawing.Point(17, 35);
             this.txtConsole.Margin = new System.Windows.Forms.Padding(4);
             this.txtConsole.Name = "txtConsole";
+            this.txtConsole.ReadOnly = true;
             this.txtConsole.Size = new System.Drawing.Size(817, 443);
             this.txtConsole.TabIndex = 0;
             this.txtConsole.Text = "";

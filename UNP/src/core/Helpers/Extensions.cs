@@ -38,7 +38,7 @@ namespace UNP.Core.Helpers {
         }
 
 
-        public static string TrimAll(this String str) {
+        public static string TrimAll(this string str) {
             var len = str.Length;
             var src = str.ToCharArray();
             int dstIdx = 0;

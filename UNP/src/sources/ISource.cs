@@ -14,7 +14,7 @@ namespace UNP.Sources {
         bool configure(out SampleFormat output);
         void initialize();
 
-        int getSamplesPerSecond();
+        double getSamplesPerSecond();
 
         void start();
         void stop();

@@ -1,4 +1,4 @@
-﻿//#define DEBUG_SAMPLES                   // causes the thread not to remote the sample after processing causing infinite samples to process, used to test performance
+﻿//#define DEBUG_SAMPLES                   // causes the thread not to remove the sample after processing causing infinite samples to process, used to test performance
 //#define DEBUG_SAMPLES_LOG_PERFORMANCE   // log the performance
 
 using NLog;
@@ -62,7 +62,8 @@ namespace UNP.Core {
         public void initPipeline(Type applicationType) {
 
             // create a source
-            source = new GenerateSignal(this);
+            source = new KeypressSignal(this);
+            //source = new GenerateSignal(this);
 
             // create filters
             filters.Add(new TimeSmoothingFilter());
@@ -92,15 +93,12 @@ namespace UNP.Core {
         public void loadDebugConfig() {
 
 
-
-
-
             // (optional/debug) set/load the parameters
             // (the parameter list has already been filled by the constructors of the source, filters and views)
             Parameters sourceParameters = source.getParameters();
-            sourceParameters.setValue("SourceChannels", 2);
-            sourceParameters.setValue("SourceSampleRate", 5.0);
-            
+            sourceParameters.setValue("Channels", 2);
+            sourceParameters.setValue("SampleRate", 5.0);
+            sourceParameters.setValue("Keys", "F,G;1,2;1,1;-1,-1");
 
 
             Parameters timeSmoothingParameters = filters[0].getParameters();
@@ -108,7 +106,7 @@ namespace UNP.Core {
             double[][] bufferWeights = new double[2][];     // first dimensions is the colums, second dimension is the rows
             for (int i = 0; i < bufferWeights.Length; i++)  bufferWeights[i] = new double[] { 0.7, 0.5, 0.2, 0.2, 0 };
             timeSmoothingParameters.setValue("BufferWeights", bufferWeights);
-
+            
 
             Parameters adaptationParameters = filters[1].getParameters();
             adaptationParameters.setValue("EnableFilter", true);
@@ -121,6 +119,7 @@ namespace UNP.Core {
             adaptationParameters.setValue("AdaptationMinimalLength", "5s");
             adaptationParameters.setValue("ExcludeStdThreshold", "0.85 2.7");
 
+
             Parameters thresholdParameters = filters[2].getParameters();            
             double[][] thresholds = new double[4][];        // first dimensions is the colums, second dimension is the rows
             thresholds[0] = new double[] { 1 };
@@ -129,21 +128,6 @@ namespace UNP.Core {
             thresholds[3] = new double[] { 1 };
             thresholdParameters.setValue("Thresholds", thresholds);
             
-            /*
-            adaptationParameters.setValue("Adaptation", "1 1");
-            mConfigInputChannels = new uint[1] { 0 };        // 0 = channel 1
-            mConfigOutputChannels = new uint[1] { 0 };        // 0 = channel 1
-            mConfigThresholds = new double[1] { 0.45 };
-            mConfigDirections = new int[1] { 1 };
-            */
-
-            /*
-            Parameters.setParameterValue("SourceChannels", "2");
-            
-            Parameters.setParameterValue("SF_WriteIntermediateFile", "0");
-            
-            Parameters.setParameterValue("AF_WriteIntermediateFile", "0");
-            */
 
         }
 
@@ -497,7 +481,7 @@ namespace UNP.Core {
         public void eventNewSample(double[] sample) {
             
             lock(sampleBuffer.SyncRoot) {
-
+                
                 // check if the buffer is full
                 if (numberOfSamples == sampleBufferSize) {
 
@@ -533,7 +517,7 @@ namespace UNP.Core {
          * Static function to return the number of samples per second according the source
          * Used by Parameters to convert seconds to samples
          **/
-        public static int SamplesPerSecond() {
+        public static double SamplesPerSecond() {
             
             // check 
             if (source != null) {

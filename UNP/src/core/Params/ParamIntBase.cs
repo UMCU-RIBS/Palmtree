@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using UNP.Core.Helpers;
@@ -15,9 +16,9 @@ namespace UNP.Core.Params {
         private int intMaxValue = 0;
         private Parameters.Units unitMaxValue = Parameters.Units.ValueOrSamples;
 
-        public ParamIntBase(String name, String group, Parameters parentSet, String desc, String[] options) : base(name, group, parentSet, desc, options) { }
+        public ParamIntBase(string name, string group, Parameters parentSet, string desc, string[] options) : base(name, group, parentSet, desc, options) { }
 
-        protected bool tryParseValue(String value, out int intValue, out Parameters.Units unit) {
+        protected bool tryParseValue(string value, out int intValue, out Parameters.Units unit) {
             intValue = 0;
             unit = Parameters.Units.ValueOrSamples;
 
@@ -35,14 +36,14 @@ namespace UNP.Core.Params {
 
             // check if value is numeric and can be converted to an int
             // return false if unsucessful
-            if (!int.TryParse(value, 0, Parameters.NumberCulture, out intValue)) return false;
+            if (!int.TryParse(value, NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign, Parameters.NumberCulture, out intValue)) return false;
 
             // successfull parsing, return true
             return true;
 
         }
 
-        public bool setMinValue(String minValue) {
+        public bool setMinValue(string minValue) {
 
             // check if a minimum is set
             if (!String.IsNullOrEmpty(minValue) && !minValue.Equals("%")) {
@@ -69,7 +70,7 @@ namespace UNP.Core.Params {
 
         }
 
-        public bool setMaxValue(String maxValue) {
+        public bool setMaxValue(string maxValue) {
 
             // check if a maximum is set
             if (!String.IsNullOrEmpty(maxValue) && !maxValue.Equals("%")) {
@@ -97,7 +98,7 @@ namespace UNP.Core.Params {
         }
 
 
-        public bool setStdValue(String stdValue) {
+        public bool setStdValue(string stdValue) {
 
             // parse the standard value
             if (!tryParseValue(stdValue, out intStdValue, out unitStdValue)) {

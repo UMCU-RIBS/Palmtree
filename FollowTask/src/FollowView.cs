@@ -22,8 +22,8 @@ namespace FollowTask {
 
         private Object textureLock = new Object();                                      // threadsafety lock for texture events
 	    
-		private byte doLoadTextures = 0;								                // load textures in the loop thread (flag to check for new textures. Numeric because while textures are being loaded, the bci thread can make multiple function calls to load)
-		private List<String> blockTexturesToLoad = new List<String>(0);                 // array with block textures filepath that should be loaded (from the loop thread)
+		private byte doLoadTextures = 0;								                // load textures in the loop thread (flag to check for new textures. Numeric because while textures are being loaded, the thread can make multiple function calls to load)
+		private List<string> blockTexturesToLoad = new List<string>(0);                 // array with block textures filepath that should be loaded (from the loop thread)
 		private List<int> blockTextures = new List<int>(0);	                            // array with possible block textures
 		private List<FollowBlock> mBlocks = new List<FollowBlock>(0);	                // block objects
 		private bool mBlocksMove = false;								                // enable/disable block movement
@@ -50,6 +50,14 @@ namespace FollowTask {
         private glFreeTypeFont countdownFont = new glFreeTypeFont();
         private glFreeTypeFont fixationFont = new glFreeTypeFont();
 
+        // general UNP variables
+        private bool showConnectionLost = false;
+        private int connectionLostTexture = 0;
+        private glFreeTypeFont textFont = new glFreeTypeFont();
+        private string showText = "";
+        private int showTextWidth = 0;
+
+
         public FollowView() : base(60, 0, 0, 640, 480, true) {
             
         }
@@ -71,6 +79,9 @@ namespace FollowTask {
 
         protected override void load() {
 
+            // initialize the text font
+            textFont.init(this, "fonts/ariblk.TTF", (uint)(getContentHeight() / 20), "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ. ");
+
 	        // initialize the countdown, text and fixation fonts
             countdownFont.init(this, "fonts/ariblk.ttf", (uint)(getContentHeight() / 7), "123");
             fixationFont.init(this, "fonts/ariblk.ttf", (uint)(getContentHeight() / 10), "+");
@@ -78,9 +89,20 @@ namespace FollowTask {
 	        // initialize the score font
             scoreFont.init(this, "fonts/ariblk.ttf", (uint)(getContentHeight() / 30), "Score: 0123456789");
 
+            // lock for textures events (thread safety)
+            lock(textureLock) {
+
+                // load the connection lost texture
+                connectionLostTexture = (int)loadImage("images/nosignal.png");
+
+            }
+
         }
 
         protected override void unload() {
+
+            // clear the text font
+            textFont.clean();
 
 	        // clear the fonts
 	        scoreFont.clean();
@@ -89,7 +111,10 @@ namespace FollowTask {
 
             // lock for textures events (thread safety)
             lock(textureLock) {
-            
+
+                // clear the no signal texture
+                glDeleteTexture(connectionLostTexture);
+
 	            // reset all loading variables
 	            doLoadTextures = 0;
 	            blockTexturesToLoad.Clear();
@@ -118,7 +143,7 @@ namespace FollowTask {
 
 		        // loop through the blocks
 		        bool isInBlock = false;
-		        for (int i = 0; i < (int)mBlocks.Count(); ++i) {
+		        for (int i = 0; i < mBlocks.Count(); ++i) {
 
 			        // set the new block position
 			        mBlocks[i].mX = mBlocks[i].mX + blockSpeed * (float)secondsElapsed;
@@ -180,7 +205,7 @@ namespace FollowTask {
 		        glColor3(1f, 1f, 1f);
 
 		        // loop through the blocks
-		        for (int i = 0; i < (int)mBlocks.Count(); ++i) {
+		        for (int i = 0; i < mBlocks.Count(); ++i) {
 
 			        // skip block which are out of display
 			        if (mBlocks[i].mX + mBlocks[i].mWidth < 0)    	continue;
@@ -243,11 +268,80 @@ namespace FollowTask {
 	        if (score > -1) {
 
 		        glColor3(1f, 1f, 1f);
-                scoreFont.printLine(getContentWidth() - scoreFont.height * 9, 0, ("Score: " + score));
+                scoreFont.printLine(getContentWidth() - scoreFont.height * 9, 5, ("Score: " + score));
+
+	        }
+
+	        // check if text should be shown
+	        if (showText.Length != 0) {
+
+		        // set the text to white
+		        glColor3(1f, 1f, 1f);
+		
+		        // print the text
+                textFont.printLine((getContentWidth() - showTextWidth) / 2, getContentHeight() / 2, showText);
+
+	        }
+            
+	        // check if there is no signal
+	        if (showConnectionLost) {
+
+		        // print text
+		        int textWidth = textFont.getTextWidth("Lost connection with device");
+		        textFont.printLine((int)((getContentWidth() - textWidth) / 2), (int)((getContentHeight()) / 4), "Lost connection with device");
+
+		        // set texture
+                glBindTexture2D(connectionLostTexture);
+
+		        // set white color for drawing
+                glColor3(1f, 1f, 1f);
+
+		        // draw texture
+                glBeginTriangles();
+
+			        // vertex 0
+			        glTexCoord2(1.0f, 0.0f);
+			        glVertex3( (getContentWidth() - 200) / 2 + 200,				(getContentHeight() - 200) / 2 + 200,	    0.0f);
+
+			        glTexCoord2(1.0f, 1.0f);
+			        glVertex3( (getContentWidth() - 200) / 2 + 200,				(getContentHeight()-200) / 2,				0.0f);
+			
+			        glTexCoord2(0.0f, 1.0f);
+			        glVertex3( (getContentWidth() - 200) / 2,					(getContentHeight()-200) / 2,				0.0f);
+
+			        //vertex 1
+			        glTexCoord2(0.0f, 0.0f);
+			        glVertex3( (getContentWidth() - 200) / 2,					(getContentHeight()-200) / 2 + 200,		    0.0f);
+
+			        glTexCoord2(1.0f, 0.0f);
+			        glVertex3( (getContentWidth() - 200) / 2 + 200,				(getContentHeight()-200) / 2 + 200,		    0.0f);
+
+			        glTexCoord2(0.0f, 1.0f);
+			        glVertex3( (getContentWidth() - 200) / 2,					(getContentHeight()-200) / 2,				0.0f);
+
+		        glEnd();
 
 	        }
 
         }
+
+        public void setText(string text) {
+	
+	        // set the text
+	        showText = text;
+
+	        // if not empty, determine the width once
+            if (!String.IsNullOrEmpty(showText))
+                showTextWidth = textFont.getTextWidth(showText);
+
+        }
+
+        public void setConnectionLost(bool connectionLost) {
+	        showConnectionLost = connectionLost;
+        }
+
+
+
 
         private void loadTextures() {
             
@@ -255,7 +349,7 @@ namespace FollowTask {
             lock(textureLock) {
             
 	            // clear all the texture references in the block array
-	            for (int i = 0; i < (int)mBlocks.Count(); ++i)
+	            for (int i = 0; i < mBlocks.Count(); ++i)
                     mBlocks[i].mTexture = 0;
                 
 	            // delete existing textures, clear the array and resize to fit the new ones
@@ -265,7 +359,7 @@ namespace FollowTask {
                 blockTextures = new List<int>(new int[blockTexturesToLoad.Count()]);
 
 	            // load the new block textures (if possible)
-	            for (int i = 0; i < (int)blockTexturesToLoad.Count(); ++i) {
+	            for (int i = 0; i < blockTexturesToLoad.Count(); ++i) {
 		
 		            // initialy set to 0 (also reserved by openGL as a no texture pointer)
 		            blockTextures[i] = 0;
@@ -367,14 +461,14 @@ namespace FollowTask {
         // is the openGL context can use glGenTexture to succesfully create textures).
         // This function is called from a different thread so, the textures cannot be loaded
         // from here but will instead be loaded from the loop
-        public void initBlockTextures(List<String> inTargetTextures) {
+        public void initBlockTextures(List<string> inTargetTextures) {
             
             // wait while textures are still being loaded (thread safety)
             lock(textureLock) {
                 
 	            // clear the array and size it
 	            blockTexturesToLoad.Clear();
-                blockTexturesToLoad = new List<String>(new String[inTargetTextures.Count()]);
+                blockTexturesToLoad = new List<string>(new string[inTargetTextures.Count()]);
 
 	            // loop through the textures
 	            for (int i = 0; i < (int)inTargetTextures.Count(); ++i) {
@@ -383,7 +477,7 @@ namespace FollowTask {
 		            blockTexturesToLoad[i] = "";
 
 		            // check the file
-		            String texturePath = inTargetTextures[i];
+		            string texturePath = inTargetTextures[i];
                     
 		            if (String.IsNullOrEmpty(texturePath))		continue;
                     if (!File.Exists(texturePath)) {

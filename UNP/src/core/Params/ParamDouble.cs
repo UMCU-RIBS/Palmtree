@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using UNP.Core.Helpers;
 
 namespace UNP.Core.Params {
 
@@ -10,9 +11,9 @@ namespace UNP.Core.Params {
         private double value = 0.0;
         private Parameters.Units unit = Parameters.Units.ValueOrSamples;
 
-        public ParamDouble(String name, String group, Parameters parentSet, String desc, String[] options) : base(name, group, parentSet, desc, options) { }
+        public ParamDouble(string name, string group, Parameters parentSet, string desc, string[] options) : base(name, group, parentSet, desc, options) { }
 
-        public String getValue() {
+        public string getValue() {
             return this.value.ToString(Parameters.NumberCulture) + (this.unit == Parameters.Units.Seconds ? "s" : "");
         }
 
@@ -47,12 +48,12 @@ namespace UNP.Core.Params {
                 // flagged as seconds
 
                 // convert, check rounding
-                double samples = val * (double)MainThread.SamplesPerSecond();
+                double samples = SampleConversion.timeToSamplesAsDouble(val);   // conversion result as double, no rounding before
                 intSamples = (int)Math.Round(samples);
                 if (samples != intSamples) {
 
                     // message
-                    logger.Warn("Value for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') was retrieved in number of samples (" + val + " * " + MainThread.SamplesPerSecond() + "), but has been rounded from " + samples + " to " + intSamples);
+                    logger.Warn("Value for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') was retrieved in number of samples (" + val + " * " + SampleConversion.sampleRate() + "), but has been rounded from " + samples + " to " + intSamples);
 
                 }
 
@@ -92,13 +93,13 @@ namespace UNP.Core.Params {
             return true;
         }
 
-        public bool tryValue(String value) {
+        public bool tryValue(string value) {
             double doubleValue;
             Parameters.Units unit;
             return tryParseValue(value, out doubleValue, out unit);
         }
 
-        public bool setValue(String value) {
+        public bool setValue(string value) {
 
             // try to parse the value
             double doubleValue;

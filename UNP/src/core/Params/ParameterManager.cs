@@ -7,9 +7,9 @@ namespace UNP.Core.Params {
 
     public static class ParameterManager {
 
-        private static Dictionary<String, Parameters> paramSets = new Dictionary<String, Parameters>(0);
+        private static Dictionary<string, Parameters> paramSets = new Dictionary<string, Parameters>(0);
 
-        public static Parameters GetParameters(String name, Parameters.ParamSetTypes type) {
+        public static Parameters GetParameters(string name, Parameters.ParamSetTypes type) {
             Parameters parameterSet = null;
 
             // try to retrieve the set
@@ -27,7 +27,7 @@ namespace UNP.Core.Params {
 
         }
 
-        public static Dictionary<String, Parameters> getParameterSets() {
+        public static Dictionary<string, Parameters> getParameterSets() {
             return paramSets;
         }
 

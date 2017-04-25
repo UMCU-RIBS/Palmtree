@@ -16,9 +16,9 @@ namespace UNP.Core.Params {
         private double doubleMaxValue = 0;
         private Parameters.Units unitMaxValue = Parameters.Units.ValueOrSamples;
 
-        public ParamDoubleBase(String name, String group, Parameters parentSet, String desc, String[] options) : base(name, group, parentSet, desc, options) { }
+        public ParamDoubleBase(string name, string group, Parameters parentSet, string desc, string[] options) : base(name, group, parentSet, desc, options) { }
 
-        protected bool tryParseValue(String value, out double doubleValue, out Parameters.Units unit) {
+        protected bool tryParseValue(string value, out double doubleValue, out Parameters.Units unit) {
             doubleValue = 0.0;
             unit = Parameters.Units.ValueOrSamples;
             
@@ -36,7 +36,7 @@ namespace UNP.Core.Params {
 
             // check if value is numeric and can be converted to a double
             // return false if unsucessful
-            if (!double.TryParse(value, NumberStyles.AllowDecimalPoint, Parameters.NumberCulture, out doubleValue)) return false;
+            if (!double.TryParse(value, NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign, Parameters.NumberCulture, out doubleValue)) return false;
             
             // successfull parsing, return true
             return true;
@@ -44,7 +44,7 @@ namespace UNP.Core.Params {
         }
 
 
-        public bool setMinValue(String minValue) {
+        public bool setMinValue(string minValue) {
 
             // check if a minimum is set
             if (!String.IsNullOrEmpty(minValue) && !minValue.Equals("%")) {
@@ -71,7 +71,7 @@ namespace UNP.Core.Params {
 
         }
 
-        public bool setMaxValue(String maxValue) {
+        public bool setMaxValue(string maxValue) {
 
             // check if a maximum is set
             if (!String.IsNullOrEmpty(maxValue) && !maxValue.Equals("%")) {
@@ -98,7 +98,7 @@ namespace UNP.Core.Params {
 
         }
 
-        public bool setStdValue(String stdValue) {
+        public bool setStdValue(string stdValue) {
 
             // parse the standard value
             if (!tryParseValue(stdValue, out doubleStdValue, out unitStdValue)) {

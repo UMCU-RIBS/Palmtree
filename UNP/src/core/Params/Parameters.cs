@@ -18,7 +18,7 @@ namespace UNP.Core.Params {
         private static Logger logger = LogManager.GetLogger("Parameters");
 
         private List<iParam> paramList = new List<iParam>(0);
-        private String paramSetName = "";
+        private string paramSetName = "";
         private ParamSetTypes paramSetType = ParamSetTypes.Source;
 
         public enum ParamSetTypes : int {
@@ -32,12 +32,12 @@ namespace UNP.Core.Params {
             Seconds = 1
         }
 
-        public Parameters(String paramSetName, ParamSetTypes paramSetType) {
+        public Parameters(string paramSetName, ParamSetTypes paramSetType) {
             this.paramSetName = paramSetName;
             this.paramSetType = paramSetType;
         }
 
-        public String ParamSetName {
+        public string ParamSetName {
             get { return this.paramSetName; }
         }
         
@@ -49,28 +49,28 @@ namespace UNP.Core.Params {
             return paramList;
         }
 
-        public iParam addParameter<T>(String name, String desc) {
-            return addParameter<T>(name, "", desc, "", "", "", new String[0]);
+        public iParam addParameter<T>(string name, string desc) {
+            return addParameter<T>(name, "", desc, "", "", "", new string[0]);
         }        
-        public iParam addParameter<T>(String name, String desc, String stdValue) {
-            return addParameter<T>(name, "", desc, "", "", stdValue, new String[0]);
+        public iParam addParameter<T>(string name, string desc, string stdValue) {
+            return addParameter<T>(name, "", desc, "", "", stdValue, new string[0]);
         }
-        public iParam addParameter<T>(String name, String desc, String[] options) {
+        public iParam addParameter<T>(string name, string desc, string[] options) {
             return addParameter<T>(name, "", desc, "", "", "", options);
         }
-        public iParam addParameter<T>(String name, String desc, String minValue, String maxValue, String stdValue) {
-            return addParameter<T>(name, "", desc, minValue, maxValue, stdValue, new String[0]);
+        public iParam addParameter<T>(string name, string desc, string minValue, string maxValue, string stdValue) {
+            return addParameter<T>(name, "", desc, minValue, maxValue, stdValue, new string[0]);
         }
-        public iParam addParameter<T>(String name, String desc, String minValue, String maxValue, String[] options) {
+        public iParam addParameter<T>(string name, string desc, string minValue, string maxValue, string[] options) {
             return addParameter<T>(name, "", desc, minValue, maxValue, "", options);
         }
-        public iParam addParameter<T>(String name, String desc, String minValue, String maxValue, String stdValue, String[] options) {
+        public iParam addParameter<T>(string name, string desc, string minValue, string maxValue, string stdValue, string[] options) {
             return addParameter<T>(name, "", desc, minValue, maxValue, stdValue, options);
         }
-        public iParam addParameter<T>(String name, String group, String desc, String minValue, String maxValue, String stdValue) {
-            return addParameter<T>(name, group, desc, minValue, maxValue, stdValue, new String[0]);
+        public iParam addParameter<T>(string name, string group, string desc, string minValue, string maxValue, string stdValue) {
+            return addParameter<T>(name, group, desc, minValue, maxValue, stdValue, new string[0]);
         }
-        public iParam addParameter<T>(String name, String group, String desc, String minValue, String maxValue, String stdValue, String[] options) {
+        public iParam addParameter<T>(string name, string group, string desc, string minValue, string maxValue, string stdValue, string[] options) {
 
             // check if a parameter with that name already exists, return without adding if this is the case
             if (getParameter(name) != null) {
@@ -116,6 +116,10 @@ namespace UNP.Core.Params {
             } else if (paramType == typeof(ParamDoubleMat) || paramType == typeof(double[][])) {
 
                 param = new ParamDoubleMat(name, group, this, desc, options);
+
+            } else if (paramType == typeof(ParamStringMat) || paramType == typeof(string[][]) || paramType == typeof(String[][])) {
+
+                param = new ParamStringMat(name, group, this, desc, options);
 
             } else if (paramType == typeof(ParamColor) || paramType == typeof(RGBColorFloat)) {
 
@@ -216,7 +220,7 @@ namespace UNP.Core.Params {
 
         }
 
-        private iParam getParameter(String paramName) {
+        private iParam getParameter(string paramName) {
 
             // try to find the parameter by name
             for (int i = 0; i < paramList.Count(); i++) {
@@ -230,7 +234,7 @@ namespace UNP.Core.Params {
 
         }
 
-        public T getValue<T>(String paramName) {
+        public T getValue<T>(string paramName) {
             iParam param = getParameter(paramName);
             if (param == null) {
 
@@ -247,7 +251,7 @@ namespace UNP.Core.Params {
 
         }
         
-        public int getValueInSamples(String paramName) {
+        public int getValueInSamples(string paramName) {
             iParam param = getParameter(paramName);
             if (param == null) {
 
@@ -263,8 +267,19 @@ namespace UNP.Core.Params {
             return param.getValueInSamples();
 
         }
+        
+        public string ToString(string paramName) {
+            iParam param = getParameter(paramName);
+            if (param == null) {
+                logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', returning null");
+                return null;
+            }
 
-        public bool setValue(String paramName, bool paramValue) {
+            return param.ToString();
+        }
+
+
+        public bool setValue(string paramName, bool paramValue) {
             iParam param = getParameter(paramName);
             if (param == null) {
                 logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
@@ -285,10 +300,10 @@ namespace UNP.Core.Params {
 
         }
 
-        public bool setValue(String paramName, int paramValue) {
+        public bool setValue(string paramName, int paramValue) {
             return setValue(paramName, paramValue, Units.ValueOrSamples);
         }
-        public bool setValue(String paramName, int paramValue, Parameters.Units paramUnit) {
+        public bool setValue(string paramName, int paramValue, Parameters.Units paramUnit) {
             iParam param = getParameter(paramName);
             if (param == null) {
                 logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
@@ -310,10 +325,10 @@ namespace UNP.Core.Params {
 
         }
 
-        public bool setValue(String paramName, double paramValue) {
+        public bool setValue(string paramName, double paramValue) {
             return setValue(paramName, paramValue, Units.ValueOrSamples);
         }
-        public bool setValue(String paramName, double paramValue, Parameters.Units paramUnit) {
+        public bool setValue(string paramName, double paramValue, Parameters.Units paramUnit) {
             iParam param = getParameter(paramName);
             if (param == null) {
                 logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
@@ -335,7 +350,7 @@ namespace UNP.Core.Params {
 
         }
 
-        public bool setValue(String paramName, bool[] paramValue) {
+        public bool setValue(string paramName, bool[] paramValue) {
             iParam param = getParameter(paramName);
             if (param == null) {
                 logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
@@ -356,10 +371,10 @@ namespace UNP.Core.Params {
 
         }
 
-        public bool setValue(String paramName, int[] paramValue) {
+        public bool setValue(string paramName, int[] paramValue) {
             return setValue(paramName, paramValue, new Parameters.Units[paramValue.Length]);
         }
-        public bool setValue(String paramName, int[] paramValue, Parameters.Units[] paramUnit) {
+        public bool setValue(string paramName, int[] paramValue, Parameters.Units[] paramUnit) {
             iParam param = getParameter(paramName);
             if (param == null) {
                 logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
@@ -384,10 +399,10 @@ namespace UNP.Core.Params {
 
         }
 
-        public bool setValue(String paramName, double[] paramValue) {
+        public bool setValue(string paramName, double[] paramValue) {
             return setValue(paramName, paramValue, new Parameters.Units[paramValue.Length]);
         }
-        public bool setValue(String paramName, double[] paramValue, Parameters.Units[] paramUnit) {
+        public bool setValue(string paramName, double[] paramValue, Parameters.Units[] paramUnit) {
             iParam param = getParameter(paramName);
             if (param == null) {
                 logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
@@ -409,7 +424,7 @@ namespace UNP.Core.Params {
 
         }
 
-        public bool setValue(String paramName, bool[][] paramValue) {
+        public bool setValue(string paramName, bool[][] paramValue) {
             iParam param = getParameter(paramName);
             if (param == null) {
                 logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
@@ -430,12 +445,12 @@ namespace UNP.Core.Params {
 
         }
 
-        public bool setValue(String paramName, int[][] paramValue) {
+        public bool setValue(string paramName, int[][] paramValue) {
             Parameters.Units[][] paramUnit = new Parameters.Units[paramValue.Length][];
             for (int i = 0; i < paramUnit.Count(); i++) paramUnit[i] = new Parameters.Units[paramValue[i].Length];
             return setValue(paramName, paramValue, paramUnit);
         }
-        public bool setValue(String paramName, int[][] paramValue, Parameters.Units[][] paramUnit) {
+        public bool setValue(string paramName, int[][] paramValue, Parameters.Units[][] paramUnit) {
             iParam param = getParameter(paramName);
             if (param == null) {
                 logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
@@ -457,12 +472,12 @@ namespace UNP.Core.Params {
 
         }
 
-        public bool setValue(String paramName, double[][] paramValue) {
+        public bool setValue(string paramName, double[][] paramValue) {
             Parameters.Units[][] paramUnit = new Parameters.Units[paramValue.Length][];
             for (int i = 0; i < paramUnit.Count(); i++) paramUnit[i] = new Parameters.Units[paramValue[i].Length];
             return setValue(paramName, paramValue, paramUnit);
         }
-        public bool setValue(String paramName, double[][] paramValue, Parameters.Units[][] paramUnit) {
+        public bool setValue(string paramName, double[][] paramValue, Parameters.Units[][] paramUnit) {
             iParam param = getParameter(paramName);
             if (param == null) {
                 logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
@@ -484,7 +499,29 @@ namespace UNP.Core.Params {
 
         }
 
-        public bool setValue(String paramName, String paramValue) {
+        public bool setValue(string paramName, string[][] paramValue) {
+            iParam param = getParameter(paramName);
+            if (param == null) {
+                logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
+                return false;
+            }
+
+            // check if the parameter is indeed used to store a string matix
+            if (param.GetType() != typeof(ParamStringMat)) {
+                logger.Error("Could not set parameter '" + paramName + "' in parameter set '" + paramSetName + "', trying to set a matrix of strings in a '" + param.GetType().Name + "' parameter");
+                return false;
+            }
+
+            // set the value
+            if (!((ParamStringMat)param).setValue(paramValue))      return false;
+
+            // return success
+            return true;
+
+        }
+
+
+        public bool setValue(string paramName, string paramValue) {
             iParam param = getParameter(paramName);
             if (param == null) {
                 logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");

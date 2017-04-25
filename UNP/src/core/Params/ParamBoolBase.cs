@@ -8,9 +8,9 @@ namespace UNP.Core.Params {
     public abstract class ParamBoolBase : Param {
         private bool boolStdValue = false;
 
-        public ParamBoolBase(String name, String group, Parameters parentSet, String desc, String[] options) : base(name, group, parentSet, desc, options) { }
+        public ParamBoolBase(string name, string group, Parameters parentSet, string desc, string[] options) : base(name, group, parentSet, desc, options) { }
 
-        public bool setStdValue(String stdValue) {
+        public bool setStdValue(string stdValue) {
 
             // make lowercase and store the standardvalue
             this.stdValue = stdValue.ToLower();

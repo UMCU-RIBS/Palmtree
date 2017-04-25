@@ -43,7 +43,7 @@ namespace UNP {
         
         }
 
-        private static Dictionary<String, Parameters> paramSets = ParameterManager.getParameterSets();
+        private static Dictionary<string, Parameters> paramSets = ParameterManager.getParameterSets();
         private const int labelWidth = 230;
         private const int itemTopPadding = 10;
         private const int itemBottomPadding = 10;
@@ -60,7 +60,7 @@ namespace UNP {
 
             // loop through each paramset
             int counter = 0;
-            foreach (KeyValuePair<String, Parameters> entry in paramSets) {
+            foreach (KeyValuePair<string, Parameters> entry in paramSets) {
                 
                 // create a new tab for the paramset and suspend the layout
                 TabPage newTab = new TabPage();
@@ -173,11 +173,7 @@ namespace UNP {
                 paramControls.Add(new ParamControl(param, newTxt, tab));
                 itemHeight = 20;
 
-            } else if (param is ParamBoolMat) {
-
-            } else if (param is ParamIntMat) {
-
-            } else if (param is ParamDoubleMat) {
+            } else if (param is ParamBoolMat || param is ParamIntMat || param is ParamDoubleMat || param is ParamStringMat) {
 
                 // add the data grid
                 DataGridView newGrid = new DataGridView();
@@ -292,7 +288,7 @@ namespace UNP {
                     TextBox txt = (TextBox)paramControls[i].control;
                     txt.Text = param.getValue();
 
-                } else if (param is ParamBoolMat || param is ParamIntMat || param is ParamDoubleMat) {
+                } else if (param is ParamBoolMat || param is ParamIntMat || param is ParamDoubleMat || param is ParamStringMat) {
 
                     // retrieve references to the control and parameter value(s)
                     DataGridView grd = (DataGridView)paramControls[i].control;
@@ -302,6 +298,7 @@ namespace UNP {
                     bool[][]boolValues = null;
                     int[][]intValues = null;
                     double[][]dblValues = null;
+                    string[][]strValues = null;
                     Parameters.Units[][] units = null;
                     int columns = 0;
                     int maxRows = 0;
@@ -321,6 +318,11 @@ namespace UNP {
                         units = ((ParamDoubleMat)param).Unit;
                         columns = dblValues.Count();
                         for (int c = 0; c < columns; c++)   if (dblValues[c].Count() > maxRows)    maxRows = dblValues[c].Count();
+                    }
+                    if (param is ParamStringMat) {
+                        strValues = ((ParamStringMat)param).Value;
+                        columns = strValues.Count();
+                        for (int c = 0; c < columns; c++)   if (strValues[c].Count() > maxRows)    maxRows = strValues[c].Count();
                     }
 
                     // set the columns (the changevalue property of the of the NumericUpDown control will do the actual resizing of the grid)
@@ -355,6 +357,11 @@ namespace UNP {
                         if (param is ParamDoubleMat) {
                             for (int r = 0; r < dblValues[c].Count(); r++) {
                                 grd[c, r].Value = (dblValues[c][r].ToString(NumberCulture) + (units[c][r] == Parameters.Units.Seconds ? "s" : ""));
+                            }
+                        }
+                        if (param is ParamStringMat) {
+                            for (int r = 0; r < strValues[c].Count(); r++) {
+                                grd[c, r].Value = strValues[c][r];
                             }
                         }
 
@@ -442,7 +449,7 @@ namespace UNP {
 
                     }
                 
-                } else if (param is ParamBoolMat || param is ParamIntMat || param is ParamDoubleMat) {
+                } else if (param is ParamBoolMat || param is ParamIntMat || param is ParamDoubleMat || param is ParamStringMat) {
 
                     // retrieve references to the control and parameter value(s)
                     DataGridView grd = (DataGridView)paramControls[i].control;
@@ -452,16 +459,16 @@ namespace UNP {
                     int rows = (int)grdRows.Value;
                     
                     // create input string
-                    String matString = "";
+                    string matstring = "";
                     if (columns > 0 && rows > 0) {
                         for (int c = 0; c < columns; c++) {
                             for (int r = 0; r < rows; r++) {
                                 Object cell = grd[c, r].Value;
-                                if (cell==null)     matString += " ";
-                                else                matString += cell.ToString().Trim().Replace(',','.');
-                                if (r != rows - 1) matString += ","; 
+                                if (cell==null)     matstring += " ";
+                                else                matstring += cell.ToString().Trim().Replace(',','.');
+                                if (r != rows - 1) matstring += ","; 
                             }
-                            if (c != columns - 1) matString += ";"; 
+                            if (c != columns - 1) matstring += ";"; 
                         }
                     }
                     
@@ -470,7 +477,7 @@ namespace UNP {
                         // testing
 
                         // will always work regardless of value, so skip this step
-                        if (!param.tryValue(matString)) {
+                        if (!param.tryValue(matstring)) {
                             
                             // flag
                             hasError = true;
@@ -500,7 +507,7 @@ namespace UNP {
                     } else {
                         // saving
 
-                        if (!param.setValue(matString)) {
+                        if (!param.setValue(matstring)) {
 
                             // flag
                             hasError = true;

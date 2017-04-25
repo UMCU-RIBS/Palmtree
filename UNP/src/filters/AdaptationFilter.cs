@@ -59,7 +59,7 @@ namespace UNP.Filters {
                 "Adaptation",
                 "",
                 "0", "3", "0",
-                new String[]{   "No adaptation",
+                new string[]{   "No adaptation",
                                 "To initial parameters",
                                 "To first samples",
                                 "To lastest samples",

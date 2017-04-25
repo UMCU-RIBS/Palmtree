@@ -32,7 +32,7 @@ namespace UNP {
         GUIConfig frmConfig = null;                     // coniguration form
         private bool configApplied = false;             // the configuration was applied (and needs to be before starting)
 
-        public static String getClassName() {
+        public static string getClassName() {
             Type myType = typeof(GUI);
             return myType.Namespace + "." + myType.Name;
         }
@@ -192,11 +192,13 @@ namespace UNP {
 
         private void btnEditConfig_Click(object sender, EventArgs e) {
 
-            //GUIConfigGrid a = new GUIConfigGrid();
-            //a.ShowDialog();
             if (frmConfig == null)  frmConfig = new GUIConfig();
             DialogResult dr = frmConfig.ShowDialog();
-            configApplied = (dr == DialogResult.OK);
+            configApplied = (dr != DialogResult.OK);        // config is not applied if the configuration is save and changed (config needs te be set again first)
+            
+            // update the console information
+            updateMainInformation();
+
         }
 
         private void btnSetConfig_Click(object sender, EventArgs e) {

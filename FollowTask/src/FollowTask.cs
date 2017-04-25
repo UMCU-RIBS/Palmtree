@@ -8,6 +8,7 @@ using UNP;
 using UNP.Applications;
 using UNP.Core;
 using UNP.Core.Helpers;
+using UNP.Core.Params;
 
 namespace FollowTask {
 
@@ -21,6 +22,7 @@ namespace FollowTask {
 		};
 
         private static Logger logger = LogManager.GetLogger("FollowTask");                        // the logger object for the view
+        private static Parameters parameters = ParameterManager.GetParameters("FollowTask", Parameters.ParamSetTypes.Application);
 
         Random rand = new Random(Guid.NewGuid().GetHashCode());
 
@@ -37,7 +39,7 @@ namespace FollowTask {
         private bool mConnectionWasLost = false;						// flag to hold whether the connection has been lost (should be reset after being re-connected)
 
 
-        // input parameters
+        // task input parameters
         private int mWindowRedrawFreqMax = 0;
         private bool mWindowed = false;
         private int mWindowWidth = 0;
@@ -66,29 +68,28 @@ namespace FollowTask {
             new List<float>(0), 
             new List<float>(0)  
         };          
-        private List<String> mTargetTextures = new List<String>(0);			        // the block/target texture definitions (each element gives the texture for each block option, corresponds to the 2nd dimension of targets) 
-        private List<int> mTargetSequence = new List<int>(0);					    // the target sequence being used in the task (can either be given by input or generated)
+        private List<string> mTargetTextures = new List<string>(0);			        // the block/target texture definitions (each element gives the texture for each block option, corresponds to the 2nd dimension of targets) 
 		
 		private int mTaskInputChannel = 0;											// input channel
         private int mTaskInputSignalType = 0;										// input signal type (0 = 0 to 1, 1 = -1 to 1)
-        private int mTaskFirstRunStartDelay = 0;									// the first run start delay in sample blocks (used as a timer during runtime)
+        private int mTaskFirstRunStartDelay = 0;                                    // the first run start delay in sample blocks
+        private int mTaskStartDelay = 0;									        // the run start delay in sample blocks
+
+
+        // task (active) variables
+        private List<int> mTargetSequence = new List<int>(0);					    // the target sequence being used in the task (can either be given by input or generated)
+
         private int mWaitCounter = 0;
         private int mCountdownCounter = 0;											// the countdown timer
 
         private int mHitScore = 0;												    // the score of the cursor hitting a block (in number of samples)
 		private bool mShowScore = false;
 
-
-
-        // task specific variables
         private TaskStates taskState = TaskStates.Wait;
         private TaskStates previousTaskState = TaskStates.Wait;
 
         private int mCurrentBlock = FollowView.noBlock;	                            // the current block which is in line with X of the cursor (so the middle)
         private float mBlockSpeed = 120;									        // the block movement speed (in pixels per second)
-
-
-
 
 
 
@@ -123,7 +124,8 @@ namespace FollowTask {
 	        mShowScore = true;
 	        mTaskInputSignalType = 1;
 	        mTaskInputChannel = 1;
-	        mTaskFirstRunStartDelay = 10;
+            mTaskFirstRunStartDelay = 4;
+	        mTaskStartDelay = 10;
 	        mCursorSize = 4f;
 	        mCursorColorRule = 0;
             mCursorColorMiss = new RGBColorFloat(0.8f, 0f, 0f);
@@ -149,7 +151,7 @@ namespace FollowTask {
 	        mTargets[0][5] = 75;	mTargets[1][5] = 50;	mTargets[2][5] = 7;
 
 
-            mTargetTextures = new List<String>(new String[6]);
+            mTargetTextures = new List<string>(new string[6]);
 	        mTargetTextures[0] = "images/sky.bmp";
 	        mTargetTextures[1] = "images/sky.bmp";
 	        mTargetTextures[2] = "images/sky.bmp";
@@ -242,17 +244,21 @@ namespace FollowTask {
 
 	            // reset countdown
 	            mCountdownCounter = 15;
-	
-	            if(mTaskFirstRunStartDelay != 0) {
+
+	            if(mTaskStartDelay != 0 || mTaskFirstRunStartDelay != 0) {
 		            // wait
 
 		            // set state to wait
 		            setState(TaskStates.Wait);
+
+                    // show the fixation
+                    mSceneThread.setFixation(true);
 		
 	            } else {
 		
 		            // countdown
                     setState(TaskStates.CountDown);
+
 	            }
 
             }
@@ -309,10 +315,8 @@ namespace FollowTask {
                         // pauze the task
                         pauzeTask();
 
-                        /*
 			            // show the lost connection warning
 			            mSceneThread.setConnectionLost(true);
-			            */
 
                     }
 
@@ -329,10 +333,8 @@ namespace FollowTask {
                 } else if (mConnectionWasLost && !mConnectionLost) {
                     // if the connection was lost and is not lost anymore
 
-                    /*
 		            // hide the lost connection warning
 		            mSceneThread.setConnectionLost(false);
-			        */
 
                     // resume task
                     resumeTask();
@@ -503,7 +505,7 @@ namespace FollowTask {
 
 				            // retrieve the current block, whether the cursor is in the block, and (if there is a block) the target index of the block
 				            mCurrentBlock = mSceneThread.getCurrentBlock();
-				            //bciout << "mCurrentBlock " << mCurrentBlock << endl;
+                            //logger.Debug("mCurrentBlock " + mCurrentBlock);
 
 				            // add to score if cursor hits the block
 				            if (mSceneThread.getCursorInCurrentBlock()) mHitScore++;
@@ -552,7 +554,7 @@ namespace FollowTask {
 	            }
 	
 	            // log
-	            State("Log_FirstRunStartDelay").AsUnsigned() = (mTaskFirstRunStartDelay > 0);									// delay running
+	            State("Log_FirstRunStartDelay").AsUnsigned() = (mTaskStartDelay > 0);									// delay running
 	            State("Log_Countdown").AsUnsigned() = (taskState == CountDown);													// countdown running
 	            State("Log_Task").AsUnsigned() = (taskState == Task);															// task running
 	            State("Log_CurrentBlock").AsUnsigned() = mCurrentBlock;															// the current block (index in sequence)
@@ -648,35 +650,37 @@ namespace FollowTask {
 	        switch (state) {
 		        case TaskStates.Wait:
 			        // starting, pauzed or waiting
-			
-                    /*
-				    // hide text if present
-				    mSceneThread.setText("");
-                    */
-				    // show the fixation
-				    mSceneThread.setFixation(true);
+
+                    // hide text if present
+                    mSceneThread.setText("");
+
+				    // hide the fixation and countdown
+				    mSceneThread.setFixation(false);
+                    mSceneThread.setCountDown(0);
 
 				    // stop the blocks from moving
 				    mSceneThread.setBlocksMove(false);
 
 				    // hide the countdown, blocks, cursor and score
-				    mSceneThread.setCountDown(0);
 				    mSceneThread.setBlocksVisible(false);
 				    mSceneThread.setCursorVisible(false);
 				    mSceneThread.setScore(-1);
 
-			        // Set wait counter to startdelay
-			        mWaitCounter = mTaskFirstRunStartDelay;
+                    // Set wait counter to startdelay
+                    if (mTaskFirstRunStartDelay != 0) {
+                        mWaitCounter = mTaskFirstRunStartDelay;
+                        mTaskFirstRunStartDelay = 0;
+                    } else
+			            mWaitCounter = mTaskStartDelay;
 
 			        break;
 
 		        case TaskStates.CountDown:
 			        // countdown when task starts
 
-				/*
 				    // hide text if present
 				    mSceneThread.setText("");
-                    */
+
 				    // hide fixation
 				    mSceneThread.setFixation(false);
 
@@ -724,10 +728,10 @@ namespace FollowTask {
 				    // hide the blocks and cursor
 				    mSceneThread.setBlocksVisible(false);
 				    mSceneThread.setCursorVisible(false);
-                    /*
+                    
 				    // show text
-				    mSceneThread.setText("Exit task");
-			        */
+				    mSceneThread.setText("Done");
+			        
 			        // set duration for text to be shown at the end
 			        mWaitCounter = 15;
 
@@ -744,20 +748,9 @@ namespace FollowTask {
             // set the current block to no block
             mCurrentBlock = FollowView.noBlock;
 
-            // hide countdowns or fixations
-            mSceneThread.setFixation(false);
-            mSceneThread.setCountDown(0);
-
-            // stop the blocks animation and hide the blocks
-            mSceneThread.setBlocksMove(false);
-            mSceneThread.setBlocksVisible(false);
-
-            // hide the cursor
-            mSceneThread.setCursorVisible(false);
-
-            // hide the score
-            mSceneThread.setScore(-1);
-                
+            // set state to wait
+            setState(TaskStates.Wait);
+    
             // initialize the target sequence already for a possible next run
 	        if (fixedTargetSequence.Count() == 0) {
 

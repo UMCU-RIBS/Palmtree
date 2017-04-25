@@ -370,6 +370,29 @@ namespace UNP.Views {
 
         }
 
+
+        public void drawRectangle(float x1, float y1, float x2, float y2, float lineWidth, float colorR, float colorG, float colorB) {
+	
+	        // set the color
+            gl.Color(colorR, colorG, colorB);
+
+	        // set no texture
+            gl.BindTexture(OpenGL.GL_TEXTURE_2D, 0);
+
+	        // set the line with
+            gl.LineWidth(lineWidth);
+
+	        // draw the rectangle
+            gl.Begin(OpenGL.GL_LINE_LOOP);
+                gl.Vertex(x1, y1);
+                gl.Vertex(x2, y1);
+                gl.Vertex(x2, y2);
+                gl.Vertex(x1, y2);
+            gl.End();
+
+        }
+
+
         public void glColor3(byte red, byte green, byte blue)                   {   gl.Color(red, green, blue);         }
         public void glColor3(float red, float green, float blue)                {   gl.Color(red, green, blue);         }
         public void glColor4(byte red, byte green, byte blue, byte alpha)       {   gl.Color(red, green, blue, alpha);  }
@@ -464,6 +487,7 @@ namespace UNP.Views {
         public void glBeginQuads()       {   gl.Begin(OpenGL.GL_QUADS);      }
         public void glBeginTriangles()   {   gl.Begin(OpenGL.GL_TRIANGLES);  }
         public void glBeginPolygon()     {   gl.Begin(OpenGL.GL_POLYGON);    }
+        public void glBeginLineLoop()    {   gl.Begin(OpenGL.GL_LINE_LOOP);  }
         public void glEnd()              {   gl.End();                       }
 
         public uint loadImage(string file) {
