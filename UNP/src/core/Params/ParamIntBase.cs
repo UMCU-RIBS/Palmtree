@@ -9,12 +9,12 @@ namespace UNP.Core.Params {
 
     public abstract class ParamIntBase : Param {
         
-        private int intStdValue = 0;
-        private Parameters.Units unitStdValue = Parameters.Units.ValueOrSamples;
-        private int intMinValue = 0;
-        private Parameters.Units unitMinValue = Parameters.Units.ValueOrSamples;
-        private int intMaxValue = 0;
-        private Parameters.Units unitMaxValue = Parameters.Units.ValueOrSamples;
+        protected int intStdValue = 0;
+        protected Parameters.Units unitStdValue = Parameters.Units.ValueOrSamples;
+        protected int intMinValue = 0;
+        protected Parameters.Units unitMinValue = Parameters.Units.ValueOrSamples;
+        protected int intMaxValue = 0;
+        protected Parameters.Units unitMaxValue = Parameters.Units.ValueOrSamples;
 
         public ParamIntBase(string name, string group, Parameters parentSet, string desc, string[] options) : base(name, group, parentSet, desc, options) { }
 

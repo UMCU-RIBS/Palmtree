@@ -36,7 +36,7 @@ namespace UNP.Core {
 
 
         private static ISource source = null;                               //
-        private List<IFilter> filters = new List<IFilter>();                //
+        private static List<IFilter> filters = new List<IFilter>();         //
         private IApplication application = null;                            // reference to the view, used to pull information from and push commands to
 
         const int sampleBufferSize = 10000;                                 // the size (and maximum samples) of the sample buffer/que 
@@ -66,10 +66,10 @@ namespace UNP.Core {
             //source = new GenerateSignal(this);
 
             // create filters
-            filters.Add(new TimeSmoothingFilter());
-            filters.Add(new AdaptationFilter());
-            filters.Add(new ThresholdClassifierFilter());
-            filters.Add(new ClickTranslatorFilter());
+            filters.Add(new TimeSmoothingFilter("TimeSmoothing"));
+            filters.Add(new AdaptationFilter("Adaptation"));
+            filters.Add(new ThresholdClassifierFilter("ThresholdClassifier"));
+            filters.Add(new ClickTranslatorFilter("ClickTranslator"));
 
             // create the application
             Console.WriteLine("applicationType " + applicationType.Name);
@@ -100,15 +100,13 @@ namespace UNP.Core {
             sourceParameters.setValue("SampleRate", 5.0);
             sourceParameters.setValue("Keys", "F,G;1,2;1,1;-1,-1");
 
-
-            Parameters timeSmoothingParameters = filters[0].getParameters();
+            Parameters timeSmoothingParameters = getFilterParameters("TimeSmoothing");
             timeSmoothingParameters.setValue("EnableFilter", true);
             double[][] bufferWeights = new double[2][];     // first dimensions is the colums, second dimension is the rows
             for (int i = 0; i < bufferWeights.Length; i++)  bufferWeights[i] = new double[] { 0.7, 0.5, 0.2, 0.2, 0 };
             timeSmoothingParameters.setValue("BufferWeights", bufferWeights);
-            
 
-            Parameters adaptationParameters = filters[1].getParameters();
+            Parameters adaptationParameters = getFilterParameters("Adaptation");
             adaptationParameters.setValue("EnableFilter", true);
             adaptationParameters.setValue("WriteIntermediateFile", false);
             adaptationParameters.setValue("Adaptation", "1 1");
@@ -119,14 +117,15 @@ namespace UNP.Core {
             adaptationParameters.setValue("AdaptationMinimalLength", "5s");
             adaptationParameters.setValue("ExcludeStdThreshold", "0.85 2.7");
 
-
-            Parameters thresholdParameters = filters[2].getParameters();            
+            Parameters thresholdParameters = getFilterParameters("ThresholdClassifier");
             double[][] thresholds = new double[4][];        // first dimensions is the colums, second dimension is the rows
             thresholds[0] = new double[] { 1 };
             thresholds[1] = new double[] { 1 };
             thresholds[2] = new double[] { 0.45 };
             thresholds[3] = new double[] { 1 };
             thresholdParameters.setValue("Thresholds", thresholds);
+
+            Parameters clickParameters = getFilterParameters("ClickTranslator");
             
 
         }
@@ -536,6 +535,78 @@ namespace UNP.Core {
             }
             
         }
+
+
+        /**
+         * Static function to return 
+         **/
+        private static Parameters getFilterParameters(string filterName) {
+
+            // find the filter, and return a reference to its paremeters
+            for (int i = 0; i < filters.Count; i++) {
+                if (filters[i].getName().Equals(filterName)) {
+                    return filters[i].getParameters();
+                }
+            }
+
+            // message
+            logger.Error("Filter '" + filterName + "' could not be found, returning null");
+
+            // return failure
+            return null;
+
+        }
+
+        /**
+         * Static function to return 
+         **/
+        public static Parameters getFilterParametersClone(string filterName) {
+
+            // find the filter, and return a clone of its paremeters
+            for (int i = 0; i < filters.Count; i++) {
+                if (filters[i].getName().Equals(filterName)) {
+                    return filters[i].getParameters().clone();
+                }
+            }
+
+            // message
+            logger.Error("Filter '" + filterName + "' could not be found, returning null");
+
+            // return failure
+            return null;
+
+        }
+
+        /**
+         * Static function to 
+         **/
+        public static void adjustFilterSettings(string filterName, Parameters newParameters) {
+
+            // find the filter, and return a reference to its paremeters
+            IFilter filter = null;
+            for (int i = 0; i < filters.Count; i++) {
+                if (filters[i].getName().Equals(filterName)) {
+                    filter = filters[i];
+                    break;
+                }
+            }
+            
+            // check if the filter could not be found
+            if (filter == null) {
+
+                // message
+                logger.Error("Filter '" + filterName + "' could not be found, no filter parameters were adjusted");
+
+                // return without action
+                return;
+
+            }
+
+            // set 
+            //filter.
+
+        }
+
 
     }
 

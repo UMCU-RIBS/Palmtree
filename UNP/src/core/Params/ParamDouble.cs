@@ -149,6 +149,26 @@ namespace UNP.Core.Params {
 
         }
         
+        public iParam clone() {
+            ParamDouble clone = new ParamDouble(name, group, parentSet, desc, options);
+
+            clone.stdValue = stdValue;
+            clone.doubleStdValue = doubleStdValue;
+            clone.unitStdValue = unitStdValue;
+            
+            clone.minValue = minValue;
+            clone.doubleMinValue = doubleMinValue;
+            clone.unitMinValue = unitMinValue;
+
+            clone.maxValue = maxValue;
+            clone.doubleMaxValue = doubleMaxValue;
+            clone.unitMaxValue = unitMaxValue;
+
+            clone.value = value;
+
+            return clone;
+        }
+
     }
 
 }

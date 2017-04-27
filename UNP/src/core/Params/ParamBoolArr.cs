@@ -90,6 +90,20 @@ namespace UNP.Core.Params {
 
         }
 
+        public iParam clone() {
+            ParamBoolArr clone = new ParamBoolArr(name, group, parentSet, desc, options);
+            
+            clone.stdValue = stdValue;
+            clone.boolStdValue = boolStdValue;
+            clone.minValue = minValue;
+            clone.maxValue = maxValue;
+            clone.values = new bool[values.Length];
+
+            for (int i = 0; i < values.Length; i++)    clone.values[i] = values[i];
+
+            return clone;
+        }
+
     }
 
 }

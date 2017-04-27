@@ -77,6 +77,19 @@ namespace UNP.Core.Params {
             return true;
         }
         
+        public iParam clone() {
+            ParamColor clone = new ParamColor(name, group, parentSet, desc, options);
+
+            clone.stdValue = this.stdValue;
+            clone.minValue = this.minValue;
+            clone.maxValue = this.maxValue;
+
+            clone.value = new RGBColorFloat(value.red, value.green, value.blue);
+
+            return clone;
+
+        }
+
     }
 
 }

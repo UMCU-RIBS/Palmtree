@@ -10,8 +10,9 @@ namespace UNP.Filters {
 
     public class TimeSmoothingFilter : IFilter {
 
-        private static Logger logger = LogManager.GetLogger("TimeSmoothing");
-        private static Parameters parameters = ParameterManager.GetParameters("TimeSmoothing", Parameters.ParamSetTypes.Filter);
+        private string filterName = "";
+        private static Logger logger = null;
+        private static Parameters parameters = null;
 
         private bool mEnableFilter = false;
         private uint inputChannels = 0;
@@ -21,7 +22,14 @@ namespace UNP.Filters {
         private double[][] mBufferWeights = null;                   // matrix with the buffer weights for each channel (1ste dimention are the channels; 2nd dimension are the sample weights per channel)
 
 
-        public TimeSmoothingFilter() {
+        public TimeSmoothingFilter(string filterName) {
+
+            // store the filter name
+            this.filterName = filterName;
+
+            // initialize the logger and parameters with the filter name
+            logger = LogManager.GetLogger(filterName);
+            parameters = ParameterManager.GetParameters(filterName, Parameters.ParamSetTypes.Filter);
 
             // define the parameters
             parameters.addParameter <bool>  (
@@ -41,6 +49,10 @@ namespace UNP.Filters {
 
         }
         
+        public string getName() {
+            return filterName;
+        }
+
         public Parameters getParameters() {
             return parameters;
         }

@@ -72,6 +72,18 @@ namespace UNP.Core.Params {
             return true;
         }
 
+        public iParam clone() {
+            ParamBool clone = new ParamBool(name, group, parentSet, desc, options);
+
+            clone.stdValue = stdValue;
+            clone.boolStdValue = boolStdValue;
+            clone.minValue = minValue;
+            clone.maxValue = maxValue;
+            clone.value = value;
+
+            return clone;
+        }
+
     }
 
 }

@@ -11,14 +11,14 @@ namespace UNP.Core.Params {
         protected static Logger logger = LogManager.GetLogger("Parameter");
 
         // parameter properties
-        private string name     = "";
-        private string group    = "";
-        private string desc     = "";
+        protected string name = "";
+        protected string group = "";
+        protected string desc = "";
         protected string stdValue = "";
         protected string minValue = "";
         protected string maxValue = "";
         protected string[] options = new string[0];
-        private Parameters parentSet = null;
+        protected Parameters parentSet = null;
 
         public Param(string name, string group, Parameters parentSet, string desc, string[] options) {
             this.name = name;

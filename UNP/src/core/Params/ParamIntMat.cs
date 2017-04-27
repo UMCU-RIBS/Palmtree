@@ -217,6 +217,33 @@ namespace UNP.Core.Params {
 
         }
 
+        public iParam clone() {
+            ParamIntMat clone = new ParamIntMat(name, group, parentSet, desc, options);
+
+            clone.stdValue = stdValue;
+            clone.intStdValue = intStdValue;
+            clone.unitStdValue = unitStdValue;
+            
+            clone.minValue = minValue;
+            clone.intMinValue = intMinValue;
+            clone.unitMinValue = unitMinValue;
+
+            clone.maxValue = maxValue;
+            clone.intMaxValue = intMaxValue;
+            clone.unitMaxValue = unitMaxValue;
+
+            clone.values = new int[values.Length][];
+            for (int c = 0; c < values.Length; c++) {
+                clone.values[c] = new int[values[c].Length];
+                for (int r = 0; r < values[c].Length; r++) {
+                    clone.values[c][r] = values[c][r];
+                }
+            }
+
+            return clone;
+
+        }
+
     }
 
 }

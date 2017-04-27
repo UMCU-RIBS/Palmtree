@@ -6,7 +6,7 @@ using System.Text;
 namespace UNP.Core.Params {
 
     public abstract class ParamBoolBase : Param {
-        private bool boolStdValue = false;
+        protected bool boolStdValue = false;
 
         public ParamBoolBase(string name, string group, Parameters parentSet, string desc, string[] options) : base(name, group, parentSet, desc, options) { }
 

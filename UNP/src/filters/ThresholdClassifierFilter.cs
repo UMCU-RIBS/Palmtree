@@ -10,8 +10,9 @@ namespace UNP.Filters {
 
     class ThresholdClassifierFilter : IFilter {
 
-        private static Logger logger = LogManager.GetLogger("ThresholdClassifier");
-        private static Parameters parameters = ParameterManager.GetParameters("ThresholdClassifier", Parameters.ParamSetTypes.Filter);
+        private string filterName = "";
+        private static Logger logger = null;
+        private static Parameters parameters = null;
 
         private bool mEnableFilter = false;
         private uint inputChannels = 0;
@@ -22,8 +23,14 @@ namespace UNP.Filters {
         private double[] mConfigThresholds = null;
         private int[] mConfigDirections = null;
 
-        public ThresholdClassifierFilter() {
+        public ThresholdClassifierFilter(string filterName) {
 
+            // store the filter name
+            this.filterName = filterName;
+
+            // initialize the logger and parameters with the filter name
+            logger = LogManager.GetLogger(filterName);
+            parameters = ParameterManager.GetParameters(filterName, Parameters.ParamSetTypes.Filter);
 
             // define the parameters
             parameters.addParameter<bool>(
@@ -43,6 +50,10 @@ namespace UNP.Filters {
 
             
 
+        }
+
+        public string getName() {
+            return filterName;
         }
 
         public Parameters getParameters() {

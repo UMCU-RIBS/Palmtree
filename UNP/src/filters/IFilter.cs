@@ -9,7 +9,9 @@ namespace UNP.Filters {
 
     interface IFilter {
 
+        string getName();
         Parameters getParameters();
+
         bool configure(ref SampleFormat input, out SampleFormat output);
         void initialize();
 

@@ -26,14 +26,15 @@ namespace MoleTask {
         private static Logger logger = LogManager.GetLogger("MoleTask");                        // the logger object for the view
         private static Parameters parameters = ParameterManager.GetParameters("MoleTask", Parameters.ParamSetTypes.Application);
         
-        Random rand = new Random(Guid.NewGuid().GetHashCode());
-
+        private uint inputChannels = 0;
         private MoleView mSceneThread = null;
+
+        Random rand = new Random(Guid.NewGuid().GetHashCode());
         private Object lockView = new Object();                         // threadsafety lock for all event on the view
         private bool mTaskPauzed = false;								// flag to hold whether the task is pauzed (view will remain active, e.g. connection lost)
 
         private bool mUNPMenuTask = false;								// flag whether the task is started by the UNPMenu
-        private bool mUNPMenuTaskStop = false;							// flag to hold whether the task should is stop (setting this to false will notify the UNPMenu that the task should stop)
+        private bool mUNPMenuTaskRunning = false;						// flag to hold whether the task should is running (setting this to false is also used to notify the UNPMenu that the task is finished)
         private bool mUNPMenuTaskSuspended = false;						// flag to hold whether the task is suspended (view will be destroyed/re-initiated)
 
         private int mConnectionSoundTimer = 0;							// counter to play a sound when the connection is lost
@@ -43,12 +44,12 @@ namespace MoleTask {
 
         // task input parameters
         private int mWindowRedrawFreqMax = 0;
-        private bool mWindowed = false;
-        private int mWindowWidth = 0;
-        private int mWindowHeight = 0;
+        //private bool mWindowed = true;
+        private int mWindowWidth = 800;
+        private int mWindowHeight = 600;
         private int mWindowLeft = 0;
         private int mWindowTop = 0;
-        private int mFullscreenMonitor = 0;
+        //private int mFullscreenMonitor = 0;
 
         private int mTaskInputChannel = 0;											// input channel
         private int mTaskFirstRunStartDelay = 0;                                    // the first run start delay in sample blocks
@@ -86,29 +87,91 @@ namespace MoleTask {
 
         public MoleTask() {
 
-            // define the parameters
-            //Parameters.addParameter("Test", "0", "1", "1");
+            // check if the parameters have already been defined
+            // (by means of the UNPMenu this constructor can be called multiple times, however parameters is a static so we make sure the parameters are only defined once)
+            if (parameters.getNumberOfParameters() == 0) {
 
+                // define the parameters
+
+                parameters.addParameter<int>(
+                    "WindowLeft",
+                    "Screen coordinate of application window's left edge",
+                    "", "", "0");
+
+                parameters.addParameter<int>(
+                    "WindowTop",
+                    "Screen coordinate of application window's top edge",
+                    "", "", "0");
+
+                parameters.addParameter<int>(
+                    "WindowWidth",
+                    "Width of application window (fullscreen and 0 will take monitor resolution)",
+                    "", "", "800");
+
+                parameters.addParameter<int>(
+                    "WindowHeight",
+                    "Height of application window (fullscreen and 0 will take monitor resolution)",
+                    "", "", "600");
+
+                parameters.addParameter<int>(
+                    "WindowRedrawFreqMax",
+                    "Maximum display redraw interval in FPS (0 for as fast as possible)",
+                    "0", "", "60");
+
+                /*
+                parameters.addParameter <int>       (
+                    "Windowed",
+                    "Window or Fullscreen - fullscreen is only applied with two monitors",
+                    "0", "1", "1", new string[] {"Fullscreen", "Window"});
+
+                parameters.addParameter <int>       (
+                    "FullscreenMonitor",
+                    "Full screen Monitor",
+                    "0", "1", "1", new string[] {"Monitor 1", "Monitor 2"});
+                */
+
+
+            }
 
         }
 
         public bool configure(ref SampleFormat input) {
 
+            // store the number of input channels
+            inputChannels = input.getNumberOfChannels();
+
+            // check if the number of input channels is higher than 0
+            if (inputChannels <= 0) {
+                logger.Error("Number of input channels cannot be 0");
+                return false;
+            }
+
+            // retrieve window settings
+            mWindowLeft = parameters.getValue<int>("WindowLeft");
+            mWindowTop = parameters.getValue<int>("WindowTop");
+            mWindowWidth = parameters.getValue<int>("WindowWidth");
+            mWindowHeight = parameters.getValue<int>("WindowHeight");
+            mWindowRedrawFreqMax = parameters.getValue<int>("WindowRedrawFreqMax");
+            //mWindowed = true;           // fullscreen not implemented, so always windowed
+            //mFullscreenMonitor = 0;     // fullscreen not implemented, default to 0 (does nothing)
+            if (mWindowRedrawFreqMax < 0) {
+                logger.Error("The maximum window redraw frequency can be no smaller then 0");
+                return false;
+            }
+            if (mWindowWidth < 1) {
+                logger.Error("The window width can be no smaller then 1");
+                return false;
+            }
+            if (mWindowHeight < 1) {
+                logger.Error("The window height can be no smaller then 1");
+                return false;
+            }
 
             // debug, now using UNPMenu settings
 
 
             // set the task as being standalone
             mUNPMenuTask = false;
-
-            // transfer the window settings
-            mWindowRedrawFreqMax = 60;
-            mWindowed = true;
-            mWindowWidth = 800;
-            mWindowHeight = 600;
-            mWindowLeft = 0;
-            mWindowTop = 0;
-            mFullscreenMonitor = 0;
 
             // set the UNP task standard settings
             mTaskInputChannel = 1;
@@ -168,6 +231,7 @@ namespace MoleTask {
 	            mSceneThread.start();
 
 	            // wait till the resources are loaded or a maximum amount of 30 seconds (30.000 / 50 = 600)
+                // (resourcesLoaded also includes whether GL is loaded)
 	            int waitCounter = 600;
 	            while (!mSceneThread.resourcesLoaded() && waitCounter > 0) {
 		            Thread.Sleep(50);
@@ -575,10 +639,11 @@ namespace MoleTask {
 
             // lock for thread safety
             lock(lockView) {
-
                 destroyScene();
-
             }
+
+            // destroy/empty more task variables
+
 
         }
 
@@ -833,5 +898,134 @@ namespace MoleTask {
         }
 
 
+        ////////////////////////////////////////////////
+        //  UNP entry points (start, process, stop)
+        ////////////////////////////////////////////////
+        /*
+        //#ifdef UNPMENU
+        */
+        public void UNP_start(Parameters parentParameters) {
+
+            // set the task as being start from the UNPMenu
+            mUNPMenuTask = true;
+
+            // transfer the window settings
+            mWindowRedrawFreqMax = parentParameters.getValue<int>("WindowRedrawFreqMax");      // the view update frequency (in maximum fps)
+            //mWindowed = true;
+            mWindowWidth = parentParameters.getValue<int>("WindowWidth");;
+            mWindowHeight = parentParameters.getValue<int>("WindowHeight");;
+            mWindowLeft = parentParameters.getValue<int>("WindowLeft");;
+            mWindowTop = parentParameters.getValue<int>("WindowTop");;
+            //mFullscreenMonitor = 0;
+
+            // set the UNP task standard settings
+            mTaskInputChannel = 1;
+            mTaskFirstRunStartDelay = 4;
+            mTaskStartDelay = 4;
+            mRowSelectDelay = 12;
+            mRowSelectedDelay = 4;
+            mColumnSelectDelay = 12;
+            mColumnSelectedDelay = 4;
+            configHoleRows = 4;
+            configHoleColumns = 4;
+
+            // show exit
+            mAllowExit = true;
+
+            // initialize
+            initialize();
+
+            // start the task
+            start();
+
+            // set the task as running
+            mUNPMenuTaskRunning = true;
+
+
+        }
+
+        public void UNP_stop() {
+
+            // stop the task from running
+            stop();
+
+            // destroy the task
+            destroy();
+
+            // flag the task as no longer running (setting this to false is also used to notify the UNPMenu that the task is finished)
+            mUNPMenuTaskRunning = false;
+
+        }
+
+        public bool UNP_isRunning() {
+            return mUNPMenuTaskRunning;
+        }
+
+        public void UNP_process(double[] input, bool connectionLost) {
+
+	        // check if the task is running
+            if (!mUNPMenuTaskRunning) {
+
+		        // transfer connection lost
+		        mConnectionLost = connectionLost;
+                
+		        // process the input (if the task is not suspended)
+		        if (!mUNPMenuTaskSuspended)		process(input);
+
+	        }
+
+        }
+
+        public void UNP_resume() {
+
+            // lock for thread safety
+            lock(lockView) {
+
+                // restart the view thread
+                if (mSceneThread != null) {
+
+	                // restart the view thread
+		            mSceneThread.start();
+
+	                // wait till the resources are loaded or a maximum amount of 5 seconds (5.000 / 10 = 500)
+                    // (resourcesLoaded also includes whether GL is loaded)
+	                int waitCounter = 500;
+	                while (!mSceneThread.resourcesLoaded() && waitCounter > 0) {
+		                Thread.Sleep(10);
+		                waitCounter--;
+	                }
+
+	            }
+
+            }
+	
+	        // resume the task
+	        resumeTask();
+
+	        // flag task as no longer suspended
+	        mUNPMenuTaskSuspended = false;
+
+        }
+
+        public void UNP_suspend() {
+
+            // flag task as suspended
+            mUNPMenuTaskSuspended = true;
+
+            // pauze the task
+            pauzeTask();
+
+            // lock for thread safety
+            lock(lockView) {
+
+                // stop the view thread
+                if (mSceneThread != null)   mSceneThread.stop();
+
+            }
+
+        }
+        /*
+        #endif
+        */
     }
 }

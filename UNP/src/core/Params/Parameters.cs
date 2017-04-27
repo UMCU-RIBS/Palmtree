@@ -49,6 +49,10 @@ namespace UNP.Core.Params {
             return paramList;
         }
 
+        public int getNumberOfParameters() {
+            return paramList.Count;
+        }
+
         public iParam addParameter<T>(string name, string desc) {
             return addParameter<T>(name, "", desc, "", "", "", new string[0]);
         }        
@@ -535,7 +539,23 @@ namespace UNP.Core.Params {
             return true;
 
         }
+        
+        public Parameters clone() {
+            Parameters clone = new Parameters(this.paramSetName, this.paramSetType);
 
+            // get a reference to the clone's parameter list
+            List<iParam> cloneParamList = clone.getParameters();
+
+            // clone every parameter from the parameter list of this instance to
+            // and add these to the clone instance's parameter list
+            for (int i = 0; i < paramList.Count; i++) {
+                cloneParamList.Add(paramList[i].clone());
+            }
+
+            // return the clone
+            return clone;
+
+        }
     }
 
 }

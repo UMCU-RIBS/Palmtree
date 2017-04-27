@@ -142,6 +142,26 @@ namespace UNP.Core.Params {
             return true;
 
         }
+
+        public iParam clone() {
+            ParamInt clone = new ParamInt(name, group, parentSet, desc, options);
+
+            clone.stdValue = stdValue;
+            clone.intStdValue = intStdValue;
+            clone.unitStdValue = unitStdValue;
+            
+            clone.minValue = minValue;
+            clone.intMinValue = intMinValue;
+            clone.unitMinValue = unitMinValue;
+
+            clone.maxValue = maxValue;
+            clone.intMaxValue = intMaxValue;
+            clone.unitMaxValue = unitMaxValue;
+
+            clone.value = value;
+
+            return clone;
+        }
         
     }
 

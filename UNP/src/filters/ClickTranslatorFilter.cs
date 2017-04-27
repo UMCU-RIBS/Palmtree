@@ -10,8 +10,9 @@ namespace UNP.Filters {
 
     class ClickTranslatorFilter : IFilter {
 
-        private static Logger logger = LogManager.GetLogger("ClickTranslator");
-        private static Parameters parameters = ParameterManager.GetParameters("ClickTranslator", Parameters.ParamSetTypes.Filter);
+        private string filterName = "";
+        private static Logger logger = null;
+        private static Parameters parameters = null;
 
         private bool mEnableFilter = false;
 
@@ -30,7 +31,14 @@ namespace UNP.Filters {
         private bool active_state = true;
 
 
-        public ClickTranslatorFilter() {
+        public ClickTranslatorFilter(string filterName) {
+
+            // store the filter name
+            this.filterName = filterName;
+
+            // initialize the logger and parameters with the filter name
+            logger = LogManager.GetLogger(filterName);
+            parameters = ParameterManager.GetParameters(filterName, Parameters.ParamSetTypes.Filter);
 
             // define the parameters
              parameters.addParameter <bool>      (
@@ -60,6 +68,10 @@ namespace UNP.Filters {
 
         }
         
+        public string getName() {
+            return filterName;
+        }
+
         public Parameters getParameters() {
             return parameters;
         }

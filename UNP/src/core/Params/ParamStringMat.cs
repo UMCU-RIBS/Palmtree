@@ -4,15 +4,12 @@ using System.Linq;
 using System.Text;
 
 namespace UNP.Core.Params {
+    
+    public class ParamStringMat : Param, iParam {
+        
+        private string[][] values = new string[0][];
 
-    public class ParamBoolMat : ParamBoolBase, iParam {
-
-        private bool[][] values = new bool[0][];
-
-        public ParamBoolMat(string name, string group, Parameters parentSet, string desc, string[] options) : base(name, group, parentSet, desc, options) {
-            minValue = "0";
-            maxValue = "1";
-        }
+        public ParamStringMat(string name, string group, Parameters parentSet, string desc, string[] options) : base(name, group, parentSet, desc, options) { }
 
         public string getValue() {
             string strRet = "";
@@ -20,7 +17,7 @@ namespace UNP.Core.Params {
                 if (c != 0) strRet += ";";
                 for (int r = 0; r < this.values.Length; r++) {
                     if (r != 0) strRet += " ";
-                    strRet += (this.values[c][r] ? "1" : "0");
+                    strRet += this.values[c][r];
                 }
             }
             return strRet;
@@ -29,43 +26,48 @@ namespace UNP.Core.Params {
         public T getValue<T>() {
 
             Type paramType = typeof(T);
-            if(paramType == typeof(bool[][])) {     
-                // request to return as bool[][]
+            if(paramType == typeof(string[][])) {     
+                // request to return as string[][]
 
-                // return value
-                return (T)Convert.ChangeType(Value, typeof(bool[][]));
+                // return vlaue
+                return (T)Convert.ChangeType(Value, typeof(string[][]));
 
             } else {
                 // request to return as other
 
-                // message and return false
-                logger.Error("Could not retrieve the value for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') as '" + paramType.Name + "', can only return value as a matrix of booleans (bool[][]). Returning empty matrix");
-                return (T)Convert.ChangeType(false, typeof(T));    
+                // message and return 0
+                logger.Error("Could not retrieve the value for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') as '" + paramType.Name + "', can only return value as a matrix of strings (string[][]). Returning empty matrix");
+                return (T)Convert.ChangeType(0, typeof(T));    
 
             }
             
         }
 
+
         public int getValueInSamples() {
-
-            // message
-            logger.Warn("Trying to retrieve the value for bool[][] parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') in number of samples, use getValue<T>() instead");
             
-            // try normal getValue
+            // TODO: 
+            
+            // 
             return getValue<int>();
-
         }
 
         public override string ToString() {
             return getValue();
         }
 
-        public bool[][] Value {
+        public string[][] Value {
             get {   return this.values;  }
         }
 
-        public bool setValue(bool[][] values) {
+        
+        public bool setStdValue(string stdValue)
+        {
+            return true;
+        }
 
+        public bool setValue(string[][] values) {
+            
             // check if options (fixed columns) are set and if the set matches the dimensions
             if (this.options.Length > 0 && this.options.Length != values.Length) {
 
@@ -88,21 +90,21 @@ namespace UNP.Core.Params {
         public bool tryValue(string value) {
 
             if (String.IsNullOrEmpty(value))    return true;
-
+            
             string[] splitColumns = value.Split(Parameters.MatColumnDelimiters);
-            if (this.options.Length > 0 && this.options.Length != splitColumns.Length)    return false;
+            if (this.options.Length > 0 && this.options.Length != splitColumns.Length)  return false;
             
             return true;
 
         }
 
         public bool setValue(string value) {
-
+            
             // check if the input is empty
             if (String.IsNullOrEmpty(value)) {
 
                 // store empty matrices
-                this.values = new bool[0][];
+                this.values = new string[0][];
 
                 // return success
                 return true;
@@ -111,7 +113,7 @@ namespace UNP.Core.Params {
 
             // try to split up the columns of the string
             string[] splitColumns = value.Split(Parameters.MatColumnDelimiters);
-
+            
             // check if options (fixed columns) are set and if the set matches the dimensions
             if (this.options.Length > 0 && this.options.Length != splitColumns.Length) {
 
@@ -122,25 +124,24 @@ namespace UNP.Core.Params {
                 return false;
 
             }
-            
-            // resize the array columns
-            bool[][] values = new bool[splitColumns.Length][];
 
-            // parse the values as doubles
+            // resize the array columns
+            string[][] values = new string[splitColumns.Length][];
+
+            // parse the values as strings
             for (int i = 0; i < splitColumns.Length; i++) {
                 
                 // try to split up the rows of each column string
                 string[] splitRows = splitColumns[i].Split(Parameters.MatRowDelimiters);
 
                 // resize the arrays rows
-                values[i] = new bool[splitRows.Length];
+                values[i] = new string[splitRows.Length];
 
                 // loop through each row in the column (cell)
                 for (int j = 0; j < splitRows.Length; j++) {
 
-                    // try to parse the value
-                    splitRows[j] = splitRows[j].ToLower();
-                    values[i][j] = (splitRows[j].Equals("1") || splitRows[j].Equals("true"));
+                    // add to the array of strings
+                    values[i][j] = splitRows[j];
 
                 }
 
@@ -154,25 +155,26 @@ namespace UNP.Core.Params {
 
         }
 
+
         public iParam clone() {
-            ParamBoolMat clone = new ParamBoolMat(name, group, parentSet, desc, options);
+            ParamStringMat clone = new ParamStringMat(name, group, parentSet, desc, options);
 
             clone.stdValue = stdValue;
-            clone.boolStdValue = boolStdValue;
             clone.minValue = minValue;
             clone.maxValue = maxValue;
-
-            clone.values = new bool[values.Length][];
+            
+            clone.values = new string[values.Length][];
             for (int c = 0; c < values.Length; c++) {
-                clone.values[c] = new bool[values[c].Length];
+                clone.values[c] = new string[values[c].Length];
                 for (int r = 0; r < values[c].Length; r++) {
                     clone.values[c][r] = values[c][r];
                 }
             }
-
+            
             return clone;
+
         }
 
     }
-
+    
 }

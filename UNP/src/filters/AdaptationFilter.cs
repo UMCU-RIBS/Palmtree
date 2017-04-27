@@ -11,8 +11,9 @@ namespace UNP.Filters {
 
     class AdaptationFilter : IFilter {
 
-        private static Logger logger = LogManager.GetLogger("Adaptation");
-        private static Parameters parameters = ParameterManager.GetParameters("Adaptation", Parameters.ParamSetTypes.Filter);
+        private string filterName = "";
+        private static Logger logger = null;
+        private static Parameters parameters = null;
 
         private bool mEnableFilter = false;
         private uint inputChannels = 0;
@@ -42,7 +43,14 @@ namespace UNP.Filters {
             meerAdaptatieMeerBeter,
         };
 
-        public AdaptationFilter() {
+        public AdaptationFilter(string filterName) {
+
+            // store the filter name
+            this.filterName = filterName;
+
+            // initialize the logger and parameters with the filter name
+            logger = LogManager.GetLogger(filterName);
+            parameters = ParameterManager.GetParameters(filterName, Parameters.ParamSetTypes.Filter);
 
             // define the parameters
             parameters.addParameter <bool>      (
@@ -98,6 +106,10 @@ namespace UNP.Filters {
 
         }
         
+        public string getName() {
+            return filterName;
+        }
+
         public Parameters getParameters() {
             return parameters;
         }

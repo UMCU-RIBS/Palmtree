@@ -22,6 +22,8 @@ namespace UNP.Core.Params {
         bool tryValue(string value);
         bool setValue(string value);
 
+        iParam clone();
+
     }
 
 }
