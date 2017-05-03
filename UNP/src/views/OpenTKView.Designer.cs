@@ -36,8 +36,9 @@
             this.glControl.BackColor = System.Drawing.Color.Black;
             this.glControl.Dock = System.Windows.Forms.DockStyle.Fill;
             this.glControl.Location = new System.Drawing.Point(0, 0);
+            this.glControl.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
             this.glControl.Name = "glControl";
-            this.glControl.Size = new System.Drawing.Size(305, 236);
+            this.glControl.Size = new System.Drawing.Size(407, 290);
             this.glControl.TabIndex = 0;
             this.glControl.VSync = false;
             this.glControl.Load += new System.EventHandler(this.glControl_Load);
@@ -46,15 +47,17 @@
             // 
             // OpenTKView
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(305, 236);
+            this.ClientSize = new System.Drawing.Size(407, 290);
             this.ControlBox = false;
             this.Controls.Add(this.glControl);
             this.DoubleBuffered = true;
+            this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.Name = "OpenTKView";
             this.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
             this.Text = "View";
+            this.Shown += new System.EventHandler(this.OpenTKView_Shown);
             this.Move += new System.EventHandler(this.OpenTKView_Move);
             this.ResumeLayout(false);
 

@@ -190,7 +190,11 @@ namespace UNP.Core.Params {
             clone.unitMaxValue = unitMaxValue;
 
             clone.values = new int[values.Length];
-            for (int i = 0; i < values.Length; i++)    clone.values[i] = values[i];
+            clone.units = new Parameters.Units[units.Length];
+            for (int i = 0; i < values.Length; i++) {
+                clone.values[i] = values[i];
+                clone.units[i] = units[i];
+            }
 
             return clone;
         }

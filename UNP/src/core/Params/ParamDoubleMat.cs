@@ -234,10 +234,13 @@ namespace UNP.Core.Params {
             clone.unitMaxValue = unitMaxValue;
 
             clone.values = new double[values.Length][];
+            clone.units = new Parameters.Units[units.Length][];
             for (int c = 0; c < values.Length; c++) {
                 clone.values[c] = new double[values[c].Length];
+                clone.units[c] = new Parameters.Units[units[c].Length];
                 for (int r = 0; r < values[c].Length; r++) {
                     clone.values[c][r] = values[c][r];
+                    clone.units[c][r] = units[c][r];
                 }
             }
 

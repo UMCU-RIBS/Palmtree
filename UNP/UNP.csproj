@@ -33,7 +33,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>..\build\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DefineConstants>TRACE;DEBUG</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -93,6 +93,7 @@
       <DependentUpon>GUIConfig.cs</DependentUpon>
     </Compile>
     <Compile Include="src\Core\MainBoot.cs" />
+    <Compile Include="src\Core\Params\ParamColorBase.cs" />
     <Compile Include="src\Core\Params\ParamStringMat.cs" />
     <Compile Include="src\Core\Params\iParam.cs" />
     <Compile Include="src\Core\Params\Param.cs" />
@@ -113,6 +114,8 @@
     <Compile Include="src\Core\Params\ParamIntMat.cs" />
     <Compile Include="src\Filters\AdaptationFilter.cs" />
     <Compile Include="src\Filters\ClickTranslatorFilter.cs" />
+    <Compile Include="src\Filters\KeySequenceFilter.cs" />
+    <Compile Include="src\Filters\NormalizerFilter.cs" />
     <Compile Include="src\Filters\IFilter.cs" />
     <Compile Include="src\Filters\ThresholdClassifierFilter.cs" />
     <Compile Include="src\Core\Helpers\Extensions.cs" />

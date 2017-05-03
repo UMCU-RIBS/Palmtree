@@ -11,15 +11,15 @@ namespace UNP.Core.Params {
     public class Parameters {
 
         public static Char[] ArrDelimiters = new Char[] { ' ', ',', ';', '\n' };
-
         public static Char[] MatColumnDelimiters = new Char[] { ';', '\n' };
         public static Char[] MatRowDelimiters = new Char[] { ',' };
         public static CultureInfo NumberCulture = CultureInfo.CreateSpecificCulture("en-US");
+
         private static Logger logger = LogManager.GetLogger("Parameters");
 
-        private List<iParam> paramList = new List<iParam>(0);
-        private string paramSetName = "";
-        private ParamSetTypes paramSetType = ParamSetTypes.Source;
+        private List<iParam>    paramList = new List<iParam>(0);
+        private string          paramSetName = "";
+        private ParamSetTypes   paramSetType = ParamSetTypes.Source;
 
         public enum ParamSetTypes : int {
             Source = 0,
@@ -246,7 +246,7 @@ namespace UNP.Core.Params {
                 logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', returning 0");
 
                 // return 0
-                return (T)Convert.ChangeType(0, typeof(T));
+                return (T)Convert.ChangeType(null, typeof(T));
 
             }
             

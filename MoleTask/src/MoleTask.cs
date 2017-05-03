@@ -24,7 +24,7 @@ namespace MoleTask {
 		};
 
         private static Logger logger = LogManager.GetLogger("MoleTask");                        // the logger object for the view
-        private static Parameters parameters = ParameterManager.GetParameters("MoleTask", Parameters.ParamSetTypes.Application);
+        private static Parameters parameters = null;
         
         private uint inputChannels = 0;
         private MoleView mSceneThread = null;
@@ -33,7 +33,7 @@ namespace MoleTask {
         private Object lockView = new Object();                         // threadsafety lock for all event on the view
         private bool mTaskPauzed = false;								// flag to hold whether the task is pauzed (view will remain active, e.g. connection lost)
 
-        private bool mUNPMenuTask = false;								// flag whether the task is started by the UNPMenu
+        private bool mUNPMenuTask = false;								// flag whether the task is created by the UNPMenu
         private bool mUNPMenuTaskRunning = false;						// flag to hold whether the task should is running (setting this to false is also used to notify the UNPMenu that the task is finished)
         private bool mUNPMenuTaskSuspended = false;						// flag to hold whether the task is suspended (view will be destroyed/re-initiated)
 
@@ -51,7 +51,7 @@ namespace MoleTask {
         private int mWindowTop = 0;
         //private int mFullscreenMonitor = 0;
 
-        private int mTaskInputChannel = 0;											// input channel
+        private int mTaskInputChannel = 1;											// input channel
         private int mTaskFirstRunStartDelay = 0;                                    // the first run start delay in sample blocks
         private int mTaskStartDelay = 0;                                            // the run start delay in sample blocks
         private int mWaitCounter = 0;
@@ -84,15 +84,19 @@ namespace MoleTask {
         private int mRowLoopCounter = 0;
 
 
+        public MoleTask() : this(false) { }
+        public MoleTask(bool UNPMenuTask) {
 
-        public MoleTask() {
+            // transfer the UNP menu task flag
+            mUNPMenuTask = UNPMenuTask;
+            
+            // check if the task is standalone (not unp menu)
+            if (!mUNPMenuTask) {
 
-            // check if the parameters have already been defined
-            // (by means of the UNPMenu this constructor can be called multiple times, however parameters is a static so we make sure the parameters are only defined once)
-            if (parameters.getNumberOfParameters() == 0) {
+                // create a parameter set for the task
+                parameters = ParameterManager.GetParameters("MoleTask", Parameters.ParamSetTypes.Application);
 
                 // define the parameters
-
                 parameters.addParameter<int>(
                     "WindowLeft",
                     "Screen coordinate of application window's left edge",
@@ -118,6 +122,11 @@ namespace MoleTask {
                     "Maximum display redraw interval in FPS (0 for as fast as possible)",
                     "0", "", "60");
 
+                parameters.addParameter<RGBColorFloat>(
+                    "WindowBackgroundColor",
+                    "Window background color",
+                    "", "", "0");
+
                 /*
                 parameters.addParameter <int>       (
                     "Windowed",
@@ -129,6 +138,66 @@ namespace MoleTask {
                     "Full screen Monitor",
                     "0", "1", "1", new string[] {"Monitor 1", "Monitor 2"});
                 */
+
+                parameters.addParameter<int>(
+                    "TaskFirstRunStartDelay",
+                    "Amount of time before the task starts (on the first run of the task)",
+                    "0", "", "5s");
+
+                parameters.addParameter<int>(
+                    "TaskStartDelay",
+                    "Amount of time before the task starts (after the first run of the task)",
+                    "0", "", "10s");
+
+                parameters.addParameter<int>(
+                    "TaskInputChannel",
+                    "Channel to base the cursor position on  (1...n)",
+                    "1", "", "1");
+
+                parameters.addParameter<int>(
+                    "HoleRows",
+                    "Number of rows in the whack a mole grid",
+                    "1", "30", "6");
+                
+                parameters.addParameter<int>(
+                    "HoleColumns",
+                    "Number of columns in the whack a mole grid",
+                    "1", "30", "8");
+
+                parameters.addParameter<int>(
+                    "RowSelectDelay",
+                    "Amount of time before continuing to next row",
+                    "0", "", "3s");
+
+                parameters.addParameter<int>(
+                    "RowSelectedDelay",
+                    "Amount of time to wait after selecting a row",
+                    "0", "", "3s");
+
+                parameters.addParameter<int>(
+                    "ColumnSelectDelay",
+                    "Amount of time before continuing to next column",
+                    "0", "", "3s");
+
+                parameters.addParameter<int>(
+                    "ColumnSelectedDelay",
+                    "Amount of time after selecting a column to wait",
+                    "0", "", "1s");
+
+
+
+/*
+
+
+  
+ 
+	"Application:Task int Targets= 5 5 1 % "
+		" // Number of targets",
+
+	"Application:Task intlist TargetSequence= 0 1 % % "
+		" // fixed sequence in which targets should be presented (leave empty for random)",
+
+*/
 
 
             }
@@ -145,6 +214,10 @@ namespace MoleTask {
                 logger.Error("Number of input channels cannot be 0");
                 return false;
             }
+
+            // 
+            // TODO: parameters.checkminimum, checkmaximum
+
 
             // retrieve window settings
             mWindowLeft = parameters.getValue<int>("WindowLeft");
@@ -167,24 +240,78 @@ namespace MoleTask {
                 return false;
             }
 
-            // debug, now using UNPMenu settings
+            // retrieve the input channel setting
+            mTaskInputChannel = parameters.getValue<int>("TaskInputChannel");
+	        if (mTaskInputChannel < 1) {
+		        logger.Error("Invalid input channel, should be higher than 0 (1...n)");
+                return false;
+	        }
+	        if (mTaskInputChannel > inputChannels) {
+                logger.Error("Input should come from channel " + mTaskInputChannel + ", however only " + inputChannels + " channels are coming in");
+                return false;
+	        }
+
+            // retrieve the task delays 
+            mTaskFirstRunStartDelay = parameters.getValueInSamples("TaskFirstRunStartDelay");
+            mTaskStartDelay = parameters.getValueInSamples("TaskStartDelay");
+            if (mTaskFirstRunStartDelay < 0 || mTaskStartDelay < 0) {
+                logger.Error("Start delays cannot be less than 0");
+                return false;
+            }
+
+            // retrieve the number of rows and columns in the grid
+            configHoleRows = parameters.getValue<int>("HoleRows");
+            configHoleColumns = parameters.getValue<int>("HoleColumns");
+            if (configHoleColumns > 30 || configHoleColumns <= 0 || configHoleRows > 30 || configHoleRows <= 0) {
+                logger.Error("The number of columns or rows cannot exceed 30 or be below 1");
+                return false;
+            }
+
+            // retrieve selection delays
+            mRowSelectDelay = parameters.getValueInSamples("RowSelectDelay");
+            mRowSelectedDelay = parameters.getValueInSamples("RowSelectedDelay");
+            mColumnSelectDelay = parameters.getValueInSamples("ColumnSelectDelay");
+            mColumnSelectedDelay = parameters.getValueInSamples("ColumnSelectedDelay");
+            if (mRowSelectDelay < 0 || mRowSelectedDelay < 0 || mColumnSelectDelay < 0 || mColumnSelectedDelay < 0) {
+                logger.Error("The 'RowSelectDelay', 'RowSelectedDelay', 'ColumnSelectDelay', 'ColumnSelectedDelay' parameters should not be less than 0");
+                return false;
+            }
 
 
-            // set the task as being standalone
-            mUNPMenuTask = false;
-
-            // set the UNP task standard settings
-            mTaskInputChannel = 1;
-            mTaskFirstRunStartDelay = 4;
-            mTaskStartDelay = 4;
-            mRowSelectDelay = 12;
-            mRowSelectedDelay = 4;
-            mColumnSelectDelay = 12;
-            mColumnSelectedDelay = 4;
-            configHoleRows = 4;
-            configHoleColumns = 4;
-
+            // configured as stand-alone, disallow exit
             mAllowExit = false;
+
+
+/*
+
+            Parameter("WindowBackgroundColor");
+
+
+            // check #targets, minimum 1
+            if (Parameter("Targets") < 1)
+            {
+                bcierr << "Minimum of 1 target is required" << endl;
+            }
+
+            // target sequence
+            if (Parameter("TargetSequence")->NumValues() > 0)
+            {
+                int numHoles = Parameter("HoleRows") * Parameter("HoleColumns");
+                for (int i = 0; i < Parameter("TargetSequence")->NumValues(); ++i)
+                {
+                    if (Parameter("TargetSequence")(i) < 0)
+                    {
+                        bcierr << "The TargetSequence parameter contains a target index (" << Parameter("TargetSequence")(i) << ") that is below zero, check the TargetSequence" << endl;
+                        break;
+                    }
+                    if (Parameter("TargetSequence")(i) >= numHoles)
+                    {
+                        bcierr << "The TargetSequence parameter contains a target index (" << Parameter("TargetSequence")(i) << ") that is out of range, check the HoleRows and HoleColumns parameters. (note that the indexing is 0 based)" << endl;
+                        break;
+                    }
+                }
+            }
+*/
 
 
             return true;
@@ -905,9 +1032,12 @@ namespace MoleTask {
         //#ifdef UNPMENU
         */
         public void UNP_start(Parameters parentParameters) {
-
-            // set the task as being start from the UNPMenu
-            mUNPMenuTask = true;
+            
+            // UNP entry point can only be used if initialized as UNPMenu
+            if (!mUNPMenuTask) {
+                logger.Error("Using UNP entry point while the task was not initialized as UNPMenu task, check parameters used to call the task constructor");
+                return;
+            }
 
             // transfer the window settings
             mWindowRedrawFreqMax = parentParameters.getValue<int>("WindowRedrawFreqMax");      // the view update frequency (in maximum fps)
@@ -929,7 +1059,7 @@ namespace MoleTask {
             configHoleRows = 4;
             configHoleColumns = 4;
 
-            // show exit
+            // UNPMenu task, allow exit
             mAllowExit = true;
 
             // initialize
@@ -945,6 +1075,12 @@ namespace MoleTask {
         }
 
         public void UNP_stop() {
+            
+            // UNP entry point can only be used if initialized as UNPMenu
+            if (!mUNPMenuTask) {
+                logger.Error("Using UNP entry point while the task was not initialized as UNPMenu task, check parameters used to call the task constructor");
+                return;
+            }
 
             // stop the task from running
             stop();

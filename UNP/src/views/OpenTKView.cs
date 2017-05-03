@@ -21,9 +21,10 @@ namespace UNP.Views {
         //private const bool showFPS = true;
         private const bool vsync = true;
 
+        private bool formShown = false;             // flag whether the view form is shown
         private bool glLoaded = false;              // flag to track whether opengl is done initializing
         private bool glControlLoaded = false;       // flag to track whether opengl form is done initializing
-
+        
         private Thread mainLoopThread = null;       // thread for animations and rendering
         private bool running = false;               // flag connected to the thread for animations and rendering (set to false to stop the thread)
 
@@ -157,6 +158,12 @@ namespace UNP.Views {
 
         public void start() {
 
+            // flag form shown as false
+            formShown = false;
+
+            // set running to true (already for when it enters the loop later)
+            running = true;
+
             // message
             logger.Debug("Using OpenTK");
 
@@ -203,13 +210,37 @@ namespace UNP.Views {
         }
 
         public void stop() {
-
+            
+	        // wait till the form is no longer starting and the glprocess started or a maximum amount of 4 seconds (4.000 / 10 = 400)
+            // (resourcesLoaded also includes whether GL is loaded)
+	        int waitCounter = 400;
+	        while ((!formShown && !isStarted()) && waitCounter > 0) {
+		        Thread.Sleep(10);
+		        waitCounter--;
+	        }
+            
             // stop the main view loop and wait for it to finish
             if (mainLoopThread != null) {
-                running = false;
-                while (mainLoopThread.IsAlive)  Thread.Sleep(10);
-            }
 
+                // try to stop the main loop using running
+                running = false;
+                waitCounter = 200;
+
+                while (mainLoopThread.IsAlive && waitCounter > 0) {
+                    Thread.Sleep(10);
+                    waitCounter--;
+                }
+
+                // check if the main loop did not stop
+                if (waitCounter == 0) {
+                    
+                    // abort the thread (more forcefully)
+                    mainLoopThread.Abort();
+                    while (mainLoopThread.IsAlive)  Thread.Sleep(10);
+                }
+
+            }
+            
             // close the form on the forms thread
             this.Invoke((MethodInvoker)delegate {
                 try {
@@ -315,11 +346,10 @@ namespace UNP.Views {
             // set opengl as loaded
             glControlLoaded = true;
 
-            // set an initial start for the stopwatche
+            // set an initial start for the stopwatch
             swTimePassed.Start();
 
             // enter the main loop
-            running = true;
             while (running) {
 
                 // fps watch
@@ -584,6 +614,13 @@ namespace UNP.Views {
             // update the window control location
             windowX = this.Location.X;
             windowY = this.Location.Y;
+
+        }
+
+        private void OpenTKView_Shown(object sender, EventArgs e) {
+
+            // flag formshown as false (done starting)
+            formShown = true;
 
         }
 

@@ -114,38 +114,97 @@ namespace UNP.Filters {
             return parameters;
         }
 
+        /**
+         * Configure the filter. Checks the values and application logic of the
+         * parameters and, if valid, transfers the configuration parameters to local variables
+         * (initialization of the filter is done later by the initialize function)
+         **/
         public bool configure(ref SampleFormat input, out SampleFormat output) {
 
-            // store the number of input channels, set the number of output channels as the same
-            // (same regardless if enabled or disabled)
+            // retrieve the number of input channels
             inputChannels = input.getNumberOfChannels();
+            if (inputChannels <= 0) {
+                logger.Error("Number of input channels cannot be 0");
+                output = null;
+                return false;
+            }
+
+            // set the number of output channels as the same
+            // (same regardless if enabled or disabled)
             outputChannels = inputChannels;
 
             // create an output sampleformat
             output = new SampleFormat(outputChannels);
 
+            // check the values and application logic of the parameters
+            if (!checkParameters(parameters))   return false;
+
+            // transfer the parameters to local variables
+            transferParameters(parameters);
+
+            // debug output
+            logger.Debug("--- Filter configuration: " + filterName + " ---");
+            logger.Debug("Input channels: " + inputChannels);
+            logger.Debug("Enabled: " + mEnableFilter);
+            logger.Debug("Output channels: " + outputChannels);
+
+            // return success
+            return true;
+            
+        }
+
+        /**
+         *  Re-configure the filter settings on the fly (during runtime) using the given parameterset. 
+         *  Checks if the new settings have adjustments that cannot be applied to a running filter
+         *  (most likely because they would adjust the number of expected output channels, which would have unforseen consequences for the next filter)
+         *  
+         *  The local parameter is left untouched so it is easy to revert back to the original configuration parameters
+         *  The functions handles both the configuration and initialization of filter related variables.
+         **/
+        public bool configureRunningFilter(Parameters newParameters, bool resetFilter) {
+            
+            //
+            // no pre-check on the number of output channels is needed here, the number of output
+            // channels will remain the some regardsless to the filter being enabled or disabled
             // 
-            // TODO: parameters.checkminimum, checkmaximum
+
+            // check the values and application logic of the parameters
+            if (!checkParameters(newParameters))    return false;
+
+            // transfer the parameters to local variables
+            transferParameters(newParameters);
+
+            // TODO: take resetFilter into account (currently always resets the buffers on initialize
+
+            // initialize the variables
+            initialize();
+
+            // return success
+            return true;
+
+        }
+
+
+        /**
+         * check the values and application logic of the given parameter set
+         **/
+        private bool checkParameters(Parameters newParameters) {
+
+            // 
+            // TODO: newParameters.checkminimum, checkmaximum
 
             // TODO: add exceptions to parameters, the error here should make configure return false
-            //int unit = parameters.getValueInSamples("EnableFilter");
-
+            //int unit = newParameters.getValueInSamples("EnableFilter");
+    
             // filter is enabled/disabled
-            mEnableFilter = parameters.getValue<bool>("EnableFilter");
+            bool newEnableFilter = newParameters.getValue<bool>("EnableFilter");
 
             // check if the filter is enabled
-            if (mEnableFilter) {
-                // filter enabled
+            if (newEnableFilter) {
 
-                // check if the number of input channels is higher than 0
-                if (inputChannels <= 0) {
-                    logger.Error("Number of input channels cannot be 0");
-                    return false;
-                }
-
-                // retrieve adaptation settings
-                mAdaptation = parameters.getValue<int[]>("Adaptation");
-                if (mAdaptation.Length < inputChannels) {
+                // check adaptation settings
+                int[] newAdaptation = newParameters.getValue<int[]>("Adaptation");
+                if (newAdaptation.Length < inputChannels) {
                     logger.Error("The number of entries in the Adaptation parameter must match the number of input channels");
                     return false;
                 }
@@ -154,23 +213,23 @@ namespace UNP.Filters {
 		        bool initial = false;
 		        bool adaptUsingBuffer = false;
 		        for( int channel = 0; channel < inputChannels; ++channel ) {
-                    initial |= (mAdaptation[channel] == (int)AdaptationTypes.rawToInitial);
-                    adaptUsingBuffer |= (mAdaptation[channel] == (int)AdaptationTypes.rawToFirstSamples || mAdaptation[channel] == (int)AdaptationTypes.rawToLatestSamples);
+                    initial |= (newAdaptation[channel] == (int)AdaptationTypes.rawToInitial);
+                    adaptUsingBuffer |= (newAdaptation[channel] == (int)AdaptationTypes.rawToFirstSamples || newAdaptation[channel] == (int)AdaptationTypes.rawToLatestSamples);
 		        }
 
 		        // check initial parameters if needed
 		        if (initial) {
 
                     // retrieve adaptation to initial settings
-                    mInitialMeans = parameters.getValue<double[]>("InitialChannelMeans");
-                    mInitialStds = parameters.getValue<double[]>("InitialChannelStds");
+                    double[] newInitialMeans = newParameters.getValue<double[]>("InitialChannelMeans");
+                    double[] newInitialStds = newParameters.getValue<double[]>("InitialChannelStds");
 
                     // check if there are enough input parameters on the initial settings
-                    if (mInitialMeans.Length < inputChannels) {
+                    if (newInitialMeans.Length < inputChannels) {
                         logger.Error("The number of entries in the InitialChannelMeans parameter must match the number of input channels");
                         return false;
                     }
-                    if (mInitialStds.Length < inputChannels) {
+                    if (newInitialStds.Length < inputChannels) {
                         logger.Error("The number of entries in the InitialChannelStds parameter must match the number of input channels");
                         return false;
                     }
@@ -180,46 +239,93 @@ namespace UNP.Filters {
 		        // check adaptation parameters if needed
 		        if (adaptUsingBuffer) {
 
-                    // retrieve the buffer size in samples
-                    mBufferSize = parameters.getValueInSamples("BufferLength");
-                    if (mBufferSize < 1) {
+                    // check the buffer size in samples
+                    int newBufferSize = newParameters.getValueInSamples("BufferLength");
+                    if (newBufferSize < 1) {
 				        logger.Error("The BufferLength parameter specifies a zero-sized buffer (while one or more channels are set to dynamic adaptation");
                         return false;
                     }
 
-                    // retrieve the minimum length of the buffer (before adaptation starts)
-                    mAdaptationMinimalLength = parameters.getValueInSamples("AdaptationMinimalLength");
-			        if (mAdaptationMinimalLength > mBufferSize) {
+                    // check the minimum length of the buffer (before adaptation starts)
+                    int newAdaptationMinimalLength = newParameters.getValueInSamples("AdaptationMinimalLength");
+			        if (newAdaptationMinimalLength > newBufferSize) {
 				        logger.Error("The AdaptationMinimalLength parameter should be shorter than the BufferLength parameter");
                         return false;
                     }
-			        if (mAdaptationMinimalLength < 2) {
+			        if (newAdaptationMinimalLength < 2) {
 				        logger.Error("The AdaptationMinimalLength parameter should at least be more than 1");
                         return false;
                     }
 
-                    // retrieve the (std) exclusion threshold for the channels
-                    mExcludeStdThreshold = parameters.getValue<double[]>("ExcludeStdThreshold");
-			        if (mExcludeStdThreshold.Length < inputChannels ) {
+                    // check the (std) exclusion threshold for the channels
+                    double[] newExcludeStdThreshold = newParameters.getValue<double[]>("ExcludeStdThreshold");
+			        if (newExcludeStdThreshold.Length < inputChannels ) {
                         logger.Error("The number of entries in the AF_ExcludeStdThreshold parameter must match the number of input channels");
                         return false;
                     }
 
-                    // retrieve the number of samples to discard
-                    mBufferDiscardFirst = parameters.getValueInSamples("BufferDiscardFirst");
-                    if (mBufferDiscardFirst < 0 ) {
+                    // check the number of samples to discard
+                    int newBufferDiscardFirst = newParameters.getValueInSamples("BufferDiscardFirst");
+                    if (newBufferDiscardFirst < 0 ) {
                         logger.Error("The BufferDiscardFirst parameter cannot be a negative number");
                         return false;
                     }
 
                 }
                 
-            
             }
 
             // return success
             return true;
-            
+
+        }
+
+
+        /**
+         * transfer the given parameter set to local variables
+         **/
+        private void transferParameters(Parameters newParameters) {
+
+            // filter is enabled/disabled
+            mEnableFilter = newParameters.getValue<bool>("EnableFilter");
+
+            // check if the filter is enabled
+            if (mEnableFilter) {
+
+                // store the adaptation settings
+                mAdaptation = newParameters.getValue<int[]>("Adaptation");
+                
+		        // check if init or adaptation are enabled to check other parameters
+		        bool initial = false;
+		        bool adaptUsingBuffer = false;
+		        for( int channel = 0; channel < inputChannels; ++channel ) {
+                    initial |= (mAdaptation[channel] == (int)AdaptationTypes.rawToInitial);
+                    adaptUsingBuffer |= (mAdaptation[channel] == (int)AdaptationTypes.rawToFirstSamples || mAdaptation[channel] == (int)AdaptationTypes.rawToLatestSamples);
+		        }
+
+		        // check if initial parameters are needed
+		        if (initial) {
+
+                    // store adaptation to initial settings
+                    mInitialMeans = newParameters.getValue<double[]>("InitialChannelMeans");
+                    mInitialStds = newParameters.getValue<double[]>("InitialChannelStds");
+
+		        }
+
+		        // check if adaptation parameters are needed
+		        if (adaptUsingBuffer) {
+
+                    // store the buffer size in samples, the minimum length of the buffer (before adaptation starts),
+                    // the (std) exclusion threshold for the channels and the number of samples to discard
+                    mBufferSize = newParameters.getValueInSamples("BufferLength"); 
+                    mAdaptationMinimalLength = newParameters.getValueInSamples("AdaptationMinimalLength");
+                    mExcludeStdThreshold = newParameters.getValue<double[]>("ExcludeStdThreshold");
+                    mBufferDiscardFirst = newParameters.getValueInSamples("BufferDiscardFirst");
+
+                }
+                
+            }
+
         }
 
         public void initialize() {
@@ -231,14 +337,15 @@ namespace UNP.Filters {
                 mDataBuffers = new RingBuffer[inputChannels];
                 for (uint i = 0; i < inputChannels; i++) mDataBuffers[i] = new RingBuffer((uint)mBufferSize);
 
+                // initialize the means and stds to empty values
                 mCalcMeans = new double[inputChannels];
                 for (uint i = 0; i < inputChannels; i++) mCalcMeans[i] = emptyCalcValue;
                 mCalcStds = new double[inputChannels];
                 for (uint i = 0; i < inputChannels; i++) mCalcStds[i] = emptyCalcValue;
 
-
                 // no message has been shown
                 mAdaptationOnMessage = false;
+
 		    }
 
         }

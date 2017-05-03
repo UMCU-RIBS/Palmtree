@@ -38,11 +38,12 @@
             this.glControl.DrawFPS = false;
             this.glControl.FrameRate = 30;
             this.glControl.Location = new System.Drawing.Point(0, 0);
+            this.glControl.Margin = new System.Windows.Forms.Padding(5);
             this.glControl.Name = "glControl";
             this.glControl.OpenGLVersion = SharpGL.Version.OpenGLVersion.OpenGL2_1;
             this.glControl.RenderContextType = SharpGL.RenderContextType.NativeWindow;
             this.glControl.RenderTrigger = SharpGL.RenderTrigger.TimerBased;
-            this.glControl.Size = new System.Drawing.Size(350, 281);
+            this.glControl.Size = new System.Drawing.Size(467, 346);
             this.glControl.TabIndex = 0;
             this.glControl.OpenGLInitialized += new System.EventHandler(this.openGLControl_OpenGLInitialized);
             this.glControl.OpenGLDraw += new SharpGL.RenderEventHandler(this.openGLControl_OpenGLDraw);
@@ -50,15 +51,17 @@
             // 
             // SharpGLView
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(350, 281);
+            this.ClientSize = new System.Drawing.Size(467, 346);
             this.ControlBox = false;
             this.Controls.Add(this.glControl);
             this.DoubleBuffered = true;
+            this.Margin = new System.Windows.Forms.Padding(4);
             this.Name = "SharpGLView";
             this.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
             this.Text = "View";
+            this.Shown += new System.EventHandler(this.SharpGLView_Shown);
             this.Move += new System.EventHandler(this.SharpGLView_Move);
             ((System.ComponentModel.ISupportInitialize)(this.glControl)).EndInit();
             this.ResumeLayout(false);

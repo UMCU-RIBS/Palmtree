@@ -70,6 +70,7 @@ namespace UNP.Core {
             filters.Add(new AdaptationFilter("Adaptation"));
             filters.Add(new ThresholdClassifierFilter("ThresholdClassifier"));
             filters.Add(new ClickTranslatorFilter("ClickTranslator"));
+            filters.Add(new NormalizerFilter("Normalizer"));
 
             // create the application
             Console.WriteLine("applicationType " + applicationType.Name);
@@ -94,7 +95,8 @@ namespace UNP.Core {
 
 
             // (optional/debug) set/load the parameters
-            // (the parameter list has already been filled by the constructors of the source, filters and views)
+            
+
             Parameters sourceParameters = source.getParameters();
             sourceParameters.setValue("Channels", 2);
             sourceParameters.setValue("SampleRate", 5.0);
@@ -102,6 +104,7 @@ namespace UNP.Core {
 
             Parameters timeSmoothingParameters = getFilterParameters("TimeSmoothing");
             timeSmoothingParameters.setValue("EnableFilter", true);
+            timeSmoothingParameters.setValue("WriteIntermediateFile", false);
             double[][] bufferWeights = new double[2][];     // first dimensions is the colums, second dimension is the rows
             for (int i = 0; i < bufferWeights.Length; i++)  bufferWeights[i] = new double[] { 0.7, 0.5, 0.2, 0.2, 0 };
             timeSmoothingParameters.setValue("BufferWeights", bufferWeights);
@@ -118,6 +121,8 @@ namespace UNP.Core {
             adaptationParameters.setValue("ExcludeStdThreshold", "0.85 2.7");
 
             Parameters thresholdParameters = getFilterParameters("ThresholdClassifier");
+            thresholdParameters.setValue("EnableFilter", true);
+            thresholdParameters.setValue("WriteIntermediateFile", false);
             double[][] thresholds = new double[4][];        // first dimensions is the colums, second dimension is the rows
             thresholds[0] = new double[] { 1 };
             thresholds[1] = new double[] { 1 };
@@ -126,7 +131,17 @@ namespace UNP.Core {
             thresholdParameters.setValue("Thresholds", thresholds);
 
             Parameters clickParameters = getFilterParameters("ClickTranslator");
-            
+            clickParameters.setValue("EnableFilter", true);
+            clickParameters.setValue("WriteIntermediateFile", false);
+            clickParameters.setValue("ActivePeriod", "1s");
+            clickParameters.setValue("ActiveRateClickThreshold", ".5");
+            clickParameters.setValue("RefractoryPeriod", "3.6s");
+
+            Parameters normalizerParameters = getFilterParameters("Normalizer");
+            normalizerParameters.setValue("EnableFilter", true);
+            normalizerParameters.setValue("WriteIntermediateFile", false);
+            normalizerParameters.setValue("NormalizerOffsets", "0 0");
+            normalizerParameters.setValue("NormalizerGains", "1 1");
 
         }
 
@@ -217,7 +232,7 @@ namespace UNP.Core {
                 return;
 
             }
-
+            
             // initialize source, filter and view
             if (source != null)                         source.initialize();
             for (int i = 0; i < filters.Count(); i++)   filters[i].initialize();
@@ -578,9 +593,14 @@ namespace UNP.Core {
         }
 
         /**
-         * Static function to 
+         * Static function to adjust a filter's settings on the fly (during runtime)
+         * 
+         * 
          **/
-        public static void adjustFilterSettings(string filterName, Parameters newParameters) {
+        public static void configureRunningFilter(Parameters newParameters, bool resetFilter = false) {
+            configureRunningFilter(newParameters.ParamSetName, newParameters, resetFilter);    // use the name of the parameter set as the filterName (should be equal)
+        }
+        public static void configureRunningFilter(string filterName, Parameters newParameters, bool resetFilter = false) {
 
             // find the filter, and return a reference to its paremeters
             IFilter filter = null;
@@ -601,12 +621,17 @@ namespace UNP.Core {
                 return;
 
             }
-
-            // set 
-            //filter.
+            
+            // apply the new parameters to the running filter
+            filter.configureRunningFilter(newParameters, resetFilter);
 
         }
-
+        public static void configureRunningFilter(Parameters[] newParameters, bool resetFilter = false) {
+            for (int i = 0; i < newParameters.Length; i++)      configureRunningFilter(newParameters[i], resetFilter);
+        }
+        public static void configureRunningFilter(Parameters[] newParameters, bool[] resetFilter) {
+            for (int i = 0; i < newParameters.Length; i++)      configureRunningFilter(newParameters[i], (i < resetFilter.Length ? resetFilter[i] : false));
+        }
 
     }
 

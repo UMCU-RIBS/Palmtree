@@ -20,8 +20,10 @@ namespace UNP.Views {
 
         private const bool showFPS = true;
         //private const bool vsync = false;
+
         
         protected OpenGL gl = null;                 // reference to the gl object instance (acquired through the glControl object)
+        private bool formShown = false;             // flag whether the view form is shown
         private bool glLoaded = false;              // flag to track whether opengl is done initializing
         private bool running = false;               // flag to indicate whether the view should be drawing
 
@@ -154,6 +156,9 @@ namespace UNP.Views {
 
         public void start() {
 
+            // flag form shown as false
+            formShown = false;
+
             // message
             logger.Debug("Using SharpGL");
 
@@ -201,6 +206,14 @@ namespace UNP.Views {
 
         public void stop() {
 
+	        // wait till the form is no longer starting and the glprocess started or a maximum amount of 4 seconds (4.000 / 10 = 400)
+            // (resourcesLoaded also includes whether GL is loaded)
+	        int waitCounter = 400;
+            while ((!formShown || !isStarted()) && waitCounter > 0) {
+		        Thread.Sleep(10);
+		        waitCounter--;
+	        }
+            
             // close the form on the forms thread
             this.Invoke((MethodInvoker)delegate {
 
@@ -569,6 +582,13 @@ namespace UNP.Views {
             // update the window control location
             windowX = this.Location.X;
             windowY = this.Location.Y;
+
+        }
+
+        private void SharpGLView_Shown(object sender, EventArgs e) {
+
+            // flag formshown as true (done starting)
+            formShown = true;
 
         }
 

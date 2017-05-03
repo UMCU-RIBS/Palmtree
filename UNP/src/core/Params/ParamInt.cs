@@ -159,6 +159,7 @@ namespace UNP.Core.Params {
             clone.unitMaxValue = unitMaxValue;
 
             clone.value = value;
+            clone.unit = unit;
 
             return clone;
         }

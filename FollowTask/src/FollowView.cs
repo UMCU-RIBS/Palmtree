@@ -246,14 +246,14 @@ namespace FollowTask {
             
 	        // draw the cursor
 	        if (showCursor) {
-
+                
 		        // set the cursor color, no texture
 		        if (cursorColorSetting == 2)																	// manual escape
-			        glColor3(cursorEscapeColor.red, cursorEscapeColor.green, cursorEscapeColor.blue);
+			        glColor3(cursorEscapeColor.getRed(), cursorEscapeColor.getGreen(), cursorEscapeColor.getBlue());
 		        else if ((cursorColorSetting == 1) || (cursorColorSetting == 3 && mCursorInCurrentBlock))		// manual hit or automatic
-			        glColor3(cursorHitColor.red, cursorHitColor.green, cursorHitColor.blue);
+			        glColor3(cursorHitColor.getRed(), cursorHitColor.getGreen(), cursorHitColor.getBlue());
 		        else																							// other (manual miss)
-			        glColor3(cursorMissColor.red, cursorMissColor.green, cursorMissColor.blue);
+			        glColor3(cursorMissColor.getRed(), cursorMissColor.getGreen(), cursorMissColor.getBlue());
                 glBindTexture2D(0);
 
 		        // cursor polygon

@@ -22,7 +22,7 @@ namespace FollowTask {
 		};
 
         private static Logger logger = LogManager.GetLogger("FollowTask");                        // the logger object for the view
-        private static Parameters parameters = ParameterManager.GetParameters("FollowTask", Parameters.ParamSetTypes.Application);
+        private static Parameters parameters = null;
 
         private uint inputChannels = 0;
         private FollowView mSceneThread = null;
@@ -31,7 +31,7 @@ namespace FollowTask {
         private Object lockView = new Object();                         // threadsafety lock for all event on the view
         private bool mTaskPauzed = false;								// flag to hold whether the task is pauzed (view will remain active, e.g. connection lost)
 
-        private bool mUNPMenuTask = false;								// flag whether the task is started by the UNPMenu
+        private bool mUNPMenuTask = false;								// flag whether the task is created by the UNPMenu
         private bool mUNPMenuTaskRunning = false;						// flag to hold whether the task should is running (setting this to false is also used to notify the UNPMenu that the task is finished)
         private bool mUNPMenuTaskSuspended = false;						// flag to hold whether the task is suspended (view will be destroyed/re-initiated)
 
@@ -51,10 +51,10 @@ namespace FollowTask {
 
         private float mCursorSize = 1f;
         private int mCursorColorRule = 0;
-        private RGBColorFloat mCursorColorMiss = new RGBColorFloat();
-        private RGBColorFloat mCursorColorHit = new RGBColorFloat();
+        private RGBColorFloat mCursorColorMiss = new RGBColorFloat(0.8f, 0f, 0f);
+        private RGBColorFloat mCursorColorHit = new RGBColorFloat(0.8f, 0.8f, 0f);
         private int mCursorColorHitTime = 0;
-        private RGBColorFloat mCursorColorEscape = new RGBColorFloat();
+        private RGBColorFloat mCursorColorEscape = new RGBColorFloat(0.8f, 0f, 0.8f);
         private int mCursorColorEscapeTime = 0;
         private int mCursorColorTimer = 0;
 
@@ -71,7 +71,7 @@ namespace FollowTask {
         };          
         private List<string> mTargetTextures = new List<string>(0);			        // the block/target texture definitions (each element gives the texture for each block option, corresponds to the 2nd dimension of targets) 
 		
-		private int mTaskInputChannel = 0;											// input channel
+		private int mTaskInputChannel = 1;											// input channel
         private int mTaskInputSignalType = 0;										// input signal type (0 = 0 to 1, 1 = -1 to 1)
         private int mTaskFirstRunStartDelay = 0;                                    // the first run start delay in sample blocks
         private int mTaskStartDelay = 0;									        // the run start delay in sample blocks
@@ -93,12 +93,17 @@ namespace FollowTask {
         private float mBlockSpeed = 120;									        // the block movement speed (in pixels per second)
 
 
+        public FollowTask() : this(false) { }
+        public FollowTask(bool UNPMenuTask) {
 
-        public FollowTask() {
+            // transfer the UNP menu task flag
+            mUNPMenuTask = UNPMenuTask;
 
-            // check if the parameters have already been defined
-            // (by means of the UNPMenu this constructor can be called multiple times, however parameters is a static so we make sure the parameters are only defined once)
-            if (parameters.getNumberOfParameters() == 0) {
+            // check if the task is standalone (not unp menu)
+            if (!mUNPMenuTask) {
+            
+                // create a parameter set for the task
+                parameters = ParameterManager.GetParameters("FollowTask", Parameters.ParamSetTypes.Application);
 
                 // define the parameters
                 parameters.addParameter<int>(
@@ -126,6 +131,11 @@ namespace FollowTask {
                     "Maximum display redraw interval in FPS (0 for as fast as possible)",
                     "0", "", "60");
 
+                parameters.addParameter<RGBColorFloat>(
+                                    "WindowBackgroundColor",
+                                    "Window background color",
+                                    "", "", "0");
+
                 /*
                 parameters.addParameter <int>       (
                     "Windowed",
@@ -137,6 +147,97 @@ namespace FollowTask {
                     "Full screen Monitor",
                     "0", "1", "1", new string[] {"Monitor 1", "Monitor 2"});
                 */
+
+                parameters.addParameter<int>(
+                    "TaskFirstRunStartDelay",
+                    "Amount of time before the task starts (on the first run of the task)",
+                    "0", "", "5s");
+
+                parameters.addParameter<int>(
+                    "TaskStartDelay",
+                    "Amount of time before the task starts (after the first run of the task)",
+                    "0", "", "10s");
+
+                parameters.addParameter<int>(
+                    "TaskInputChannel",
+                    "Channel to base the cursor position on  (1...n)",
+                    "1", "", "1");
+
+                parameters.addParameter<int>(
+                    "TaskInputSignalType",
+                    "Task input signal type",
+                    "0", "2", "0", new string[] { "Normalizer (0 to 1)", "Normalizer (-1 to 1)", "Constant middle" });
+
+                parameters.addParameter<bool>(
+                    "TaskShowScore",
+                    "Show the score",
+                    "0", "1", "1");
+
+
+
+
+/*
+
+
+    "Application:Cursor int CursorSize= 4 4 0.0 50 "
+      " // Cursor size radius in percentage of the screen height",
+
+	"Application:Cursor int CursorColorRule= 0 0 0 2 "
+      " // Task input signal type: 0: Hitcolor on target hit%20%28normal%29, 1: Hitcolor on input, 2: Hitcolor on input - Escape color on escape, (enumeration)",
+
+    "Application:Cursor int CursorColorMiss= 0xcc0000 0 % % "
+      " // Cursor color when missing (0xff000000 for invisible) (color)",
+
+    "Application:Cursor int CursorColorHit= 0xcccc00 0 % % "
+      " // Cursor color when hitting (0xff000000 for invisible) (color)",
+
+    "Application:Cursor int CursorColorHitTime= 2 2 0 % "
+      " // Time that the cursor remains in hit color",
+
+    "Application:Cursor int CursorColorEscape= 0xaa00aa 0 % % "
+      " // Cursor color when hitting (0xff000000 for invisible) (color)",
+
+    "Application:Cursor int CursorColorEscapeTime= 2 2 0 % "
+      " // Time that the cursor remains in escpae color",
+
+	"Application:Targets int NumberTargets= 2 2 0 4000 "
+		" // number of targets",
+
+	"Application:Targets intlist TargetSequence= 0 1 % % "
+		" // fixed sequence in which targets should be presented (leave empty for random)",
+
+    "Application:Targets int TargetYMode= 1 0 0 3 "
+      " // targets y mode 0: Target(matrix) order, 1: random categories, 2:randomize cat without replacement 3:sequential categories with rnd start (enumeration)",
+
+    "Application:Targets int TargetWidthMode= 1 0 0 3 "
+      " // targets width mode 0: Target(matrix) order, 1: random categories, 2:random cat without replacement 3:sequential categories with rnd start (enumeration)",
+
+    "Application:Targets int TargetHeightMode= 1 0 0 3 "
+      " // targets height mode 0: Target(matrix) order, 1: random categories, 2:random cat without replacement 3:sequential categories with rnd start (enumeration)",
+
+    "Application:Targets matrix Targets= "
+		" 6 "								// rows
+		" [Y_perc Height_perc Width_sec] "	// columns
+		"  25  50  3s "
+		"  25  50  4s "
+		"  25  50  5s "
+		"  75  50  3s "
+		"  75  50  4s "
+		"  75  50  5s "
+		" // target positions and widths in percentage coordinates",
+
+    "Application:Targets matrix TargetTextures= "
+		" 2 "			// rows
+		" [filename ] " // columns
+		"  %  "
+		"  % "
+		" // paths of target texture (inputfiles)",
+
+	"Application:Targets int TargetSpeed= 120 120 0 1000 "
+		" // targetspeed (in pixels per second)",
+
+ */
+
 
             }
 
@@ -152,6 +253,10 @@ namespace FollowTask {
                 logger.Error("Number of input channels cannot be 0");
                 return false;
             }
+
+            // 
+            // TODO: parameters.checkminimum, checkmaximum
+
 
             // retrieve window settings
             mWindowLeft = parameters.getValue<int>("WindowLeft");
@@ -174,20 +279,35 @@ namespace FollowTask {
                 return false;
             }
 
+            // retrieve the input channel setting
+            mTaskInputChannel = parameters.getValue<int>("TaskInputChannel");
+	        if (mTaskInputChannel < 1) {
+		        logger.Error("Invalid input channel, should be higher than 0 (1...n)");
+                return false;
+	        }
+	        if (mTaskInputChannel > inputChannels) {
+                logger.Error("Input should come from channel " + mTaskInputChannel + ", however only " + inputChannels + " channels are coming in");
+                return false;
+	        }
 
+            // retrieve the task delays
+            mTaskFirstRunStartDelay = parameters.getValueInSamples("TaskFirstRunStartDelay");
+            mTaskStartDelay = parameters.getValueInSamples("TaskStartDelay");
+            if (mTaskFirstRunStartDelay < 0 || mTaskStartDelay < 0) {
+                logger.Error("Start delays cannot be less than 0");
+                return false;
+            }
+            
+            // 
+            mTaskInputSignalType = parameters.getValue<int>("TaskInputSignalType");
+            mShowScore = parameters.getValue<bool>("TaskShowScore");
+
+            
 
             // debug, now using UNPMenu settings
 
 
-	        // set the task as being standalone
-	        mUNPMenuTask = false;
-
 	        // set the UNP task standard settings
-	        mShowScore = true;
-	        mTaskInputSignalType = 1;
-	        mTaskInputChannel = 1;
-            mTaskFirstRunStartDelay = 4;
-	        mTaskStartDelay = 10;
 	        mCursorSize = 4f;
 	        mCursorColorRule = 0;
             mCursorColorMiss = new RGBColorFloat(0.8f, 0f, 0f);
@@ -221,7 +341,78 @@ namespace FollowTask {
 	        mTargetTextures[4] = "images/grass.bmp";
 	        mTargetTextures[5] = "images/grass.bmp";
 
-            
+
+
+            //RGBColorFloat
+
+/*
+
+	Parameter( "WindowBackgroundColor");
+
+	const char* colorParams[] = {
+		"CursorColorHit",
+		"CursorColorMiss",
+		"CursorColorEscape"
+	};
+	for( size_t i = 0; i < sizeof( colorParams ) / sizeof( *colorParams ); ++i )
+	if( RGBColor( Parameter( colorParams[ i ] ) )  == RGBColor( RGBColor::NullColor ) )
+		bcierr << "Invalid RGB value in " << colorParams[ i ] << endl;
+
+	// check target parameters
+	if (Parameter("TargetSequence")->NumValues() == 0 && Parameter( "NumberTargets") < 1) {
+		bcierr << "The NumberTargets parameter must be set to at least 1 target" << endl;
+	}
+	if (Parameter( "TargetSpeed") < 1) {
+		bcierr << "The TargetSpeed parameter be at least 1" << endl;
+	}
+	if (Parameter("Targets")->NumColumns() != 3) {
+		bcierr << "The Targets parameter must contain exactly 3 columns (which should be named 'Y_perc', 'Height_perc' and 'Width_sec')" << endl;
+	}
+
+	// targets (matrix)
+	bool hasYPerc = false;
+	bool hasHeightPerc = false;
+	bool hasWidthSec = false;
+	for (int i = 0; i < (int)Parameter("Targets")->NumColumns(); ++i) {
+		string label = Parameter( "Targets" )->ColumnLabels()[i];
+		if (strcmp(label.c_str(), "Y_perc") == 0)			hasYPerc = true;
+		if (strcmp(label.c_str(), "Height_perc") == 0)		hasHeightPerc = true;
+		if (strcmp(label.c_str(), "Width_sec") == 0)		hasWidthSec = true;
+	}
+
+	if (!hasYPerc || !hasHeightPerc || !hasWidthSec) {
+		bcierr << "The Targets parameter must contain exactly 3 columns (which should be named 'Y_perc', 'Height_perc' and 'Width_sec')" << endl;
+	}
+	if (Parameter("Targets")->NumRows() < 1) {
+		bcierr << "The Targets parameter must have at least 1 row" << endl;
+	}
+
+	// target sequence
+	if (Parameter("TargetSequence")->NumValues() > 0) {
+		int numTargets = Parameter("Targets")->NumRows();
+		for (int i = 0; i < Parameter("TargetSequence")->NumValues(); ++i) {
+			if (Parameter("TargetSequence")(i) < 0) {
+				bcierr << "The TargetSequence parameter contains a target index (" << Parameter("TargetSequence")(i) << ") that is below zero, check the TargetSequence" << endl;
+				break;
+			}
+			if (Parameter("TargetSequence")(i) >= numTargets) {
+				bcierr << "The TargetSequence parameter contains a target index (" << Parameter("TargetSequence")(i) << ") that is out of range, check the Targets parameter. (note that the indexing is 0 based)" << endl;
+				break;
+			}
+		}
+	}
+
+
+	if (Parameter("TaskFirstRunStartDelay") < 0) {
+		bcierr << "The TaskFirstRunStartDelay can be no smaller then 0" << endl;
+	}
+	// other parameters
+	Parameter("TargetTextures");
+	Parameter("TaskInputSignalType");
+	State("Running");
+	State("ConnectionLost");
+	State("KeySequenceActive");
+*/          
             
             return true;
         }
@@ -1104,8 +1295,14 @@ namespace FollowTask {
         */
         public void UNP_start(Parameters parentParameters) {
 
-            // set the task as being start from the UNPMenu
-            mUNPMenuTask = true;
+            // UNP entry point can only be used if initialized as UNPMenu
+            if (!mUNPMenuTask) {
+                logger.Error("Using UNP entry point while the task was not initialized as UNPMenu task, check parameters used to call the task constructor");
+                return;
+            }
+
+            // set the parameter set as not visible (for GUI configuration)
+            //parameters.ParamSetVisible = false;
 
             // transfer the window settings
             mWindowRedrawFreqMax = parentParameters.getValue<int>("WindowRedrawFreqMax");      // the view update frequency (in maximum fps)
@@ -1167,6 +1364,12 @@ namespace FollowTask {
         }
 
         public void UNP_stop() {
+            
+            // UNP entry point can only be used if initialized as UNPMenu
+            if (!mUNPMenuTask) {
+                logger.Error("Using UNP entry point while the task was not initialized as UNPMenu task, check parameters used to call the task constructor");
+                return;
+            }
 
             // stop the task from running
             stop();

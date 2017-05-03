@@ -14,6 +14,7 @@ namespace UNP.Filters {
 
         bool configure(ref SampleFormat input, out SampleFormat output);
         void initialize();
+        bool configureRunningFilter(Parameters newParameters, bool resetFilter);
 
         void start();
         void stop();

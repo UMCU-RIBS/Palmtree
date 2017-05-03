@@ -60,83 +60,42 @@ namespace UNP.Filters {
             return parameters;
         }
 
-        // 
+        /**
+         * Configure the filter. Checks the values and application logic of the
+         * parameters and, if valid, transfers the configuration parameters to local variables
+         * (initialization of the filter is done later by the initialize function)
+         **/
         public bool configure(ref SampleFormat input, out SampleFormat output) {
 
-            // store the number of input channels
+            // retrieve and check the number of input channels
             inputChannels = input.getNumberOfChannels();
+            if (inputChannels <= 0) {
+                logger.Error("Number of input channels cannot be 0");
+                output = null;
+                return false;
+            }
 
-            // 
-            // TODO: parameters.checkminimum, checkmaximum
+            // check the values and application logic of the parameters
+            if (!checkParameters(parameters)) {
+                output = null;
+                return false;
+            }
 
-            // filter is enabled/disabled
-            mEnableFilter = parameters.getValue<bool>("EnableFilter");
-
+            // transfer the parameters to local variables
+            transferParameters(parameters);
+            
             // check if the filter is enabled
             if (mEnableFilter) {
                 // filter enabled
 
-                // check if the number of input channels is higher than 0
-                if (inputChannels <= 0) {
-                    logger.Error("Number of input channels cannot be 0");
-                    output = null;
-                    return false;
-                }
-
-                // retrieve bufferweights
-                double[][] thresholds = parameters.getValue<double[][]>("Thresholds");
-		        if (thresholds.Length != 4 && thresholds[0].Length > 0) {
-                    logger.Error("Threshold parameter must have 4 columns (Input channel, Output channel, Threshold, Direction) and at least one row");
-                    output = null;
-                    return false;
-                }
-
-                // resize the variables
-                mConfigInputChannels = new int[thresholds[0].Length];        // 0 = channel 1
-                mConfigOutputChannels = new int[thresholds[0].Length];        // 0 = channel 1
-                mConfigThresholds = new double[thresholds[0].Length];
-                mConfigDirections = new int[thresholds[0].Length];
-
-                // loop through the rows
-                for (int row = 0; row < thresholds[0].Length; ++row ) {
-
-                    if (thresholds[0][row] < 1) {
-                        logger.Error("Input channels must be positive integers");
-                        output = null;
-                        return false;
-                    }
-                    if (thresholds[0][row] > inputChannels) {
-                        logger.Error("One of the input channel values exceeds the number of channels coming into the filter (#inputChannels: " + inputChannels + ")");
-                        output = null;
-                        return false;
-                    }
-                    if (thresholds[1][row] < 1) {
-                        logger.Error("Output channels must be positive integers");
-                        output = null;
-                        return false;
-                    }
-
-                    // 
-                    mConfigInputChannels[row] = (int)thresholds[0][row];
-                    mConfigOutputChannels[row] = (int)thresholds[1][row];
-                    mConfigThresholds[row] = thresholds[2][row];
-                    mConfigDirections[row] = (int)thresholds[3][row];
-
-                }
-
-                // determine the highest output channel from the configuration
+                // determine the highest output channel from the
+                // configuration and set this as the number of output channels
                 int highestOutputChannel = 0;
                 for (int row = 0; row < mConfigOutputChannels.Count(); ++row) {
                     if (mConfigOutputChannels[row] > highestOutputChannel)
                         highestOutputChannel = mConfigOutputChannels[row];
                 }
-
-                // set the number of output channels to the highest possible output
                 outputChannels = (uint)highestOutputChannel;
-
-                // create an output sampleformat
-                output = new SampleFormat(outputChannels);
-
 
             } else {
                 // filter disabled
@@ -144,18 +103,169 @@ namespace UNP.Filters {
                 // filter will pass the input straight through, so same number of channels as output
                 outputChannels = inputChannels;
 
-                // create an output sampleformat
-                output = new SampleFormat(outputChannels);
+            }
+
+            // create an output sampleformat
+            output = new SampleFormat(outputChannels);
+
+            // debug output
+            logger.Debug("--- Filter configuration: " + filterName + " ---");
+            logger.Debug("Input channels: " + inputChannels);
+            logger.Debug("Enabled: " + mEnableFilter);
+            logger.Debug("Output channels: " + outputChannels);
+
+            // return success
+            return true;
+
+        }
+
+        /**
+         *  Re-configure the filter settings on the fly (during runtime) using the given parameterset. 
+         *  Checks if the new settings have adjustments that cannot be applied to a running filter
+         *  (most likely because they would adjust the number of expected output channels, which would have unforseen consequences for the next filter)
+         *  
+         *  The local parameter is left untouched so it is easy to revert back to the original configuration parameters
+         *  The functions handles both the configuration and initialization of filter related variables.
+         **/
+        public bool configureRunningFilter(Parameters newParameters, bool resetFilter) {
+
+            // retrieve whether the filter should be enabled
+            bool newEnabled = newParameters.getValue<bool>("EnableFilter");
+            if (!mEnableFilter && newEnabled) {
+                // filter was off, and should be switched on
+
+                // determine the highest output channel from the configuration
+                double[][] newThresholds = parameters.getValue<double[][]>("Thresholds");
+                int highestOutputChannel = 0;
+                for (int row = 0; row < newThresholds[0].Length; ++row) {
+                    if (newThresholds[1][row] > highestOutputChannel)
+                        highestOutputChannel = (int)newThresholds[1][row];
+                }
+
+                // check if the number of output channels would remain the same (if the change would be applied)
+                if (outputChannels != highestOutputChannel) {
+
+                    // message
+                    logger.Error("Error while trying to enable the filter. Enabling the filter would adjust the number of output channels from " + outputChannels + " to " + highestOutputChannel + ", this might break the next filter(s) and is disallowed, not applying filter re-configuration");
+
+                    // return failure
+                    return false;
+
+                }
+
+            } else if (mEnableFilter && !newEnabled) {
+                // filter was on, and should be switched off
+
+                // Check if the number of output channels would remain or change the same (if the change would be applied)
+                // When the filter is to be switched off, then the current number of output
+                // channels (now, with the filter on) should be the same as the number of input channels. 
+                if (outputChannels != inputChannels) {
+                    // number of channels would change, disallow adjustment
+
+                    // message
+                    logger.Error("Error while trying to disable the filter. Disabling the filter would adjust the number of output channels from " + outputChannels + " to " + inputChannels + ", this might break the next filter(s) and is disallowed, not applying filter re-configuration");
+
+                    // return failure
+                    return false;
+
+                }
 
             }
 
+            // check the values and application logic of the parameters
+            if (!checkParameters(newParameters))    return false;
+
+            // transfer the parameters to local variables
+            transferParameters(newParameters);
+
+            // initialize the variables (if needed)
+            initialize();
+
+            // return success
             return true;
 
+        }
+
+        /**
+         * check the values and application logic of the given parameter set
+         **/
+        private bool checkParameters(Parameters newParameters) {
+
+            // 
+            // TODO: parameters.checkminimum, checkmaximum
+
+            // filter is enabled/disabled
+            bool newEnableFilter = newParameters.getValue<bool>("EnableFilter");
+
+            // check if the filter is enabled
+            if (newEnableFilter) {
+
+                // check thresholds
+                double[][] newThresholds = newParameters.getValue<double[][]>("Thresholds");
+		        if (newThresholds.Length != 4 && newThresholds[0].Length > 0) {
+                    logger.Error("Threshold parameter must have 4 columns (Input channel, Output channel, Threshold, Direction) and at least one row");
+                    return false;
+                }
+
+                // loop through the rows
+                for (int row = 0; row < newThresholds[0].Length; ++row ) {
+
+                    if (newThresholds[0][row] < 1) {
+                        logger.Error("Input channels must be positive integers");
+                        return false;
+                    }
+                    if (newThresholds[0][row] > inputChannels) {
+                        logger.Error("One of the input channel values exceeds the number of channels coming into the filter (#inputChannels: " + inputChannels + ")");
+                        return false;
+                    }
+                    if (newThresholds[1][row] < 1) {
+                        logger.Error("Output channels must be positive integers");
+                        return false;
+                    }
+
+                }
+
+            }
+
+            // return success
+            return true;
+
+        }
+
+        /**
+         * transfer the given parameter set to local variables
+         **/
+        private void transferParameters(Parameters newParameters) {
+
+            // filter is enabled/disabled
+            mEnableFilter = newParameters.getValue<bool>("EnableFilter");
+
+            // check if the filter is enabled
+            if (mEnableFilter) {
+
+                // retrieve newThresholds
+                double[][] newThresholds = newParameters.getValue<double[][]>("Thresholds");
+
+                // transfer the settings
+                mConfigInputChannels = new int[newThresholds[0].Length];        // 0 = channel 1
+                mConfigOutputChannels = new int[newThresholds[0].Length];        // 0 = channel 1
+                mConfigThresholds = new double[newThresholds[0].Length];
+                mConfigDirections = new int[newThresholds[0].Length];
+                for (int row = 0; row < newThresholds[0].Length; ++row ) {
+                    mConfigInputChannels[row] = (int)newThresholds[0][row];
+                    mConfigOutputChannels[row] = (int)newThresholds[1][row];
+                    mConfigThresholds[row] = newThresholds[2][row];
+                    mConfigDirections[row] = (int)newThresholds[3][row];
+                }
+
+            }
+            
         }
 
         public void initialize() {
 
         }
+
 
         public void start() {
             
