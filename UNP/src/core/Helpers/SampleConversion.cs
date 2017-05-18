@@ -5,7 +5,7 @@ using System.Text;
 
 namespace UNP.Core.Helpers {
 
-    static class SampleConversion {
+    public static class SampleConversion {
 
         public static double sampleRate() {
             return MainThread.SamplesPerSecond();

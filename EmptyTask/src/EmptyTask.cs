@@ -29,6 +29,10 @@ namespace EmptyTask {
 
         }
 
+        public Parameters getParameters() {
+            return parameters;
+        }
+
         public bool configure(ref SampleFormat input) {
             return true;
         }

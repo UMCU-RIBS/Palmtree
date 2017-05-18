@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 
 namespace UNP.Core.Helpers {
+
     public class SampleFormat {
         
         private uint channels = 0;

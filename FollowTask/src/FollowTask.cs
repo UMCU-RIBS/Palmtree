@@ -1,6 +1,7 @@
 ﻿using NLog;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -49,7 +50,7 @@ namespace FollowTask {
         private int mWindowTop = 0;
         //private int mFullscreenMonitor = 0;
 
-        private float mCursorSize = 1f;
+        private double mCursorSize = 1f;
         private int mCursorColorRule = 0;
         private RGBColorFloat mCursorColorMiss = new RGBColorFloat(0.8f, 0f, 0f);
         private RGBColorFloat mCursorColorHit = new RGBColorFloat(0.8f, 0.8f, 0f);
@@ -58,8 +59,8 @@ namespace FollowTask {
         private int mCursorColorEscapeTime = 0;
         private int mCursorColorTimer = 0;
 
-		private List<int> fixedTargetSequence = new List<int>(0);				    // the target sequence (input parameter)
-		private int mNumberTargets = 0;
+		private int[] fixedTargetSequence = new int[0];				                // the target sequence (input parameter)
+		private int numTargets = 0;
 		private int mTargetSpeed = 0;
 		private int mTargetYMode = 0;
 		private int mTargetWidthMode = 0;
@@ -88,9 +89,7 @@ namespace FollowTask {
 
         private TaskStates taskState = TaskStates.Wait;
         private TaskStates previousTaskState = TaskStates.Wait;
-
         private int mCurrentBlock = FollowView.noBlock;	                            // the current block which is in line with X of the cursor (so the middle)
-        private float mBlockSpeed = 120;									        // the block movement speed (in pixels per second)
 
 
         public FollowTask() : this(false) { }
@@ -173,74 +172,94 @@ namespace FollowTask {
                     "Show the score",
                     "0", "1", "1");
 
+                
+
+                parameters.addParameter<double>(
+                    "CursorSize",
+                    "Cursor size radius in percentage of the screen height",
+                    "0.0", "50.0", "4.0");
+
+                parameters.addParameter<int>(
+                    "CursorColorRule",
+                    "Cursor color rule",
+                    "0", "2", "0", new string[] { "Hitcolor on target hit (normal)", "Hitcolor on input", "Hitcolor on input - Escape color on escape" });
+
+                parameters.addParameter<RGBColorFloat>(
+                    "CursorColorMiss",
+                    "Cursor color when missing",
+                    "", "", "204;0;0");
+
+                parameters.addParameter<RGBColorFloat>(
+                    "CursorColorHit",
+                    "Cursor color when hitting",
+                    "", "", "204;204;0");
+
+                parameters.addParameter<double>(
+                    "CursorColorHitTime",
+                    "Time that the cursor remains in hit color",
+                    "0", "", "2s");
+
+                parameters.addParameter<RGBColorFloat>(
+                    "CursorColorEscape",
+                    "Cursor color when hitting",
+                    "", "", "170;0;170");
+
+                parameters.addParameter<double>(
+                    "CursorColorEscapeTime",
+                    "Time that the cursor remains in escape color",
+                    "0", "", "2s");
 
 
 
-/*
+
+                parameters.addParameter<double[][]>(
+                    "Targets",
+                    "Target positions and widths in percentage coordinates\n\nY_perc: The y position of the block on the screen (in percentages of the screen height), note that the value specifies where the middle of the block will be.\nHeight_perc: The height of the block on the screen (in percentages of the screen height)\nWidth_secs: The width of the target block in seconds",
+                    "", "", "0", new string[] {"Y_perc", "Height_perc", "Width_secs" });
 
 
-    "Application:Cursor int CursorSize= 4 4 0.0 50 "
-      " // Cursor size radius in percentage of the screen height",
+                parameters.addParameter<string[][]>(
+                    "TargetTextures",
+                    "Paths of target texture, relative to executable path",
+                    "", "", "", new string[] {"filepath" });
 
-	"Application:Cursor int CursorColorRule= 0 0 0 2 "
-      " // Task input signal type: 0: Hitcolor on target hit%20%28normal%29, 1: Hitcolor on input, 2: Hitcolor on input - Escape color on escape, (enumeration)",
+                parameters.addParameter<int>(
+                    "TargetYMode",
+                    "Targets Y mode",
+                    "0", "3", "0", new string[] { "Target(matrix) order", "Randomize categories", "Randomize cat without replacement", "Sequential categories with rnd start"});
 
-    "Application:Cursor int CursorColorMiss= 0xcc0000 0 % % "
-      " // Cursor color when missing (0xff000000 for invisible) (color)",
+                parameters.addParameter<int>(
+                    "TargetWidthMode",
+                    "Targets Width mode",
+                    "0", "3", "0", new string[] { "Target(matrix) order", "Randomize categories", "Randomize cat without replacement", "Sequential categories with rnd start"});
+                
+                parameters.addParameter<int>(
+                    "TargetHeightMode",
+                    "Targets Height mode",
+                    "0", "3", "0", new string[] { "Target(matrix) order", "Randomize categories", "Randomize cat without replacement", "Sequential categories with rnd start"});
 
-    "Application:Cursor int CursorColorHit= 0xcccc00 0 % % "
-      " // Cursor color when hitting (0xff000000 for invisible) (color)",
+                parameters.addParameter<int>(
+                    "TargetSpeed",
+                    "The speed of the targets (in pixels per second)",
+                    "0", "", "120");
 
-    "Application:Cursor int CursorColorHitTime= 2 2 0 % "
-      " // Time that the cursor remains in hit color",
+                parameters.addParameter<int>(
+                    "NumberTargets",
+                    "Number of targets",
+                    "1", "", "70");
 
-    "Application:Cursor int CursorColorEscape= 0xaa00aa 0 % % "
-      " // Cursor color when hitting (0xff000000 for invisible) (color)",
-
-    "Application:Cursor int CursorColorEscapeTime= 2 2 0 % "
-      " // Time that the cursor remains in escpae color",
-
-	"Application:Targets int NumberTargets= 2 2 0 4000 "
-		" // number of targets",
-
-	"Application:Targets intlist TargetSequence= 0 1 % % "
-		" // fixed sequence in which targets should be presented (leave empty for random)",
-
-    "Application:Targets int TargetYMode= 1 0 0 3 "
-      " // targets y mode 0: Target(matrix) order, 1: random categories, 2:randomize cat without replacement 3:sequential categories with rnd start (enumeration)",
-
-    "Application:Targets int TargetWidthMode= 1 0 0 3 "
-      " // targets width mode 0: Target(matrix) order, 1: random categories, 2:random cat without replacement 3:sequential categories with rnd start (enumeration)",
-
-    "Application:Targets int TargetHeightMode= 1 0 0 3 "
-      " // targets height mode 0: Target(matrix) order, 1: random categories, 2:random cat without replacement 3:sequential categories with rnd start (enumeration)",
-
-    "Application:Targets matrix Targets= "
-		" 6 "								// rows
-		" [Y_perc Height_perc Width_sec] "	// columns
-		"  25  50  3s "
-		"  25  50  4s "
-		"  25  50  5s "
-		"  75  50  3s "
-		"  75  50  4s "
-		"  75  50  5s "
-		" // target positions and widths in percentage coordinates",
-
-    "Application:Targets matrix TargetTextures= "
-		" 2 "			// rows
-		" [filename ] " // columns
-		"  %  "
-		"  % "
-		" // paths of target texture (inputfiles)",
-
-	"Application:Targets int TargetSpeed= 120 120 0 1000 "
-		" // targetspeed (in pixels per second)",
-
- */
+                parameters.addParameter<int[]>(
+                    "TargetSequence",
+                    "Fixed sequence in which targets should be presented (leave empty for random)",
+                    "0", "", "0");
 
 
             }
 
+        }
+
+        public Parameters getParameters() {
+            return parameters;
         }
 
         public bool configure(ref SampleFormat input) {
@@ -257,6 +276,7 @@ namespace FollowTask {
             // 
             // TODO: parameters.checkminimum, checkmaximum
 
+            // TODO: Parameter("WindowBackgroundColor");
 
             // retrieve window settings
             mWindowLeft = parameters.getValue<int>("WindowLeft");
@@ -298,121 +318,101 @@ namespace FollowTask {
                 return false;
             }
             
-            // 
-            mTaskInputSignalType = parameters.getValue<int>("TaskInputSignalType");
+            // retrieve the score parameter
             mShowScore = parameters.getValue<bool>("TaskShowScore");
 
+            // retrieve the input signal type
+            mTaskInputSignalType = parameters.getValue<int>("TaskInputSignalType");
+            
+            // retrieve cursor parameters
+            mCursorSize = parameters.getValue<double>("CursorSize");
+            mCursorColorRule = parameters.getValue<int>("CursorColorRule");
+            mCursorColorMiss = parameters.getValue<RGBColorFloat>("CursorColorMiss");
+            mCursorColorHit = parameters.getValue<RGBColorFloat>("CursorColorHit");
+            mCursorColorHitTime = parameters.getValueInSamples("CursorColorHitTime");
+            mCursorColorEscape = parameters.getValue<RGBColorFloat>("CursorColorEscape");
+            mCursorColorEscapeTime = parameters.getValueInSamples("CursorColorEscapeTime");
+
+            // retrieve target settings
+            double[][] parTargets = parameters.getValue<double[][]>("Targets");
+            if (parTargets.Length != 3) {
+                logger.Error("Targets parameter must have 3 columns (Y_perc, Height_perc, Width_secs)");
+                return false;
+            }
+            if (parTargets[0].Length < 1) {
+                logger.Error("The number of rows in the Targets parameter must be at least 1");
+                return false;
+            }
+            // TODO: convert mTargets to 3 seperate arrays instead of jagged list?
+            mTargets[0] = new List<float>(new float[parTargets[0].Length]);
+            mTargets[1] = new List<float>(new float[parTargets[0].Length]);
+            mTargets[2] = new List<float>(new float[parTargets[0].Length]);
+            for(int row = 0; row < parTargets[0].Length; ++row) {
+                mTargets[0][row] = (float)parTargets[0][row];
+                mTargets[1][row] = (float)parTargets[1][row];
+                mTargets[2][row] = (float)parTargets[2][row];
+                if (mTargets[2][row] <= 0) {
+                    logger.Error("The value '" + parTargets[2][row] + "' in the Targets parameter is not a valid width value, should be a positive numeric");
+                    return false;
+                }
+            }
+            
+            string[][] parTargetTextures = parameters.getValue<string[][]>("TargetTextures");
+            mTargetTextures = new List<string>(new string[parTargetTextures[0].Length]);
+            for(int row = 0; row < parTargetTextures[0].Length; ++row)  mTargetTextures[row] = parTargetTextures[0][row];
+
+            mTargetYMode = parameters.getValue<int>("TargetYMode");
+            mTargetWidthMode = parameters.getValue<int>("TargetWidthMode");
+            mTargetHeightMode = parameters.getValue<int>("TargetHeightMode");
+
+            mTargetSpeed = parameters.getValue<int>("TargetSpeed");
+            if (mTargetSpeed < 1) {
+                logger.Error("The TargetSpeed parameter be at least 1");
+                return false;
+            }
+
+
+
+
+
+            // retrieve the number of targets and (fixed) target sequence
+            numTargets = parameters.getValue<int>("NumberTargets");
+            fixedTargetSequence = parameters.getValue<int[]>("TargetSequence");
+            if (fixedTargetSequence.Length == 0) {
+                // no fixed sequence
+
+                // check number of targets
+                if (numTargets < 1) {
+                    logger.Error("Minimum of 1 target is required");
+                    return false;
+                }
+
+            } else {
+                // fixed sequence
+
+                numTargets = fixedTargetSequence.Length;
+                for (int i = 0; i < numTargets; ++i) {
+                    
+                    if (fixedTargetSequence[i] < 0) {
+                        logger.Error("The TargetSequence parameter contains a target index (" + fixedTargetSequence[i] + ") that is below zero, check the TargetSequence");
+                        return false;
+                    }
+                    if (fixedTargetSequence[i] >= mTargets[0].Count) {
+                        logger.Error("The TargetSequence parameter contains a target index (" + fixedTargetSequence[i] + ") that is out of range, check the Targets parameter. (note that the indexing is 0 based)");
+                        return false;
+                    }
+                }
+
+            }
             
 
-            // debug, now using UNPMenu settings
-
-
-	        // set the UNP task standard settings
-	        mCursorSize = 4f;
-	        mCursorColorRule = 0;
-            mCursorColorMiss = new RGBColorFloat(0.8f, 0f, 0f);
-            mCursorColorHit = new RGBColorFloat(0.8f, 0.8f, 0f);
-	        mCursorColorHitTime = 0;
-            mCursorColorEscape = new RGBColorFloat(0.8f, 0f, 0.8f);
-	        mCursorColorEscapeTime = 0;
-	        mNumberTargets = 70;
-	        mTargetSpeed = 120;
-	        mTargetYMode = 3;
-	        mTargetWidthMode = 1;
-	        mTargetHeightMode = 1;
-
-
-	        mTargets[0].Clear();	mTargets[0] = new List<float>(new float[6]);
-	        mTargets[1].Clear();	mTargets[1] = new List<float>(new float[6]);
-	        mTargets[2].Clear();	mTargets[2] = new List<float>(new float[6]);
-	        mTargets[0][0] = 25;	mTargets[1][0] = 50;	mTargets[2][0] = 2;
-	        mTargets[0][1] = 25;	mTargets[1][1] = 50;	mTargets[2][1] = 2;
-	        mTargets[0][2] = 25;	mTargets[1][2] = 50;	mTargets[2][2] = 2;
-	        mTargets[0][3] = 75;	mTargets[1][3] = 50;	mTargets[2][3] = 3;
-	        mTargets[0][4] = 75;	mTargets[1][4] = 50;	mTargets[2][4] = 5;
-	        mTargets[0][5] = 75;	mTargets[1][5] = 50;	mTargets[2][5] = 7;
-
-
-            mTargetTextures = new List<string>(new string[6]);
-	        mTargetTextures[0] = "images/sky.bmp";
-	        mTargetTextures[1] = "images/sky.bmp";
-	        mTargetTextures[2] = "images/sky.bmp";
-	        mTargetTextures[3] = "images/grass.bmp";
-	        mTargetTextures[4] = "images/grass.bmp";
-	        mTargetTextures[5] = "images/grass.bmp";
-
-
-
-            //RGBColorFloat
-
-/*
-
-	Parameter( "WindowBackgroundColor");
-
-	const char* colorParams[] = {
-		"CursorColorHit",
-		"CursorColorMiss",
-		"CursorColorEscape"
-	};
-	for( size_t i = 0; i < sizeof( colorParams ) / sizeof( *colorParams ); ++i )
-	if( RGBColor( Parameter( colorParams[ i ] ) )  == RGBColor( RGBColor::NullColor ) )
-		bcierr << "Invalid RGB value in " << colorParams[ i ] << endl;
-
-	// check target parameters
-	if (Parameter("TargetSequence")->NumValues() == 0 && Parameter( "NumberTargets") < 1) {
-		bcierr << "The NumberTargets parameter must be set to at least 1 target" << endl;
-	}
-	if (Parameter( "TargetSpeed") < 1) {
-		bcierr << "The TargetSpeed parameter be at least 1" << endl;
-	}
-	if (Parameter("Targets")->NumColumns() != 3) {
-		bcierr << "The Targets parameter must contain exactly 3 columns (which should be named 'Y_perc', 'Height_perc' and 'Width_sec')" << endl;
-	}
-
-	// targets (matrix)
-	bool hasYPerc = false;
-	bool hasHeightPerc = false;
-	bool hasWidthSec = false;
-	for (int i = 0; i < (int)Parameter("Targets")->NumColumns(); ++i) {
-		string label = Parameter( "Targets" )->ColumnLabels()[i];
-		if (strcmp(label.c_str(), "Y_perc") == 0)			hasYPerc = true;
-		if (strcmp(label.c_str(), "Height_perc") == 0)		hasHeightPerc = true;
-		if (strcmp(label.c_str(), "Width_sec") == 0)		hasWidthSec = true;
-	}
-
-	if (!hasYPerc || !hasHeightPerc || !hasWidthSec) {
-		bcierr << "The Targets parameter must contain exactly 3 columns (which should be named 'Y_perc', 'Height_perc' and 'Width_sec')" << endl;
-	}
-	if (Parameter("Targets")->NumRows() < 1) {
-		bcierr << "The Targets parameter must have at least 1 row" << endl;
-	}
-
-	// target sequence
-	if (Parameter("TargetSequence")->NumValues() > 0) {
-		int numTargets = Parameter("Targets")->NumRows();
-		for (int i = 0; i < Parameter("TargetSequence")->NumValues(); ++i) {
-			if (Parameter("TargetSequence")(i) < 0) {
-				bcierr << "The TargetSequence parameter contains a target index (" << Parameter("TargetSequence")(i) << ") that is below zero, check the TargetSequence" << endl;
-				break;
-			}
-			if (Parameter("TargetSequence")(i) >= numTargets) {
-				bcierr << "The TargetSequence parameter contains a target index (" << Parameter("TargetSequence")(i) << ") that is out of range, check the Targets parameter. (note that the indexing is 0 based)" << endl;
-				break;
-			}
-		}
-	}
-
-
-	if (Parameter("TaskFirstRunStartDelay") < 0) {
-		bcierr << "The TaskFirstRunStartDelay can be no smaller then 0" << endl;
-	}
-	// other parameters
-	Parameter("TargetTextures");
-	Parameter("TaskInputSignalType");
-	State("Running");
-	State("ConnectionLost");
-	State("KeySequenceActive");
-*/          
+            
+            /*
+                // other parameters
+                State("Running");
+                State("ConnectionLost");
+                State("KeySequenceActive");
+            */          
             
             return true;
         }
@@ -709,36 +709,40 @@ namespace FollowTask {
 					            // check the color rule
 					            if (mCursorColorRule == 2) {
 						            // 2. Hitcolor on input - Escape color on escape
-/*
-            #ifndef UNPMENU
-						            // check if a keysequence input comes in or a click input comes in
-						            if (State("KeySequenceActive") == 1) {
 
-							            // set the color
-							            mSceneThread->setCursorColorSetting(2);
+                                    // only in non UNP-menu tasks
+                                    if (!mUNPMenuTask) {
 
-							            // set the timer
-							            if (mCursorColorEscapeTime == 0)	mCursorColorTimer = 1;
-							            else								mCursorColorTimer = mCursorColorEscapeTime;
+                                        /*
+						                // check if a keysequence input comes in or a click input comes in
+						                if (State("KeySequenceActive") == 1) {
 
-						            } else {
+							                // set the color
+							                mSceneThread->setCursorColorSetting(2);
 
-							            // check if a click was made
-							            if (input == 1) {
+							                // set the timer
+							                if (mCursorColorEscapeTime == 0)	mCursorColorTimer = 1;
+							                else								mCursorColorTimer = mCursorColorEscapeTime;
+
+						                } else {
+
+							                // check if a click was made
+							                if (input == 1) {
 						
-								            // set the color
-								            mSceneThread->setCursorColorSetting(1);
+								                // set the color
+								                mSceneThread->setCursorColorSetting(1);
 
-								            // set the timer
-								            if (mCursorColorHitTime == 0)	mCursorColorTimer = 1;
-								            else							mCursorColorTimer = mCursorColorHitTime;
+								                // set the timer
+								                if (mCursorColorHitTime == 0)	mCursorColorTimer = 1;
+								                else							mCursorColorTimer = mCursorColorHitTime;
 
-							            }
+							                }
 
-						            }
+						                }
+                                        */
 
-            #endif
-*/
+                                    }
+
 					            } else {
 						            // 1. Hitcolor on input
 
@@ -1027,7 +1031,7 @@ namespace FollowTask {
 	        if (mTargetSequence.Count() != 0)		mTargetSequence.Clear();
 
 	        // create targetsequence array with <NumberTargets>
-            mTargetSequence = new List<int>(new int[mNumberTargets]);
+            mTargetSequence = new List<int>(new int[numTargets]);
 
 	        // put the row indices of each distinct value (from the rows in the matrix) in an array
 	        // (this is used for the modes which are set to randomization)
@@ -1098,9 +1102,9 @@ namespace FollowTask {
             List<int> currentHeight = new List<int>(0);
 
 	        // loop <NumberTargets> times to generate each target
-	        int generateSafetyCounter = mNumberTargets + 1000;
+	        int generateSafetyCounter = numTargets + 1000;
             i = 0;
-            while(i < mNumberTargets) {
+            while(i < numTargets) {
 			
 		        // none been added at the beginning of the loop
 		        catY_randStart_Added = false;
@@ -1326,7 +1330,7 @@ namespace FollowTask {
             mCursorColorHitTime = 0;
             mCursorColorEscape = new RGBColorFloat(0.8f, 0f, 0.8f);
             mCursorColorEscapeTime = 0;
-            mNumberTargets = 70;
+            numTargets = 70;
             mTargetSpeed = 120;
             mTargetYMode = 3;
             mTargetWidthMode = 1;

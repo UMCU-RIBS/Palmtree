@@ -143,6 +143,36 @@ namespace UNP.Core {
             normalizerParameters.setValue("NormalizerOffsets", "0 0");
             normalizerParameters.setValue("NormalizerGains", "1 1");
 
+
+
+            Parameters followParameters = application.getParameters();
+            followParameters.setValue("WindowLeft", 0);
+            followParameters.setValue("WindowTop", 0);
+            followParameters.setValue("WindowWidth", 800);
+            followParameters.setValue("WindowHeight", 600);
+            followParameters.setValue("WindowRedrawFreqMax", 60);
+            followParameters.setValue("WindowBackgroundColor", "0");
+            followParameters.setValue("TaskFirstRunStartDelay", "5s");
+            followParameters.setValue("TaskStartDelay", "10s");
+            followParameters.setValue("TaskInputChannel", 1);
+            followParameters.setValue("TaskInputSignalType", 0);
+            followParameters.setValue("TaskShowScore", true);
+            followParameters.setValue("CursorSize", 4.0);
+            followParameters.setValue("CursorColorRule", 0);
+            followParameters.setValue("CursorColorMiss", "204;0;0");
+            followParameters.setValue("CursorColorHit", "204;204;0");
+            followParameters.setValue("CursorColorHitTime", "2s");
+            followParameters.setValue("CursorColorHit", "170;0;170");
+            followParameters.setValue("CursorColorEscapeTime", "2s");
+            followParameters.setValue("Targets", "25,25,25,75,75,75;50,50,50,50,50,50;2,2,2,3,5,7");
+            followParameters.setValue("TargetTextures", "images/sky.bmp,images/sky.bmp,images/sky.bmp,images/grass.bmp,images/grass.bmp,images/grass.bmp");
+            followParameters.setValue("TargetYMode", 3);
+            followParameters.setValue("TargetWidthMode", 1);
+            followParameters.setValue("TargetHeightMode", 1);
+            followParameters.setValue("TargetSpeed", 120);
+            followParameters.setValue("NumberTargets", 70);
+
+
         }
 
         /**
@@ -177,7 +207,6 @@ namespace UNP.Core {
                 // configure the filter
                 if (!filters[i].configure(ref tempFormat, out outputFormat)) {
                     
-                    
                     // message
                     logger.Error("An error occured while configuring filter '" + filters[i].GetType().Name + "', stopped");
 
@@ -196,8 +225,20 @@ namespace UNP.Core {
             }
 
             // configure the application
-            if (application != null)    application.configure(ref tempFormat);
+            if (application != null) {
+                
+                // configure the application
+                if (!application.configure(ref tempFormat)) {
 
+                    // message
+                    logger.Error("An error occured while configuring application, stopped");
+
+                    // return failure and go no further
+                    return false;
+
+                }
+
+            }
 
             // flag as configured
             systemConfigured = true;

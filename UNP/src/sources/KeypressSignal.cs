@@ -51,12 +51,12 @@ namespace UNP.Sources {
             // set the reference to the pipeline
             this.pipeline = pipeline;
 
-            parameters.addParameter<ParamInt> (
+            parameters.addParameter<int> (
                 "Channels",
                 "Number of source channels to generate",
                 "1", "", "1");
 
-            parameters.addParameter<ParamDouble> (
+            parameters.addParameter<double> (
                 "SampleRate",
                 "Rate with which samples are generated, in samples per second (hz)",
                 "0", "", "5");

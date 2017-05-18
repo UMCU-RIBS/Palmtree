@@ -142,6 +142,7 @@ namespace UNP.Filters {
 
             // TODO: parameters.checkminimum, checkmaximum
 
+
             // filter is enabled/disabled
             bool newEnableFilter = newParameters.getValue<bool>("EnableFilter");
 

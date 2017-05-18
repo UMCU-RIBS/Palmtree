@@ -9,6 +9,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
+using UNP.Core.Helpers;
 using UNP.Core.Params;
 
 namespace UNP {
@@ -91,15 +92,28 @@ namespace UNP {
 
                 // TODO: check grouping etc
 
-                // loop through the parameters in the 
+                // loop through the parameters
                 List<iParam> parameters = entry.Value.getParameters();
                 int y = 20;
                 for (int i = 0; i < parameters.Count; i++) {
                     addConfigItemToControl(newTab, newPanel, parameters[i], ref y);
                 }
 
+                // check if the y is higher than the panel height (if there is scrolling; the VerticalScroll.Visible property does not work at this point)
+                if (y > newPanel.Height) {
+
+                    // add an empty label at the end to create dummy space
+                    Label newLbl = new Label();
+                    newLbl.Name = "lbl" + newPanel.Name + "EndDummy";
+                    newLbl.Location = new Point(10, y);
+                    newLbl.Size = new System.Drawing.Size(labelWidth, 20);
+                    newLbl.Text = "";
+                    newLbl.Parent = newPanel;
+                    newPanel.Controls.Add(newLbl);
+
+                }
+
                 newPanel.Dock = DockStyle.Fill;
-                //newPanel.HorizontalScroll.
 
                 // resume the layout of the panel
                 newPanel.ResumeLayout(false);
@@ -145,21 +159,56 @@ namespace UNP {
 
             } else if (param is ParamInt || param is ParamDouble) {
 
+                // check if there are emulated options
+                if (param.Options.Length == 0) {
+                    // not emulated options
 
-                // check if it has a limit range of possibilities
-                //param.Options
+                    // create and add a textbox
+                    TextBox newTxt = new TextBox();
+                    newTxt.Name = "txt" + panel.Name + param.Name;
+                    newTxt.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
+                    newTxt.Size = new System.Drawing.Size(200, 20);
+                    newTxt.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+                    panel.Controls.Add(newTxt);
+                    paramControls.Add(new ParamControl(param, newTxt, tab));
+                    itemHeight = 20;
 
-                // create and add a textbox
-                TextBox newTxt = new TextBox();
-                newTxt.Name = "txt" + panel.Name + param.Name;
-                newTxt.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
-                newTxt.Size = new System.Drawing.Size(200, 20);
-                newTxt.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-                panel.Controls.Add(newTxt);
-                paramControls.Add(new ParamControl(param, newTxt, tab));
-                itemHeight = 20;
+                } else {
+                    // emulated options
 
+                    // create and add a combobox
+                    ComboBox newCmb = new ComboBox();
+                    newCmb.Name = "txt" + panel.Name + param.Name;
+                    newCmb.Location = new Point(labelWidth + 20, y + itemTopPadding - 3);
+                    newCmb.Size = new System.Drawing.Size(280, 20);
+                    newCmb.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+                    for (int i = 0; i < param.Options.Length; i++)  newCmb.Items.Add(param.Options[i]);
+                    panel.Controls.Add(newCmb);
+                    paramControls.Add(new ParamControl(param, newCmb, tab));
+                    itemHeight = 22;
+
+                }
+                
+                
             } else if (param is ParamColor) {
+
+                PictureBox newPic = new PictureBox();
+                newPic.BorderStyle = BorderStyle.FixedSingle;
+                newPic.Name = "pic" + panel.Name + param.Name;
+                newPic.Location = new Point(labelWidth + 20, y + itemTopPadding - 1);
+                newPic.Size = new System.Drawing.Size(40, 20);
+                newPic.Click += (sender, e) => {
+                    ColorDialog clrDialog = new ColorDialog();
+                    clrDialog.AllowFullOpen = true;
+                    clrDialog.ShowHelp = false;
+                    clrDialog.Color = newPic.BackColor;
+                    if (clrDialog.ShowDialog() == DialogResult.OK) {
+                        newPic.BackColor = clrDialog.Color;
+                    }
+                };
+                panel.Controls.Add(newPic);
+                paramControls.Add(new ParamControl(param, newPic, tab));
+                itemHeight = 20;
 
             } else if (param is ParamBoolArr || param is ParamIntArr || param is ParamDoubleArr) {
 
@@ -245,7 +294,7 @@ namespace UNP {
                 paramControls.Add(new ParamControl(param, newGrid, tab, newRows, newColumns));
 
 
-                itemHeight = 160;
+                itemHeight = 180;
 
             }
 
@@ -284,7 +333,17 @@ namespace UNP {
                     CheckBox chk = (CheckBox)paramControls[i].control;
                     chk.Checked = ((ParamBool)param).Value;
                     
-                } else if (param is ParamInt || param is ParamDouble || param is ParamBoolArr || param is ParamIntArr || param is ParamDoubleArr) {
+                } else if ((param is ParamInt && param.Options.Length != 0) || (param is ParamDouble && param.Options.Length != 0)) {                    
+                    
+                    // int/double emulated options
+                    ComboBox cmb = (ComboBox)paramControls[i].control;
+                    int intValue = 0;
+                    int.TryParse(param.getValue(), NumberStyles.AllowDecimalPoint, Parameters.NumberCulture, out intValue);
+                    if (intValue > param.Options.Length)    intValue = 0;
+                    cmb.SelectedIndex = intValue;
+
+                } else if ((param is ParamInt && param.Options.Length == 0) || (param is ParamDouble && param.Options.Length == 0) || param is ParamBoolArr || param is ParamIntArr || param is ParamDoubleArr) {
+
                     TextBox txt = (TextBox)paramControls[i].control;
                     txt.Text = param.getValue();
 
@@ -369,6 +428,10 @@ namespace UNP {
 
                 } else if (param is ParamColor) {
 
+                    PictureBox pic = (PictureBox)paramControls[i].control;
+                    RGBColorFloat value = ((ParamColor)param).Value;
+                    pic.BackColor = Color.FromArgb(value.getRedAsByte(), value.getGreenAsByte(), value.getBlueAsByte());
+
                 }
 
             }
@@ -409,14 +472,56 @@ namespace UNP {
                         }
                     }
                     
-                } else if (param is ParamInt || param is ParamDouble || param is ParamBoolArr || param is ParamIntArr || param is ParamDoubleArr) {
+                } else if ((param is ParamInt && param.Options.Length != 0) || (param is ParamDouble && param.Options.Length != 0)) {
+
+                    // int/double emulated options
+                    ComboBox cmb = (ComboBox)paramControls[i].control;
+
+                    // testing or saving
+                    if (checkInputFirst) {
+                        // testing
+
+                        // try to parse the text
+                        if (!param.tryValue(cmb.SelectedIndex.ToString())) {
+                            
+                            // flag
+                            hasError = true;
+                            if (hasErrorFirstTab == null) hasErrorFirstTab = paramControls[i].tab;
+
+                            // mark box as wrong
+                            cmb.BackColor = Color.Tomato;
+
+                        } else {
+
+                            // mark box as normal
+                            cmb.BackColor = Color.White;
+
+                        }
+
+                    } else {
+                        // saving
+
+                        if (!param.setValue(cmb.SelectedIndex.ToString())) {
+
+                            // flag
+                            hasError = true;
+                            if (hasErrorFirstTab == null)   hasErrorFirstTab = paramControls[i].tab;
+
+                            // message
+                            logger.Error("Error while trying to save the value for parameter " + param.Name + "");
+                            
+                        }
+
+                    }
+
+                } else if ((param is ParamInt && param.Options.Length == 0) || (param is ParamDouble && param.Options.Length == 0) || param is ParamBoolArr || param is ParamIntArr || param is ParamDoubleArr) {
                     TextBox txt = (TextBox)paramControls[i].control;
 
                     // testing or saving
                     if (checkInputFirst) {
                         // testing
 
-                        // will always work regardless of value, so skip this step
+                        // try to parse the text
                         if (!param.tryValue(txt.Text)) {
                             
                             // flag
@@ -476,7 +581,7 @@ namespace UNP {
                     if (checkInputFirst) {
                         // testing
 
-                        // will always work regardless of value, so skip this step
+                        // try to parse the value
                         if (!param.tryValue(matstring)) {
                             
                             // flag
@@ -522,6 +627,47 @@ namespace UNP {
                 
 
                 } else if (param is ParamColor) {
+                    PictureBox pic = (PictureBox)paramControls[i].control;
+
+                    // create input string
+                    string picString = pic.BackColor.R + ";" + pic.BackColor.G + ";" + pic.BackColor.B;
+
+                    // testing or saving
+                    if (checkInputFirst) {
+                        // testing
+
+                        // try to parse the string
+                        if (!param.tryValue(picString)) {
+                            
+                            // flag
+                            hasError = true;
+                            if (hasErrorFirstTab == null) hasErrorFirstTab = paramControls[i].tab;
+
+                            // mark as wrong
+                            // TODO?
+
+                        } else {
+
+                            // mark as normal
+                            // TODO?
+
+                        }
+
+                    } else {
+                        // saving
+
+                        if (!param.setValue(picString)) {
+
+                            // flag
+                            hasError = true;
+                            if (hasErrorFirstTab == null)   hasErrorFirstTab = paramControls[i].tab;
+
+                            // message
+                            logger.Error("Error while trying to save the value for parameter " + param.Name + "");
+                            
+                        }
+
+                    }
 
 
                 }
@@ -630,6 +776,7 @@ namespace UNP {
                 rect.Left = this.Left - this.Margin.Left;
                 rect.Right = this.Right + this.Margin.Right;
                 //rect.Top = this.Top - this.Margin.Top;
+                rect.Top = this.Top;
                 rect.Bottom = this.Bottom + this.Margin.Bottom;
                 Marshal.StructureToPtr(rect, m.LParam, true);
 

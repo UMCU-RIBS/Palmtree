@@ -61,8 +61,7 @@ namespace MoleTask {
         private int mColumnSelectedDelay = 0;
         private int configHoleRows = 0;
         private int configHoleColumns = 0;
-
-        private List<int> fixedTargetSequence = new List<int>(0);					// the target sequence (input parameter)
+        private int[] fixedTargetSequence = new int[0];					            // target sequence (input parameter)
 
 
         // task (active) variables
@@ -184,24 +183,22 @@ namespace MoleTask {
                     "Amount of time after selecting a column to wait",
                     "0", "", "1s");
 
+                parameters.addParameter<int>(
+                    "NumberTargets",
+                    "Number of targets",
+                    "1", "", "10");
 
-
-/*
-
-
-  
- 
-	"Application:Task int Targets= 5 5 1 % "
-		" // Number of targets",
-
-	"Application:Task intlist TargetSequence= 0 1 % % "
-		" // fixed sequence in which targets should be presented (leave empty for random)",
-
-*/
-
+                parameters.addParameter<int[]>(
+                    "TargetSequence",
+                    "Fixed sequence in which targets should be presented (leave empty for random)",
+                    "0", "", "0");
 
             }
 
+        }
+
+        public Parameters getParameters() {
+            return parameters;
         }
 
         public bool configure(ref SampleFormat input) {
@@ -218,6 +215,7 @@ namespace MoleTask {
             // 
             // TODO: parameters.checkminimum, checkmaximum
 
+            // TODO: Parameter("WindowBackgroundColor");
 
             // retrieve window settings
             mWindowLeft = parameters.getValue<int>("WindowLeft");
@@ -277,44 +275,36 @@ namespace MoleTask {
                 return false;
             }
 
+            // retrieve the number of targets
+            numTargets = parameters.getValue<int>("NumberTargets");
+            if (numTargets < 1) {
+                logger.Error("Minimum of 1 target is required");
+                return false;
+            }
+
+            // retrieve (fixed) target sequence
+            fixedTargetSequence = parameters.getValue<int[]>("TargetSequence");
+            if (fixedTargetSequence.Length > 0) {
+                int numHoles = configHoleRows * configHoleColumns;
+                for (int i = 0; i < fixedTargetSequence.Length; ++i) {
+                    if (fixedTargetSequence[i] < 0) {
+                        logger.Error("The TargetSequence parameter contains a target index (" + fixedTargetSequence[i] + ") that is below zero, check the TargetSequence");
+                        return false;
+                    }
+                    if (fixedTargetSequence[i] >= numHoles) {
+                        logger.Error("The TargetSequence parameter contains a target index (" + fixedTargetSequence[i] + ") that is out of range, check the HoleRows and HoleColumns parameters. (note that the indexing is 0 based)");
+                        return false;
+                    }
+                    // TODO: check if the mole is not on an empty spot
+                }
+            }
 
             // configured as stand-alone, disallow exit
             mAllowExit = false;
 
-
-/*
-
-            Parameter("WindowBackgroundColor");
-
-
-            // check #targets, minimum 1
-            if (Parameter("Targets") < 1)
-            {
-                bcierr << "Minimum of 1 target is required" << endl;
-            }
-
-            // target sequence
-            if (Parameter("TargetSequence")->NumValues() > 0)
-            {
-                int numHoles = Parameter("HoleRows") * Parameter("HoleColumns");
-                for (int i = 0; i < Parameter("TargetSequence")->NumValues(); ++i)
-                {
-                    if (Parameter("TargetSequence")(i) < 0)
-                    {
-                        bcierr << "The TargetSequence parameter contains a target index (" << Parameter("TargetSequence")(i) << ") that is below zero, check the TargetSequence" << endl;
-                        break;
-                    }
-                    if (Parameter("TargetSequence")(i) >= numHoles)
-                    {
-                        bcierr << "The TargetSequence parameter contains a target index (" << Parameter("TargetSequence")(i) << ") that is out of range, check the HoleRows and HoleColumns parameters. (note that the indexing is 0 based)" << endl;
-                        break;
-                    }
-                }
-            }
-*/
-
-
+            // return success
             return true;
+
         }
 
         public void initialize() {
@@ -366,9 +356,9 @@ namespace MoleTask {
 	            }
 
                 // check if a target sequence is set
-	            if (fixedTargetSequence.Count == 0) {
+	            if (fixedTargetSequence.Length == 0) {
 		            // targetsequence not set in parameters, generate
-		
+		            
 		            // Generate targetlist
 		            generateTargetSequence();
 
@@ -959,9 +949,10 @@ namespace MoleTask {
 	        // Set state to Wait
 	        setState(TaskStates.Wait);
 
-	        if (fixedTargetSequence.Count == 0) {
+            // check if there is no fixed target sequence
+	        if (fixedTargetSequence.Length == 0) {
 
-		        // Generate targetlist
+		        // generate new targetlist
 		        generateTargetSequence();
 
 	        }
@@ -1058,6 +1049,7 @@ namespace MoleTask {
             mColumnSelectedDelay = 4;
             configHoleRows = 4;
             configHoleColumns = 4;
+            numTargets = 10;
 
             // UNPMenu task, allow exit
             mAllowExit = true;

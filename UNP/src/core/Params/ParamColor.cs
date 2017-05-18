@@ -40,6 +40,27 @@ namespace UNP.Core.Params {
             
         }
 
+        public T getUnit<T>() {
+
+            Type paramType = typeof(T);
+            if(paramType == typeof(Parameters.Units)) {
+                // request to return as Parameters.Units
+
+                // return value
+                Parameters.Units unit = Parameters.Units.ValueOrSamples;
+                return (T)Convert.ChangeType(unit, typeof(Parameters.Units));
+
+            } else {
+                // request to return as other
+
+                // message and return false
+                logger.Error("Could not retrieve the unit for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') as '" + paramType.Name + "', can only return value as 'Parameters.Units'. Returning 0");
+                return (T)Convert.ChangeType(0, typeof(T));    
+
+            }
+
+        }
+
         public int getValueInSamples() {
 
             // message

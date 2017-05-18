@@ -24,7 +24,7 @@ namespace UNP.Core.Params {
                 // request to return as int
 
                 // return value
-                return (T)Convert.ChangeType(value, typeof(int));
+                return (T)Convert.ChangeType(Value, typeof(int));
 
             } else {
                 // request to return as other
@@ -35,6 +35,26 @@ namespace UNP.Core.Params {
 
             }
             
+        }
+
+        public T getUnit<T>() {
+
+            Type paramType = typeof(T);
+            if(paramType == typeof(Parameters.Units)) {
+                // request to return as Parameters.Units
+
+                // return value
+                return (T)Convert.ChangeType(Unit, typeof(Parameters.Units));
+
+            } else {
+                // request to return as other
+
+                // message and return false
+                logger.Error("Could not retrieve the unit for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') as '" + paramType.Name + "', can only return value as 'Parameters.Units'. Returning 0");
+                return (T)Convert.ChangeType(0, typeof(T));    
+
+            }
+
         }
 
         public int getValueInSamples() {

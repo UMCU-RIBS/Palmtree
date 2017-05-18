@@ -43,6 +43,28 @@ namespace UNP.Core.Params {
             
         }
 
+        public T getUnit<T>() {
+
+            Type paramType = typeof(T);
+            if(paramType == typeof(Parameters.Units[])) {
+                // request to return as Parameters.Units[]
+
+                // return value
+                Parameters.Units[] units = new Parameters.Units[values.Length];
+                for (int i = 0; i < values.Length; i++) units[i] = Parameters.Units.ValueOrSamples;
+                return (T)Convert.ChangeType(units, typeof(Parameters.Units[]));
+
+            } else {
+                // request to return as other
+
+                // message and return false
+                logger.Error("Could not retrieve the unit for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') as '" + paramType.Name + "', can only return value as 'Parameters.Units[]'. Returning 0");
+                return (T)Convert.ChangeType(0, typeof(T));    
+
+            }
+
+        }
+
         public int getValueInSamples() {
 
             // message
@@ -97,8 +119,8 @@ namespace UNP.Core.Params {
             clone.boolStdValue = boolStdValue;
             clone.minValue = minValue;
             clone.maxValue = maxValue;
-            clone.values = new bool[values.Length];
 
+            clone.values = new bool[values.Length];
             for (int i = 0; i < values.Length; i++)    clone.values[i] = values[i];
 
             return clone;

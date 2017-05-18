@@ -255,6 +255,23 @@ namespace UNP.Core.Params {
 
         }
         
+        public T getUnit<T>(string paramName) {
+            iParam param = getParameter(paramName);
+            if (param == null) {
+
+                // message
+                logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', returning 0");
+
+                // return 0
+                return (T)Convert.ChangeType(null, typeof(T));
+
+            }
+            
+            // return the value
+            return param.getUnit<T>();
+
+        }
+        
         public int getValueInSamples(string paramName) {
             iParam param = getParameter(paramName);
             if (param == null) {

@@ -5,7 +5,7 @@ using System.Text;
 
 namespace UNP.Core.Helpers {
 
-    class RingBuffer {
+    public class RingBuffer {
 
         private double[] mData = null;
         private uint mCursor = 0;

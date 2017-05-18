@@ -548,8 +548,8 @@ namespace FollowTask {
         }
 
         // set the cursor size radius as a percentage of the screen height
-        public void setCursorSizePerc(float perc) {
-	        setCursorSize((int)(getContentHeight() / 100f * perc));
+        public void setCursorSizePerc(double perc) {
+	        setCursorSize((int)(getContentHeight() / 100.0 * perc));
         }
 
         public void setCursorSize(int radius) {
