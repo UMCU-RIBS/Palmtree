@@ -92,7 +92,9 @@
     <Compile Include="src\Core\GUIConfig.Designer.cs">
       <DependentUpon>GUIConfig.cs</DependentUpon>
     </Compile>
+    <Compile Include="src\Core\Helpers\BoolRingBuffer.cs" />
     <Compile Include="src\Core\MainBoot.cs" />
+    <Compile Include="src\Core\Globals.cs" />
     <Compile Include="src\Core\Params\ParamColorBase.cs" />
     <Compile Include="src\Core\Params\ParamStringMat.cs" />
     <Compile Include="src\Core\Params\iParam.cs" />

@@ -31,7 +31,7 @@ namespace FollowTask {
 		private bool showBlocks = false;								                // show the blocks
 		private int mCurrentBlock = noBlock;							                // the current block which is in line with X of the cursor (so the middle)
 		private bool mCursorInCurrentBlock = false;						                // hold whether the cursor is inside of the current block
-		private List<float> storedBlockPositions= new List<float>(0);	                // variable to temporarily store the block positions in (needed to re-instate the game after suspension)
+		private List<float> storedBlockPositions = new List<float>(0);	                // variable to temporarily store the block positions in (needed to re-instate the game after suspension)
 		
 		private int cursorRadius = 40;									                // the cursor radius
 		private bool showCursor = false;								                // show the cursor
@@ -80,20 +80,20 @@ namespace FollowTask {
         protected override void load() {
 
             // initialize the text font
-            textFont.init(this, "fonts/ariblk.TTF", (uint)(getContentHeight() / 20), "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ. ");
+            textFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 20), "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ. ");
 
 	        // initialize the countdown, text and fixation fonts
-            countdownFont.init(this, "fonts/ariblk.ttf", (uint)(getContentHeight() / 7), "123");
-            fixationFont.init(this, "fonts/ariblk.ttf", (uint)(getContentHeight() / 10), "+");
+            countdownFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 7), "123");
+            fixationFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 10), "+");
 
 	        // initialize the score font
-            scoreFont.init(this, "fonts/ariblk.ttf", (uint)(getContentHeight() / 30), "Score: 0123456789");
+            scoreFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 30), "Score: 0123456789");
 
             // lock for textures events (thread safety)
             lock(textureLock) {
 
                 // load the connection lost texture
-                connectionLostTexture = (int)loadImage("images/nosignal.png");
+                connectionLostTexture = (int)loadImage("images\\nosignal.png");
 
             }
 
@@ -173,7 +173,7 @@ namespace FollowTask {
         protected override void render() {
 
             // load textures (if needed; done here because it should be from this thread/context)
-            if (doLoadTextures > 0) loadTextures();
+            if (doLoadTextures > 0)     loadTextures();
 
 	        // check if fixation should be shown
 	        if (showFixation) {
@@ -386,12 +386,12 @@ namespace FollowTask {
 
         public void initBlockSequence(List<int> inTargetSequence, List<List<float>> inTargets) {
             
+            // wait until the textures are loaded before continuing
+            while (doLoadTextures > 0) Thread.Sleep(50);
+            
             // lock for textures events (thread safety)
             lock(textureLock) {
-
-	            // wait until the textures are loaded before continuing
-	            while (doLoadTextures > 0)  Thread.Sleep(50);
-                
+	            
                 // 
                 int i = 0;
 

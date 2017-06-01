@@ -9,7 +9,7 @@ using UNP.Core.Params;
 
 namespace UNP.Filters {
 
-    class AdaptationFilter : IFilter {
+    public class AdaptationFilter : IFilter {
 
         private string filterName = "";
         private static Logger logger = null;

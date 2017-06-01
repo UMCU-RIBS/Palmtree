@@ -12,7 +12,7 @@ using UNP.Core.Params;
 
 namespace UNP.Sources {
 
-    class GenerateSignal : ISource {
+    public class GenerateSignal : ISource {
 
         private static Logger logger = LogManager.GetLogger("GenerateSignal");
         private static Parameters parameters = ParameterManager.GetParameters("GenerateSignal", Parameters.ParamSetTypes.Source);

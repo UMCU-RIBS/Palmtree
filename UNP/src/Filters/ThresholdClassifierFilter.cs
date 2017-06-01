@@ -8,7 +8,7 @@ using UNP.Core.Params;
 
 namespace UNP.Filters {
 
-    class ThresholdClassifierFilter : IFilter {
+    public class ThresholdClassifierFilter : IFilter {
 
         private string filterName = "";
         private static Logger logger = null;

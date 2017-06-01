@@ -16,7 +16,7 @@ using UNP.Core.Params;
 
 namespace UNP.Sources {
 
-    class KeypressSignal : ISource {
+    public class KeypressSignal : ISource {
 
         [DllImport("user32.dll")]
         public static extern short GetAsyncKeyState(int vKey);

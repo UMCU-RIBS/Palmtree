@@ -11,7 +11,7 @@ using UNP.Core.Params;
 
 namespace UNP.Sources {
 
-    class PlaybackSignal : ISource {
+    public class PlaybackSignal : ISource {
 
         private static Logger logger = LogManager.GetLogger("PlaybackSignal");
         private static Parameters parameters = ParameterManager.GetParameters("PlaybackSignal", Parameters.ParamSetTypes.Source);

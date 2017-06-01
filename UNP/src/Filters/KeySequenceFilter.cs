@@ -1,13 +1,309 @@
-﻿using System;
+﻿using NLog;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using UNP.Core;
+using UNP.Core.Helpers;
+using UNP.Core.Params;
 
 namespace UNP.Filters {
 
-    class KeySequenceFilter {
+    public class KeySequenceFilter : IFilter {
 
+        private string filterName = "";
+        private static Logger logger = null;
+        private static Parameters parameters = null;
+
+        private bool mEnableFilter = false;
+        private uint inputChannels = 0;
+        private uint outputChannels = 0;
+
+        private int filterInputChannel = 1;							// input channel
+        private double mThreshold = 0;                              // 
+        private double mProportionCorrect = 0;                      // 
+        private bool[] mSequence = null;                            // 
+
+        private BoolRingBuffer mDataBuffer = null;                  // a boolean ringbuffer to hold the last samples in
+        private int mCompareCounter = 0;
+
+        public KeySequenceFilter(string filterName) {
+
+            // store the filter name
+            this.filterName = filterName;
+
+            // initialize the logger and parameters with the filter name
+            logger = LogManager.GetLogger(filterName);
+            parameters = ParameterManager.GetParameters(filterName, Parameters.ParamSetTypes.Filter);
+
+            // define the parameters
+            parameters.addParameter <bool>  (
+                "EnableFilter",
+                "Enable Normalizer Filter",
+                "1");
+
+            parameters.addParameter<bool>(
+                "WriteIntermediateFile",
+                "Write filter input and output to file",
+                "0");
+
+            parameters.addParameter<int>(
+                "FilterInputChannel",
+                "Channel to take as input (1...n)",
+                "1", "", "1");
+
+            parameters.addParameter <double>  (
+                "Threshold",
+                "The threshold above which a sample will be classified as a 1 before going into the data buffer",
+                "", "", "0.5");
+
+            parameters.addParameter <double>  (
+                "Proportion",
+                "The proportion of samples in the data buffer that needs to be the same as the pre-defined sequence",
+                "0", "1", "0.7");
+            
+            parameters.addParameter <bool[]>  (
+                "Sequence",
+                "Sequence activation pattern and amount of samples needed",
+                "", "", "");
+
+        }
+        
+        public string getName() {
+            return filterName;
+        }
+
+        public Parameters getParameters() {
+            return parameters;
+        }
+
+        /**
+         * Configure the filter. Checks the values and application logic of the
+         * parameters and, if valid, transfers the configuration parameters to local variables
+         * (initialization of the filter is done later by the initialize function)
+         **/
+        public bool configure(ref SampleFormat input, out SampleFormat output) {
+
+            // retrieve the number of input channels
+            inputChannels = input.getNumberOfChannels();
+            if (inputChannels <= 0) {
+                logger.Error("Number of input channels cannot be 0");
+                output = null;
+                return false;
+            }
+
+            // set the number of output channels as the same
+            // (same regardless if enabled or disabled)
+            outputChannels = inputChannels;
+
+            // create an output sampleformat
+            output = new SampleFormat(outputChannels);
+
+            // check the values and application logic of the parameters
+            if (!checkParameters(parameters)) return false;
+
+            // transfer the parameters to local variables
+            transferParameters(parameters);
+
+            // debug output
+            logger.Debug("--- Filter configuration: " + filterName + " ---");
+            logger.Debug("Input channels: " + inputChannels);
+            logger.Debug("Enabled: " + mEnableFilter);
+            logger.Debug("Output channels: " + outputChannels);
+
+            // return success
+            return true;
+
+        }
+
+        /**
+         *  Re-configure the filter settings on the fly (during runtime) using the given parameterset. 
+         *  Checks if the new settings have adjustments that cannot be applied to a running filter
+         *  (most likely because they would adjust the number of expected output channels, which would have unforseen consequences for the next filter)
+         *  
+         *  The local parameter is left untouched so it is easy to revert back to the original configuration parameters
+         *  The functions handles both the configuration and initialization of filter related variables.
+         **/
+        public bool configureRunningFilter(Parameters newParameters, bool resetFilter) {
+
+            //
+            // no pre-check on the number of output channels is needed here, the number of output
+            // channels will remain the some regardsless to the filter being enabled or disabled
+            // 
+
+            // check the values and application logic of the parameters
+            if (!checkParameters(newParameters)) return false;
+
+            // transfer the parameters to local variables
+            transferParameters(newParameters);
+
+            // TODO: take resetFilter into account (currently always resets the buffers on initialize
+
+            // initialize the variables
+            initialize();
+
+            // return success
+            return true;
+
+        }
+
+
+        /**
+         * check the values and application logic of the given parameter set
+         **/
+        private bool checkParameters(Parameters newParameters) {
+
+
+            // TODO: parameters.checkminimum, checkmaximum
+
+
+            // filter is enabled/disabled
+            bool newEnableFilter = newParameters.getValue<bool>("EnableFilter");
+
+            // check if the filter is enabled
+            if (newEnableFilter) {
+
+                // check the input channel setting
+                int newFilterInputChannel = newParameters.getValue<int>("FilterInputChannel");
+                if (newFilterInputChannel < 1) {
+                    logger.Error("Invalid input channel, should be higher than 0 (1...n)");
+                    return false;
+                }
+                if (newFilterInputChannel > inputChannels) {
+                    logger.Error("Input should come from channel " + newFilterInputChannel + ", however only " + inputChannels + " channels are coming in");
+                    return false;
+                }
+
+                // check the proportion correct setting
+                double newProportion = newParameters.getValue<double>("Proportion");
+	            if (newProportion < 0 || newProportion > 1) {
+		            logger.Error("Proportion should not be smaller than 0 or higher than 1");
+                    return false;
+                }
+
+                // check the sequence
+                bool[] newSequence = newParameters.getValue<bool[]>("Sequence");
+                if (newSequence.Length <= 0) {
+                    logger.Error("Sequence array should be at least 1 value long");
+                    return false;
+                }
+
+
+            }
+
+            // return success
+            return true;
+
+        }
+
+        /**
+         * transfer the given parameter set to local variables
+         **/
+        private void transferParameters(Parameters newParameters) {
+
+            // filter is enabled/disabled
+            mEnableFilter = newParameters.getValue<bool>("EnableFilter");
+
+            // check if the filter is enabled
+            if (mEnableFilter) {
+
+                // store the input channel setting
+                filterInputChannel = newParameters.getValue<int>("FilterInputChannel");
+                
+                // store the threshold and proportion correct parameters
+                mThreshold = newParameters.getValue<double>("Threshold");
+                mProportionCorrect = newParameters.getValue<double>("Proportion");
+
+                // store the sequence
+                mSequence = newParameters.getValue<bool[]>("Sequence");
+
+            }
+
+        }
+
+        public void initialize() {
+
+            // check if the filter is enabled
+            if (mEnableFilter) {
+
+                // 
+                // mDataBuffer is initialized on start (this way it is reset at the beginning as well)
+                // 
+
+            }
+
+        }
+
+        public void start() {
+
+            // check if the filter is enabled
+            if (mEnableFilter) {
+
+                // clear the databuffer
+                mDataBuffer = new BoolRingBuffer((uint)mSequence.Length);
+
+            }
+
+        }
+
+        public void stop() {
+
+        }
+
+        public bool isStarted() {
+            return false;
+        }
+
+        public void process(double[] input, out double[] output) {
+
+            // create an output sample
+            output = new double[outputChannels];
+
+            // check if the filter is enabled
+            if (mEnableFilter) {
+                // filter enabled
+
+                // set boolean based on threshold setting
+                bool inValue = (input[filterInputChannel] >= mThreshold);
+
+                // add boolean to ringbuffer
+                mDataBuffer.Put(inValue);
+
+                // check if ringbuffer was filled
+                if (mDataBuffer.Fill() == mSequence.Length) {
+
+                    // reset compare counter
+                    mCompareCounter = 0;
+
+                    // check the ringbuffer against the keysequence
+                    for (int i = 0; i < mDataBuffer.Fill(); ++i) {
+
+                        // check if sequence and input are the same
+                        if (mDataBuffer.Data()[i] == mSequence[i])
+                            mCompareCounter++;
+
+                    }
+                }
+                
+                // check if proportion of comparison between keysequence and ringbuffer is met
+                // set the KeySequenceActive global variable accordingly
+                if ((double)mCompareCounter / mSequence.Length >= mProportionCorrect)
+                    Globals.setValue<bool>("KeySequenceActive", "1");
+                else
+                    Globals.setValue<bool>("KeySequenceActive", "0");
+
+            }
+
+            // pass the input straight through
+            for (uint channel = 0; channel < inputChannels; ++channel) output[channel] = input[channel];
+
+        }
+
+        public void destroy() {
+
+        }
 
     }
+
 
 }

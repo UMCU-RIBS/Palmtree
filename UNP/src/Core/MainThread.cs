@@ -59,15 +59,15 @@ namespace UNP.Core {
 
 	    }
 
-        public void initPipeline(Type applicationType) {
+        public void initPipeline(Type sourceType, Type applicationType) {
 
             // create a source
-            source = new KeypressSignal(this);
-            //source = new GenerateSignal(this);
+            source = (ISource)Activator.CreateInstance(sourceType, this);
 
             // create filters
             filters.Add(new TimeSmoothingFilter("TimeSmoothing"));
             filters.Add(new AdaptationFilter("Adaptation"));
+            filters.Add(new KeySequenceFilter("KeySequence"));
             filters.Add(new ThresholdClassifierFilter("ThresholdClassifier"));
             filters.Add(new ClickTranslatorFilter("ClickTranslator"));
             filters.Add(new NormalizerFilter("Normalizer"));
@@ -120,6 +120,14 @@ namespace UNP.Core {
             adaptationParameters.setValue("AdaptationMinimalLength", "5s");
             adaptationParameters.setValue("ExcludeStdThreshold", "0.85 2.7");
 
+            Parameters keysequenceParameters = getFilterParameters("KeySequence");
+            keysequenceParameters.setValue("EnableFilter", true);
+            keysequenceParameters.setValue("WriteIntermediateFile", false);
+            keysequenceParameters.setValue("Threshold", 0.5);
+            keysequenceParameters.setValue("Proportion", 0.7);
+            bool[] sequence = new bool[] { true, true, true, true };
+            keysequenceParameters.setValue("Sequence", sequence);
+            
             Parameters thresholdParameters = getFilterParameters("ThresholdClassifier");
             thresholdParameters.setValue("EnableFilter", true);
             thresholdParameters.setValue("WriteIntermediateFile", false);
@@ -143,8 +151,15 @@ namespace UNP.Core {
             normalizerParameters.setValue("NormalizerOffsets", "0 0");
             normalizerParameters.setValue("NormalizerGains", "1 1");
 
+            Parameters unpmenuParameters = application.getParameters();
+            unpmenuParameters.setValue("WindowLeft", 0);
+            unpmenuParameters.setValue("WindowTop", 0);
+            unpmenuParameters.setValue("WindowWidth", 800);
+            unpmenuParameters.setValue("WindowHeight", 600);
+            unpmenuParameters.setValue("WindowRedrawFreqMax", 60);
+            unpmenuParameters.setValue("WindowBackgroundColor", "0");
 
-
+            /*
             Parameters followParameters = application.getParameters();
             followParameters.setValue("WindowLeft", 0);
             followParameters.setValue("WindowTop", 0);
@@ -165,12 +180,15 @@ namespace UNP.Core {
             followParameters.setValue("CursorColorHit", "170;0;170");
             followParameters.setValue("CursorColorEscapeTime", "2s");
             followParameters.setValue("Targets", "25,25,25,75,75,75;50,50,50,50,50,50;2,2,2,3,5,7");
-            followParameters.setValue("TargetTextures", "images/sky.bmp,images/sky.bmp,images/sky.bmp,images/grass.bmp,images/grass.bmp,images/grass.bmp");
+            followParameters.setValue("TargetTextures", "images\\sky.bmp,images\\sky.bmp,images\\sky.bmp,images\\grass.bmp,images\\grass.bmp,images\\grass.bmp");
             followParameters.setValue("TargetYMode", 3);
             followParameters.setValue("TargetWidthMode", 1);
             followParameters.setValue("TargetHeightMode", 1);
             followParameters.setValue("TargetSpeed", 120);
             followParameters.setValue("NumberTargets", 70);
+            */
+
+
 
 
         }

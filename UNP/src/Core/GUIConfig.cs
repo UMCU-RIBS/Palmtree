@@ -45,7 +45,7 @@ namespace UNP {
         }
 
         private static Dictionary<string, Parameters> paramSets = ParameterManager.getParameterSets();
-        private const int labelWidth = 230;
+        private const int labelWidth = 250;
         private const int itemTopPadding = 10;
         private const int itemBottomPadding = 10;
 
@@ -167,7 +167,7 @@ namespace UNP {
                     TextBox newTxt = new TextBox();
                     newTxt.Name = "txt" + panel.Name + param.Name;
                     newTxt.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
-                    newTxt.Size = new System.Drawing.Size(200, 20);
+                    newTxt.Size = new System.Drawing.Size(260, 20);
                     newTxt.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
                     panel.Controls.Add(newTxt);
                     paramControls.Add(new ParamControl(param, newTxt, tab));
@@ -180,7 +180,7 @@ namespace UNP {
                     ComboBox newCmb = new ComboBox();
                     newCmb.Name = "txt" + panel.Name + param.Name;
                     newCmb.Location = new Point(labelWidth + 20, y + itemTopPadding - 3);
-                    newCmb.Size = new System.Drawing.Size(280, 20);
+                    newCmb.Size = new System.Drawing.Size(320, 20);
                     newCmb.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
                     for (int i = 0; i < param.Options.Length; i++)  newCmb.Items.Add(param.Options[i]);
                     panel.Controls.Add(newCmb);
@@ -216,7 +216,7 @@ namespace UNP {
                 TextBox newTxt = new TextBox();
                 newTxt.Name = "txt" + panel.Name + param.Name;
                 newTxt.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
-                newTxt.Size = new System.Drawing.Size(200, 20);
+                newTxt.Size = new System.Drawing.Size(340, 20);
                 newTxt.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
                 panel.Controls.Add(newTxt);
                 paramControls.Add(new ParamControl(param, newTxt, tab));

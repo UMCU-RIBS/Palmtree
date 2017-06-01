@@ -12,18 +12,8 @@ namespace FollowTask {
 
         static void Main(string[] args) {
 
-            // check if all dependencies exists
-            
-
-
-            // TODO: Add startup arguments (args)
-            // - nogui = start without GUI
-            // - parameter file =
-            // - autosetconfig = 
-            // - autostart = 
-            
             Type t = Type.GetType("FollowTask.FollowTask");
-            MainBoot.Run(t);
+            MainBoot.Run(args, t);
 
         }
 

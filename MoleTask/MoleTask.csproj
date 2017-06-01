@@ -146,8 +146,8 @@
   <PropertyGroup>
     <PostBuildEvent>if not exist $(TargetDir)images mkdir $(TargetDir)images
 if not exist $(TargetDir)fonts mkdir $(TargetDir)fonts
-xcopy $(ProjectDir)images\*.* $(TargetDir)images /Y /D
-xcopy $(ProjectDir)fonts\*.* $(TargetDir)fonts /Y /D</PostBuildEvent>
+xcopy $(ProjectDir)images\*.* $(TargetDir)images /Y /D /S
+xcopy $(ProjectDir)fonts\*.* $(TargetDir)fonts /Y /D /S</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

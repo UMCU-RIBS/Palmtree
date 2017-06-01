@@ -12,18 +12,8 @@ namespace EmptyTask {
 
         static void Main(string[] args) {
 
-            // check if all dependencies exists
-            
-
-
-            // TODO: Add startup arguments (args)
-            // - nogui = start without GUI
-            // - parameter file =
-            // - autosetconfig = 
-            // - autostart = 
-            
             Type t = Type.GetType("EmptyTask.EmptyTask");
-            MainBoot.Run(t);
+            MainBoot.Run(args, t);
 
         }
 

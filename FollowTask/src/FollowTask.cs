@@ -131,9 +131,9 @@ namespace FollowTask {
                     "0", "", "60");
 
                 parameters.addParameter<RGBColorFloat>(
-                                    "WindowBackgroundColor",
-                                    "Window background color",
-                                    "", "", "0");
+                    "WindowBackgroundColor",
+                    "Window background color",
+                    "", "", "0");
 
                 /*
                 parameters.addParameter <int>       (
@@ -1349,12 +1349,12 @@ namespace FollowTask {
 
 
             mTargetTextures = new List<string>(new string[6]);
-            mTargetTextures[0] = "images/sky.bmp";
-            mTargetTextures[1] = "images/sky.bmp";
-            mTargetTextures[2] = "images/sky.bmp";
-            mTargetTextures[3] = "images/grass.bmp";
-            mTargetTextures[4] = "images/grass.bmp";
-            mTargetTextures[5] = "images/grass.bmp";
+            mTargetTextures[0] = "images\\sky.bmp";
+            mTargetTextures[1] = "images\\sky.bmp";
+            mTargetTextures[2] = "images\\sky.bmp";
+            mTargetTextures[3] = "images\\grass.bmp";
+            mTargetTextures[4] = "images\\grass.bmp";
+            mTargetTextures[5] = "images\\grass.bmp";
 
 	        // initialize
 	        initialize();

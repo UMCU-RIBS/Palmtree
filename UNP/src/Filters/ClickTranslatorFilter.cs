@@ -8,7 +8,7 @@ using UNP.Core.Params;
 
 namespace UNP.Filters {
 
-    class ClickTranslatorFilter : IFilter {
+    public class ClickTranslatorFilter : IFilter {
 
         private string filterName = "";
         private static Logger logger = null;

@@ -12,7 +12,22 @@ namespace UNP.Core {
 
         private static Logger logger = LogManager.GetLogger("MainBoot");
 
-        public static void Run(Type applicationType) {
+        public static void Run(string[] args, Type applicationType) {
+
+            // TODO: check if all dependencies exists
+
+            // TODO: Add startup arguments (args)
+            // - nogui = start without GUI
+            // - parameter file =
+            // - autosetconfig = 
+            // - autostart = 
+            // - source (GenerateSignal/KeypressSignal/PlaybackSignal) = 
+
+
+            //(GenerateSignal/KeypressSignal/PlaybackSignal)
+            Type sourceType = Type.GetType("UNP.Sources.KeypressSignal");
+
+
 
             // name this thread
             if (Thread.CurrentThread.Name == null)
@@ -61,7 +76,7 @@ namespace UNP.Core {
             
 
             // setup and initialize the pipeline
-            mainThread.initPipeline(applicationType);
+            mainThread.initPipeline(sourceType, applicationType);
 
             // debug: load 
             mainThread.loadDebugConfig();

@@ -72,26 +72,26 @@ namespace MoleTask {
         protected override void load() {
 
             // initialize the text font
-            textFont.init(this, "fonts/ariblk.TTF", (uint)(getContentHeight() / 20), "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ. ");
+            textFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 20), "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ. ");
 
             // initialize the countdown, text and fixation fonts
-            countdownFont.init(this, "fonts/ariblk.ttf", (uint)(getContentHeight() / 7), "123");
-            fixationFont.init(this, "fonts/ariblk.ttf", (uint)(getContentHeight() / 10), "+");
+            countdownFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 7), "123");
+            fixationFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 10), "+");
 
             // initialize the score font
-            scoreFont.init(this, "fonts/ariblk.ttf", (uint)(getContentHeight() / 30), "Score: 0123456789");
+            scoreFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 30), "Score: 0123456789");
 
             // lock for textures events (thread safety)
             lock(textureLock) {
 
                 // load the connection lost texture
-                connectionLostTexture = (int)loadImage("images/nosignal.png");
+                connectionLostTexture = (int)loadImage("images\\nosignal.png");
 
                 // Load textures
-                holeTexture = (int)loadImage("images/hole.bmp");
-                moleTexture = (int)loadImage("images/mole.bmp");
-                exitTexture = (int)loadImage("images/exit.bmp");
-                //hammerTexture = (int)loadImage("images/hammer.bmp");
+                holeTexture = (int)loadImage("images\\hole.bmp");
+                moleTexture = (int)loadImage("images\\mole.bmp");
+                exitTexture = (int)loadImage("images\\exit.bmp");
+                //hammerTexture = (int)loadImage("images\\hammer.bmp");
 
             }
 
