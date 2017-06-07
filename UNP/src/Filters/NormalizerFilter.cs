@@ -3,24 +3,16 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using UNP.Core;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
 
 namespace UNP.Filters {
 
-    public class NormalizerFilter : IFilter {
-
-        private string filterName = "";
-        private static Logger logger = null;
-        private static Parameters parameters = null;
-
-        private bool mEnableFilter = false;
-        private uint inputChannels = 0;
-        private uint outputChannels = 0;
+    public class NormalizerFilter : FilterBase, IFilter {
 
         private double[] mOffsets = null;                           // array to hold the offset for each channel
         private double[] mGains = null;                             // array to hold the gain for each channel
-
 
         public NormalizerFilter(string filterName) {
 
@@ -38,8 +30,8 @@ namespace UNP.Filters {
                 "1");
 
             parameters.addParameter<bool>(
-                "WriteIntermediateFile",
-                "Write filter input and output to file",
+                "LogSampleStreams",
+                "Log the filter's intermediate and output sample streams. See 'Data' tab for more settings on sample stream logging.",
                 "0");
 
             parameters.addParameter <double[]>  (
@@ -53,14 +45,6 @@ namespace UNP.Filters {
                 "", "", "1");
 
 
-        }
-        
-        public string getName() {
-            return filterName;
-        }
-
-        public Parameters getParameters() {
-            return parameters;
         }
 
         /**
@@ -90,6 +74,21 @@ namespace UNP.Filters {
 
             // transfer the parameters to local variables
             transferParameters(parameters);
+
+            // check if the filter is enabled
+            if (mEnableFilter) {
+
+                // check the logging of sample streams
+                mLogSampleStreams = parameters.getValue<bool>("LogSampleStreams");
+                if (mLogSampleStreams) {
+
+                    // register the streams
+                    for (int i = 0; i < outputChannels; i++)
+                        Data.RegisterSampleStream(("Normalize_Output_Ch" + (i + 1)), typeof(int));
+
+                }
+
+            }
 
             // debug output
             logger.Debug("--- Filter configuration: " + filterName + " ---");

@@ -9,7 +9,7 @@ namespace UNP.Core.Params {
 
         private bool[] values = new bool[0];
 
-        public ParamBoolArr(string name, string group, Parameters parentSet, string desc, string[] options) : base(name, group, parentSet, desc, options) {
+        public ParamBoolArr(string name, string group, Parameters parentSet, string desc, string stdValue, string[] options) : base(name, group, parentSet, desc, stdValue, options) {
             minValue = "0";
             maxValue = "1";
         }
@@ -113,10 +113,10 @@ namespace UNP.Core.Params {
         }
 
         public iParam clone() {
-            ParamBoolArr clone = new ParamBoolArr(name, group, parentSet, desc, options);
+            ParamBoolArr clone = new ParamBoolArr(name, group, parentSet, desc, stdValue, options);
             
             clone.stdValue = stdValue;
-            clone.boolStdValue = boolStdValue;
+            
             clone.minValue = minValue;
             clone.maxValue = maxValue;
 

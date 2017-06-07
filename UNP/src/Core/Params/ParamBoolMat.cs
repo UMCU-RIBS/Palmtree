@@ -9,7 +9,7 @@ namespace UNP.Core.Params {
 
         private bool[][] values = new bool[0][];
 
-        public ParamBoolMat(string name, string group, Parameters parentSet, string desc, string[] options) : base(name, group, parentSet, desc, options) {
+        public ParamBoolMat(string name, string group, Parameters parentSet, string desc, string stdValue, string[] options) : base(name, group, parentSet, desc, stdValue, options) {
             minValue = "0";
             maxValue = "1";
         }
@@ -182,10 +182,10 @@ namespace UNP.Core.Params {
         }
 
         public iParam clone() {
-            ParamBoolMat clone = new ParamBoolMat(name, group, parentSet, desc, options);
+            ParamBoolMat clone = new ParamBoolMat(name, group, parentSet, desc, stdValue, options);
 
             clone.stdValue = stdValue;
-            clone.boolStdValue = boolStdValue;
+            
             clone.minValue = minValue;
             clone.maxValue = maxValue;
 

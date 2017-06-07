@@ -11,7 +11,7 @@ namespace UNP.Core.Params {
 
         private RGBColorFloat value = new RGBColorFloat(0f, 0f, 0f);
 
-        public ParamColor(string name, string group, Parameters parentSet, string desc, string[] options) : base(name, group, parentSet, desc, options) {
+        public ParamColor(string name, string group, Parameters parentSet, string desc, string stdValue, string[] options) : base(name, group, parentSet, desc, stdValue, options) {
             minValue = "0";
             maxValue = "16777216";
         }
@@ -172,12 +172,12 @@ namespace UNP.Core.Params {
         }
         
         public iParam clone() {
-            ParamColor clone = new ParamColor(name, group, parentSet, desc, options);
+            ParamColor clone = new ParamColor(name, group, parentSet, desc, stdValue, options);
 
-            clone.stdValue = this.stdValue;
-            clone.colorStdValue = this.colorStdValue;
-            clone.minValue = this.minValue;
-            clone.maxValue = this.maxValue;
+            clone.stdValue = stdValue;
+
+            clone.minValue = minValue;
+            clone.maxValue = maxValue;
 
             clone.value = new RGBColorFloat(value.getRed(), value.getGreen(), value.getBlue());
 

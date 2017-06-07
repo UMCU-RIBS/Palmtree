@@ -8,7 +8,7 @@ using UNP.Core.Helpers;
 
 namespace UNP.Core.Params {
 
-    public class Parameters {
+    public sealed class Parameters {
 
         public static Char[] ArrDelimiters = new Char[] { ' ', ',', ';', '\n' };
         public static Char[] MatColumnDelimiters = new Char[] { ';', '\n' };
@@ -17,14 +17,17 @@ namespace UNP.Core.Params {
 
         private static Logger logger = LogManager.GetLogger("Parameters");
 
+        private string paramSetName = "";
+        private ParamSetTypes paramSetType = ParamSetTypes.Source;
+
         private List<iParam>    paramList = new List<iParam>(0);
-        private string          paramSetName = "";
-        private ParamSetTypes   paramSetType = ParamSetTypes.Source;
+        private static Object   lockParameters = new Object();                         // threadsafety lock for all event on the parameters
 
         public enum ParamSetTypes : int {
-            Source = 0,
-            Filter = 1,
-            Application = 2
+            Data = 0,
+            Source = 1,
+            Filter = 2,
+            Application = 3
         }
 
         public enum Units : int {
@@ -76,151 +79,149 @@ namespace UNP.Core.Params {
         }
         public iParam addParameter<T>(string name, string group, string desc, string minValue, string maxValue, string stdValue, string[] options) {
 
-            // check if a parameter with that name already exists, return without adding if this is the case
-            if (getParameter(name) != null) {
-                logger.Warn("A parameter with the name '" + name + "' already exists in parameter set '" + paramSetName + "', not added.");
-                return null;
-            }
+            lock (lockParameters) {
 
-            // create a new parameter and transfer the properties
-            iParam param = null;
-            Type paramType = typeof(T);
-            if(paramType == typeof(ParamBool) || paramType == typeof(bool) || paramType == typeof(Boolean)) {
-                
-                param = new ParamBool(name, group, this, desc, options);
+                // check if a parameter with that name already exists, return without adding if this is the case
+                if (getParameter(name) != null) {
+                    logger.Warn("A parameter with the name '" + name + "' already exists in parameter set '" + paramSetName + "', not added.");
+                    return null;
+                }
 
-            } else if (paramType == typeof(ParamInt) || paramType == typeof(int)) {
+                // create a new parameter and transfer the properties
+                iParam param = null;
+                Type paramType = typeof(T);
+                if (paramType == typeof(ParamBool) || paramType == typeof(bool) || paramType == typeof(Boolean)) {
 
-                param = new ParamInt(name, group, this, desc, options);
+                    param = new ParamBool(name, group, this, desc, stdValue, options);
 
-            } else if (paramType == typeof(ParamDouble) || paramType == typeof(double)) {
+                } else if (paramType == typeof(ParamInt) || paramType == typeof(int)) {
 
-                param = new ParamDouble(name, group, this, desc, options);
+                    param = new ParamInt(name, group, this, desc, stdValue, options);
 
-            } else if (paramType == typeof(ParamBoolArr) || paramType == typeof(bool[]) || paramType == typeof(Boolean[])) {
+                } else if (paramType == typeof(ParamDouble) || paramType == typeof(double)) {
 
-                param = new ParamBoolArr(name, group, this, desc, options);
-                
-            } else if (paramType == typeof(ParamIntArr) || paramType == typeof(int[])) {
+                    param = new ParamDouble(name, group, this, desc, stdValue, options);
 
-                param = new ParamIntArr(name, group, this, desc, options);
+                } else if (paramType == typeof(ParamBoolArr) || paramType == typeof(bool[]) || paramType == typeof(Boolean[])) {
 
-            } else if (paramType == typeof(ParamDoubleArr) || paramType == typeof(double[])) {
+                    param = new ParamBoolArr(name, group, this, desc, stdValue, options);
 
-                param = new ParamDoubleArr(name, group, this, desc, options);
+                } else if (paramType == typeof(ParamIntArr) || paramType == typeof(int[])) {
 
-            } else if (paramType == typeof(ParamBoolMat) || paramType == typeof(bool[][]) || paramType == typeof(Boolean[][])) {
+                    param = new ParamIntArr(name, group, this, desc, stdValue, options);
 
-                param = new ParamBoolMat(name, group, this, desc, options);
-                
-            } else if (paramType == typeof(ParamIntMat) || paramType == typeof(int[][])) {
+                } else if (paramType == typeof(ParamDoubleArr) || paramType == typeof(double[])) {
 
-                param = new ParamIntMat(name, group, this, desc, options);
+                    param = new ParamDoubleArr(name, group, this, desc, stdValue, options);
 
-            } else if (paramType == typeof(ParamDoubleMat) || paramType == typeof(double[][])) {
+                } else if (paramType == typeof(ParamBoolMat) || paramType == typeof(bool[][]) || paramType == typeof(Boolean[][])) {
 
-                param = new ParamDoubleMat(name, group, this, desc, options);
+                    param = new ParamBoolMat(name, group, this, desc, stdValue, options);
 
-            } else if (paramType == typeof(ParamStringMat) || paramType == typeof(string[][]) || paramType == typeof(String[][])) {
+                } else if (paramType == typeof(ParamIntMat) || paramType == typeof(int[][])) {
 
-                param = new ParamStringMat(name, group, this, desc, options);
+                    param = new ParamIntMat(name, group, this, desc, stdValue, options);
 
-            } else if (paramType == typeof(ParamColor) || paramType == typeof(RGBColorFloat)) {
+                } else if (paramType == typeof(ParamDoubleMat) || paramType == typeof(double[][])) {
 
-                param = new ParamColor(name, group, this, desc, options);
-                                       
-            } else {
-                
-                // message
-                logger.Error("Unknown parameter (generic) type '" + paramType.Name + "' for parameter name '" + name + "' in parameter set '" + paramSetName + "', not added.");
+                    param = new ParamDoubleMat(name, group, this, desc, stdValue, options);
 
-                // return without adding parameter
-                return null;
-            }
+                } else if (paramType == typeof(ParamString) || paramType == typeof(string) || paramType == typeof(String)) {
 
-            // check if the parameter is integer based
-            if(param is ParamIntBase) {
+                    param = new ParamString(name, group, this, desc, stdValue, options);
 
-                // check if the minimum value is valid
-                if (!((ParamIntBase)param).setMinValue(minValue)) {
+                } else if (paramType == typeof(ParamStringMat) || paramType == typeof(string[][]) || paramType == typeof(String[][])) {
+
+                    param = new ParamStringMat(name, group, this, desc, stdValue, options);
+
+                } else if (paramType == typeof(ParamColor) || paramType == typeof(RGBColorFloat)) {
+
+                    param = new ParamColor(name, group, this, desc, stdValue, options);
+
+                } else {
 
                     // message
-                    logger.Error("Could not add parameter '" + name + "' in parameter set '" + paramSetName + "', minimum value '" + minValue + "' could not be parsed as an integer");
+                    logger.Error("Unknown parameter (generic) type '" + paramType.Name + "' for parameter name '" + name + "' in parameter set '" + paramSetName + "', not added.");
 
                     // return without adding parameter
                     return null;
+                }
+
+                // check if the parameter is integer based
+                if (param is ParamIntBase) {
+
+                    // check if the minimum value is valid
+                    if (!((ParamIntBase)param).setMinValue(minValue)) {
+
+                        // message
+                        logger.Error("Could not add parameter '" + name + "' in parameter set '" + paramSetName + "', minimum value '" + minValue + "' could not be parsed as an integer");
+
+                        // return without adding parameter
+                        return null;
+
+                    }
+
+                    // check if the maximum value is valid
+                    if (!((ParamIntBase)param).setMaxValue(maxValue)) {
+
+                        // message
+                        logger.Error("Could not add parameter '" + name + "' in parameter set '" + paramSetName + "', maximum value '" + maxValue + "' could not be parsed as an integer");
+
+                        // return without adding parameter
+                        return null;
+
+                    }
 
                 }
 
-                // check if the maximum value is valid
-                if (!((ParamIntBase)param).setMaxValue(maxValue)) {
+                // check if the parameter is double based
+                if (param is ParamDoubleBase) {
 
-                    // message
-                    logger.Error("Could not add parameter '" + name + "' in parameter set '" + paramSetName + "', maximum value '" + maxValue + "' could not be parsed as an integer");
+                    // check if the minimum value is valid
+                    if (!((ParamDoubleBase)param).setMinValue(minValue)) {
 
-                    // return without adding parameter
-                    return null;
+                        // message
+                        logger.Error("Could not add parameter '" + name + "' in parameter set '" + paramSetName + "', minimum value '" + minValue + "' could not be parsed as an integer");
 
-                }
+                        // return without adding parameter
+                        return null;
 
-            }
+                    }
 
-            // check if the parameter is double based
-            if (param is ParamDoubleBase) {
+                    // check if the maximum value is valid
+                    if (!((ParamDoubleBase)param).setMaxValue(maxValue)) {
 
-                // check if the minimum value is valid
-                if (!((ParamDoubleBase)param).setMinValue(minValue)) {
+                        // message
+                        logger.Error("Could not add parameter '" + name + "' in parameter set '" + paramSetName + "', maximum value '" + maxValue + "' could not be parsed as an integer");
 
-                    // message
-                    logger.Error("Could not add parameter '" + name + "' in parameter set '" + paramSetName + "', minimum value '" + minValue + "' could not be parsed as an integer");
+                        // return without adding parameter
+                        return null;
 
-                    // return without adding parameter
-                    return null;
-
-                }
-
-                // check if the maximum value is valid
-                if (!((ParamDoubleBase)param).setMaxValue(maxValue)) {
-
-                    // message
-                    logger.Error("Could not add parameter '" + name + "' in parameter set '" + paramSetName + "', maximum value '" + maxValue + "' could not be parsed as an integer");
-
-                    // return without adding parameter
-                    return null;
+                    }
 
                 }
 
-            }
+                // check if there is a standard value given
+                if (!String.IsNullOrEmpty(stdValue)) {
 
-            // set the standard value
-            if (param.setStdValue(stdValue)) {
-                // succesfully set standard value
-
-                // For parameter types which hold just one value, the standard
-                // value can be set initially to this value
-
-                // check if the parameter is of the type that just holds a single value
-                if (param is ParamBool || param is ParamInt || param is ParamDouble || param is ParamColor) {
-                    
                     // set the standard value as initial value
-                    param.setValue(param.StdValue);
+                    if (!param.setValue(param.StdValue)) {
+
+                        // message
+                        logger.Error("Standard value for parameter '" + name + "' in parameter set '" + paramSetName + "' is invalid, parameter not added");
+
+                        // return without adding parameter
+                        return null;
+
+                    }
 
                 }
 
-            } else {
-                // failed to set standard value
-
-                // message
-                logger.Error("Could not add parameter '" + name + "' in parameter set '" + paramSetName + "', standard value '" + stdValue + "' is empty or could not be parsed");
-
-                // return without adding parameter
-                return null;
+                // add the parameter to the list
+                paramList.Add(param);
+                return param;
 
             }
-
-            // add the parameter to the list
-            paramList.Add(param);
-            return param;
 
         }
 
@@ -239,85 +240,111 @@ namespace UNP.Core.Params {
         }
 
         public T getValue<T>(string paramName) {
-            iParam param = getParameter(paramName);
-            if (param == null) {
 
-                // message
-                logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', returning 0");
+            lock (lockParameters) {
 
-                // return 0
-                return (T)Convert.ChangeType(null, typeof(T));
+                iParam param = getParameter(paramName);
+                if (param == null) {
+
+                    // message
+                    logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', returning 0");
+
+                    // return 0
+                    return (T)Convert.ChangeType(null, typeof(T));
+
+                }
+
+                // return the value
+                return param.getValue<T>();
 
             }
-            
-            // return the value
-            return param.getValue<T>();
 
         }
         
         public T getUnit<T>(string paramName) {
-            iParam param = getParameter(paramName);
-            if (param == null) {
 
-                // message
-                logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', returning 0");
+            lock (lockParameters) {
 
-                // return 0
-                return (T)Convert.ChangeType(null, typeof(T));
+                iParam param = getParameter(paramName);
+                if (param == null) {
+
+                    // message
+                    logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', returning 0");
+
+                    // return 0
+                    return (T)Convert.ChangeType(null, typeof(T));
+
+                }
+
+                // return the value
+                return param.getUnit<T>();
 
             }
-            
-            // return the value
-            return param.getUnit<T>();
 
         }
         
         public int getValueInSamples(string paramName) {
-            iParam param = getParameter(paramName);
-            if (param == null) {
 
-                // message
-                logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', returning 0");
+            lock (lockParameters) {
 
-                // return 0
-                return 0;
+                iParam param = getParameter(paramName);
+                if (param == null) {
+
+                    // message
+                    logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', returning 0");
+
+                    // return 0
+                    return 0;
+
+                }
+
+                // return the value
+                return param.getValueInSamples();
 
             }
-            
-            // return the value
-            return param.getValueInSamples();
 
         }
         
         public string ToString(string paramName) {
-            iParam param = getParameter(paramName);
-            if (param == null) {
-                logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', returning null");
-                return null;
+
+            lock (lockParameters) {
+
+                iParam param = getParameter(paramName);
+                if (param == null) {
+                    logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', returning null");
+                    return null;
+                }
+
+                return param.ToString();
+            
             }
 
-            return param.ToString();
         }
 
 
         public bool setValue(string paramName, bool paramValue) {
-            iParam param = getParameter(paramName);
-            if (param == null) {
-                logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
-                return false;
+
+            lock (lockParameters) {
+
+                iParam param = getParameter(paramName);
+                if (param == null) {
+                    logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
+                    return false;
+                }
+
+                // check if the parameter is indeed used to store a boolean
+                if (param.GetType() != typeof(ParamBool)) {
+                    logger.Error("Could not set parameter '" + paramName + "' in parameter set '" + paramSetName + "', trying to set a boolean value in a '" + param.GetType().Name + "' parameter");
+                    return false;
+                }
+
+                // set the value
+                if (!((ParamBool)param).setValue(paramValue)) return false;
+
+                // return success
+                return true;
+            
             }
-
-            // check if the parameter is indeed used to store a boolean
-            if (param.GetType() != typeof(ParamBool)) {
-                logger.Error("Could not set parameter '" + paramName + "' in parameter set '" + paramSetName + "', trying to set a boolean value in a '" + param.GetType().Name + "' parameter");
-                return false;
-            }
-
-            // set the value
-            if (!((ParamBool)param).setValue(paramValue))   return false;
-
-            // return success
-            return true;
 
         }
 
@@ -325,24 +352,29 @@ namespace UNP.Core.Params {
             return setValue(paramName, paramValue, Units.ValueOrSamples);
         }
         public bool setValue(string paramName, int paramValue, Parameters.Units paramUnit) {
-            iParam param = getParameter(paramName);
-            if (param == null) {
-                logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
-                return false;
+
+            lock (lockParameters) {
+
+                iParam param = getParameter(paramName);
+                if (param == null) {
+                    logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
+                    return false;
+                }
+
+                // check if the parameter is indeed used to store an integer
+                if (param.GetType() != typeof(ParamInt)) {
+                    logger.Error("Could not set parameter '" + paramName + "' in parameter set '" + paramSetName + "', trying to set an integer value in a '" + param.GetType().Name + "' parameter");
+                    return false;
+                }
+
+                // set the value
+                if (!((ParamInt)param).setValue(paramValue))    return false;
+                if (!((ParamInt)param).setUnit(paramUnit))      return false;
+
+                // return success
+                return true;
+            
             }
-
-            // check if the parameter is indeed used to store an integer
-            if (param.GetType() != typeof(ParamInt)) {
-                logger.Error("Could not set parameter '" + paramName + "' in parameter set '" + paramSetName + "', trying to set an integer value in a '" + param.GetType().Name + "' parameter");
-                return false;
-            }
-
-            // set the value
-            if (!((ParamInt)param).setValue(paramValue))    return false;
-            if (!((ParamInt)param).setUnit(paramUnit))      return false;
-
-            // return success
-            return true;
 
         }
 
@@ -350,45 +382,55 @@ namespace UNP.Core.Params {
             return setValue(paramName, paramValue, Units.ValueOrSamples);
         }
         public bool setValue(string paramName, double paramValue, Parameters.Units paramUnit) {
-            iParam param = getParameter(paramName);
-            if (param == null) {
-                logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
-                return false;
+
+            lock (lockParameters) {
+
+                iParam param = getParameter(paramName);
+                if (param == null) {
+                    logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
+                    return false;
+                }
+
+                // check if the parameter is indeed used to store a double
+                if (param.GetType() != typeof(ParamDouble)) {
+                    logger.Error("Could not set parameter '" + paramName + "' in parameter set '" + paramSetName + "', trying to set a double value in a '" + param.GetType().Name + "' parameter");
+                    return false;
+                }
+
+                // set the value
+                if (!((ParamDouble)param).setValue(paramValue)) return false;
+                if (!((ParamDouble)param).setUnit(paramUnit))   return false;
+
+                // return success
+                return true;
+            
             }
-
-            // check if the parameter is indeed used to store a double
-            if (param.GetType() != typeof(ParamDouble)) {
-                logger.Error("Could not set parameter '" + paramName + "' in parameter set '" + paramSetName + "', trying to set a double value in a '" + param.GetType().Name + "' parameter");
-                return false;
-            }
-
-            // set the value
-            if (!((ParamDouble)param).setValue(paramValue))     return false;
-            if (!((ParamDouble)param).setUnit(paramUnit))       return false;
-
-            // return success
-            return true;
 
         }
 
         public bool setValue(string paramName, bool[] paramValue) {
-            iParam param = getParameter(paramName);
-            if (param == null) {
-                logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
-                return false;
+
+            lock (lockParameters) {
+
+                iParam param = getParameter(paramName);
+                if (param == null) {
+                    logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
+                    return false;
+                }
+
+                // check if the parameter is indeed used to store a boolean array
+                if (param.GetType() != typeof(ParamBoolArr)) {
+                    logger.Error("Could not set parameter '" + paramName + "' in parameter set '" + paramSetName + "', trying to set an array of booleans in a '" + param.GetType().Name + "' parameter");
+                    return false;
+                }
+
+                // set the value
+                if (!((ParamBoolArr)param).setValue(paramValue)) return false;
+
+                // return success
+                return true;
+            
             }
-
-            // check if the parameter is indeed used to store a boolean array
-            if (param.GetType() != typeof(ParamBoolArr)) {
-                logger.Error("Could not set parameter '" + paramName + "' in parameter set '" + paramSetName + "', trying to set an array of booleans in a '" + param.GetType().Name + "' parameter");
-                return false;
-            }
-
-            // set the value
-            if (!((ParamBoolArr)param).setValue(paramValue))     return false;
-
-            // return success
-            return true;
 
         }
 
@@ -396,73 +438,84 @@ namespace UNP.Core.Params {
             return setValue(paramName, paramValue, new Parameters.Units[paramValue.Length]);
         }
         public bool setValue(string paramName, int[] paramValue, Parameters.Units[] paramUnit) {
-            iParam param = getParameter(paramName);
-            if (param == null) {
-                logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
-                return false;
+
+            lock (lockParameters) {
+
+                iParam param = getParameter(paramName);
+                if (param == null) {
+                    logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
+                    return false;
+                }
+
+                // check if the parameter is indeed used to store an integer array
+                if (param.GetType() != typeof(ParamIntArr)) {
+                    logger.Error("Could not set parameter '" + paramName + "' in parameter set '" + paramSetName + "', trying to set an array of integers in a '" + param.GetType().Name + "' parameter");
+                    return false;
+                }
+
+                // set the value
+                if (!((ParamIntArr)param).setValue(paramValue)) return false;
+                if (!((ParamIntArr)param).setUnit(paramUnit))   return false;
+
+                // return success
+                return true;
+
             }
-
-            // check if the parameter is indeed used to store an integer array
-            if (param.GetType() != typeof(ParamIntArr)) {
-                logger.Error("Could not set parameter '" + paramName + "' in parameter set '" + paramSetName + "', trying to set an array of integers in a '" + param.GetType().Name + "' parameter");
-                return false;
-            }
-
-            // check if the parameter value 
-
-
-            // set the value
-            if (!((ParamIntArr)param).setValue(paramValue))     return false;
-            if (!((ParamIntArr)param).setUnit(paramUnit))       return false;
-
-            // return success
-            return true;
-
         }
 
         public bool setValue(string paramName, double[] paramValue) {
             return setValue(paramName, paramValue, new Parameters.Units[paramValue.Length]);
         }
         public bool setValue(string paramName, double[] paramValue, Parameters.Units[] paramUnit) {
-            iParam param = getParameter(paramName);
-            if (param == null) {
-                logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
-                return false;
+
+            lock (lockParameters) {
+
+                iParam param = getParameter(paramName);
+                if (param == null) {
+                    logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
+                    return false;
+                }
+
+                // check if the parameter is indeed used to store a double array
+                if (param.GetType() != typeof(ParamDoubleArr)) {
+                    logger.Error("Could not set parameter '" + paramName + "' in parameter set '" + paramSetName + "', trying to set an array of doubles in a '" + param.GetType().Name + "' parameter");
+                    return false;
+                }
+
+                // set the value
+                if (!((ParamDoubleArr)param).setValue(paramValue))  return false;
+                if (!((ParamDoubleArr)param).setUnit(paramUnit))    return false;
+
+                // return success
+                return true;
+            
             }
-
-            // check if the parameter is indeed used to store a double array
-            if (param.GetType() != typeof(ParamDoubleArr)) {
-                logger.Error("Could not set parameter '" + paramName + "' in parameter set '" + paramSetName + "', trying to set an array of doubles in a '" + param.GetType().Name + "' parameter");
-                return false;
-            }
-
-            // set the value
-            if (!((ParamDoubleArr)param).setValue(paramValue))      return false;
-            if (!((ParamDoubleArr)param).setUnit(paramUnit))        return false;
-
-            // return success
-            return true;
 
         }
 
         public bool setValue(string paramName, bool[][] paramValue) {
-            iParam param = getParameter(paramName);
-            if (param == null) {
-                logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
-                return false;
+
+            lock (lockParameters) {
+
+                iParam param = getParameter(paramName);
+                if (param == null) {
+                    logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
+                    return false;
+                }
+
+                // check if the parameter is indeed used to store a boolean matix
+                if (param.GetType() != typeof(ParamBoolMat)) {
+                    logger.Error("Could not set parameter '" + paramName + "' in parameter set '" + paramSetName + "', trying to set a matrix of doubles in a '" + param.GetType().Name + "' parameter");
+                    return false;
+                }
+
+                // set the value
+                if (!((ParamBoolMat)param).setValue(paramValue)) return false;
+
+                // return success
+                return true;
+            
             }
-
-            // check if the parameter is indeed used to store a boolean matix
-            if (param.GetType() != typeof(ParamBoolMat)) {
-                logger.Error("Could not set parameter '" + paramName + "' in parameter set '" + paramSetName + "', trying to set a matrix of doubles in a '" + param.GetType().Name + "' parameter");
-                return false;
-            }
-
-            // set the value
-            if (!((ParamBoolMat)param).setValue(paramValue))      return false;
-
-            // return success
-            return true;
 
         }
 
@@ -472,24 +525,29 @@ namespace UNP.Core.Params {
             return setValue(paramName, paramValue, paramUnit);
         }
         public bool setValue(string paramName, int[][] paramValue, Parameters.Units[][] paramUnit) {
-            iParam param = getParameter(paramName);
-            if (param == null) {
-                logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
-                return false;
+
+            lock (lockParameters) {
+
+                iParam param = getParameter(paramName);
+                if (param == null) {
+                    logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
+                    return false;
+                }
+
+                // check if the parameter is indeed used to store a integer matix
+                if (param.GetType() != typeof(ParamIntMat)) {
+                    logger.Error("Could not set parameter '" + paramName + "' in parameter set '" + paramSetName + "', trying to set a matrix of integers in a '" + param.GetType().Name + "' parameter");
+                    return false;
+                }
+
+                // set the value
+                if (!((ParamIntMat)param).setValue(paramValue)) return false;
+                if (!((ParamIntMat)param).setUnit(paramUnit))   return false;
+
+                // return success
+                return true;
+            
             }
-
-            // check if the parameter is indeed used to store a integer matix
-            if (param.GetType() != typeof(ParamIntMat)) {
-                logger.Error("Could not set parameter '" + paramName + "' in parameter set '" + paramSetName + "', trying to set a matrix of integers in a '" + param.GetType().Name + "' parameter");
-                return false;
-            }
-
-            // set the value
-            if (!((ParamIntMat)param).setValue(paramValue))      return false;
-            if (!((ParamIntMat)param).setUnit(paramUnit))        return false;
-
-            // return success
-            return true;
 
         }
 
@@ -499,80 +557,101 @@ namespace UNP.Core.Params {
             return setValue(paramName, paramValue, paramUnit);
         }
         public bool setValue(string paramName, double[][] paramValue, Parameters.Units[][] paramUnit) {
-            iParam param = getParameter(paramName);
-            if (param == null) {
-                logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
-                return false;
+
+            lock (lockParameters) {
+
+                iParam param = getParameter(paramName);
+                if (param == null) {
+                    logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
+                    return false;
+                }
+
+                // check if the parameter is indeed used to store a double matix
+                if (param.GetType() != typeof(ParamDoubleMat)) {
+                    logger.Error("Could not set parameter '" + paramName + "' in parameter set '" + paramSetName + "', trying to set a matrix of doubles in a '" + param.GetType().Name + "' parameter");
+                    return false;
+                }
+
+                // set the value
+                if (!((ParamDoubleMat)param).setValue(paramValue)) return false;
+                if (!((ParamDoubleMat)param).setUnit(paramUnit)) return false;
+
+                // return success
+                return true;
+            
             }
-
-            // check if the parameter is indeed used to store a double matix
-            if (param.GetType() != typeof(ParamDoubleMat)) {
-                logger.Error("Could not set parameter '" + paramName + "' in parameter set '" + paramSetName + "', trying to set a matrix of doubles in a '" + param.GetType().Name + "' parameter");
-                return false;
-            }
-
-            // set the value
-            if (!((ParamDoubleMat)param).setValue(paramValue))      return false;
-            if (!((ParamDoubleMat)param).setUnit(paramUnit))        return false;
-
-            // return success
-            return true;
 
         }
 
         public bool setValue(string paramName, string[][] paramValue) {
-            iParam param = getParameter(paramName);
-            if (param == null) {
-                logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
-                return false;
+
+            lock (lockParameters) {
+
+                iParam param = getParameter(paramName);
+                if (param == null) {
+                    logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
+                    return false;
+                }
+
+                // check if the parameter is indeed used to store a string matix
+                if (param.GetType() != typeof(ParamStringMat)) {
+                    logger.Error("Could not set parameter '" + paramName + "' in parameter set '" + paramSetName + "', trying to set a matrix of strings in a '" + param.GetType().Name + "' parameter");
+                    return false;
+                }
+
+                // set the value
+                if (!((ParamStringMat)param).setValue(paramValue)) return false;
+
+                // return success
+                return true;
+            
             }
-
-            // check if the parameter is indeed used to store a string matix
-            if (param.GetType() != typeof(ParamStringMat)) {
-                logger.Error("Could not set parameter '" + paramName + "' in parameter set '" + paramSetName + "', trying to set a matrix of strings in a '" + param.GetType().Name + "' parameter");
-                return false;
-            }
-
-            // set the value
-            if (!((ParamStringMat)param).setValue(paramValue))      return false;
-
-            // return success
-            return true;
 
         }
 
 
         public bool setValue(string paramName, string paramValue) {
-            iParam param = getParameter(paramName);
-            if (param == null) {
-                logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
-                return false;
+
+            lock (lockParameters) {
+
+                iParam param = getParameter(paramName);
+                if (param == null) {
+                    logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', value not set");
+                    return false;
+                }
+
+                // call setter of the parameter for further processing
+                if (!param.setValue(paramValue)) return false;
+
+                // return success
+                return true;
+
             }
-
-            // call setter of the parameter for further processing
-            if (!param.setValue(paramValue))    return false;
-
-            // return success
-            return true;
 
         }
         
         public Parameters clone() {
-            Parameters clone = new Parameters(this.paramSetName, this.paramSetType);
 
-            // get a reference to the clone's parameter list
-            List<iParam> cloneParamList = clone.getParameters();
+            lock (lockParameters) {
 
-            // clone every parameter from the parameter list of this instance to
-            // and add these to the clone instance's parameter list
-            for (int i = 0; i < paramList.Count; i++) {
-                cloneParamList.Add(paramList[i].clone());
+                Parameters clone = new Parameters(this.paramSetName, this.paramSetType);
+
+                // get a reference to the clone's parameter list
+                List<iParam> cloneParamList = clone.getParameters();
+
+                // clone every parameter from the parameter list of this instance to
+                // and add these to the clone instance's parameter list
+                for (int i = 0; i < paramList.Count; i++) {
+                    cloneParamList.Add(paramList[i].clone());
+                }
+
+                // return the clone
+                return clone;
+
             }
 
-            // return the clone
-            return clone;
-
         }
+
     }
 
 }

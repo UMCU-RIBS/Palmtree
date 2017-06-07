@@ -2,37 +2,38 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using UNP.Core.Helpers;
 
 namespace UNP.Core.Params {
 
-    public class ParamBool : ParamBoolBase, iParam {
+    public class ParamString : Param, iParam {
 
-        private bool value = false;
+        private string value = "";
 
-        public ParamBool(string name, string group, Parameters parentSet, string desc, string stdValue, string[] options) : base(name, group, parentSet, desc, stdValue, options) {
-            minValue = "0";
-            maxValue = "1";
+        public ParamString(string name, string group, Parameters parentSet, string desc, string stdValue, string[] options) : base(name, group, parentSet, desc, stdValue, options) {
+            minValue = "";
+            maxValue = "";
         }
 
         public string getValue() {
-            return (this.value ? "1" : "0");
+            return this.value;
         }
 
         public T getValue<T>() {
 
             Type paramType = typeof(T);
-            if(paramType == typeof(bool)) {     
-                // request to return as bool
+            if(paramType == typeof(string)) {     
+                // request to return as string
 
                 // return value
-                return (T)Convert.ChangeType(Value, typeof(bool));
+                return (T)Convert.ChangeType(Value, typeof(string));
 
             } else {
                 // request to return as other
 
-                // message and return false
-                logger.Error("Could not retrieve the value for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') as '" + paramType.Name + "', can only return value as boolean. Returning false");
-                return (T)Convert.ChangeType(false, typeof(T));    
+                // message and return 0
+                logger.Error("Could not retrieve the value for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') as '" + paramType.Name + "', can only return value as string. Returning empty string");
+                return (T)Convert.ChangeType("", typeof(T));    
 
             }
             
@@ -41,7 +42,7 @@ namespace UNP.Core.Params {
         public T getUnit<T>() {
 
             Type paramType = typeof(T);
-            if(paramType == typeof(Parameters.Units)) {
+            if (paramType == typeof(Parameters.Units)) {
                 // request to return as Parameters.Units
 
                 // return value
@@ -53,7 +54,7 @@ namespace UNP.Core.Params {
 
                 // message and return false
                 logger.Error("Could not retrieve the unit for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') as '" + paramType.Name + "', can only return value as 'Parameters.Units'. Returning 0");
-                return (T)Convert.ChangeType(0, typeof(T));    
+                return (T)Convert.ChangeType(0, typeof(T));
 
             }
 
@@ -62,7 +63,7 @@ namespace UNP.Core.Params {
         public int getValueInSamples() {
 
             // message
-            logger.Error("Trying to retrieve the value for bool parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') in number of samples, use getValue<T>() instead, returning 0");
+            logger.Error("Trying to retrieve the value for string parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') in number of samples, use getValue<T>() instead, returning 0");
 
             // return 0
             return 0;
@@ -73,13 +74,8 @@ namespace UNP.Core.Params {
             return getValue();
         }
 
-        public bool Value {
+        public string Value {
             get {   return this.value;  }
-        }
-
-        public bool setValue(bool value) {
-            this.value = value;
-            return true;
         }
 
         public bool tryValue(string value) {
@@ -87,24 +83,28 @@ namespace UNP.Core.Params {
         }
 
         public bool setValue(string value) {
-            value = value.ToLower();
-            this.value = (value.Equals("1") || value.Equals("true"));
+
+            // assign
+            this.value = value;
+
+            // return success
             return true;
+
         }
 
         public iParam clone() {
-            ParamBool clone = new ParamBool(name, group, parentSet, desc, stdValue, options);
+            ParamString clone = new ParamString(name, group, parentSet, desc, stdValue, options);
 
             clone.stdValue = stdValue;
             
             clone.minValue = minValue;
             clone.maxValue = maxValue;
-
+            
             clone.value = value;
 
             return clone;
         }
-
+        
     }
 
 }

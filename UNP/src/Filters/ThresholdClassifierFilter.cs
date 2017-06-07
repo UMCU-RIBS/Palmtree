@@ -3,20 +3,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using UNP.Core;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
 
 namespace UNP.Filters {
 
-    public class ThresholdClassifierFilter : IFilter {
-
-        private string filterName = "";
-        private static Logger logger = null;
-        private static Parameters parameters = null;
-
-        private bool mEnableFilter = false;
-        private uint inputChannels = 0;
-        private uint outputChannels = 0;
+    public class ThresholdClassifierFilter : FilterBase, IFilter {
 
         private int[] mConfigInputChannels = null;
         private int[] mConfigOutputChannels = null;
@@ -39,25 +32,17 @@ namespace UNP.Filters {
                 "1");
 
             parameters.addParameter<bool>(
-                "WriteIntermediateFile",
-                "Write filter input and output to file",
+                "LogSampleStreams",
+                "Log the filter's intermediate and output sample streams. See 'Data' tab for more settings on sample stream logging.",
                 "0");
 
             parameters.addParameter <double[][]>  (
                 "Thresholds",
                 "Specifies which input channels are added together to one or more output channels.\nAlso specifies what threshold values are applied to the output values, after addition, to binarize the output values\n\nInput: Input channel (1...n)\nOutput: output channel (1...n)\nThreshold: (channel output) threshold above or under which the channel output will become 1 or 0\nDirection: the direction of the thresholding.\nIf direction < 0 (negative) then smaller than the threshold will result in true; if >= 0 (positive) then larger than the threshold will result in true",
-                "", "", "0", new string[] {"Input", "Output", "Threshold", "Direction" });
+                "", "", "1;1;0.45;1", new string[] { "Input", "Output", "Threshold", "Direction" });
 
             
 
-        }
-
-        public string getName() {
-            return filterName;
-        }
-
-        public Parameters getParameters() {
-            return parameters;
         }
 
         /**
@@ -96,6 +81,16 @@ namespace UNP.Filters {
                         highestOutputChannel = mConfigOutputChannels[row];
                 }
                 outputChannels = (uint)highestOutputChannel;
+
+                // check the logging of sample streams
+                mLogSampleStreams = parameters.getValue<bool>("LogSampleStreams");
+                if (mLogSampleStreams) {
+
+                    // register the streams
+                    for (int i = 0; i < outputChannels; i++)
+                        Data.RegisterSampleStream(("ThresholdClassifier_Output_Ch" + (i + 1)), typeof(int));
+
+                }
 
             } else {
                 // filter disabled

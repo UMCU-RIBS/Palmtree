@@ -155,6 +155,9 @@ namespace UNP {
 
         private void GUI_Load(object sender, EventArgs e) {
 
+            // set the GUI to the bottom left side of the primary screen
+            Rectangle screen = Screen.PrimaryScreen.WorkingArea;
+            this.Location = new Point(screen.Right - this.Width - 10, screen.Bottom - this.Height - 10); 
             
             // Add logger
             logger = LogManager.GetLogger("GUI");

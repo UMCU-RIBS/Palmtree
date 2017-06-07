@@ -9,9 +9,7 @@ namespace UNP.Core.Params {
 
     public abstract class ParamColorBase : Param {
         
-        protected RGBColorFloat colorStdValue = new RGBColorFloat(0f, 0f, 0f);
-
-        public ParamColorBase(string name, string group, Parameters parentSet, string desc, string[] options) : base(name, group, parentSet, desc, options) { }
+        public ParamColorBase(string name, string group, Parameters parentSet, string desc, string stdValue, string[] options) : base(name, group, parentSet, desc, stdValue, options) { }
 
         protected bool tryParseValue(string value, out int intValue) {
             intValue = 0;
@@ -55,75 +53,6 @@ namespace UNP.Core.Params {
             return true;
 
         }
-
-        public bool setStdValue(string stdValue) {
-
-            // try to split up the string
-            string[] split = stdValue.Split(Parameters.ArrDelimiters, StringSplitOptions.RemoveEmptyEntries);
-            
-            // check if it either gives 1 value (color as integer) or 3 values (color as rgb)
-            if (split.Length != 1 && split.Length != 3) {
-
-                // set the stdvalue to be 0
-                this.stdValue = "0";
-
-                // return fail
-                return false;
-
-            }
-            
-            // single value or RGB values
-            if (split.Length == 1) {
-                
-                // try to parse the value
-                int intValue;
-                if (!tryParseValue(stdValue, out intValue)) {
-
-                    // set the stdvalue to be 0
-                    this.stdValue = "0";
-
-                    // return fail
-                    return false;
-
-                }
-                
-                // convert int to RGB
-                int blue = (int)Math.Floor(intValue / 65536.0);
-                int green = (int)Math.Floor((intValue - blue * 65536) / 256.0);
-                int red = intValue - (blue * 65536) - (green * 256);
-
-                // store the std value as RGBColorFloat
-                colorStdValue = new RGBColorFloat((float)(red / 255.0), (float)(green / 255.0), (float)(blue / 255.0));
-                
-            } else if (split.Length == 3) {
-
-                // try to parse the value
-                int intRedValue;
-                int intGreenValue;
-                int intBlueValue;
-                if (!tryParseValue(split, out intRedValue, out intGreenValue, out intBlueValue)) {
-
-                    // set the stdvalue to be 0
-                    this.stdValue = "0";
-
-                    // return fail
-                    return false;
-
-                }
-
-                // store the std value as RGBColorFloat
-                colorStdValue = new RGBColorFloat((float)(intRedValue / 255.0), (float)(intGreenValue / 255.0), (float)(intBlueValue / 255.0));
-
-            }
-
-            // make lowercase and store the stdvalue
-            this.stdValue = stdValue;
-
-            // return success
-            return true;
-
-        }
-
 
     }
 

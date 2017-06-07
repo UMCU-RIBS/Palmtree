@@ -9,14 +9,12 @@ namespace UNP.Core.Params {
 
     public abstract class ParamDoubleBase : Param {
 
-        protected double doubleStdValue = 0;
-        protected Parameters.Units unitStdValue = Parameters.Units.ValueOrSamples;
         protected double doubleMinValue = 0;
         protected Parameters.Units unitMinValue = Parameters.Units.ValueOrSamples;
         protected double doubleMaxValue = 0;
         protected Parameters.Units unitMaxValue = Parameters.Units.ValueOrSamples;
 
-        public ParamDoubleBase(string name, string group, Parameters parentSet, string desc, string[] options) : base(name, group, parentSet, desc, options) { }
+        public ParamDoubleBase(string name, string group, Parameters parentSet, string desc, string stdValue, string[] options) : base(name, group, parentSet, desc, stdValue, options) { }
 
         protected bool tryParseValue(string value, out double doubleValue, out Parameters.Units unit) {
             doubleValue = 0.0;
@@ -92,27 +90,6 @@ namespace UNP.Core.Params {
 
             // store the maxvalue
             this.maxValue = maxValue;
-
-            // return success
-            return true;
-
-        }
-
-        public bool setStdValue(string stdValue) {
-
-            // parse the standard value
-            if (!tryParseValue(stdValue, out doubleStdValue, out unitStdValue)) {
-                    
-                // set the stdvalue to be unlimited
-                this.stdValue = "";
-
-                // return fail
-                return false;
-
-            }
-
-            // make lowercase and store the stdvalue
-            this.stdValue = stdValue.ToLower();
 
             // return success
             return true;

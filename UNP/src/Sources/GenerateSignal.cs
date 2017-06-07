@@ -60,11 +60,10 @@ namespace UNP.Sources {
         }
 
         public bool configure(out SampleFormat output) {
-            configured = true;
 
             // retrieve the number of output channels
             outputChannels = parameters.getValue<int>("Channels");
-            
+
             // create a sampleformat
             output = new SampleFormat((uint)outputChannels);
 
@@ -83,7 +82,10 @@ namespace UNP.Sources {
 
             // calculate the sample interval
             sampleInterval = (int)Math.Floor(1000.0 / sampleRate);
-            
+
+            // flag as configured
+            configured = true;
+
             // return success
             return true;
 

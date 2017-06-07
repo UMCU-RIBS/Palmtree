@@ -3,22 +3,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using UNP.Core;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
 
 namespace UNP.Filters {
 
-    public class ClickTranslatorFilter : IFilter {
-
-        private string filterName = "";
-        private static Logger logger = null;
-        private static Parameters parameters = null;
-
-        private bool mEnableFilter = false;
-
-        private uint inputChannels = 0;
-        private uint outputChannels = 0;
-
+    public class ClickTranslatorFilter : FilterBase, IFilter {
         
         private int activePeriod = 0;                               // time window of buffer used for determining clicks
         private int mBufferSize = 0;                                // now equals the activeperiod variable, can be used to enlarge the buffer but only use the last part (activeperiod)
@@ -47,8 +38,8 @@ namespace UNP.Filters {
                 "1");
 
             parameters.addParameter <bool>      (
-                "WriteIntermediateFile",
-                "Write filter input and output to file",
+                "LogSampleStreams",
+                "Log the filter's intermediate and output sample streams. See 'Data' tab for more settings on sample stream logging.",
                 "0");
 
             parameters.addParameter <double>       (
@@ -68,14 +59,6 @@ namespace UNP.Filters {
 
         }
         
-        public string getName() {
-            return filterName;
-        }
-
-        public Parameters getParameters() {
-            return parameters;
-        }
-
         /**
          * Configure the filter. Checks the values and application logic of the
          * parameters and, if valid, transfers the configuration parameters to local variables
@@ -103,6 +86,21 @@ namespace UNP.Filters {
 
             // transfer the parameters to local variables
             transferParameters(parameters);
+
+            // check if the filter is enabled
+            if (mEnableFilter) {
+
+                // check the logging of sample streams
+                mLogSampleStreams = parameters.getValue<bool>("LogSampleStreams");
+                if (mLogSampleStreams) {
+
+                    // register the streams
+                    for (int i = 0; i < outputChannels; i++)
+                        Data.RegisterSampleStream(("ClickTranslator_Output_Ch" + (i + 1)), typeof(int));
+
+                }
+
+            }
 
             // debug output
             logger.Debug("--- Filter configuration: " + filterName + " ---");

@@ -64,8 +64,7 @@ namespace UNP.Sources {
             parameters.addParameter<string[][]>(
                 "Keys",
                 "Specifies which key influence which output channels and what values they give\n\nKey: Key to check for (takes a single character a-z or 0-9)\nOutput: output channel (1...n)\nPressed: value to output on the channel when the given key is pressed\nNot-pressed: value to output on the channel when the given key is not pressed",
-                "", "", "0", new string[] { "Key", "Output", "Pressed", "Not-pressed" });
-            
+                "", "", "F;1;1;-1", new string[] { "Key", "Output", "Pressed", "Not-pressed" });
 
             // start a new thread
             Thread thread = new Thread(this.run);

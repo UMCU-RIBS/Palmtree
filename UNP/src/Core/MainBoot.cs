@@ -13,8 +13,9 @@ namespace UNP.Core {
         private static Logger logger = LogManager.GetLogger("MainBoot");
 
         public static void Run(string[] args, Type applicationType) {
-
+            
             // TODO: check if all dependencies exists
+            // TODO: also 32/64 bit (freetype or other dlls)
 
             // TODO: Add startup arguments (args)
             // - nogui = start without GUI
@@ -23,11 +24,10 @@ namespace UNP.Core {
             // - autostart = 
             // - source (GenerateSignal/KeypressSignal/PlaybackSignal) = 
 
-
             //(GenerateSignal/KeypressSignal/PlaybackSignal)
-            Type sourceType = Type.GetType("UNP.Sources.KeypressSignal");
-
-
+            Type sourceType = Type.GetType("UNP.Sources.GenerateSignal");
+            //Type sourceType = Type.GetType("UNP.Sources.KeypressSignal");
+            //Type sourceType = Type.GetType("UNP.Sources.SerialPortSignal");
 
             // name this thread
             if (Thread.CurrentThread.Name == null)
@@ -81,7 +81,10 @@ namespace UNP.Core {
             // debug: load 
             mainThread.loadDebugConfig();
 
+            // TODO: load parameter file
+
             /*
+            // TODO:
             // debug - auto configure
             if (mainThread.configureSystem()) {
                 // successfully configured

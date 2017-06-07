@@ -4,20 +4,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using UNP.Core;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
 
 namespace UNP.Filters {
 
-    public class AdaptationFilter : IFilter {
-
-        private string filterName = "";
-        private static Logger logger = null;
-        private static Parameters parameters = null;
-
-        private bool mEnableFilter = false;
-        private uint inputChannels = 0;
-        private uint outputChannels = 0;
+    public class AdaptationFilter : FilterBase, IFilter {
         
         private int[] mAdaptation = null;
         private int mBufferSize = 0;                        // time window of past data per buffer that enters into statistic
@@ -57,10 +50,10 @@ namespace UNP.Filters {
                 "EnableFilter",
                 "Enable AdaptationFilter",
                 "1");
-
+            
             parameters.addParameter <bool>      (
-                "WriteIntermediateFile",
-                "Write filter input and output to file",
+                "LogSampleStreams",
+                "Log the filter's intermediate and output sample streams. See 'Data' tab for more settings on sample stream logging.",
                 "0");
 
             parameters.addParameter <int[]>     (
@@ -105,14 +98,6 @@ namespace UNP.Filters {
                 "", "", "2.7");
 
         }
-        
-        public string getName() {
-            return filterName;
-        }
-
-        public Parameters getParameters() {
-            return parameters;
-        }
 
         /**
          * Configure the filter. Checks the values and application logic of the
@@ -141,6 +126,22 @@ namespace UNP.Filters {
 
             // transfer the parameters to local variables
             transferParameters(parameters);
+
+            // check if the filter is enabled
+            if (mEnableFilter) {
+
+                // check the logging of sample streams
+                mLogSampleStreams = parameters.getValue<bool>("LogSampleStreams");
+                if (mLogSampleStreams) {
+
+                    // register the streams
+                    Data.RegisterSampleStream("Adaptation_Mean", typeof(int));
+                    for (int i = 0; i < outputChannels; i++)
+                        Data.RegisterSampleStream(("Adaptation_Output_Ch" + (i + 1)), typeof(int));
+
+                }
+
+            }
 
             // debug output
             logger.Debug("--- Filter configuration: " + filterName + " ---");
@@ -496,7 +497,7 @@ namespace UNP.Filters {
 
 						    // set the output
 						    output[channel] = (input[channel] - mCalcMeans[channel]) / mCalcStds[channel];
-
+                            
 					    }
 
 					    //bciout << "- " << "in " << inputSerial[channel, sample] << "  mCalcMeans[channel] " << mCalcMeans[channel] << "  mCalcStds[channel] " << mCalcStds[channel] << "  out " << outputSerial[channel][sample] << endl;

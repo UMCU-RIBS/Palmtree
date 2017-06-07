@@ -11,7 +11,7 @@ namespace UNP.Core.Params {
         private int value = 0;
         private Parameters.Units unit = Parameters.Units.ValueOrSamples;
 
-        public ParamInt(string name, string group, Parameters parentSet, string desc, string[] options) : base(name, group, parentSet, desc, options) { }
+        public ParamInt(string name, string group, Parameters parentSet, string desc, string stdValue, string[] options) : base(name, group, parentSet, desc, stdValue, options) { }
 
         public string getValue() {
             return this.value.ToString(Parameters.NumberCulture) + (this.unit == Parameters.Units.Seconds ? "s" : "");
@@ -164,11 +164,9 @@ namespace UNP.Core.Params {
         }
 
         public iParam clone() {
-            ParamInt clone = new ParamInt(name, group, parentSet, desc, options);
+            ParamInt clone = new ParamInt(name, group, parentSet, desc, stdValue, options);
 
             clone.stdValue = stdValue;
-            clone.intStdValue = intStdValue;
-            clone.unitStdValue = unitStdValue;
             
             clone.minValue = minValue;
             clone.intMinValue = intMinValue;

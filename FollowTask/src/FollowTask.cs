@@ -42,12 +42,13 @@ namespace FollowTask {
 
 
         // task input parameters
-        private int mWindowRedrawFreqMax = 0;
-        //private bool mWindowed = true;
-        private int mWindowWidth = 800;
-        private int mWindowHeight = 600;
         private int mWindowLeft = 0;
         private int mWindowTop = 0;
+        private int mWindowWidth = 800;
+        private int mWindowHeight = 600;
+        private int mWindowRedrawFreqMax = 0;
+        private RGBColorFloat mWindowBackgroundColor = new RGBColorFloat(0f, 0f, 0f);
+        //private bool mWindowed = true;
         //private int mFullscreenMonitor = 0;
 
         private double mCursorSize = 1f;
@@ -209,14 +210,10 @@ namespace FollowTask {
                     "Time that the cursor remains in escape color",
                     "0", "", "2s");
 
-
-
-
                 parameters.addParameter<double[][]>(
                     "Targets",
                     "Target positions and widths in percentage coordinates\n\nY_perc: The y position of the block on the screen (in percentages of the screen height), note that the value specifies where the middle of the block will be.\nHeight_perc: The height of the block on the screen (in percentages of the screen height)\nWidth_secs: The width of the target block in seconds",
-                    "", "", "0", new string[] {"Y_perc", "Height_perc", "Width_secs" });
-
+                    "", "", "25,25,25,75,75,75;50,50,50,50,50,50;2,2,2,3,5,7", new string[] {"Y_perc", "Height_perc", "Width_secs" });
 
                 parameters.addParameter<string[][]>(
                     "TargetTextures",
@@ -226,17 +223,17 @@ namespace FollowTask {
                 parameters.addParameter<int>(
                     "TargetYMode",
                     "Targets Y mode",
-                    "0", "3", "0", new string[] { "Target(matrix) order", "Randomize categories", "Randomize cat without replacement", "Sequential categories with rnd start"});
+                    "0", "3", "3", new string[] { "Target(matrix) order", "Randomize categories", "Randomize cat without replacement", "Sequential categories with rnd start"});
 
                 parameters.addParameter<int>(
                     "TargetWidthMode",
                     "Targets Width mode",
-                    "0", "3", "0", new string[] { "Target(matrix) order", "Randomize categories", "Randomize cat without replacement", "Sequential categories with rnd start"});
+                    "0", "3", "1", new string[] { "Target(matrix) order", "Randomize categories", "Randomize cat without replacement", "Sequential categories with rnd start"});
                 
                 parameters.addParameter<int>(
                     "TargetHeightMode",
                     "Targets Height mode",
-                    "0", "3", "0", new string[] { "Target(matrix) order", "Randomize categories", "Randomize cat without replacement", "Sequential categories with rnd start"});
+                    "0", "3", "1", new string[] { "Target(matrix) order", "Randomize categories", "Randomize cat without replacement", "Sequential categories with rnd start"});
 
                 parameters.addParameter<int>(
                     "TargetSpeed",
@@ -251,7 +248,7 @@ namespace FollowTask {
                 parameters.addParameter<int[]>(
                     "TargetSequence",
                     "Fixed sequence in which targets should be presented (leave empty for random)",
-                    "0", "", "0");
+                    "0", "", "");
 
 
             }
@@ -276,14 +273,14 @@ namespace FollowTask {
             // 
             // TODO: parameters.checkminimum, checkmaximum
 
-            // TODO: Parameter("WindowBackgroundColor");
-
+            
             // retrieve window settings
             mWindowLeft = parameters.getValue<int>("WindowLeft");
             mWindowTop = parameters.getValue<int>("WindowTop");
             mWindowWidth = parameters.getValue<int>("WindowWidth");
             mWindowHeight = parameters.getValue<int>("WindowHeight");
             mWindowRedrawFreqMax = parameters.getValue<int>("WindowRedrawFreqMax");
+            mWindowBackgroundColor = parameters.getValue<RGBColorFloat>("WindowBackgroundColor");
             //mWindowed = true;           // fullscreen not implemented, so always windowed
             //mFullscreenMonitor = 0;     // fullscreen not implemented, default to 0 (does nothing)
             if (mWindowRedrawFreqMax < 0) {
@@ -335,14 +332,11 @@ namespace FollowTask {
 
             // retrieve target settings
             double[][] parTargets = parameters.getValue<double[][]>("Targets");
-            if (parTargets.Length != 3) {
-                logger.Error("Targets parameter must have 3 columns (Y_perc, Height_perc, Width_secs)");
+            if (parTargets.Length != 3 || parTargets[0].Length < 1) {
+                logger.Error("Targets parameter must have at least 1 row and 3 columns (Y_perc, Height_perc, Width_secs)");
                 return false;
             }
-            if (parTargets[0].Length < 1) {
-                logger.Error("The number of rows in the Targets parameter must be at least 1");
-                return false;
-            }
+            
             // TODO: convert mTargets to 3 seperate arrays instead of jagged list?
             mTargets[0] = new List<float>(new float[parTargets[0].Length]);
             mTargets[1] = new List<float>(new float[parTargets[0].Length]);
@@ -358,8 +352,12 @@ namespace FollowTask {
             }
             
             string[][] parTargetTextures = parameters.getValue<string[][]>("TargetTextures");
-            mTargetTextures = new List<string>(new string[parTargetTextures[0].Length]);
-            for(int row = 0; row < parTargetTextures[0].Length; ++row)  mTargetTextures[row] = parTargetTextures[0][row];
+            if (parTargetTextures.Length == 0) {
+                mTargetTextures = new List<string>(0);
+            } else {
+                mTargetTextures = new List<string>(new string[parTargetTextures[0].Length]);
+                for (int row = 0; row < parTargetTextures[0].Length; ++row) mTargetTextures[row] = parTargetTextures[0][row];
+            }
 
             mTargetYMode = parameters.getValue<int>("TargetYMode");
             mTargetWidthMode = parameters.getValue<int>("TargetWidthMode");
@@ -427,11 +425,7 @@ namespace FollowTask {
 
                 // create the view
                 mSceneThread = new FollowView(mWindowRedrawFreqMax, mWindowLeft, mWindowTop, mWindowWidth, mWindowHeight, false);
-
-                // set the scene background color
-                //RGBColor backgroundColor = RGBColor(Parameter("WindowBackgroundColor"));
-                // TODO: set background color
-
+                mSceneThread.setBackgroundColor(mWindowBackgroundColor.getRed(), mWindowBackgroundColor.getGreen(), mWindowBackgroundColor.getBlue());
             
                 // set task specific display attributes 
                 mSceneThread.setBlockSpeed(mTargetSpeed);									// target speed
@@ -536,11 +530,11 @@ namespace FollowTask {
         }
 
         public void process(double[] input) {
-
-            /*
-            mConnectionLost = (State("ConnectionLost") == 1);
-            */
-
+            
+            // retrieve the connectionlost global
+            mConnectionLost = Globals.getValue<bool>("ConnectionLost");
+            
+            // process input
             process(input[mTaskInputChannel - 1]);
 
         }

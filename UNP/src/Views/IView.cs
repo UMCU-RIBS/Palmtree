@@ -26,6 +26,8 @@ namespace UNP.Views {
         bool hasBorder();
         void setBorder(bool border);
 
+        void setBackgroundColor(float red, float green, float blue);
+
         bool isStarted();
 
         // task functions

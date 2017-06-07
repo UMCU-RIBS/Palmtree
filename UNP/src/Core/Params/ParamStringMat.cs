@@ -9,7 +9,7 @@ namespace UNP.Core.Params {
         
         private string[][] values = new string[0][];
 
-        public ParamStringMat(string name, string group, Parameters parentSet, string desc, string[] options) : base(name, group, parentSet, desc, options) { }
+        public ParamStringMat(string name, string group, Parameters parentSet, string desc, string stdValue, string[] options) : base(name, group, parentSet, desc, stdValue, options) { }
 
         public string getValue() {
             string strRet = "";
@@ -184,9 +184,10 @@ namespace UNP.Core.Params {
 
 
         public iParam clone() {
-            ParamStringMat clone = new ParamStringMat(name, group, parentSet, desc, options);
+            ParamStringMat clone = new ParamStringMat(name, group, parentSet, desc, stdValue, options);
 
             clone.stdValue = stdValue;
+
             clone.minValue = minValue;
             clone.maxValue = maxValue;
             

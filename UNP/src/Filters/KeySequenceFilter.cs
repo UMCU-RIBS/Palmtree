@@ -9,15 +9,7 @@ using UNP.Core.Params;
 
 namespace UNP.Filters {
 
-    public class KeySequenceFilter : IFilter {
-
-        private string filterName = "";
-        private static Logger logger = null;
-        private static Parameters parameters = null;
-
-        private bool mEnableFilter = false;
-        private uint inputChannels = 0;
-        private uint outputChannels = 0;
+    public class KeySequenceFilter : FilterBase, IFilter {
 
         private int filterInputChannel = 1;							// input channel
         private double mThreshold = 0;                              // 
@@ -43,8 +35,8 @@ namespace UNP.Filters {
                 "1");
 
             parameters.addParameter<bool>(
-                "WriteIntermediateFile",
-                "Write filter input and output to file",
+                "LogSampleStreams",
+                "Log the filter's intermediate and output sample streams. See 'Data' tab for more settings on sample stream logging.",
                 "0");
 
             parameters.addParameter<int>(
@@ -65,18 +57,10 @@ namespace UNP.Filters {
             parameters.addParameter <bool[]>  (
                 "Sequence",
                 "Sequence activation pattern and amount of samples needed",
-                "", "", "");
+                "", "", "1 1 1 1");
 
         }
         
-        public string getName() {
-            return filterName;
-        }
-
-        public Parameters getParameters() {
-            return parameters;
-        }
-
         /**
          * Configure the filter. Checks the values and application logic of the
          * parameters and, if valid, transfers the configuration parameters to local variables
@@ -104,6 +88,21 @@ namespace UNP.Filters {
 
             // transfer the parameters to local variables
             transferParameters(parameters);
+
+            // check if the filter is enabled
+            if (mEnableFilter) {
+
+                // check the logging of sample streams
+                mLogSampleStreams = parameters.getValue<bool>("LogSampleStreams");
+                if (mLogSampleStreams) {
+
+                    // register the streams
+                    for (int i = 0; i < outputChannels; i++)
+                        Data.RegisterSampleStream(("KeySequence_Output_Ch" + (i + 1)), typeof(int));
+
+                }
+
+            }
 
             // debug output
             logger.Debug("--- Filter configuration: " + filterName + " ---");
@@ -264,8 +263,8 @@ namespace UNP.Filters {
                 // filter enabled
 
                 // set boolean based on threshold setting
-                bool inValue = (input[filterInputChannel] >= mThreshold);
-
+                bool inValue = (input[filterInputChannel - 1] >= mThreshold);
+                
                 // add boolean to ringbuffer
                 mDataBuffer.Put(inValue);
 
@@ -291,6 +290,8 @@ namespace UNP.Filters {
                     Globals.setValue<bool>("KeySequenceActive", "1");
                 else
                     Globals.setValue<bool>("KeySequenceActive", "0");
+
+                // TODO: setValue is not always necessary, only call setValue if the value (locally stored) changes
 
             }
 

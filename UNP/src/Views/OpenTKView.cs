@@ -43,6 +43,10 @@ namespace UNP.Views {
         protected int windowWidth = 0;
         protected int windowHeight = 0;
         private bool windowBorder = true;
+        private float windowBackgroundColorR = 0f;
+        private float windowBackgroundColorG = 0f;
+        private float windowBackgroundColorB = 0f;
+        private bool windowBackgroundColorChanged = false;
 
         // pure abstract functions that are required to be implemented by the deriving class
         protected abstract void load();
@@ -155,6 +159,12 @@ namespace UNP.Views {
             }
         }
 
+        public void setBackgroundColor(float red, float green, float blue) {
+            windowBackgroundColorR = red;
+            windowBackgroundColorG = green;
+            windowBackgroundColorB = blue;
+            windowBackgroundColorChanged = true;
+        }
 
         public void start() {
 
@@ -271,8 +281,9 @@ namespace UNP.Views {
             GL.Enable(EnableCap.Texture2D);
 
             //  Set the clear color.
-            GL.ClearColor(0f, 0f, 0f, 0f);
-            
+            GL.ClearColor(windowBackgroundColorR, windowBackgroundColorG, windowBackgroundColorB, 0f);
+            windowBackgroundColorChanged = false;
+
             // set transparancy
             GL.Enable(EnableCap.Blend);
             GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
@@ -393,7 +404,13 @@ namespace UNP.Views {
         private void glControl_Paint(object sender, PaintEventArgs e) {
             if (!glLoaded)          return;
             if (!glControlLoaded)   return;
-            
+
+            // check if the background color has changed, set the new clear color
+            if (windowBackgroundColorChanged) {
+                GL.ClearColor(windowBackgroundColorR, windowBackgroundColorG, windowBackgroundColorB, 0f);
+                windowBackgroundColorChanged = false;
+            }
+
             // clear the buffer
             GL.Clear(ClearBufferMask.ColorBufferBit);
 

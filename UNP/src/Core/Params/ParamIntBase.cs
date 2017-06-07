@@ -8,15 +8,13 @@ using UNP.Core.Helpers;
 namespace UNP.Core.Params {
 
     public abstract class ParamIntBase : Param {
-        
-        protected int intStdValue = 0;
-        protected Parameters.Units unitStdValue = Parameters.Units.ValueOrSamples;
+
         protected int intMinValue = 0;
         protected Parameters.Units unitMinValue = Parameters.Units.ValueOrSamples;
         protected int intMaxValue = 0;
         protected Parameters.Units unitMaxValue = Parameters.Units.ValueOrSamples;
 
-        public ParamIntBase(string name, string group, Parameters parentSet, string desc, string[] options) : base(name, group, parentSet, desc, options) { }
+        public ParamIntBase(string name, string group, Parameters parentSet, string desc, string stdValue, string[] options) : base(name, group, parentSet, desc, stdValue, options) { }
 
         protected bool tryParseValue(string value, out int intValue, out Parameters.Units unit) {
             intValue = 0;
@@ -96,29 +94,6 @@ namespace UNP.Core.Params {
             return true;
 
         }
-
-
-        public bool setStdValue(string stdValue) {
-
-            // parse the standard value
-            if (!tryParseValue(stdValue, out intStdValue, out unitStdValue)) {
-                    
-                // set the stdvalue to be unlimited
-                this.stdValue = "";
-
-                // return fail
-                return false;
-
-            }
-            
-            // make lowercase and store the stdvalue
-            this.stdValue = stdValue.ToLower();
-
-            // return success
-            return true;
-
-        }
-
 
         /*
         protected bool checkMinimum(ref int doubleValue, ref Parameters.Units unit) {

@@ -61,8 +61,16 @@ namespace UNP.Core {
 
         public void initPipeline(Type sourceType, Type applicationType) {
 
+            // constuct the Data static class (this makes sure that the Data parameterset is created for configuration)
+            Data.Construct();
+
             // create a source
-            source = (ISource)Activator.CreateInstance(sourceType, this);
+            try {
+                source = (ISource)Activator.CreateInstance(sourceType, this);
+                Console.WriteLine("Created source instance of " + sourceType.Name);
+            } catch (Exception) {
+                logger.Error("Unable to create a source instance of '" + sourceType.Name + "'");
+            }
 
             // create filters
             filters.Add(new TimeSmoothingFilter("TimeSmoothing"));
@@ -73,21 +81,12 @@ namespace UNP.Core {
             filters.Add(new NormalizerFilter("Normalizer"));
 
             // create the application
-            Console.WriteLine("applicationType " + applicationType.Name);
-            /*
-            if (!String.IsNullOrEmpty(applicationClass)) {
-                try {
-                    application = (IApplication)Activator.CreateInstance(Type.GetType(applicationClass));
-                    logger.Info("Created an application instance of the class '" + applicationClass + "'");
-                } catch (Exception e) {
-                    logger.Error("Unable to create an application instance of the class '" + applicationClass + "'");
-                    Console.WriteLine("---");
-                    Console.WriteLine(e.Message);
-                    Console.WriteLine("---");
-                }
+            try {
+                application = (IApplication)Activator.CreateInstance(applicationType);
+                Console.WriteLine("Created application instance of " + applicationType.Name);
+            } catch (Exception) {
+                logger.Error("Unable to create an application instance of '" + applicationType.Name + "'");
             }
-            */
-            application = (IApplication)Activator.CreateInstance(applicationType);
 
         }
 
@@ -96,22 +95,22 @@ namespace UNP.Core {
 
             // (optional/debug) set/load the parameters
             
-
+            
             Parameters sourceParameters = source.getParameters();
             sourceParameters.setValue("Channels", 2);
             sourceParameters.setValue("SampleRate", 5.0);
-            sourceParameters.setValue("Keys", "F,G;1,2;1,1;-1,-1");
-
+            //sourceParameters.setValue("Keys", "F,G;1,2;1,1;-1,-1");
+            
             Parameters timeSmoothingParameters = getFilterParameters("TimeSmoothing");
             timeSmoothingParameters.setValue("EnableFilter", true);
-            timeSmoothingParameters.setValue("WriteIntermediateFile", false);
+            timeSmoothingParameters.setValue("LogSampleStreams", false);
             double[][] bufferWeights = new double[2][];     // first dimensions is the colums, second dimension is the rows
             for (int i = 0; i < bufferWeights.Length; i++)  bufferWeights[i] = new double[] { 0.7, 0.5, 0.2, 0.2, 0 };
             timeSmoothingParameters.setValue("BufferWeights", bufferWeights);
 
             Parameters adaptationParameters = getFilterParameters("Adaptation");
             adaptationParameters.setValue("EnableFilter", true);
-            adaptationParameters.setValue("WriteIntermediateFile", false);
+            adaptationParameters.setValue("LogSampleStreams", true);
             adaptationParameters.setValue("Adaptation", "1 1");
             adaptationParameters.setValue("InitialChannelMeans", "497.46 362.58");
             adaptationParameters.setValue("InitialChannelStds", "77.93 4.6");
@@ -122,7 +121,7 @@ namespace UNP.Core {
 
             Parameters keysequenceParameters = getFilterParameters("KeySequence");
             keysequenceParameters.setValue("EnableFilter", true);
-            keysequenceParameters.setValue("WriteIntermediateFile", false);
+            keysequenceParameters.setValue("LogSampleStreams", false);
             keysequenceParameters.setValue("Threshold", 0.5);
             keysequenceParameters.setValue("Proportion", 0.7);
             bool[] sequence = new bool[] { true, true, true, true };
@@ -130,7 +129,7 @@ namespace UNP.Core {
             
             Parameters thresholdParameters = getFilterParameters("ThresholdClassifier");
             thresholdParameters.setValue("EnableFilter", true);
-            thresholdParameters.setValue("WriteIntermediateFile", false);
+            thresholdParameters.setValue("LogSampleStreams", false);
             double[][] thresholds = new double[4][];        // first dimensions is the colums, second dimension is the rows
             thresholds[0] = new double[] { 1 };
             thresholds[1] = new double[] { 1 };
@@ -140,25 +139,26 @@ namespace UNP.Core {
 
             Parameters clickParameters = getFilterParameters("ClickTranslator");
             clickParameters.setValue("EnableFilter", true);
-            clickParameters.setValue("WriteIntermediateFile", false);
+            clickParameters.setValue("LogSampleStreams", false);
             clickParameters.setValue("ActivePeriod", "1s");
             clickParameters.setValue("ActiveRateClickThreshold", ".5");
             clickParameters.setValue("RefractoryPeriod", "3.6s");
 
             Parameters normalizerParameters = getFilterParameters("Normalizer");
             normalizerParameters.setValue("EnableFilter", true);
-            normalizerParameters.setValue("WriteIntermediateFile", false);
+            normalizerParameters.setValue("LogSampleStreams", false);
             normalizerParameters.setValue("NormalizerOffsets", "0 0");
             normalizerParameters.setValue("NormalizerGains", "1 1");
 
+            /*
             Parameters unpmenuParameters = application.getParameters();
             unpmenuParameters.setValue("WindowLeft", 0);
             unpmenuParameters.setValue("WindowTop", 0);
             unpmenuParameters.setValue("WindowWidth", 800);
             unpmenuParameters.setValue("WindowHeight", 600);
             unpmenuParameters.setValue("WindowRedrawFreqMax", 60);
-            unpmenuParameters.setValue("WindowBackgroundColor", "0");
-
+            unpmenuParameters.setValue("WindowBackgroundColor", "0;255;0");
+            */
             /*
             Parameters followParameters = application.getParameters();
             followParameters.setValue("WindowLeft", 0);
@@ -197,6 +197,9 @@ namespace UNP.Core {
          * Configures the system (the source, pipeline filters and application)
          **/
         public bool configureSystem() {
+
+            // configure the data object
+            Data.Configure();
 
             // configure source (this will also give the output format information)
             SampleFormat tempFormat = null;
@@ -340,6 +343,9 @@ namespace UNP.Core {
 
                 }
 
+                // start the data
+                Data.Start();
+
                 // start the application
                 if (application != null)    application.start();
 
@@ -391,6 +397,9 @@ namespace UNP.Core {
 
                     // stop the application
                     if (application != null)    application.stop();
+
+                    // stop the data
+                    Data.Stop();
 
                     // flag the system as stopped
                     started = false;
@@ -557,6 +566,9 @@ namespace UNP.Core {
                 
                 // check if the buffer is full
                 if (numberOfSamples == sampleBufferSize) {
+
+                    // message
+                    logger.Error("Sample buffer full, the roundtrip of a sample through the filter and application takes longer than the sample frequency of the source");
 
                     // immediately return, discard sample
                     return;

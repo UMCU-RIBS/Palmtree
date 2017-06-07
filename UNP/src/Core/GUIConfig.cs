@@ -141,7 +141,10 @@ namespace UNP {
             newLbl.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             newLbl.Parent = panel;
             newLbl.TextAlign = ContentAlignment.TopRight;
-            new ToolTip().SetToolTip(newLbl, param.Desc);
+            ToolTip tt = new ToolTip();
+            tt.AutoPopDelay = 15000;
+            tt.InitialDelay = 200;
+            tt.SetToolTip(newLbl, param.Desc);
             panel.Controls.Add(newLbl);
 
             int itemHeight = 0;
@@ -210,7 +213,7 @@ namespace UNP {
                 paramControls.Add(new ParamControl(param, newPic, tab));
                 itemHeight = 20;
 
-            } else if (param is ParamBoolArr || param is ParamIntArr || param is ParamDoubleArr) {
+            } else if (param is ParamBoolArr || param is ParamIntArr || param is ParamDoubleArr || param is ParamString) {
 
                 // create and add a textbox
                 TextBox newTxt = new TextBox();
@@ -342,7 +345,7 @@ namespace UNP {
                     if (intValue > param.Options.Length)    intValue = 0;
                     cmb.SelectedIndex = intValue;
 
-                } else if ((param is ParamInt && param.Options.Length == 0) || (param is ParamDouble && param.Options.Length == 0) || param is ParamBoolArr || param is ParamIntArr || param is ParamDoubleArr) {
+                } else if ((param is ParamInt && param.Options.Length == 0) || (param is ParamDouble && param.Options.Length == 0) || param is ParamBoolArr || param is ParamIntArr || param is ParamDoubleArr || param is ParamString) {
 
                     TextBox txt = (TextBox)paramControls[i].control;
                     txt.Text = param.getValue();
@@ -514,7 +517,7 @@ namespace UNP {
 
                     }
 
-                } else if ((param is ParamInt && param.Options.Length == 0) || (param is ParamDouble && param.Options.Length == 0) || param is ParamBoolArr || param is ParamIntArr || param is ParamDoubleArr) {
+                } else if ((param is ParamInt && param.Options.Length == 0) || (param is ParamDouble && param.Options.Length == 0) || param is ParamBoolArr || param is ParamIntArr || param is ParamDoubleArr || param is ParamString) {
                     TextBox txt = (TextBox)paramControls[i].control;
 
                     // testing or saving

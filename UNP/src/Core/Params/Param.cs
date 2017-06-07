@@ -20,11 +20,12 @@ namespace UNP.Core.Params {
         protected string[] options = new string[0];
         protected Parameters parentSet = null;
 
-        public Param(string name, string group, Parameters parentSet, string desc, string[] options) {
+        public Param(string name, string group, Parameters parentSet, string desc, string stdValue, string[] options) {
             this.name = name;
             this.group = group;
             this.parentSet = parentSet;
             this.desc = desc;
+            this.stdValue = stdValue;
             this.options = options;
         }
 

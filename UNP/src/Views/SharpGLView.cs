@@ -41,6 +41,10 @@ namespace UNP.Views {
         protected int windowWidth = 0;
         protected int windowHeight = 0;
         private bool windowBorder = true;
+        private float windowBackgroundColorR = 0f;
+        private float windowBackgroundColorG = 0f;
+        private float windowBackgroundColorB = 0f;
+        private bool windowBackgroundColorChanged = false;
 
         // pure abstract functions that are required to be implemented by the deriving class
         protected abstract void load();
@@ -93,8 +97,7 @@ namespace UNP.Views {
         }
         public bool isStarted()                             {   return glLoaded && running;    }
         public bool hasBorder()                             {   return windowBorder;     }
-
-
+        
         public void setBorder(bool border) {
             if (!glLoaded) {
 
@@ -153,6 +156,12 @@ namespace UNP.Views {
             }
         }
 
+        public void setBackgroundColor(float red, float green, float blue) {
+            windowBackgroundColorR = red;
+            windowBackgroundColorG = green;
+            windowBackgroundColorB = blue;
+            windowBackgroundColorChanged = true;
+        }
 
         public void start() {
 
@@ -263,7 +272,8 @@ namespace UNP.Views {
             gl.Enable(OpenGL.GL_TEXTURE_2D);
 
             //  Set the clear color.
-            gl.ClearColor(0, 0, 0, 0);
+            gl.ClearColor(windowBackgroundColorR, windowBackgroundColorG, windowBackgroundColorB, 0f);
+            windowBackgroundColorChanged = false;
 
             // set transparancy
             gl.Enable(OpenGL.GL_BLEND);
@@ -366,6 +376,12 @@ namespace UNP.Views {
         }
 
         void sceneRender() {
+
+            // check if the background color has changed, set the new clear color
+            if (windowBackgroundColorChanged) {
+                gl.ClearColor(windowBackgroundColorR, windowBackgroundColorG, windowBackgroundColorB, 0f);
+                windowBackgroundColorChanged = false;
+            }
 
             // clear the buffer
             gl.Clear(OpenGL.GL_COLOR_BUFFER_BIT);

@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading;
 using UNP;
 using UNP.Applications;
+using UNP.Core;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
 
@@ -43,13 +44,15 @@ namespace MoleTask {
 
 
         // task input parameters
-        private int mWindowRedrawFreqMax = 0;
-        //private bool mWindowed = true;
-        private int mWindowWidth = 800;
-        private int mWindowHeight = 600;
         private int mWindowLeft = 0;
         private int mWindowTop = 0;
+        private int mWindowWidth = 800;
+        private int mWindowHeight = 600;
+        private int mWindowRedrawFreqMax = 0;
+        private RGBColorFloat mWindowBackgroundColor = new RGBColorFloat(0f, 0f, 0f);
+        //private bool mWindowed = true;
         //private int mFullscreenMonitor = 0;
+        
 
         private int mTaskInputChannel = 1;											// input channel
         private int mTaskFirstRunStartDelay = 0;                                    // the first run start delay in sample blocks
@@ -191,7 +194,7 @@ namespace MoleTask {
                 parameters.addParameter<int[]>(
                     "TargetSequence",
                     "Fixed sequence in which targets should be presented (leave empty for random)",
-                    "0", "", "0");
+                    "0", "", "");
 
             }
 
@@ -215,14 +218,14 @@ namespace MoleTask {
             // 
             // TODO: parameters.checkminimum, checkmaximum
 
-            // TODO: Parameter("WindowBackgroundColor");
-
+            
             // retrieve window settings
             mWindowLeft = parameters.getValue<int>("WindowLeft");
             mWindowTop = parameters.getValue<int>("WindowTop");
             mWindowWidth = parameters.getValue<int>("WindowWidth");
             mWindowHeight = parameters.getValue<int>("WindowHeight");
             mWindowRedrawFreqMax = parameters.getValue<int>("WindowRedrawFreqMax");
+            mWindowBackgroundColor = parameters.getValue<RGBColorFloat>("WindowBackgroundColor");
             //mWindowed = true;           // fullscreen not implemented, so always windowed
             //mFullscreenMonitor = 0;     // fullscreen not implemented, default to 0 (does nothing)
             if (mWindowRedrawFreqMax < 0) {
@@ -317,11 +320,7 @@ namespace MoleTask {
 
                 // create the view
                 mSceneThread = new MoleView(mWindowRedrawFreqMax, mWindowLeft, mWindowTop, mWindowWidth, mWindowHeight, false);
-
-                // set the scene background color
-                //RGBColor backgroundColor = RGBColor(Parameter("WindowBackgroundColor"));
-                // TODO: set background color
-
+                mSceneThread.setBackgroundColor(mWindowBackgroundColor.getRed(), mWindowBackgroundColor.getGreen(), mWindowBackgroundColor.getBlue());
 
                 // extra empty first column and row
                 holeColumns = configHoleColumns + 1;
@@ -428,10 +427,10 @@ namespace MoleTask {
 
         public void process(double[] input) {
 
-            /*
-            mConnectionLost = (State("ConnectionLost") == 1);
-            */
+            // retrieve the connectionlost global
+            mConnectionLost = Globals.getValue<bool>("ConnectionLost");
 
+            // process input
             process(input[mTaskInputChannel - 1]);
 
         }

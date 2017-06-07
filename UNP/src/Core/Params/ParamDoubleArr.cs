@@ -10,7 +10,7 @@ namespace UNP.Core.Params {
         private double[] values = new double[0];
         private Parameters.Units[] units = new Parameters.Units[0];
 
-        public ParamDoubleArr(string name, string group, Parameters parentSet, string desc, string[] options) : base(name, group, parentSet, desc, options) { }
+        public ParamDoubleArr(string name, string group, Parameters parentSet, string desc, string stdValue, string[] options) : base(name, group, parentSet, desc, stdValue, options) { }
         
         public string getValue() {
             string strRet = "";
@@ -193,11 +193,9 @@ namespace UNP.Core.Params {
         }
 
         public iParam clone() {
-            ParamDoubleArr clone = new ParamDoubleArr(name, group, parentSet, desc, options);
+            ParamDoubleArr clone = new ParamDoubleArr(name, group, parentSet, desc, stdValue, options);
 
             clone.stdValue = stdValue;
-            clone.doubleStdValue = doubleStdValue;
-            clone.unitStdValue = unitStdValue;
             
             clone.minValue = minValue;
             clone.doubleMinValue = doubleMinValue;
