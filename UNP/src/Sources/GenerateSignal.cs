@@ -19,18 +19,20 @@ namespace UNP.Sources {
 
         private MainThread pipeline = null;
 
-        Stopwatch swTimePassed = new Stopwatch();                           // stopwatch object to give an exact amount to time passed inbetween loops
-        private int sampleInterval = 200;                                   // interval between the samples in milliseconds
-        int threadLoopDelay = 0;
+        private Thread signalThread = null;                                             // the source thread
+        private bool running = true;					                                // flag to define if the source thread should be running (setting to false will stop the source thread)
 
-        private bool running = true;					                    // flag to define if the source thread is still running (setting to false will stop the source thread)
+        private ManualResetEvent loopManualResetEvent = new ManualResetEvent(false);    // Manual reset event to call the WaitOne event on (this allows - in contrast to the sleep wait - to cancel the wait period at any point when closing the source) 
+        private Stopwatch swTimePassed = new Stopwatch();                               // stopwatch object to give an exact amount to time passed inbetween loops
+        private int sampleInterval = 10000;                                              // interval between the samples in milliseconds
+        private int threadLoopDelay = 0;
+
         private bool configured = false;
         private bool initialized = false;
-
         private bool started = false;				                        // flag to define if the source is started or stopped
         private Object lockStarted = new Object();
 
-        Random rand = new Random(Guid.NewGuid().GetHashCode());
+        private Random rand = new Random(Guid.NewGuid().GetHashCode());
         private int outputChannels = 0;
         private double sampleRate = 0;                                      // hold the amount of samples per second that the source outputs (used by the mainthead to convert seconds to number of samples)
 
@@ -50,8 +52,8 @@ namespace UNP.Sources {
                 "0", "", "5");
 
             // start a new thread
-            Thread thread = new Thread(this.run);
-            thread.Start();
+            signalThread = new Thread(this.run);
+            signalThread.Start();
 
         }
 
@@ -92,6 +94,13 @@ namespace UNP.Sources {
         }
 
         public void initialize() {
+
+            // interrupt the loop wait and reset the wait lock (so it will wait again upon the next WaitOne call)
+            // this will make sure the newly set sample rate interval is applied in the loop
+            loopManualResetEvent.Set();
+            loopManualResetEvent.Reset();
+            
+            // flag the initialization as complete
             initialized = true;
 
         }
@@ -187,16 +196,28 @@ namespace UNP.Sources {
 	     * 
 	     */
 	    public void destroy() {
+
+            // flag the thread to stop running (when it reaches the end of the loop)
+            running = false;
 		
             // stop generating (stop will check if it was running in the first place)
 		    stop();
-		
-		    // stop the thread from running
-		    running = false;
-		
-		    // allow the source thread to stop
-            Thread.Sleep(100);
-		
+
+            // interrupt the wait in the loop
+            // (this is done because if the sample rate is low, we might have to wait for a long time for the thread to end)
+            loopManualResetEvent.Set();
+
+            // wait until the thread stopped
+            // try to stop the main loop using running
+            int waitCounter = 500;
+            while (signalThread.IsAlive && waitCounter > 0) {
+                Thread.Sleep(10);
+                waitCounter--;
+            }
+
+            // clear the thread reference
+            signalThread = null;
+
 	    }
 	
 	    /**
@@ -248,27 +269,23 @@ namespace UNP.Sources {
 
                 }
 
-
-                // 
-			    // if still running then sleep to allow other processes
+			    // if still running then wait to allow other processes
 			    if (running && sampleInterval != -1) {
 
-                    // calculate the exact time that has passed since the last run
+                    // use the exact time that has passed since the last run to calculate the time to wait to get the exact sample interval
                     swTimePassed.Stop();
-                    int timePassed = (int)swTimePassed.ElapsedMilliseconds;
+                    threadLoopDelay = sampleInterval - (int)swTimePassed.ElapsedMilliseconds;
 
-                    // calculate the time to wait to get the exact sample interval
-                    threadLoopDelay = sampleInterval - timePassed;
-
-                    // sleep for the remainder of the sample interval to get as close to the sample rate as possible (if there is a remainder)
-                    if (threadLoopDelay >= 0) Thread.Sleep(threadLoopDelay);
+                    // wait for the remainder of the sample interval to get as close to the sample rate as possible (if there is a remainder)
+                    if (threadLoopDelay >= 0)
+                        loopManualResetEvent.WaitOne(threadLoopDelay);      // using WaitOne because this wait is interruptable (in contrast to sleep)
 
                     // start the timer to measure the loop time
                     swTimePassed.Reset();
                     swTimePassed.Start();
 
 			    }
-			
+                
 		    }
 
             // log message

@@ -73,7 +73,7 @@ namespace UNP.Core.Params {
                 if (samples != intSamples) {
 
                     // message
-                    logger.Warn("Value for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') was retrieved in number of samples (" + val + " * " + SampleConversion.sampleRate() + "), but has been rounded from " + samples + " to " + intSamples);
+                    logger.Warn("Value for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') was retrieved in number of samples (" + val + "s * " + SampleConversion.sampleRate() + "Hz), but has been rounded from " + samples + " sample(s) to " + intSamples + " sample(s)");
 
                 }
 
@@ -85,7 +85,7 @@ namespace UNP.Core.Params {
                 if (val != intSamples) {
 
                     // message
-                    logger.Warn("Value for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') was retrieved in number of samples, but has been rounded from " + val + " to " + intSamples);
+                    logger.Warn("Value for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') was retrieved in number of samples, but has been rounded from " + val + " sample(s) to " + intSamples + " samples");
 
                 }
 

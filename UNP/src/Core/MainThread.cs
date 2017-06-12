@@ -554,6 +554,8 @@ namespace UNP.Core {
             // stop and destroy the view
             if (application != null)    application.destroy();
 
+            // todo: data destroy?
+
             // log message
             logger.Debug("Thread stopped");
 

@@ -20,9 +20,12 @@ namespace UNP.Core {
         private static Logger logger = LogManager.GetLogger("Data");
         private static Parameters parameters = ParameterManager.GetParameters("Data", Parameters.ParamSetTypes.Data);
 
-        private static bool mEnableSourceInputLogging = false;      // source input logging enabled/disabled (by configuration parameter)
-        private static bool mEnableSampleStreamLogging = false;     // sample stream logging enabled/disabled (by configuration parameter)
-        private static bool mEnableEventLogging = false;            // 
+        private static bool mLogSourceInput = false;            // source input logging enabled/disabled (by configuration parameter)
+        private static bool mLogSourceInputRuntime = false;     // stores whether during runtime the source input should be logged    (if it was on, then it can be switched off, resulting in 0's being logged)
+        private static bool mLogSampleStreams = false;          // sample stream logging enabled/disabled (by configuration parameter)
+        private static bool mLogSampleStreamsRuntime = false;   // stores whether during runtime the sample streams should be logged    (if it was on, then it can be switched off, resulting in 0's being logged)
+        private static bool mLogEvents = false;                 // 
+        private static bool mLogEventsRuntime = false;          // stores whether during runtime the events should be logged    (if it was on, then it can be switched off, resulting in 0's being logged)
 
         private static int sourceInputChannels = 0;                 // the number of channels coming in to be logged from the source input
 
@@ -43,7 +46,7 @@ namespace UNP.Core {
                 "", "", "");
 
             parameters.addParameter <bool>      (
-                "EnableSourceInputLogging",
+                "LogSourceInput",
                 "Enable/disable source input logging.\n\nNote: when there is no source input (for example when the source is a signal generator) then no source input data file will be created nor will there be any logging of source input",
                 "1");
 
@@ -53,7 +56,7 @@ namespace UNP.Core {
                 "0");
 
             parameters.addParameter <bool>      (
-                "EnableSampleStreamLogging",
+                "LogSampleStreams",
                 "Enable/disable sample stream logging.\nThis option will enable or disable the logging of sample streams for all modules.\nEnabling or disabling specific sample streams has to be done from the filter settings.\n\nNote: whether the samples streams that are being logged have values or zeros is dependent on the runtime configuration of the modules. It is possible\nthat the user, though an application module user-interface, sets certain streams to be (values) or not be (zeros) logged.",
                 "1");
 
@@ -63,7 +66,7 @@ namespace UNP.Core {
                 "0");
 
             parameters.addParameter<bool>(
-                "EnableEventLogging",
+                "LogEvents",
                 "Enable/disable event logging.",
                 "1");
 
@@ -91,12 +94,15 @@ namespace UNP.Core {
             totalNumberOfSampleStreams = 0;
 
             // check and transfer parameter settings
-            mEnableSourceInputLogging = parameters.getValue<bool>("EnableSourceInputLogging");
-            mEnableSampleStreamLogging = parameters.getValue<bool>("EnableSampleStreamLogging");
-            mEnableEventLogging = parameters.getValue<bool>("EnableEventLogging");
+            mLogSourceInput = parameters.getValue<bool>("LogSourceInput");
+            mLogSourceInputRuntime = mLogSourceInput;
+            mLogSampleStreams = parameters.getValue<bool>("LogSampleStreams");
+            mLogSampleStreamsRuntime = mLogSampleStreams;
+            mLogEvents = parameters.getValue<bool>("LogEvents");
+            mLogEventsRuntime = mLogEvents;
             // ...
 
-            if (mEnableSourceInputLogging || mEnableSampleStreamLogging || mEnableEventLogging) {
+            if (mLogSourceInput || mLogSampleStreams || mLogEvents) {
 
                 // check the path
 
@@ -149,7 +155,7 @@ namespace UNP.Core {
             // create the event file
 
             // check if we want to log the source input
-            if (mEnableSourceInputLogging && sourceInputChannels > 0) {
+            if (mLogSourceInput && sourceInputChannels > 0) {
                 
                 
                 // create a source input file
@@ -159,7 +165,7 @@ namespace UNP.Core {
             }
 
             // check if there are any samples streams to be logged
-            if (mEnableSampleStreamLogging && totalNumberOfSampleStreams > 0) {
+            if (mLogSampleStreams && totalNumberOfSampleStreams > 0) {
 
                 // create a sample data file
 

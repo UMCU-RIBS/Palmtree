@@ -127,19 +127,15 @@ namespace UNP.Filters {
             // transfer the parameters to local variables
             transferParameters(parameters);
 
-            // check if the filter is enabled
-            if (mEnableFilter) {
+            // retrieve and prepare the logging of sample streams
+            mLogSampleStreams = parameters.getValue<bool>("LogSampleStreams");
+            mLogSampleStreamsRuntime = mLogSampleStreams;
+            if (mLogSampleStreams) {
 
-                // check the logging of sample streams
-                mLogSampleStreams = parameters.getValue<bool>("LogSampleStreams");
-                if (mLogSampleStreams) {
-
-                    // register the streams
-                    Data.RegisterSampleStream("Adaptation_Mean", typeof(int));
-                    for (int i = 0; i < outputChannels; i++)
-                        Data.RegisterSampleStream(("Adaptation_Output_Ch" + (i + 1)), typeof(int));
-
-                }
+                // register the streams
+                //Data.RegisterSampleStream("Adaptation_Mean", typeof(int));
+                for (int i = 0; i < outputChannels; i++)
+                    Data.RegisterSampleStream(("Adaptation_Output_Ch" + (i + 1)), typeof(int));
 
             }
 
@@ -172,8 +168,43 @@ namespace UNP.Filters {
             // check the values and application logic of the parameters
             if (!checkParameters(newParameters))    return false;
 
+            // retrieve and check the LogSampleStream parameter
+            bool newLogSampleStreams = newParameters.getValue<bool>("LogSampleStreams");
+            if (!mLogSampleStreams && newLogSampleStreams) {
+                // logging was (in the initial configuration) switched off and is trying to be switched on
+                // (refuse, it cannot be switched on, because sample streams have to be registered during the first configuration)
+
+                // message
+                logger.Error("Cannot switch the logging of samples stream on because it was initially switched off (and streams need to be registered during the first configuration, logging is refused");
+
+                // return failure
+                return false;
+
+            }
+
             // transfer the parameters to local variables
             transferParameters(newParameters);
+
+            // apply change in the logging of sample streams
+            if (mLogSampleStreams && mLogSampleStreamsRuntime && !newLogSampleStreams) {
+                // logging was (in the initial configuration) switched on and is currently on but wants to be switched off (resulting in 0's being output)
+
+                // message
+                logger.Debug("Logging of sample streams was switched on but is now switched off, only zeros will be logged");
+
+                // switch logging off (to zeros)
+                mLogSampleStreamsRuntime = false;
+
+            } else if (mLogSampleStreams && !mLogSampleStreamsRuntime && newLogSampleStreams) {
+                // logging was (in the initial configuration) switched on and is currently off but wants to be switched on (resume logging)
+
+                // message
+                logger.Debug("Logging of sample streams was switched off but is now switched on, logging is resumed");
+
+                // switch logging on
+                mLogSampleStreamsRuntime = true;
+                
+            }
 
             // TODO: take resetFilter into account (currently always resets the buffers on initialize
 
@@ -514,6 +545,28 @@ namespace UNP.Filters {
 
                 // pass the input straight through
                 for (uint channel = 0; channel < inputChannels; ++channel)  output[channel] = input[channel];
+
+            }
+
+            // check if the sample streams should be logged (initial setting)
+            if (mLogSampleStreams) {
+
+                // check if the logging of sample streams is needed/allowed during runtime
+                if (mLogSampleStreamsRuntime) {
+                    // enabled initially and at runtime
+                    
+                    // output values
+                    for (uint channel = 0; channel < inputChannels; ++channel)
+                        Data.LogSample(output[channel]);
+
+                } else {
+                    // enabled initially but not at runtime
+
+                    // output zeros
+                    for (uint channel = 0; channel < inputChannels; ++channel)
+                        Data.LogSample(0.0);
+
+                }
 
             }
 
