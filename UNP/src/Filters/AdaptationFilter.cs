@@ -127,17 +127,8 @@ namespace UNP.Filters {
             // transfer the parameters to local variables
             transferParameters(parameters);
 
-            // retrieve and prepare the logging of sample streams
-            mLogSampleStreams = parameters.getValue<bool>("LogSampleStreams");
-            mLogSampleStreamsRuntime = mLogSampleStreams;
-            if (mLogSampleStreams) {
-
-                // register the streams
-                //Data.RegisterSampleStream("Adaptation_Mean", typeof(int));
-                for (int i = 0; i < outputChannels; i++)
-                    Data.RegisterSampleStream(("Adaptation_Output_Ch" + (i + 1)), typeof(int));
-
-            }
+            // configure input logging for this filter
+            configureInputLogging("Adaptation_", input);
 
             // debug output
             logger.Debug("--- Filter configuration: " + filterName + " ---");
@@ -396,6 +387,9 @@ namespace UNP.Filters {
 
         public void process(double[] input, out double[] output) {
 
+            // handle the data logging of the input (both to file and for visualization)
+            processInputLogging(input);
+
             // create an output sample
             output = new double[outputChannels];
 
@@ -545,28 +539,6 @@ namespace UNP.Filters {
 
                 // pass the input straight through
                 for (uint channel = 0; channel < inputChannels; ++channel)  output[channel] = input[channel];
-
-            }
-
-            // check if the sample streams should be logged (initial setting)
-            if (mLogSampleStreams) {
-
-                // check if the logging of sample streams is needed/allowed during runtime
-                if (mLogSampleStreamsRuntime) {
-                    // enabled initially and at runtime
-                    
-                    // output values
-                    for (uint channel = 0; channel < inputChannels; ++channel)
-                        Data.LogSample(output[channel]);
-
-                } else {
-                    // enabled initially but not at runtime
-
-                    // output zeros
-                    for (uint channel = 0; channel < inputChannels; ++channel)
-                        Data.LogSample(0.0);
-
-                }
 
             }
 
