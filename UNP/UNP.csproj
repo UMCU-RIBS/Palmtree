@@ -81,16 +81,25 @@
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
+    <Reference Include="System.Windows.Forms.DataVisualization" />
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="src\Applications\IApplication.cs" />
     <Compile Include="src\Applications\IApplicationUNP.cs" />
     <Compile Include="src\Core\Data.cs" />
-    <Compile Include="src\Core\GUIConfig.cs">
+    <Compile Include="src\Core\Events\VisualizationEventArgs.cs" />
+    <Compile Include="src\Core\Events\VisualizationValueArgs.cs" />
+    <Compile Include="src\GUI\GUIVisualization.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="src\Core\GUIConfig.Designer.cs">
+    <Compile Include="src\GUI\GUIVisualization.Designer.cs">
+      <DependentUpon>GUIVisualization.cs</DependentUpon>
+    </Compile>
+    <Compile Include="src\GUI\GUIConfig.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="src\GUI\GUIConfig.Designer.cs">
       <DependentUpon>GUIConfig.cs</DependentUpon>
     </Compile>
     <Compile Include="src\Core\Helpers\BoolRingBuffer.cs" />
@@ -130,11 +139,11 @@
     <Compile Include="src\Core\Helpers\SampleConversion.cs" />
     <Compile Include="src\Core\Helpers\SampleFormat.cs" />
     <Compile Include="src\Core\MainThread.cs" />
-    <Compile Include="src\Core\GUI.cs">
+    <Compile Include="src\GUI\GUIMain.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="src\Core\GUI.Designer.cs">
-      <DependentUpon>GUI.cs</DependentUpon>
+    <Compile Include="src\GUI\GUIMain.Designer.cs">
+      <DependentUpon>GUIMain.cs</DependentUpon>
     </Compile>
     <Compile Include="src\Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -162,10 +171,13 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="src\Core\GUI.resx">
-      <DependentUpon>GUI.cs</DependentUpon>
+    <EmbeddedResource Include="src\GUI\GUIVisualization.resx">
+      <DependentUpon>GUIVisualization.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="src\Core\GUIConfig.resx">
+    <EmbeddedResource Include="src\GUI\GUIMain.resx">
+      <DependentUpon>GUIMain.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="src\GUI\GUIConfig.resx">
       <DependentUpon>GUIConfig.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="src\Views\SharpGLView.resx">

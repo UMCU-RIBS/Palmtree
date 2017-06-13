@@ -12,7 +12,7 @@ using System.Windows.Forms;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
 
-namespace UNP {
+namespace UNP.GUI {
 
     public partial class GUIConfig : Form {
 

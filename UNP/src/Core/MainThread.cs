@@ -103,14 +103,14 @@ namespace UNP.Core {
             
             Parameters timeSmoothingParameters = getFilterParameters("TimeSmoothing");
             timeSmoothingParameters.setValue("EnableFilter", true);
-            timeSmoothingParameters.setValue("LogSampleStreams", false);
+            timeSmoothingParameters.setValue("LogDataStreams", false);
             double[][] bufferWeights = new double[2][];     // first dimensions is the colums, second dimension is the rows
             for (int i = 0; i < bufferWeights.Length; i++)  bufferWeights[i] = new double[] { 0.7, 0.5, 0.2, 0.2, 0 };
             timeSmoothingParameters.setValue("BufferWeights", bufferWeights);
 
             Parameters adaptationParameters = getFilterParameters("Adaptation");
             adaptationParameters.setValue("EnableFilter", true);
-            adaptationParameters.setValue("LogSampleStreams", true);
+            adaptationParameters.setValue("LogDataStreams", true);
             adaptationParameters.setValue("Adaptation", "1 1");
             adaptationParameters.setValue("InitialChannelMeans", "497.46 362.58");
             adaptationParameters.setValue("InitialChannelStds", "77.93 4.6");
@@ -121,7 +121,7 @@ namespace UNP.Core {
 
             Parameters keysequenceParameters = getFilterParameters("KeySequence");
             keysequenceParameters.setValue("EnableFilter", true);
-            keysequenceParameters.setValue("LogSampleStreams", false);
+            keysequenceParameters.setValue("LogDataStreams", false);
             keysequenceParameters.setValue("Threshold", 0.5);
             keysequenceParameters.setValue("Proportion", 0.7);
             bool[] sequence = new bool[] { true, true, true, true };
@@ -129,7 +129,7 @@ namespace UNP.Core {
             
             Parameters thresholdParameters = getFilterParameters("ThresholdClassifier");
             thresholdParameters.setValue("EnableFilter", true);
-            thresholdParameters.setValue("LogSampleStreams", false);
+            thresholdParameters.setValue("LogDataStreams", false);
             double[][] thresholds = new double[4][];        // first dimensions is the colums, second dimension is the rows
             thresholds[0] = new double[] { 1 };
             thresholds[1] = new double[] { 1 };
@@ -139,14 +139,14 @@ namespace UNP.Core {
 
             Parameters clickParameters = getFilterParameters("ClickTranslator");
             clickParameters.setValue("EnableFilter", true);
-            clickParameters.setValue("LogSampleStreams", false);
+            clickParameters.setValue("LogDataStreams", false);
             clickParameters.setValue("ActivePeriod", "1s");
             clickParameters.setValue("ActiveRateClickThreshold", ".5");
             clickParameters.setValue("RefractoryPeriod", "3.6s");
 
             Parameters normalizerParameters = getFilterParameters("Normalizer");
             normalizerParameters.setValue("EnableFilter", true);
-            normalizerParameters.setValue("LogSampleStreams", false);
+            normalizerParameters.setValue("LogDataStreams", false);
             normalizerParameters.setValue("NormalizerOffsets", "0 0");
             normalizerParameters.setValue("NormalizerGains", "1 1");
 
@@ -320,6 +320,10 @@ namespace UNP.Core {
 	     */
         public void start() {
 
+            // if the system is stopping, then do not try to start anything anymore
+            // (not locked for performance/deadlock reasons, as it concerns the main loop)
+            if (!running)   return;
+
             // check if the system was configured and initialized
             if (!systemConfigured || !systemInitialized) {
 
@@ -434,33 +438,38 @@ namespace UNP.Core {
             logger.Debug("Thread started");
 
             // local variables
-            long time = Stopwatch.GetTimestamp() + Stopwatch.Frequency;
-            long counter = 0;
             double[] sample = null;
-            long samplesProcessed = 0;
 
+            #if(DEBUG_SAMPLES_LOG_PERFORMANCE)
+
+                long time = Stopwatch.GetTimestamp() + Stopwatch.Frequency;
+                long counter = 0;
+                long samplesProcessed = 0;
+            
+            #endif
+            
             // loop while running
             while (running) {
+                
+                #if(DEBUG_SAMPLES_LOG_PERFORMANCE)
 
-                // performance watch
-                if (Stopwatch.GetTimestamp() > time) {
+                    // performance watch
+                    if (Stopwatch.GetTimestamp() > time) {
 
-                    #if(DEBUG_SAMPLES_LOG_PERFORMANCE)
+                            logger.Info("----------");
+                            logger.Info("samplesProcessed: " + samplesProcessed);
+                            logger.Info("numberOfSamples: " + numberOfSamples);
+                            logger.Info("tick counter: " + counter);
+                            //logger.Info("sample[0]: " + sample[0]);
 
-                        logger.Info("----------");
-                        logger.Info("samplesProcessed: " + samplesProcessed);
-                        logger.Info("numberOfSamples: " + numberOfSamples);
-                        logger.Info("tick counter: " + counter);
-                        //logger.Info("sample[0]: " + sample[0]);
+                        counter = 0;
+                        time = Stopwatch.GetTimestamp() + Stopwatch.Frequency;
+                        samplesProcessed = 0;
 
-                    #endif
+                    }
+                    counter++;
 
-                    counter = 0;
-                    time = Stopwatch.GetTimestamp() + Stopwatch.Frequency;
-                    samplesProcessed = 0;
-
-                }
-                counter++;
+                #endif
 
                 // lock for thread safety
                 lock(lockStarted) {
@@ -497,6 +506,9 @@ namespace UNP.Core {
                             
                             double[] output = null;
 
+                            // Announce the sample at the beginning of the pipeline
+                            Data.SampleProcessingStart();
+
                             // process the sample (filters)
                             for (int i = 0; i < filters.Count(); i++) {
                                 filters[i].process(sample, out output);
@@ -507,8 +519,15 @@ namespace UNP.Core {
                             // process the sample (application)
                             if (application != null)    application.process(sample);
 
-                            // add one to the number of samples 
-                            samplesProcessed++;
+                            // Announce the sample at the end of the pipeline
+                            Data.SampleProcessingEnd();
+
+                            #if(DEBUG_SAMPLES_LOG_PERFORMANCE)
+
+                                // add one to the number of samples 
+                                samplesProcessed++;
+
+                            #endif
 
                         }
 
@@ -522,10 +541,8 @@ namespace UNP.Core {
                             // processing
 
 			                // sleep (when there are no samples) to allow for other processes
-			                if (threadLoopDelayProc != -1 && numberOfSamples == 0) {
+			                if (threadLoopDelayProc != -1 && numberOfSamples == 0)
                                 Thread.Sleep(threadLoopDelayProc);
-			                }
-
 
                         } else {
                             // not processing
@@ -541,27 +558,34 @@ namespace UNP.Core {
 
             }
 
+            // stop the source, filter, view and data (if these were running)
+            stop();
 
-            // stop and destroy the source
+            // destroy the source
             if (source != null) {
                 source.destroy();
                 source = null;
             }
 
-            // stop and destoy the filters
+            // destoy the filters
             for (int i = 0; i < filters.Count(); i++) filters[i].destroy();
 
-            // stop and destroy the view
+            // destroy the view
             if (application != null)    application.destroy();
 
-            // todo: data destroy?
+            // destroy the data class
+            Data.Destroy();
 
             // log message
             logger.Debug("Thread stopped");
 
         }
 
-
+        // 
+        // Called when a new sample comes from the source, this method is called directly from the source object.
+        // 
+        // Not using delegate (or interface) events since there would be only one receiver, being this function called.
+        // A direct method call will suffice and is probably even faster.
         public void eventNewSample(double[] sample) {
             
             lock(sampleBuffer.SyncRoot) {
@@ -591,7 +615,9 @@ namespace UNP.Core {
 
 
         /**
-         * event called when the GUI is dispatched and closed
+         * Called when the GUI is dispatched and closed
+         * 
+         * Not using delegate (or interface) events since there would be only one receiver, being this function called.
          */
         public void eventGUIClosed() {
 

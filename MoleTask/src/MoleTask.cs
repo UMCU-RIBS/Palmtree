@@ -752,6 +752,13 @@ namespace MoleTask {
         }
 
         public void destroy() {
+            
+            // stop the application
+            // Note: At this point stop will probably have been called from the mainthread before destroy, however there is a slight
+            // chance that in the future someone accidentally will put something in the configure/initialize that should have
+            // actually been put in the start. If start is not called in the mainthread, then stop will also not be called at the
+            // modules. For these accidents we do an extra stop here.
+            stop();
 
             // lock for thread safety
             lock(lockView) {

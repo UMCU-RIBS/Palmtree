@@ -24,7 +24,7 @@ namespace UNP.Sources {
         private static Logger logger = LogManager.GetLogger("KeypressSignal");
         private static Parameters parameters = ParameterManager.GetParameters("KeypressSignal", Parameters.ParamSetTypes.Source);
 
-        private MainThread pipeline = null;
+        private MainThread main = null;
 
         private Thread signalThread = null;                                             // the source thread
         private bool running = true;					                                // flag to define if the source thread should be running (setting to false will stop the source thread)
@@ -48,10 +48,10 @@ namespace UNP.Sources {
         private double[] mConfigPressed = null;
         private double[] mConfigNotPressed = null;
 
-	    public KeypressSignal(MainThread pipeline) {
+	    public KeypressSignal(MainThread main) {
 
-            // set the reference to the pipeline
-            this.pipeline = pipeline;
+            // set the reference to the main
+            this.main = main;
 
             parameters.addParameter<int> (
                 "Channels",
@@ -272,11 +272,15 @@ namespace UNP.Sources {
 	     */
 	    public void destroy() {
 
+            // stop source
+            // Note: At this point stop will probably have been called from the mainthread before destroy, however there is a slight
+            // chance that in the future someone accidentally will put something in the configure/initialize that should have
+            // actually been put in the start. If start is not called in the mainthread, then stop will also not be called at the
+            // modules. For these accidents we do an extra stop here.
+            stop();
+
             // flag the thread to stop running (when it reaches the end of the loop)
             running = false;
-
-            // stop generating (stop will check if it was running in the first place)
-            stop();
 
             // interrupt the wait in the loop
             // (this is done because if the sample rate is low, we might have to wait for a long time for the thread to end)
@@ -292,6 +296,9 @@ namespace UNP.Sources {
 
             // clear the thread reference
             signalThread = null;
+
+            // clear the reference to the mainthread
+            main = null;
 
 	    }
 	
@@ -345,7 +352,7 @@ namespace UNP.Sources {
                         }
 
                         // pass the sample
-                        pipeline.eventNewSample(sample);
+                        main.eventNewSample(sample);
                         
 			        }
 

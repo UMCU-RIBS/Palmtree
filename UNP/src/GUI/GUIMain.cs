@@ -18,9 +18,9 @@ using System.Windows.Forms;
 using System.Timers;
 using UNP.Core;
 
-namespace UNP {
+namespace UNP.GUI {
     
-    public partial class GUI : Form {
+    public partial class GUIMain : Form {
 
         private static Logger logger;
 
@@ -29,20 +29,18 @@ namespace UNP {
         private bool loaded = false;                    // flag to hold whether the form is loaded
         private System.Timers.Timer tmrUpdate = null;   // timer to update the GUI
 
-        GUIConfig frmConfig = null;                     // coniguration form
+        private GUIConfig frmConfig = null;             // coniguration form
         private bool configApplied = false;             // the configuration was applied (and needs to be before starting)
 
-        public static string getClassName() {
-            Type myType = typeof(GUI);
-            return myType.Namespace + "." + myType.Name;
-        }
+        private GUIVisualization frmVisualization = null;       // visualization form
+
 
         /**
          * GUI constructor
          * 
          * @param experiment	Reference to experiment, is used to pull information from and push commands to
          */
-        public GUI(MainThread mainThread) {
+        public GUIMain(MainThread mainThread) {
             this.mainThread = mainThread;
 
             // initialize form components
@@ -163,7 +161,7 @@ namespace UNP {
             logger = LogManager.GetLogger("GUI");
             LoggingConfiguration logConfig = LogManager.Configuration;
             RichTextBoxTarget rtbTarget = new RichTextBoxTarget();
-            rtbTarget.FormName = "GUI";
+            rtbTarget.FormName = "GUIMain";
             rtbTarget.ControlName = "txtConsole";
             rtbTarget.Layout = "[${time}] ${logger}: ${message}";
             rtbTarget.UseDefaultRowColoringRules = true;
@@ -254,6 +252,13 @@ namespace UNP {
                 updateMainInformation();
 
             }
+        }
+
+        private void btnVisualization_Click(object sender, EventArgs e) {
+
+            if (frmVisualization == null) frmVisualization = new GUIVisualization();
+            DialogResult dr = frmVisualization.ShowDialog();
+            
         }
 
     }

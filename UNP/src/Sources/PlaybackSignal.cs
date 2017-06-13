@@ -16,12 +16,12 @@ namespace UNP.Sources {
         private static Logger logger = LogManager.GetLogger("PlaybackSignal");
         private static Parameters parameters = ParameterManager.GetParameters("PlaybackSignal", Parameters.ParamSetTypes.Source);
 
-        private MainThread pipeline = null;
+        private MainThread main = null;
 
-	    public PlaybackSignal(MainThread pipeline) {
+	    public PlaybackSignal(MainThread main) {
 
-            // set the reference to the pipeline
-            this.pipeline = pipeline;
+            // set the reference to the main
+            this.main = main;
             /*
             // define the parameters
             Parameters.addParameter("SourceChannels", "0", "%", "0");
@@ -91,8 +91,17 @@ namespace UNP.Sources {
 	     * 
 	     */
 	    public void destroy() {
-		
-		
+
+            // stop source
+            // Note: At this point stop will probably have been called from the mainthread before destroy, however there is a slight
+            // chance that in the future someone accidentally will put something in the configure/initialize that should have
+            // actually been put in the start. If start is not called in the mainthread, then stop will also not be called at the
+            // modules. For these accidents we do an extra stop here.
+            stop();
+
+            // clear the reference to the mainthread
+            main = null;
+
 	    }
 	
 	    /**

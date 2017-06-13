@@ -1,4 +1,4 @@
-﻿namespace UNP {
+﻿namespace UNP.GUI {
 
     partial class GUIConfig {
         /// <summary>
@@ -27,7 +27,7 @@
         /// </summary>
         private void InitializeComponent() {
             this.btnCancel = new System.Windows.Forms.Button();
-            this.tabControl = new UNP.NoBorderTabControl();
+            this.tabControl = new NoBorderTabControl();
             this.btnSave = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 

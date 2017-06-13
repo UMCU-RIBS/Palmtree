@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
+using UNP.GUI;
 
 namespace UNP.Core {
     
@@ -37,7 +38,7 @@ namespace UNP.Core {
             MainThread mainThread = new MainThread();
 
             // create the GUI interface object
-            GUI gui = new GUI(mainThread);
+            GUIMain gui = new GUIMain(mainThread);
             
 		    // create a GUI (as a separate process)
 		    // and pass a reference to the experiment for the GUI to pull information from and push commands to the experiment object

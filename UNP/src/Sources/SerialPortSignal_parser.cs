@@ -15,7 +15,7 @@ namespace UNP.Sources {
 
         
         private SerialPort serialPort = null;
-        private IntPtr handle;
+        private IntPtr handle = IntPtr.Zero;
 
 
         public const int DEFAULT_BAUD = SerialPortNet.CBR_115200;   // default Baud-Rate is 112k
@@ -189,7 +189,12 @@ namespace UNP.Sources {
         
 
         private void closeSerialPort() {
+            /*
+            handle = IntPtr.Zero;
 
+            if (serialPort != null)
+                serialPort.Close();
+            */
         }
 
         /*
@@ -198,67 +203,6 @@ namespace UNP.Sources {
             Console.WriteLine(serialPort.ReadExisting());
         }
         */
-
-
-        /* reads max. <size> bytes from the serial port,
-            returns number of bytes read, or -1 if error */
-        //private int readSerial(char *buf, int size) {
-        private int readSerial(ref byte[] buf, int size) {
-
-            SerialPortNet.COMSTAT comStat = new SerialPortNet.COMSTAT();
-            uint errorFlags = 0;
-            uint len;
-
-
-            SerialPortNet.ClearCommError(handle, out errorFlags, out comStat);
-            len = comStat.cbInQue;
-
-
-            
-	        //logger.Debug("Queue length " + len + ", ");
-	        if (len > size)     len = (uint)size;
-	        if (len > 0) {
-
-
-                  //_In_        HANDLE       hFile,
-                  //_Out_       LPVOID       lpBuffer,
-                  //_In_        DWORD        nNumberOfBytesToRead,
-                  //_Out_opt_   LPDWORD      lpNumberOfBytesRead,
-                  //_Inout_opt_ LPOVERLAPPED lpOverlapped
-                //BOOL rv = ReadFile(s, (LPSTR)buf, len, &len, NULL);
-
-                try {
-                    int rv = serialPort.Read(buf, 0, size);         // returns The number of bytes read.
-
-                    //logger.Debug("Buffer " + buf[0] + ", ");
-
-                } catch (Exception e) {
-                    logger.Error("exception");
-                    logger.Error(e.Message);
-
-				    //fprintf(hNotes,"zero bytes read: Buffer %d, ",(unsigned char)buf[0]);
-			        //buf[0]=1;
-
-			        //fprintf(hNotes,"Error reading serial port %d, ",rv);
-			        len = 0;
-
-                    SerialPortNet.ClearCommError(handle, out errorFlags, out comStat);
-
-                    return -1;
-		        }
-
-
-		        if (errorFlags > 0) {
-                    logger.Debug("Error flags serial port");
-                    SerialPortNet.ClearCommError(handle, out errorFlags, out comStat);
-			        return -1;
-		        }
-	        }
-	        return (int)len;
-       
-            
-        }
-
 
 
         //  reads one packet (all 6 channels) from serial port
@@ -336,24 +280,23 @@ namespace UNP.Sources {
             } while ((packet.readstate != PACKET_FINISHED));        // read until the packet is finished or a timeout has occured
             //} while ((packet.readstate != PACKET_FINISHED) && (PrecisionTime::SignedDiff(PrecisionTime::Now(),time1) < COM_TIMEOUT));     // read until the packet is finished or a timeout has occured
 
-
-            
-
             /*
+            if (packet.check_crc) {
 
-	        if (PACKET.check_crc)
-	        {
-		        unsigned short int crc_calculated = calc_crc();
-		        if (crc_calculated != PACKET.crc)
-		        {
-			        // CRC is wrong
-			        bciout << "Corrupt data-packet received (CRC wrong: " << PACKET.crc << " != " << crc_calculated << ")" << endl;
+                ushort crc_calculated = calc_crc();
+                if (crc_calculated != packet.crc) {
 
-			        // set buffer values to zero
-			        for (int i = 0; i < PACKET_BUFFER_SIZE; i++)
-				        PACKET.buffer[i] = 0;
-		        }
-	        }
+                    // CRC is wrong
+                    logger.Warn("Corrupt data-packet received (CRC wrong: " + packet.crc + " != " + crc_calculated + ")");
+
+                    // set buffer values to zero
+                    for (int i = 0; i < PACKET_BUFFER_SIZE; i++)
+                        packet.buffer[i] = 0;
+
+                }
+
+            }
+            /*
 
 	        if (PACKET.readstate == PACKET_FINISHED)
 	        {
@@ -374,25 +317,76 @@ namespace UNP.Sources {
 
         }
 
+        /* reads max. <size> bytes from the serial port,
+            returns number of bytes read, or -1 if error */
+        //private int readSerial(char *buf, int size) {
+        private int readSerial(ref byte[] buf, int size) {
+
+            SerialPortNet.COMSTAT comStat = new SerialPortNet.COMSTAT();
+            uint errorFlags = 0;
+            uint len;
 
 
+            SerialPortNet.ClearCommError(handle, out errorFlags, out comStat);
+            len = comStat.cbInQue;
 
 
+            
+	        //logger.Debug("Queue length " + len + ", ");
+	        if (len > size)     len = (uint)size;
+	        if (len > 0) {
 
 
+                  //_In_        HANDLE       hFile,
+                  //_Out_       LPVOID       lpBuffer,
+                  //_In_        DWORD        nNumberOfBytesToRead,
+                  //_Out_opt_   LPDWORD      lpNumberOfBytesRead,
+                  //_Inout_opt_ LPOVERLAPPED lpOverlapped
+                //BOOL rv = ReadFile(s, (LPSTR)buf, len, &len, NULL);
 
+                try {
+                    int rv = serialPort.Read(buf, 0, size);         // returns The number of bytes read.
+
+                    //logger.Debug("Buffer " + buf[0] + ", ");
+
+                } catch (Exception e) {
+                    logger.Error("exception");
+                    logger.Error(e.Message);
+
+				    //fprintf(hNotes,"zero bytes read: Buffer %d, ",(unsigned char)buf[0]);
+			        //buf[0]=1;
+
+			        //fprintf(hNotes,"Error reading serial port %d, ",rv);
+			        len = 0;
+
+                    SerialPortNet.ClearCommError(handle, out errorFlags, out comStat);
+
+                    return -1;
+		        }
+
+
+		        if (errorFlags > 0) {
+                    logger.Debug("Error flags serial port");
+                    SerialPortNet.ClearCommError(handle, out errorFlags, out comStat);
+			        return -1;
+		        }
+	        }
+	        return (int)len;
+       
+            
+        }
 
 
 
         // parse a packet in P1 format
-        private void parse_byte_P1(byte actbyte) {
+        private void parse_byte_P1 (byte actbyte) {
             //	char s[33];
 
             switch (packet.readstate) {
 
                 case 0:
  
-                    if (actbyte==192) {
+                    if (actbyte == 192) {
 
                         packet.readstate++;  // one sync byte
                         packet.packetcount = 5;
@@ -416,12 +410,15 @@ namespace UNP.Sources {
                             packet.buffer[packet.extract_pos >> 1] += actbyte;
 
                         packet.extract_pos++;
+
                     }
 
                     if (packet.extract_pos == 4) {
+
                         packet.switches= 0;
-                        packet.readstate=PACKET_FINISHED;
+                        packet.readstate = PACKET_FINISHED;
                         //  *** PACKET ARRIVED ***
+
                     }
 
                     break;
@@ -435,154 +432,224 @@ namespace UNP.Sources {
 
 		    }   // end of switch
 
-        }
-        /*
-        void parse_byte_P2(unsigned char actbyte)         // parse a packet in P2 format
-        {
-            switch (packet.readstate)
-	        {
-		          case 0: if (actbyte==192) packet.readstate++;  // first sync byte
-			          break;
-		          case 1: if (actbyte==0xC0)  packet.readstate++; // second sync byte
-			          else packet.readstate=0;
-			          break;
-		          case 2: packet.readstate++;    // Version Number
-			          break;
-			        case 3: packet.packetcount = actbyte;
-			          packet.extract_pos=0;packet.readstate++;
-			          break;
-		          case 4: if (packet.extract_pos < 12)
-				          {   if ((packet.extract_pos & 1) == 0)
-					             packet.buffer[packet.extract_pos>>1]=actbyte*256;
-			                      else packet.buffer[packet.extract_pos>>1]+=actbyte;
-				              packet.extract_pos++;
-				          }
-				          else
-				          {  packet.switches= actbyte;
-				             packet.readstate=PACKET_FINISHED;
-			 	         //  *** PACKET ARRIVED ***
-				          }
-		  		        break;
-                          case PACKET_FINISHED: break;
-		          default: packet.readstate=0;
-		        }
-        }
+        }   // parse_byte_P1()
+        
 
+        void parse_byte_P2 (byte actbyte) {         // parse a packet in P2 format
 
-        void parse_byte_P3(unsigned char actbyte)   // parse a packet in P3 format
-        {
-        //    char s[33];
-            #ifdef DEBUG
-                if (hNotes != NULL) fprintf(hNotes,"readstate: %d, ",packet.readstate);
-            #endif
-            switch (packet.readstate)
-	        {
-                case 0: if (actbyte==192)
-                    {
-                        packet.readstate++;  // first sync byte
-                    #ifdef DEBUG
-                        if (hNotes != NULL) fprintf(hNotes,"readstate=%d ",packet.readstate);
-                    #endif
-          		        packet.packetcount = 5;
-            	        packet.extract_pos=0;
-                    #ifdef DEBUG
-                        if (hNotes != NULL) fprintf(hNotes,"%d sync, ",actbyte);
-                    #endif
-                    }
+            switch (packet.readstate) {
+
+                case 0:
+                      
+                    if (actbyte==192)
+                        packet.readstate++;   // first sync byte
+
+                    break;
+
+                case 1:
+                      
+                    if (actbyte==0xC0)
+                        packet.readstate++;   // second sync byte
                     else
-                    {
                         packet.readstate=0;
-                    #ifdef DEBUG
-                        if (hNotes != NULL) fprintf(hNotes,"readstate=0 (3)\n");
-                        if (actbyte==0)
-                	        if (hNotes != NULL) fprintf(hNotes,"%d zerosync",actbyte);
-                        else
-                        {
-                            if (hNotes != NULL) fprintf(hNotes,"%d nosync",actbyte);
-                        }
-                    #endif
-                    }
-			          break;
-		          case 1:
-                    #ifdef DEBUG
-                          if (hNotes != NULL) fprintf(hNotes,"%d: %d; ",packet.extract_pos,actbyte);
-                    #endif
-                  if (packet.extract_pos < 4) 
-					        {
-						        if ((packet.extract_pos & 1) == 0)
-								        packet.buffer[packet.extract_pos>>1]=actbyte*256;
-			              else 
-								        packet.buffer[packet.extract_pos>>1]+=actbyte;
-						        packet.extract_pos++;
-				          }
-				          if (packet.extract_pos == 4)
-				          {  
-						        packet.switches= 0;
-				            packet.readstate=PACKET_FINISHED;
-                    #ifdef DEBUG
-                        if (hNotes != NULL) fprintf(hNotes,"readstate=%d (4)\n",PACKET_FINISHED);
-                    #endif
-			 	         //  *** PACKET ARRIVED ***
-					        }
-		  		        break;
-                  case PACKET_FINISHED:
-                    #ifdef DEBUG
-            	        if (hNotes != NULL) fprintf(hNotes,"packet finished\n");
-                    #endif
-                        break;
-		          default: packet.readstate=0;
-                    #ifdef DEBUG
-                          if (hNotes != NULL) fprintf(hNotes,"readstate=0 (5)\n");
-                          break;
-                    #endif
 
-		        }
-        }
+                    break;
+
+                case 2: packet.readstate++;    // Version Number  
+                    break;
+
+                case 3: 
+
+                    packet.packetcount = actbyte;
+                    packet.extract_pos = 0;
+                    packet.readstate++;
+
+                    break;
+
+                case 4:
+
+                    if (packet.extract_pos < 12) {
+
+                        if ((packet.extract_pos & 1) == 0)
+                            packet.buffer[packet.extract_pos >> 1] = (ushort)(actbyte*256);
+                        else
+                            packet.buffer[packet.extract_pos >> 1] += actbyte;
+
+                        packet.extract_pos++;
+
+                    } else {
+                        
+                        packet.switches = actbyte;
+                        packet.readstate = PACKET_FINISHED;
+                        //  *** PACKET ARRIVED ***
+
+                    }
+
+                break;
+
+                case PACKET_FINISHED: 
+                    break;
+                
+                default: 
+                    packet.readstate = 0;
+                    break;
+
+            }
+
+        }   // parse_byte_P2()
+
+
+        void parse_byte_P3 (byte actbyte) {   // parse a packet in P3 format
+
+            //    char s[33];
+            //#ifdef DEBUG
+            //logger.Debug("readstate: " + packet.readstate);
+            //#endif
+
+            switch (packet.readstate) {
+                case 0:
+
+                    if (actbyte==192) {
+                        packet.readstate++;  // first sync byte
+                        
+                        //#ifdef DEBUG
+                        //logger.Debug("readstate=" + packet.readstate);
+                        //#endif
+
+                        packet.packetcount = 5;
+                        packet.extract_pos = 0;
+
+                        //#ifdef DEBUG
+                        //if (hNotes != NULL) fprintf(hNotes,"%d sync, ",actbyte);
+                        //#endif
+                    } else {
+                        
+                        packet.readstate=0;
+            
+                        //#ifdef DEBUG
+                        //logger.Debug("readstate=0 (3)\n");
+                        //if (actbyte==0)
+                        //  logger.Debug(actbyte + " zerosync");
+                        //else {
+                        //  logger.Debug(actbyte + " nosync");
+                        //}
+                        //#endif
+                    }
+
+                    break;
+
+            case 1:
+
+                //#ifdef DEBUG
+                //logger.Debug(packet.extract_pos + " "  + actbyte);
+                //#endif
+
+                if (packet.extract_pos < 4) {
+
+                    if ((packet.extract_pos & 1) == 0)
+                        packet.buffer[packet.extract_pos >> 1] = (ushort)(actbyte*256);
+                    else 
+                        packet.buffer[packet.extract_pos >> 1] += actbyte;
+
+                    packet.extract_pos++;
+
+                }
+
+                if (packet.extract_pos == 4) {
+                    
+                    packet.switches = 0;
+                    packet.readstate = PACKET_FINISHED;
+                
+                    //#ifdef DEBUG
+                    //logger.Debug("readstate=" + PACKET_FINISHED + " (4)");
+                    //#endif
+
+                    //  *** PACKET ARRIVED ***
+                }
+
+                break;
+
+            case PACKET_FINISHED:
+                
+                //#ifdef DEBUG
+                //logger.Debug("packet finished");
+                //#endif
+
+                break;
+
+            default:
+                
+                packet.readstate=0;
+                
+                //#ifdef DEBUG
+                //logger.Debug("readstate=0 (5)");
+                //#endif
+
+                break;
+
+            }
+
+        }   // parse_byte_P3()
 
 
         // parse packet in P4 format
-        void parse_byte_P4(unsigned char actbyte)
-        {
-	        //char temp[200];
-	        //sprintf(temp, "P4: byte=%02x  state=%02d  pos=%02d", actbyte, packet.readstate, packet.extract_pos);
-	        //bciout << temp << endl;
+        void parse_byte_P4(byte actbyte) {
+            //char temp[200];
+            //sprintf(temp, "P4: byte=%02x  state=%02d  pos=%02d", actbyte, packet.readstate, packet.extract_pos);
+            //bciout << temp << endl;
 
-	        switch (packet.readstate)
-	        {
-		        case 0:
-			        if (actbyte == 192)  // == 0xC0
-			        {
-				        packet.readstate++;  // one sync byte
-				        packet.packetcount = 9;
-				        packet.extract_pos = 0;
-			        }
-			        break;
-		        case 1:
-			        if (packet.extract_pos < 8)
-			        {
-				        // Power channels 1 to 4
-				        if ((packet.extract_pos & 1) == 0)
-					        packet.buffer[packet.extract_pos >> 1] = actbyte * 256;
-				        else
-					        packet.buffer[packet.extract_pos >> 1] += actbyte;
-			        }
-			        if (packet.extract_pos == 8)
-			        {
-				        // Detection Status
-				        packet.buffer[4] = actbyte;
-				        //  *** PACKET ARRIVED ***
-				        packet.switches = 0;
-				        packet.readstate = PACKET_FINISHED;
-			        }
-			        packet.extract_pos++;
-			        break;
-		        case PACKET_FINISHED:
-			        break;
-		        default:
-			        packet.readstate = 0;
-	        }
+            switch (packet.readstate) {
+                case 0:
+
+                    if (actbyte == 192) {  // == 0xC0
+
+                        packet.readstate++;  // one sync byte
+                        packet.packetcount = 9;
+                        packet.extract_pos = 0;
+
+                    }
+
+                    break;
+
+                case 1:
+                    
+                    if (packet.extract_pos < 8) {
+
+                        // Power channels 1 to 4
+                        if ((packet.extract_pos & 1) == 0)
+                            packet.buffer[packet.extract_pos >> 1] = (ushort)(actbyte * 256);
+                        else
+                            packet.buffer[packet.extract_pos >> 1] += actbyte;
+
+                    }
+
+                    if (packet.extract_pos == 8) {
+
+                        // Detection Status
+                        packet.buffer[4] = actbyte;
+
+                        //  *** PACKET ARRIVED ***
+                        packet.switches = 0;
+                        packet.readstate = PACKET_FINISHED;
+
+                    }
+
+                    packet.extract_pos++;
+
+                    break;
+
+                case PACKET_FINISHED:
+                    break;
+
+                default:
+                    
+                    packet.readstate = 0;
+
+                    break;
+
+            }
+
         }  // parse_byte_P4()
-        */
         
         // parse packet in P5 format (i.e. NEXUS-1 STS Power-Domain)
         private void parse_byte_P5(byte actbyte) {
@@ -749,6 +816,41 @@ namespace UNP.Sources {
 	        }
         }  // parse_byte_P6()
         
+
+
+
+        private ushort calc_crc() {
+            uint x;
+            uint i;
+            byte crc_data;
+            ushort ee_crc_value;
+
+            ee_crc_value = 0xffff;
+
+            for (x = 0; x < packet.payload_pos; x++) {
+
+                crc_data = packet.data_payload[x];
+                
+                // perform CRC calculation one bit at a time
+                for (i = 0; i < 8; i++) {
+
+                    if (((ee_crc_value & 0x0001) ^ (crc_data & 0x01)) == 1)
+                        ee_crc_value = (ushort)((ee_crc_value >> 1) ^ 0x8408);
+                    else
+                        ee_crc_value = (ushort)(ee_crc_value >> 1);
+                 
+                    crc_data >>= 1;
+
+                }
+
+            }
+            
+            ee_crc_value = (ushort)(ee_crc_value ^ 0xFFFF);
+
+            return ee_crc_value;
+
+        }   // calc_crc
+
 
 
     }

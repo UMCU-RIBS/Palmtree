@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using UNP.Core.Events;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
 
@@ -22,22 +23,27 @@ namespace UNP.Core {
 
         private static bool mLogSourceInput = false;            // source input logging enabled/disabled (by configuration parameter)
         private static bool mLogSourceInputRuntime = false;     // stores whether during runtime the source input should be logged    (if it was on, then it can be switched off, resulting in 0's being logged)
-        private static bool mLogSampleStreams = false;          // sample stream logging enabled/disabled (by configuration parameter)
-        private static bool mLogSampleStreamsRuntime = false;   // stores whether during runtime the sample streams should be logged    (if it was on, then it can be switched off, resulting in 0's being logged)
+        private static bool mLogDataStreams = false;            // stream logging enabled/disabled (by configuration parameter)
+        private static bool mLogDataStreamsRuntime = false;     // stores whether during runtime the streams should be logged    (if it was on, then it can be switched off, resulting in 0's being logged)
         private static bool mLogEvents = false;                 // 
         private static bool mLogEventsRuntime = false;          // stores whether during runtime the events should be logged    (if it was on, then it can be switched off, resulting in 0's being logged)
 
         private static bool mAllowDataVisualization = false;                                    // data visualization enabled/disabled
 
         private static int sourceInputChannels = 0;                                             // the number of channels coming from the source input
-        private static int totalNumberOfSampleStreams = 0;                                      // the total number of sample streams to be logged in the .dat file
-        private static List<string> registeredSampleStreamNames = new List<string>(0);          // the names of the registered sample streams to store in the .dat file
-        private static List<int> registeredSampleStreamTypes = new List<int>(0);                // the types of the registered sample streams to store in the .dat file
+        private static int totalNumberOfStreams = 0;                                            // the total number of streams to be logged in the .dat file
+        private static List<string> registeredStreamNames = new List<string>(0);                // the names of the registered streams to store in the .dat file
+        private static List<int> registeredStreamTypes = new List<int>(0);                      // the types of the registered streams to store in the .dat file
 
-        private static int totalNumberOfVisualizationStreams = 0;                               // the total number of sample streams to visualize
-        private static List<string> registeredVisualizationStreamNames = new List<string>(0);   // the names of the registered sample streams to visualize
-        private static List<int> registeredVisualizationStreamTypes = new List<int>(0);         // the types of the registered sample streams to visualize
+        private static int totalNumberOfVisualizationStreams = 0;                               // the total number of streams to visualize
+        private static List<string> registeredVisualizationStreamNames = new List<string>(0);   // the names of the registered streams to visualize
+        private static List<int> registeredVisualizationStreamTypes = new List<int>(0);         // the types of the registered streams to visualize
 
+        // A 'collector' event(handler). An EventHandler delegate is associated with the event.
+        // methods should be subscribed to this object
+        public static event EventHandler<VisualizationValueArgs> newVisualizationSourceInputSample = delegate { };
+        public static event EventHandler<VisualizationValueArgs> newVisualizationStreamSample = delegate { };
+        public static event EventHandler<VisualizationEventArgs> newVisualizationEvent = delegate { };
 
         public static void Construct() {
 
@@ -67,13 +73,13 @@ namespace UNP.Core {
                 "0");
 
             parameters.addParameter <bool>      (
-                "LogSampleStreams",
-                "Enable/disable sample stream logging.\nThis option will enable or disable the logging of sample streams for all modules.\nEnabling or disabling specific sample streams has to be done from the filter settings.\n\nNote: whether the samples streams that are being logged have values or zeros is dependent on the runtime configuration of the modules. It is possible\nthat the user, though an application module user-interface, sets certain streams to be (values) or not be (zeros) logged.",
+                "LogDataStreams",
+                "Enable/disable data stream logging.\nThis option will enable or disable the logging of data streams for all modules.\nEnabling or disabling specific data stream has to be done from the filter settings.\n\nNote: whether the streams that are being logged have values or zeros is dependent on the runtime configuration of the modules. It is possible\nthat the user, though an application module user-interface, sets certain streams to be (values) or not be (zeros) logged.",
                 "1");
 
             parameters.addParameter<int>(
                 "SampleStreamMaxFilesize",
-                "The maximum filesize for a sample stream data file.\nIf the data file exceeds this maximum, the data logging will continue in a sequentally numbered file with the same name.\n(set to 0 for no maximum)",
+                "The maximum filesize for a stream data file.\nIf the data file exceeds this maximum, the data logging will continue in a sequentally numbered file with the same name.\n(set to 0 for no maximum)",
                 "0");
 
             parameters.addParameter<bool>(
@@ -99,10 +105,10 @@ namespace UNP.Core {
             // clear the registered source input
             sourceInputChannels = 0;
 
-            // clear the registered sample streams
-            registeredSampleStreamNames.Clear();
-            registeredSampleStreamTypes.Clear();
-            totalNumberOfSampleStreams = 0;
+            // clear the registered streams
+            registeredStreamNames.Clear();
+            registeredStreamTypes.Clear();
+            totalNumberOfStreams = 0;
 
             // clear the registered visualization streams
             registeredVisualizationStreamNames.Clear();
@@ -116,13 +122,13 @@ namespace UNP.Core {
             // check and transfer file parameter settings
             mLogSourceInput = parameters.getValue<bool>("LogSourceInput");
             mLogSourceInputRuntime = mLogSourceInput;
-            mLogSampleStreams = parameters.getValue<bool>("LogSampleStreams");
-            mLogSampleStreamsRuntime = mLogSampleStreams;
+            mLogDataStreams = parameters.getValue<bool>("LogDataStreams");
+            mLogDataStreamsRuntime = mLogDataStreams;
             mLogEvents = parameters.getValue<bool>("LogEvents");
             mLogEventsRuntime = mLogEvents;
             // ...
 
-            if (mLogSourceInput || mLogSampleStreams || mLogEvents) {
+            if (mLogSourceInput || mLogDataStreams || mLogEvents) {
 
                 // check the path
 
@@ -149,7 +155,7 @@ namespace UNP.Core {
         }
 
         /**
-         * Register the a sample stream
+         * Register the a stream
          * Every module that wants to log a stream of samples should announce every stream respectively beforehand using this function
          * 
          * (this should be called during configuration, by all sources/filters/application that will log their samples)
@@ -157,14 +163,14 @@ namespace UNP.Core {
         public static void RegisterSampleStream(string streamName, SampleFormat streamType) {
 
             // register a new stream
-            registeredSampleStreamNames.Add(streamName);
-            registeredSampleStreamTypes.Add(0);
+            registeredStreamNames.Add(streamName);
+            registeredStreamTypes.Add(0);
 
-            // add one to the total number of sample streams
-            totalNumberOfSampleStreams++;
+            // add one to the total number of streams
+            totalNumberOfStreams++;
 
             // message
-            logger.Debug("Registered sample stream '" + streamName + "' of the type ...");
+            logger.Debug("Registered stream '" + streamName + "' of the type ...");
 
         }
 
@@ -207,7 +213,7 @@ namespace UNP.Core {
             }
 
             // check if there are any samples streams to be logged
-            if (mLogSampleStreams && totalNumberOfSampleStreams > 0) {
+            if (mLogDataStreams && totalNumberOfStreams > 0) {
 
                 // create a sample data file
 
@@ -227,28 +233,40 @@ namespace UNP.Core {
 
 
         }
+
+        public static void Destroy() {
+
+            // stop the Data Class
+
+        }
+
+        /**
+         * Called when a sample is at the beginning of the pipeline (from before the first filter module till after the application module)
+         **/
+        public static void SampleProcessingStart() {
+
+        }
+
+        /**
+         * Called when a sample is at the end of the pipeline (from before the first filter module till after the application module)
+         **/
+        public static void SampleProcessingEnd() {
+
+        }
         
         /**
-         * Log raw sample data to the source input file (.src) 
+         * Log a raw source input value to the source input file (.src) 
          * 
          **/
-        public static void LogSourceInput(double sample) {
+        public static void LogSourceInputValue(double value) {
 
         }
 
         /**
-         * Log raw sample data to the sample stream file (.dat) 
+         * Log a raw stream value to the stream file (.dat) 
          * 
          **/
-        public static void LogStreamSample(double sample) {
-            
-        }
-
-        /**
-         * Log raw sample data to visualize
-         * 
-         **/
-        public static void LogVisualizationSample(double sample) {
+        public static void LogStreamValue(double value) {
             
         }
 
@@ -257,6 +275,46 @@ namespace UNP.Core {
          * 
          **/
         public static void LogEvent(int level, string text, string value) {
+
+        }
+
+
+        /**
+         * Log a raw source input value to visualize
+         * 
+         **/
+        public static void LogVisualizationSourceInputValue(double value) {
+
+            VisualizationValueArgs args = new VisualizationValueArgs();
+            args.value = value;
+            newVisualizationSourceInputSample(null, args);
+
+        }
+
+
+        /**
+         * Log a raw stream value to visualize
+         * 
+         **/
+        public static void LogVisualizationStreamValue(double value) {
+
+            VisualizationValueArgs args = new VisualizationValueArgs();
+            args.value = value;
+            newVisualizationStreamSample(null, args);
+
+        }
+
+        /**
+         * Log raw source input data to visualize
+         * 
+         **/
+        public static void LogVisualizationEvent(int level, string text, string value) {
+
+            VisualizationEventArgs args = new VisualizationEventArgs();
+            args.level = level;
+            args.text = text;
+            args.value = value;
+            newVisualizationEvent(null, args);
 
         }
 

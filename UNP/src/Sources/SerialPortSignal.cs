@@ -14,7 +14,7 @@ namespace UNP.Sources {
         private static Logger logger = LogManager.GetLogger("SerialPortSignal");
         private static Parameters parameters = ParameterManager.GetParameters("SerialPortSignal", Parameters.ParamSetTypes.Source);
 
-        private MainThread pipeline = null;
+        private MainThread main = null;
 
         private Thread signalThread = null;                                             // the source thread
         private bool running = true;					                                // flag to define if the source thread should be running (setting to false will stop the source thread)
@@ -33,10 +33,10 @@ namespace UNP.Sources {
         private int outputChannels = 0;
         private double sampleRate = 0;                                      // hold the amount of samples per second that the source outputs (used by the mainthead to convert seconds to number of samples)
 
-        public SerialPortSignal(MainThread pipeline) {
+        public SerialPortSignal(MainThread main) {
 
-            // set the reference to the pipeline
-            this.pipeline = pipeline;
+            // set the reference to the main
+            this.main = main;
 
             parameters.addParameter<int> (
                 "Channels",
@@ -225,11 +225,18 @@ namespace UNP.Sources {
 	     */
 	    public void destroy() {
 
+            // stop source
+            // Note: At this point stop will probably have been called from the mainthread before destroy, however there is a slight
+            // chance that in the future someone accidentally will put something in the configure/initialize that should have
+            // actually been put in the start. If start is not called in the mainthread, then stop will also not be called at the
+            // modules. For these accidents we do an extra stop here.
+            stop();
+
+            // close the serial connection
+            closeSerialPort();
+
             // flag the thread to stop running (when it reaches the end of the loop)
             running = false;
-
-            // stop generating (stop will check if it was running in the first place)
-            stop();
 
             // interrupt the wait in the loop
             // (this is done because if the sample rate is low, we might have to wait for a long time for the thread to end)
@@ -245,6 +252,9 @@ namespace UNP.Sources {
 
             // clear the thread reference
             signalThread = null;
+
+            // clear the reference to the mainthread
+            main = null;
 
 	    }
 	
@@ -283,7 +293,7 @@ namespace UNP.Sources {
 			        // check if we are generating
 			        if (started) {
 
-                        int numInChannels = 5;      // 16
+                        int numInChannels = 16;      // 16
                         int numSamples = 1;         // 1
                         read_channels(5);
                         for (int sample = 0; sample < numSamples; sample++) {
@@ -323,7 +333,7 @@ namespace UNP.Sources {
                         }
 
                         // pass the sample
-                        pipeline.eventNewSample(retSample);
+                        main.eventNewSample(retSample);
 
 			        }
 

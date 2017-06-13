@@ -38,8 +38,8 @@ namespace UNP.Filters {
                 "1");
 
             parameters.addParameter <bool>      (
-                "LogSampleStreams",
-                "Log the filter's intermediate and output sample streams. See 'Data' tab for more settings on sample stream logging.",
+                "LogDataStreams",
+                "Log the filter's intermediate and input data streams. See 'Data' tab for more settings on sample stream logging.",
                 "0");
 
             parameters.addParameter <double>       (
@@ -120,14 +120,14 @@ namespace UNP.Filters {
             // check the values and application logic of the parameters
             if (!checkParameters(newParameters))    return false;
 
-            // retrieve and check the LogSampleStream parameter
-            bool newLogSampleStreams = newParameters.getValue<bool>("LogSampleStreams");
-            if (!mLogSampleStreams && newLogSampleStreams) {
+            // retrieve and check the LogDataStreams parameter
+            bool newLogDataStreams = newParameters.getValue<bool>("LogDataStreams");
+            if (!mLogDataStreams && newLogDataStreams) {
                 // logging was (in the initial configuration) switched off and is trying to be switched on
                 // (refuse, it cannot be switched on, because sample streams have to be registered during the first configuration)
 
                 // message
-                logger.Error("Cannot switch the logging of samples stream on because it was initially switched off (and streams need to be registered during the first configuration, logging is refused");
+                logger.Error("Cannot switch the logging of data streams on because it was initially switched off (and streams need to be registered during the first configuration, logging is refused");
 
                 // return failure
                 return false;
@@ -138,23 +138,23 @@ namespace UNP.Filters {
             transferParameters(newParameters);
 
             // apply change in the logging of sample streams
-            if (mLogSampleStreams && mLogSampleStreamsRuntime && !newLogSampleStreams) {
+            if (mLogDataStreams && mLogDataStreamsRuntime && !newLogDataStreams) {
                 // logging was (in the initial configuration) switched on and is currently on but wants to be switched off (resulting in 0's being output)
 
                 // message
-                logger.Debug("Logging of sample streams was switched on but is now switched off, only zeros will be logged");
+                logger.Debug("Logging of data streams was switched on but is now switched off, only zeros will be logged");
 
                 // switch logging off (to zeros)
-                mLogSampleStreamsRuntime = false;
+                mLogDataStreamsRuntime = false;
 
-            } else if (mLogSampleStreams && !mLogSampleStreamsRuntime && newLogSampleStreams) {
+            } else if (mLogDataStreams && !mLogDataStreamsRuntime && newLogDataStreams) {
                 // logging was (in the initial configuration) switched on and is currently off but wants to be switched on (resume logging)
 
                 // message
-                logger.Debug("Logging of sample streams was switched off but is now switched on, logging is resumed");
+                logger.Debug("Logging of data streams was switched off but is now switched on, logging is resumed");
 
                 // switch logging on
-                mLogSampleStreamsRuntime = true;
+                mLogDataStreamsRuntime = true;
 
             }
 
@@ -341,6 +341,13 @@ namespace UNP.Filters {
         }
 
         public void destroy() {
+
+            // stop the filter
+            // Note: At this point stop will probably have been called from the mainthread before destroy, however there is a slight
+            // chance that in the future someone accidentally will put something in the configure/initialize that should have
+            // actually been put in the start. If start is not called in the mainthread, then stop will also not be called at the
+            // modules. For these accidents we do an extra stop here.
+            stop();
 
         }
     }

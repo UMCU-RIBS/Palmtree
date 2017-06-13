@@ -16,7 +16,7 @@ namespace EmptyTask {
         private static Parameters parameters = ParameterManager.GetParameters("EmptyTask", Parameters.ParamSetTypes.Application);
 
         private EmptyView mSceneThread = null;
-
+        private Object lockView = new Object();                         // threadsafety lock for all event on the view
 
         public EmptyTask() {
 
@@ -38,17 +38,22 @@ namespace EmptyTask {
         }
 
         public void initialize() {
-            
-            // check the scene (thread) already exists, stop and clear the old one.
-            if (mSceneThread != null)   destroyScene();
+                    
+            // lock for thread safety
+            lock (lockView) {
 
-            //
-            mSceneThread = new EmptyView(60, 0, 0, 800, 600, false);
+                // check the scene (thread) already exists, stop and clear the old one.
+                destroyScene();
+
+                //
+                mSceneThread = new EmptyView(60, 0, 0, 800, 600, false);
 
 
-            // start the scene thread
-            //if (mSceneThread != null) mSceneThread.start();
-            mSceneThread.start();
+                // start the scene thread
+                //if (mSceneThread != null) mSceneThread.start();
+                mSceneThread.start();
+
+            }
 
         }
 
@@ -69,22 +74,35 @@ namespace EmptyTask {
         }
 
         public void destroy() {
-            destroyScene();
+
+            // stop the application
+            // Note: At this point stop will probably have been called from the mainthread before destroy, however there is a slight
+            // chance that in the future someone accidentally will put something in the configure/initialize that should have
+            // actually been put in the start. If start is not called in the mainthread, then stop will also not be called at the
+            // modules. For these accidents we do an extra stop here.
+            stop();
+
+            // lock for thread safety
+            lock (lockView) {
+                destroyScene();
+            }
+
+            // destroy/empty more task variables
+
         }
 
-
         private void destroyScene() {
-	
-	        // check if a scene thread still exists
-	        if (mSceneThread != null) {
+            
+            // check if a scene thread still exists
+            if (mSceneThread != null) {
 
-		        // stop the animation thread (stop waits until the thread is finished)
+                // stop the animation thread (stop waits until the thread is finished)
                 mSceneThread.stop();
 
-	        }
+                // release the thread (For collection)
+                mSceneThread = null;
 
-	        // delete the thread
-	        mSceneThread = null;
+            }
 
         }
 
