@@ -252,10 +252,11 @@ namespace UNP.Filters {
                     // for every sample generate a smoothed value based on the last ones (and the given weights)
                     double[] data = mDataBuffers[channel].Data();
 				    double outputValue = 0;
+                    uint ringpos = 0;
                     for (uint i = 0; i < mDataBuffers[channel].Fill(); ++i) {
 
                         // calculate the correct position in the buffer weights (corrected for mcursor position)
-                        uint ringpos = (mDataBuffers[channel].CursorPos() - i + (uint)mBufferWeights[channel].Count() - 1) % (uint)mBufferWeights[channel].Count();
+                        ringpos = (mDataBuffers[channel].CursorPos() - i + (uint)mBufferWeights[channel].Count() - 1) % (uint)mBufferWeights[channel].Count();
                         outputValue += data[i] * mBufferWeights[channel][ringpos];
 
                     }

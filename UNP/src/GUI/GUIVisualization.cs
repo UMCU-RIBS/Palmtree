@@ -19,6 +19,8 @@ namespace UNP.GUI {
 
     public partial class GUIVisualization : Form {
 
+        public const int NumberOfGraphs = 3;
+
         private static Logger logger = LogManager.GetLogger("GUIVisualization");
 
         private struct VisualizationStream {
@@ -26,6 +28,7 @@ namespace UNP.GUI {
         }
 
         private struct Graph {
+            public int id;
             public int numDataPoints;
             public GraphStream[] streams;
             public Chart chartObject;
@@ -41,7 +44,7 @@ namespace UNP.GUI {
         private int numVisualizationStreams = 0;
         private VisualizationStream[] visualizationStreams = null;      // array that holds all the visualization streams
         private Graph[] visualizationGraphs = null;                     // array that holds all the visualization graphs
-        
+
         public GUIVisualization() {
 
             // initialize components
@@ -64,11 +67,10 @@ namespace UNP.GUI {
             }
 
             // create graphs
-            visualizationGraphs = new Graph[2];
-            chCounter = 0;
-            createGraph(ref visualizationGraphs[0]);
-            chCounter = 1;
-            createGraph(ref visualizationGraphs[1]);
+
+            visualizationGraphs = new Graph[NumberOfGraphs];
+            for (int i = 0; i < NumberOfGraphs; i++)
+                createGraph(i, ref visualizationGraphs[i]);
 
 
             // connect the events
@@ -112,17 +114,26 @@ namespace UNP.GUI {
             */
         }
         
-        int chCounter = 0;
+        
 
-        private void createGraph(ref Graph graph) {
+        private void createGraph(int id, ref Graph graph) {
+
+            int y = 12 + id * 200;
 
             // create the actual control
-            // TODO: create chart at runtime here
-            Chart chart = null;
-            if (chCounter == 0) chart = this.chart1;
-            if (chCounter == 1) chart = this.chart2;
+            Chart chart = new Chart();
+            chart.Location = new System.Drawing.Point(12, y);
+            chart.Name = "crtGraph" + id;
+            chart.Size = new System.Drawing.Size(800, 190);
+            chart.TabIndex = id;
+            chart.Text = "crtGraph" + id;
+            chart.BorderlineWidth = 1;
+            chart.BorderlineColor = Color.Black;
+            chart.BorderlineDashStyle = ChartDashStyle.Solid;
+            this.Controls.Add(chart);
 
-            // store a reference to the chart object in the graph struct
+            // store the id and a reference to the chart object in the graph struct
+            graph.id = id;
             graph.chartObject = chart;
             
             // set a standard amount of data points for the graph
@@ -138,7 +149,7 @@ namespace UNP.GUI {
             }
 
             // create a context menu for the 
-            ContextMenu mnu = createGraphContextMenu(this.chart1, ref graph);
+            ContextMenu mnu = createGraphContextMenu(chart, ref graph);
             chart.ContextMenu = mnu;
 
         }

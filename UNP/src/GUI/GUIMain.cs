@@ -257,7 +257,8 @@ namespace UNP.GUI {
         private void btnVisualization_Click(object sender, EventArgs e) {
 
             if (frmVisualization == null) frmVisualization = new GUIVisualization();
-            DialogResult dr = frmVisualization.ShowDialog();
+            //DialogResult dr = frmVisualization.ShowDialog();
+            frmVisualization.Show();
             
         }
 

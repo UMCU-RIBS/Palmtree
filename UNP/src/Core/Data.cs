@@ -1,8 +1,8 @@
 ﻿using NLog;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using UNP.Core.Events;
@@ -32,8 +32,8 @@ namespace UNP.Core {
 
         private static bool mAllowDataVisualization = false;                                    // data visualization enabled/disabled
 
-        private static int sourceInputChannels = 0;                                             // the number of channels coming from the source input
-        private static int totalNumberOfStreams = 0;                                            // the total number of streams to be logged in the .dat file
+        private static int numSourceInputStreams = 0;                                           // the number of streams coming from the source input
+        private static int numDataStreams = 0;                                                  // the total number of data streams to be logged in the .dat file
         private static List<string> registeredStreamNames = new List<string>(0);                // the names of the registered streams to store in the .dat file
         private static List<int> registeredStreamTypes = new List<int>(0);                      // the types of the registered streams to store in the .dat file
 
@@ -45,14 +45,16 @@ namespace UNP.Core {
         private static Stopwatch stopWatch = new Stopwatch();                                   // creates stopwatch to measure time difference between incoming samples
         private static double elapsedTime = 0;                                                  // amount of time [ms] elapsed since start of proccesing of previous sample
 
-        private static int totalNumberOfVisualizationStreams = 0;                               // the total number of streams to visualize
+        private static int numVisualizationStreams = 0;                                         // the total number of streams to visualize
         private static List<string> registeredVisualizationStreamNames = new List<string>(0);   // the names of the registered streams to visualize
         private static List<int> registeredVisualizationStreamTypes = new List<int>(0);         // the types of the registered streams to visualize
+        private static double[] visualizationStreamValues = null;
+        private static int visualizationStreamValueCounter = 0;
 
-        // A 'collector' event(handler). An EventHandler delegate is associated with the event.
+        // Visualization event(handler)s. An EventHandler delegate is associated with the event.
         // methods should be subscribed to this object
-        public static event EventHandler<VisualizationValueArgs> newVisualizationSourceInputSample = delegate { };
-        public static event EventHandler<VisualizationValueArgs> newVisualizationStreamSample = delegate { };
+        public static event EventHandler<VisualizationValuesArgs> newVisualizationSourceInputValues = delegate { };
+        public static event EventHandler<VisualizationValuesArgs> newVisualizationStreamValues = delegate { };
         public static event EventHandler<VisualizationEventArgs> newVisualizationEvent = delegate { };
 
         public static void Construct() {
@@ -113,17 +115,17 @@ namespace UNP.Core {
         public static bool Configure() {
 
             // clear the registered source input
-            sourceInputChannels = 0;
+            numSourceInputStreams = 0;
 
             // clear the registered streams
             registeredStreamNames.Clear();
             registeredStreamTypes.Clear();
-            totalNumberOfStreams = 0;
+            numDataStreams = 0;
 
             // clear the registered visualization streams
             registeredVisualizationStreamNames.Clear();
             registeredVisualizationStreamTypes.Clear();
-            totalNumberOfVisualizationStreams = 0;
+            numVisualizationStreams = 0;
 
             // check and transfer visualization parameter settings
             mAllowDataVisualization = parameters.getValue<bool>("AllowDataVisualization");
@@ -166,26 +168,31 @@ namespace UNP.Core {
          * 
          * (this should be called during configuration)
          **/
-        public static void RegisterSourceInput(int numberOfChannels) {
+        public static void RegisterSourceInput(int numberOfStreams) {
 
-            sourceInputChannels = numberOfChannels;
+            // store the number of expected source input streams
+            numSourceInputStreams = numberOfStreams;
 
         }
 
+        public static int GetNumberOfSourceInputStreams() {
+            return numSourceInputStreams;
+        }
+
         /**
-         * Register the a stream
+         * Register a data stream
          * Every module that wants to log a stream of samples should announce every stream respectively beforehand using this function
          * 
          * (this should be called during configuration, by all sources/filters/application that will log their samples)
          **/
-        public static void RegisterSampleStream(string streamName, SampleFormat streamType) {
+        public static void RegisterDataStream(string streamName, SampleFormat streamType) {
 
             // register a new stream
             registeredStreamNames.Add(streamName);
             registeredStreamTypes.Add(0);
 
             // add one to the total number of streams
-            totalNumberOfStreams++;
+            numDataStreams++;
 
             // message
             logger.Debug("Registered stream '" + streamName + "' of the type ...");
@@ -205,14 +212,24 @@ namespace UNP.Core {
             registeredVisualizationStreamTypes.Add(0);
 
             // add one to the total number of visualization streams
-            totalNumberOfVisualizationStreams++;
+            numVisualizationStreams++;
 
             // message
             logger.Debug("Registered visualization stream '" + streamName + "' of the type ...");
 
         }
 
+        public static int GetNumberOfVisualizationStreams() {
+            return numVisualizationStreams;
+        }
+        public static string[] GetVisualizationStreamNames() {
+            return registeredVisualizationStreamNames.ToArray<string>();
+        }
+
         public static void Start() {
+
+			String dataDir = parameters.getValue<String>("DataDirectory");
+
 
             // TODO make subdirs (+ add param to set and check this)
 
@@ -221,23 +238,22 @@ namespace UNP.Core {
             // create the event file
 
             // check if we want to log the source input
-            if (mLogSourceInput && sourceInputChannels > 0) {
+            if (mLogSourceInput && numSourceInputStreams > 0) {
                  
                 // create a source input file
 
             }
 
             // check if there are any samples streams to be logged
-            if (mLogDataStreams && totalNumberOfStreams > 0) {
+            if (mLogDataStreams && numDataStreams > 0) {
 
                 // (re)set sample counter
-                sampleCounter = 1;
+                sampleCounter = 0;
 
                 // resize streamValues array in order to hold all values from all streams, and create binary version of streamValues array
-                streamValues = new double[totalNumberOfStreams];
+                streamValues = new double[numDataStreams];
 
-                // construct filepath of data file, with current time as filename
-                String dataDir = parameters.getValue<String>("DataDirectory");
+                // construct filepath of data file, with current time as filename                
                 String fileName = DateTime.Now.ToString("yyyyMMddHHmmssfff") + ".bin";
                 String path = Path.Combine(Directory.GetCurrentDirectory(), dataDir, fileName);
 
@@ -246,28 +262,53 @@ namespace UNP.Core {
                     dataStream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 8192);
                     dataStreamWriter = new BinaryWriter(dataStream);
                     logger.Info("Created data file at " + path);
-                } catch (Exception e) { logger.Error("Unable to create data file at " + path + " (" + e.ToString() + ")"); } 
+                } catch (Exception e) {
+                    logger.Error("Unable to create data file at " + path + " (" + e.ToString() + ")");
+                } 
+
+                // (re)start the stopwatch here, so the elapsed timestamp of the first sample will be the time from start till the first sample coming in
+                stopWatch.Restart();
+
+                // log the data start event
+                LogEvent(1, "DataStart", "");
+
             }
+
+
+            // check if data visualization is enabled
+            if (mAllowDataVisualization) {
+
+                // size the array to fit all the streams
+                visualizationStreamValues = new double[numVisualizationStreams];
+
+            }
+
         }
 
         public static void Stop() {
-
-            // close the event file
-
-            // close the source input file
+            
+            // log the data start event
+            LogEvent(1, "DataStop", "");
 
             // close the data stream file
             dataStreamWriter.Close();
 
+            // close the source input file
+
+            // close the event file
+
+
             // if there is still a stopwatch running, stop it
             if (stopWatch.IsRunning) { stopWatch.Stop(); }
+
         }
 
         public static void Destroy() {
 
             // stop the Data Class
 
-            // Finalize stopwatch?
+			// TODO: Finalize stopwatch?
+			
 
         }
 
@@ -279,15 +320,12 @@ namespace UNP.Core {
             // reset the array pointer, and start stopwatch 
             valuePointer = 0;
 
-            // if stopwatch is running, stop and save elapsed time
-            if (stopWatch.IsRunning) {
-                stopWatch.Stop();
-                elapsedTime = stopWatch.ElapsedMilliseconds;
-                stopWatch.Reset();
-            }
+            // store the milliseconds past since the last sample and reset the stopwatch timer
+            elapsedTime = stopWatch.ElapsedMilliseconds;
+            stopWatch.Restart();
 
-            // start stopwatch
-            stopWatch.Start();
+            // reset the visualization data stream counter
+            visualizationStreamValueCounter = 0;
 
         }
 
@@ -296,12 +334,16 @@ namespace UNP.Core {
          **/
         public static void SampleProcessingEnd() {
 
+            
             // debug, show data values being stored
             logger.Info(elapsedTime + " " + sampleCounter + " " + String.Join(",", streamValues.Select(p => p.ToString()).ToArray()));
+            //logger.Info((elapsedTime / Stopwatch.Frequency) + " " + sampleCounter + " " + String.Join(",", streamValues.Select(p => p.ToString()).ToArray()));
 
-            // data integrity check of collected values: if the pointer is not exactly at end of array, not all values have been delivered or stored, else transform to bytes and write to file
-            if (valuePointer != totalNumberOfStreams) { logger.Error("Not all data values have been stored in the .dat file"); } 
-            else {
+            // data integrity check of collected values: if the pointer is not exactly at end of array, not all values have been
+            // delivered or stored, else transform to bytes and write to file
+            if (valuePointer != numDataStreams) { 
+				logger.Error("Not all data values have been stored in the .dat file");
+			} else {
 
                     // transform variables that will be stored in .dat to binary arrays
                     byte[] elapsedTimeBinary = BitConverter.GetBytes(elapsedTime);
@@ -320,6 +362,7 @@ namespace UNP.Core {
                     Buffer.BlockCopy(elapsedTimeBinary, 0, streamOut, 0, l1);
                     Buffer.BlockCopy(sampleCounterBinary, 0, streamOut, l1, l2);
                     Buffer.BlockCopy(streamValuesBinary, 0, streamOut, l1 + l2, l3);
+                    // TODO: bennie, I think this can be done in one go
 
                     //byte[] streamOut = elapsedTimeBinary.Concat(sampleCounterBinary, streamValuesBinary).ToArray();
 
@@ -328,16 +371,65 @@ namespace UNP.Core {
             }
 
             // advance sample counter, if gets to max value, reset to 0
-            if (sampleCounter == uint.MaxValue) { sampleCounter = 0; } else { sampleCounter++; }
+            if (++sampleCounter == uint.MaxValue) sampleCounter = 0;
+
+            // check if data visualization is allowed
+            if (mAllowDataVisualization) {
+
+                // check if the number of values that came in is the same as the number of streams we expected to come in (registered)
+                if (visualizationStreamValueCounter == numVisualizationStreams) {
+                    // number of values matches
+                    
+                    // trigger a new data stream values event for visualization
+                    VisualizationValuesArgs args = new VisualizationValuesArgs();
+                    args.values = visualizationStreamValues;
+                    newVisualizationStreamValues(null, args);
+
+                } else {
+                    // number of values mismatches
+
+                    // message
+                    logger.Error("Not the same number of visualization streams (" + visualizationStreamValueCounter + ") are logged than have been registered (" + numVisualizationStreams + ") for logging, discarded, check code");
+
+                }
+
+            }
+
         }
-        
+
         /**
-         * Log a raw source input value to the source input file (.src) 
+         * Log raw source input values to the source input file (.src) 
          * 
          **/
-        public static void LogSourceInputValue(double value) {
+        public static void LogSourceInputValues(double[] values) {
+            logger.Error("LogSourceInputValues");
+
+            // TODO: store code
 
 
+
+
+
+            // check if data visualization is allowed
+            if (mAllowDataVisualization) {
+
+                // trigger a new source input values event for visualization
+                VisualizationValuesArgs args = new VisualizationValuesArgs();
+                args.values = values;
+                newVisualizationSourceInputValues(null, args);
+
+            }
+
+        }
+        public static void LogSourceInputValues(ushort[] values) {
+            
+            // TODO: temp until we have a standard format, we might want to store as ushort
+            // but for now convert ushorts to double and call the double[] overload
+            double[] dblValues = new double[values.Length];
+            for (int i = 0; i < values.Length; i++) {
+                dblValues[i] = values[i];
+            }
+            LogSourceInputValues(dblValues);
 
         }
 
@@ -346,14 +438,22 @@ namespace UNP.Core {
          * 
          **/
         public static void LogStreamValue(double value) {
+            //Console.WriteLine("LogStreamValue");
 
-            // store the incoming value in the array, advance the pointer
-            if (valuePointer > totalNumberOfStreams) {
-                logger.Error("More data values are coming in than the amount of registered streams. Not all data is stored in .dat file.");
+            // check if the counter is within the size of the value array
+            if (valuePointer >= numDataStreams) {
+                
+                // message
+                logger.Error("More data streams are logged than have been registered for logging, discarded, check code (currently logging at values array index " + valuePointer + ")");
+
             } else {
+
+                // store the incoming value in the array, advance the pointer
                 streamValues[valuePointer] = value;
                 valuePointer++;
+
             }
+
         }
 
         /**
@@ -364,27 +464,29 @@ namespace UNP.Core {
 
         }
 
-        /**
-         * Log a raw source input value to visualize
-         * 
-         **/
-        public static void LogVisualizationSourceInputValue(double value) {
-
-            VisualizationValueArgs args = new VisualizationValueArgs();
-            args.value = value;
-            newVisualizationSourceInputSample(null, args);
-
-        }
 
         /**
          * Log a raw stream value to visualize
          * 
          **/
         public static void LogVisualizationStreamValue(double value) {
+            if (!mAllowDataVisualization)   return;
 
-            VisualizationValueArgs args = new VisualizationValueArgs();
-            args.value = value;
-            newVisualizationStreamSample(null, args);
+            // check if the counter is within the size of the value array
+            if (visualizationStreamValueCounter >= numVisualizationStreams) {
+                // not within the size of the values array, more visualization streams are logged than have been registered for logging
+
+                // message
+                logger.Error("More visualization streams are logged than have been registered for logging, discarded, check code (currently logging at values array index " + visualizationStreamValueCounter + ")");
+
+            } else {
+                // within the size of the values array
+
+                // set the value
+                visualizationStreamValues[visualizationStreamValueCounter] = value;
+                visualizationStreamValueCounter++;
+
+            }
 
         }
 
@@ -403,4 +505,5 @@ namespace UNP.Core {
         }
 
     }
+
 }
