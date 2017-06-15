@@ -137,7 +137,7 @@ namespace UNP.Sources {
             int numberOfStreams = 0;
             if (deviceProtocol == 5)     numberOfStreams = NEXUS_POWERMODE_CHANNELS_PER_PACKAGE * NEXUS_POWERMODE_SAMPLES_PER_PACKAGE;
             if (deviceProtocol == 6)     numberOfStreams = NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE * NEXUS_TIMEMODE_SAMPLES_PER_PACKAGE;
-            Data.RegisterSourceInput(numberOfStreams);
+            //Data.RegisterSourceInput(numberOfStreams);
 
     /*        
             char comname[5];
