@@ -170,11 +170,10 @@ namespace UNP.Sources {
 
         public void initialize() {
 
-            // interrupt the loop wait and reset the wait lock (so it will wait again upon the next WaitOne call)
+            // interrupt the loop wait. The loop will reset the wait lock (so it will wait again upon the next WaitOne call)
             // this will make sure the newly set sample rate interval is applied in the loop
             loopManualResetEvent.Set();
-            loopManualResetEvent.Reset();
-
+            
             // flag the initialization as complete
             initialized = true;
 
@@ -222,6 +221,10 @@ namespace UNP.Sources {
                 
                 // start generating
                 started = true;
+
+                // interrupt the loop wait, making the loop to continue (in case it was waiting the sample interval)
+                // causing an immediate start, this makes it feel more responsive
+                loopManualResetEvent.Set();
 
             }
 		
@@ -366,8 +369,18 @@ namespace UNP.Sources {
                     threadLoopDelay = sampleInterval - (int)swTimePassed.ElapsedMilliseconds;
 
                     // wait for the remainder of the sample interval to get as close to the sample rate as possible (if there is a remainder)
-                    if (threadLoopDelay >= 0)
+                    if (threadLoopDelay >= 0) {
+
+                        // reset the manual reset event, so it is sure to block on the next call to WaitOne
+                        // 
+                        // Note: not using AutoResetEvent because it could happen that .Set is called while not in WaitOne yet, when
+                        // using AutoResetEvent this will cause it to skip the next WaitOne call
+                        loopManualResetEvent.Reset();
+
+                        // Sleep wait
                         loopManualResetEvent.WaitOne(threadLoopDelay);      // using WaitOne because this wait is interruptable (in contrast to sleep)
+
+                    }
 
                     // start the timer to measure the loop time
                     swTimePassed.Reset();

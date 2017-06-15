@@ -98,7 +98,7 @@ namespace UNP.Core {
             
             Parameters sourceParameters = source.getParameters();
             sourceParameters.setValue("Channels", 2);
-            sourceParameters.setValue("SampleRate", 5.0);
+            //sourceParameters.setValue("SampleRate", 5.0);
             //sourceParameters.setValue("Keys", "F,G;1,2;1,1;-1,-1");
             
             Parameters timeSmoothingParameters = getFilterParameters("TimeSmoothing");
@@ -333,7 +333,7 @@ namespace UNP.Core {
                 return;
 
             }
-
+            
             // lock for thread safety
             lock(lockStarted) {
 
@@ -346,17 +346,17 @@ namespace UNP.Core {
                     return;
 
                 }
-
+                
                 // start the data
                 Data.Start();
-
+                
                 // start the application
                 if (application != null)    application.start();
-
+                
 
                 // start the filters
                 for (int i = 0; i < filters.Count(); i++) filters[i].start();
-
+                
                 // allow the main loop to process samples
                 process = true;
 
@@ -370,7 +370,7 @@ namespace UNP.Core {
                 // start the source
                 // (start last so everything set to receive and process samples)
                 if (source != null)     source.start();
-
+                
                 // flag the system as started
                 started = true;
 

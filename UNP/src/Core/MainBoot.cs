@@ -28,7 +28,7 @@ namespace UNP.Core {
             //(GenerateSignal/KeypressSignal/PlaybackSignal)
             Type sourceType = Type.GetType("UNP.Sources.GenerateSignal");
             //Type sourceType = Type.GetType("UNP.Sources.KeypressSignal");
-            //Type sourceType = Type.GetType("UNP.Sources.SerialPortSignal");
+            //Type sourceType = Type.GetType("UNP.Sources.NexusSignal");
 
             // name this thread
             if (Thread.CurrentThread.Name == null)

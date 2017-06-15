@@ -33,25 +33,29 @@ namespace UNP.Filters {
 
         public void configureInputLogging(string prefix, SampleFormat input) {
 
-            // retrieve and prepare the visualization of streams
-            mAllowDataVisualization = Globals.getValue<bool>("AllowDataVisualization");
-            if (mAllowDataVisualization) {
-
-                // register the streams to visualize
-                for (int i = 0; i < outputChannels; i++)
-                    Data.RegisterVisualizationStream((prefix + "Input_Ch" + (i + 1)), input);
-
-            }
-
             // retrieve and prepare the logging of streams
             mLogDataStreams = parameters.getValue<bool>("LogDataStreams");
             mLogDataStreamsRuntime = mLogDataStreams;
             if (mLogDataStreams) {
 
                 // register the streams
-                for (int i = 0; i < outputChannels; i++)
-                    Data.RegisterSampleStream((prefix + "Input_Ch" + (i + 1)), input);
+                for (int channel = 0; channel < inputChannels; channel++)
+                    Data.RegisterDataStream((prefix + "Input_Ch" + (channel + 1)), input);
 
+            }
+
+            // retrieve and prepare the visualization of streams
+            mAllowDataVisualization = Globals.getValue<bool>("AllowDataVisualization");
+            if (mAllowDataVisualization) {
+
+                // register the streams to visualize
+                for (int channel = 0; channel < inputChannels; channel++) {
+                    Data.RegisterVisualizationStream((prefix + "Input_Ch" + (channel + 1)), input);
+
+                    // debug
+                    //logger.Warn((prefix + "Input_Ch" + (channel + 1)));
+
+                }
             }
 
         }
@@ -64,7 +68,7 @@ namespace UNP.Filters {
 
                 for (int channel = 0; channel < inputChannels; ++channel) {
 
-                    // check if the stream are initially set to be logged
+                    // check if logging of the steams was initially allowed
                     if (mLogDataStreams) {
 
                         // check if the logging of streams is needed/allowed during runtime
@@ -86,9 +90,12 @@ namespace UNP.Filters {
 
                     // check if the data should be visualized
                     if (mAllowDataVisualization) {
-
+                        
                         // log values
                         Data.LogVisualizationStreamValue(input[channel]);
+
+                        // debug
+                        //logger.Warn(("Input_Ch" + (channel + 1)));
 
                     }
 

@@ -5,8 +5,8 @@ using System.Text;
 
 namespace UNP.Core.Events {
 
-    public class VisualizationValueArgs : EventArgs {
-        public double value { get; set; }
+    public class VisualizationValuesArgs : EventArgs {
+        public double[] values { get; set; }
     }
 
 }

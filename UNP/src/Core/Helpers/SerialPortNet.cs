@@ -23,8 +23,7 @@ namespace UNP.Core.Helpers {
         public static extern bool EscapeCommFunction(IntPtr hFile, uint dwFunc);
 
         [DllImport("kernel32.dll")]
-        public static extern bool ClearCommError(
-          [In] IntPtr hFile, // not int, convert int to IntPtr: new IntPtr(12)
+        public static extern bool ClearCommError([In] IntPtr hFile, // not int, convert int to IntPtr: new IntPtr(12)
           [Out, Optional] out uint lpErrors,
           [Out, Optional] out UNP.Core.Helpers.SerialPortNet.COMSTAT lpStat
         );
@@ -44,6 +43,17 @@ namespace UNP.Core.Helpers {
         public const int CBR_256000 = 256000;
 
         public const uint EV_RXCHAR = 0x0001;
+
+        public enum ExtendedFunctions : uint {
+            CLRBREAK = 9, //Restores character transmission and places the transmission line in a nonbreak state.
+            CLRDTR = 6, //Clears the DTR (data-terminal-ready) signal.
+            CLRRTS = 4, //Clears the RTS (request-to-send) signal.
+            SETBREAK = 8, //Suspends character transmission and places the transmission line in a break state until the ClearCommBreak function is called
+            SETDTR = 5, //Sends the DTR (data-terminal-ready) signal.
+            SETRTS = 3, //Sends the RTS (request-to-send) signal.
+            SETXOFF = 1, //Causes transmission to act as if an XOFF character has been received.
+            SETXON = 2 //Causes transmission to act as if an XON character has been received.
+        }
 
         [StructLayout(LayoutKind.Sequential)]
         public struct COMSTAT {

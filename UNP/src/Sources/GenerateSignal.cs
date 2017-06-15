@@ -21,10 +21,9 @@ namespace UNP.Sources {
 
         private Thread signalThread = null;                                             // the source thread
         private bool running = true;					                                // flag to define if the source thread should be running (setting to false will stop the source thread)
-
         private ManualResetEvent loopManualResetEvent = new ManualResetEvent(false);    // Manual reset event to call the WaitOne event on (this allows - in contrast to the sleep wait - to cancel the wait period at any point when closing the source) 
         private Stopwatch swTimePassed = new Stopwatch();                               // stopwatch object to give an exact amount to time passed inbetween loops
-        private int sampleInterval = 10000;                                              // interval between the samples in milliseconds
+        private int sampleInterval = 1000;                                              // interval between the samples in milliseconds
         private int threadLoopDelay = 0;
 
         private bool configured = false;
@@ -95,10 +94,9 @@ namespace UNP.Sources {
 
         public void initialize() {
 
-            // interrupt the loop wait and reset the wait lock (so it will wait again upon the next WaitOne call)
+            // interrupt the loop wait. The loop will reset the wait lock (so it will wait again upon the next WaitOne call)
             // this will make sure the newly set sample rate interval is applied in the loop
             loopManualResetEvent.Set();
-            loopManualResetEvent.Reset();
             
             // flag the initialization as complete
             initialized = true;
@@ -147,6 +145,10 @@ namespace UNP.Sources {
                 
                 // start generating
                 started = true;
+
+                // interrupt the loop wait, making the loop to continue (in case it was waiting the sample interval)
+                // causing an immediate start, this makes it feel more responsive
+                loopManualResetEvent.Set();
 
             }
 		
@@ -250,7 +252,7 @@ namespace UNP.Sources {
             // log message
             logger.Debug("Thread started");
 
-            // set an initial start for the stopwatche
+            // set an initial start for the stopwatch
             swTimePassed.Start();
 
 		    // loop while running
@@ -275,17 +277,27 @@ namespace UNP.Sources {
 			        }
 
                 }
-
+                
 			    // if still running then wait to allow other processes
 			    if (running && sampleInterval != -1) {
 
                     // use the exact time that has passed since the last run to calculate the time to wait to get the exact sample interval
                     swTimePassed.Stop();
                     threadLoopDelay = sampleInterval - (int)swTimePassed.ElapsedMilliseconds;
-
+                    
                     // wait for the remainder of the sample interval to get as close to the sample rate as possible (if there is a remainder)
-                    if (threadLoopDelay >= 0)
+                    if (threadLoopDelay >= 0) {
+
+                        // reset the manual reset event, so it is sure to block on the next call to WaitOne
+                        // 
+                        // Note: not using AutoResetEvent because it could happen that .Set is called while not in WaitOne yet, when
+                        // using AutoResetEvent this will cause it to skip the next WaitOne call
+                        loopManualResetEvent.Reset();
+
+                        // Sleep wait
                         loopManualResetEvent.WaitOne(threadLoopDelay);      // using WaitOne because this wait is interruptable (in contrast to sleep)
+
+                    }
 
                     // start the timer to measure the loop time
                     swTimePassed.Reset();

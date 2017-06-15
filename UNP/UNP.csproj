@@ -89,7 +89,7 @@
     <Compile Include="src\Applications\IApplicationUNP.cs" />
     <Compile Include="src\Core\Data.cs" />
     <Compile Include="src\Core\Events\VisualizationEventArgs.cs" />
-    <Compile Include="src\Core\Events\VisualizationValueArgs.cs" />
+    <Compile Include="src\Core\Events\VisualizationValuesArgs.cs" />
     <Compile Include="src\GUI\GUIVisualization.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -148,12 +148,11 @@
     <Compile Include="src\Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="src\Filters\TimeSmoothingFilter.cs" />
-    <Compile Include="src\Sources\SerialPortSignal.cs" />
+    <Compile Include="src\Sources\NexusSignal.cs" />
     <Compile Include="src\Sources\GenerateSignal.cs" />
     <Compile Include="src\Sources\KeypressSignal.cs" />
     <Compile Include="src\Sources\PlaybackSignal.cs" />
     <Compile Include="src\Sources\ISource.cs" />
-    <Compile Include="src\Sources\SerialPortSignal_parser.cs" />
     <Compile Include="src\Views\glFreeTypeFont.cs" />
     <Compile Include="src\Views\IOpenGLFunctions.cs" />
     <Compile Include="src\Views\SharpGLView.cs">

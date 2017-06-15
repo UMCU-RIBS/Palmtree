@@ -386,7 +386,7 @@ namespace UNP.Filters {
         }
 
         public void process(double[] input, out double[] output) {
-
+            
             // handle the data logging of the input (both to file and for visualization)
             processInputLogging(input);
 
@@ -417,7 +417,6 @@ namespace UNP.Filters {
 					    // or there should be a continues updating of samples in the buffer (3: to lastest samples)
                         if ((mAdaptation[channel] == (int)AdaptationTypes.rawToFirstSamples && !mDataBuffers[channel].IsFull()) ||
 						     mAdaptation[channel] == (int)AdaptationTypes.rawToLatestSamples) {
-				
 
 						    // check if no calc values are available
 						    if (mCalcMeans[channel] == emptyCalcValue) {

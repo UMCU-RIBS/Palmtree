@@ -21,18 +21,62 @@ namespace UNP.GUI {
 
         private static Logger logger = LogManager.GetLogger("GUIVisualization");
 
+        private struct VisualizationStream {
+            public string name;
+        }
+
+        private struct Graph {
+            public int numDataPoints;
+            public GraphStream[] streams;
+            public Chart chartObject;
+        }
+
+        private struct GraphStream {
+            public bool display;
+            public bool standardize;                // standardize the values around 0
+            public RingBuffer values;               // the stream values are stored in this ringbuffer
+            public RingBuffer intervals;            // the intervals between the time a value came in and the previous one coming in are stored in this ringbuffer
+        }
+        
+        private int numVisualizationStreams = 0;
+        private VisualizationStream[] visualizationStreams = null;      // array that holds all the visualization streams
+        private Graph[] visualizationGraphs = null;                     // array that holds all the visualization graphs
+        
         public GUIVisualization() {
 
             // initialize components
             InitializeComponent();
 
         }
-        
+
         private void GUIVisualization_Load(object sender, EventArgs e) {
 
-            Data.newVisualizationSourceInputSample += newSourceInputValue;      // add the method to the event handle
-            Data.newVisualizationStreamSample += newStreamValue;                // add the method to the event handle
+            // retrieve the number of visualization data streams
+            numVisualizationStreams = Data.GetNumberOfVisualizationStreams();
+            
+            // retrieve the visualization stream names (this is already an array copy of the list held in the data class)
+            string[] visualizationStreamNames = Data.GetVisualizationStreamNames();
+
+            // create a struct for each stream
+            visualizationStreams = new VisualizationStream[numVisualizationStreams];
+            for (int i = 0; i < numVisualizationStreams; i++) {
+                visualizationStreams[i].name = visualizationStreamNames[i];
+            }
+
+            // create graphs
+            visualizationGraphs = new Graph[2];
+            chCounter = 0;
+            createGraph(ref visualizationGraphs[0]);
+            chCounter = 1;
+            createGraph(ref visualizationGraphs[1]);
+
+
+            // connect the events
+            Data.newVisualizationSourceInputValues += newSourceInputValues;      // add the method to the event handle
+            Data.newVisualizationStreamValues += newStreamValues;                // add the method to the event handle
             Data.newVisualizationEvent += newEvent;                             // add the method to the event handle
+
+
 
             /*
             var series1 = new System.Windows.Forms.DataVisualization.Charting.Series
@@ -66,6 +110,81 @@ namespace UNP.GUI {
             }
             chart1.Invalidate();
             */
+        }
+        
+        int chCounter = 0;
+
+        private void createGraph(ref Graph graph) {
+
+            // create the actual control
+            // TODO: create chart at runtime here
+            Chart chart = null;
+            if (chCounter == 0) chart = this.chart1;
+            if (chCounter == 1) chart = this.chart2;
+
+            // store a reference to the chart object in the graph struct
+            graph.chartObject = chart;
+            
+            // set a standard amount of data points for the graph
+            graph.numDataPoints = 100;
+
+            // add all the streams to the graph
+            graph.streams = new GraphStream[numVisualizationStreams];
+            for (int i = 0; i < numVisualizationStreams; i++) {
+                graph.streams[i].display = false;
+                graph.streams[i].standardize = false;
+                graph.streams[i].values = new RingBuffer((uint)graph.numDataPoints);
+                graph.streams[i].intervals = new RingBuffer((uint)graph.numDataPoints);
+            }
+
+            // create a context menu for the 
+            ContextMenu mnu = createGraphContextMenu(this.chart1, ref graph);
+            chart.ContextMenu = mnu;
+
+        }
+
+        private ContextMenu createGraphContextMenu(Chart chart, ref Graph graph) {
+
+            // main context menu
+            ContextMenu mnuContextMenu = new ContextMenu();
+
+            // stream submenu
+            MenuItem mnuStreams = new MenuItem("Streams");
+            for (int i = 0; i < numVisualizationStreams; i++) {
+                MenuItem mnuStreamItem = new MenuItem(visualizationStreams[i].name);
+
+                MenuItem mnuStreamItemDisplay = new MenuItem("Display");
+                mnuStreamItemDisplay.Click += (sender, e) => {
+                    toggleStreamDisplay_Click(sender, e, chart);
+                };
+                
+                MenuItem mnuStreamItemStandard = new MenuItem("Standardize");
+                MenuItem mnuStreamItemColor = new MenuItem("Set color");
+
+
+                mnuStreamItem.MenuItems.Add(mnuStreamItemDisplay);
+                mnuStreamItem.MenuItems.Add(mnuStreamItemStandard);
+                mnuStreamItem.MenuItems.Add(mnuStreamItemColor);
+                mnuStreams.MenuItems.Add(mnuStreamItem);
+            }
+            mnuStreams.MenuItems.Add("-");
+            mnuStreams.MenuItems.Add("Hide all");
+            mnuContextMenu.MenuItems.Add(mnuStreams);
+
+
+            mnuContextMenu.MenuItems.Add("Time scale");
+            mnuContextMenu.MenuItems.Add("&Close");
+
+            return mnuContextMenu;
+
+        }
+
+        private void toggleStreamDisplay_Click(object sender, EventArgs e, Chart chart) {
+            //ToolStripItem clickedItem = sender as ToolStripItem;
+            // your code here
+            logger.Error("click");
+            MenuItem aap = (MenuItem)sender;
+            aap.Checked = true;
         }
 
         private void GUIVisualization_FormClosing(object sender, FormClosingEventArgs e) {
@@ -103,25 +222,53 @@ namespace UNP.GUI {
 
 
         /**
-         * Function called by Data when a new source input value is logged
+         * Function called by Data when new source input values are logged for visualization
          * 
          * @param e
          */
-        public void newSourceInputValue(object sender, VisualizationValueArgs e) {
+        public void newSourceInputValues(object sender, VisualizationValuesArgs e) {
 
         }
 
         /**
-         * Function called by Data when a new stream value is logged
+         * Function called by Data when a new stream value is logged for visualization
          * 
          * @param e
          */
-        public void newStreamValue(object sender, VisualizationValueArgs e) {
-            //logger.Debug("newStreamValue " + e.value);
+        public void newStreamValues(object sender, VisualizationValuesArgs e) {
+            logger.Debug("newStreamValues " + e.values.Length);
+            
+            // loop through the graphs
+            for (int i = 0; i < visualizationGraphs.Length; i++) {
+
+                // loop through the visualization streams
+                for (int j = 0; j < numVisualizationStreams; j++) {
+
+                    // in every graph add the values respectively over the streams 
+                    visualizationGraphs[i].streams[j].values.Put(e.values[j]);
+
+                    if (i == 0 && j == 0) {
+
+                        uint size = visualizationGraphs[i].streams[j].values.Fill();
+                        logger.Error("s " + size);
+                        double[] dat = visualizationGraphs[i].streams[j].values.Data();
+                        string reeks = "";
+                        for (int h = 0; h < size; h++) {
+                            if (h != 0)
+                                reeks += " - ";
+                            reeks += dat[h];
+                        }
+                        logger.Error("reeks " + reeks);
+                    }
+
+                }
+
+            }
+
         }
 
         /**
-         * Function called by Data when a new event is logged
+         * Function called by Data when a new event is logged for visualization
          * 
          * @param e
          */
