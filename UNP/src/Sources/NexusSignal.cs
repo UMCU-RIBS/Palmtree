@@ -16,14 +16,13 @@ namespace UNP.Sources {
     public class NexusSignal : ISource {
 
         public const int NEXUS_POWERMODE_SAMPLES_PER_PACKAGE = 1;
-        public const int NEXUS_POWERMODE_CHANNELS_PER_PACKAGE = 5;
+        public const int NEXUS_POWERMODE_CHANNELS_PER_PACKAGE = 4;
         public const int NEXUS_TIMEMODE_SAMPLES_PER_PACKAGE = 40;
-        public const int NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE = 5;
+        public const int NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE = 2;
 
         public const int DEFAULT_BAUD = SerialPortNet.CBR_115200;   // default Baud-Rate is 112k
         public const int COM_TIMEOUT = 1000;                        // 1000 ms trasmission timeout
-        public const int PACKET_BUFFER_SIZE = 128;                  // packet buffer size which is large enough for P6
-        // (i.e. NEXUS-1 STS time-domain) packages of 120 values
+        public const int PACKET_BUFFER_SIZE = 128;                  // packet buffer size which is large enough for P6 // (i.e. NEXUS-1 STS time-domain) packages of 120 values
 
         public const int PACKET_START = 0;
         public const int PACKET_FINISHED = 8;                       // packet-state for completed packet
@@ -43,10 +42,11 @@ namespace UNP.Sources {
         private Object lockStarted = new Object();
 
         // 
+        private string comPort = "";
         private int outputChannels = 0;
         private double sampleRate = 0;                                      // hold the amount of samples per second that the source outputs (used by the mainthead to convert seconds to number of samples)
-        private int deviceProtocol = 0; 
-
+        private int deviceProtocol = 0;
+        private int numberOfInputValues = 0;
 
         // active variables
 
@@ -83,6 +83,11 @@ namespace UNP.Sources {
 
             // set the reference to the main
             this.main = main;
+
+            parameters.addParameter<int>(
+                "ComPort",
+                "Com-port to use for communication",
+                "0", "15", "3", new string[] { "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "COM10", "COM11", "COM12", "COM13", "COM14", "COM15", "COM16" });
 
             parameters.addParameter<int> (
                 "Channels",
@@ -123,6 +128,10 @@ namespace UNP.Sources {
                 return false;
             }
 
+            // retrieve and set the comport
+            int comPortOption = parameters.getValue<int>("ComPort");
+            comPort = "COM" + (comPortOption + 1);
+
             // retrieve and set the sample rate
             int sampleRateOption = parameters.getValue<int>("SampleRate");
             if (sampleRateOption == 0)  sampleRate = 5;
@@ -141,9 +150,8 @@ namespace UNP.Sources {
             }
 
             // calculate and register the source input streams
-            //int numberOfStreams = 0;
             if (deviceProtocol == 5) {
-                //numberOfStreams = NEXUS_POWERMODE_CHANNELS_PER_PACKAGE * NEXUS_POWERMODE_SAMPLES_PER_PACKAGE;
+                numberOfInputValues = NEXUS_POWERMODE_CHANNELS_PER_PACKAGE * NEXUS_POWERMODE_SAMPLES_PER_PACKAGE;
 
                 // register the streams
                 for (int sample = 0; sample < NEXUS_POWERMODE_SAMPLES_PER_PACKAGE; sample++) {
@@ -154,8 +162,8 @@ namespace UNP.Sources {
 
             }
             if (deviceProtocol == 6) {
-                //numberOfStreams = NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE * NEXUS_TIMEMODE_SAMPLES_PER_PACKAGE;
-    
+                numberOfInputValues = NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE * NEXUS_TIMEMODE_SAMPLES_PER_PACKAGE;
+
                 // register the streams
                 for (int sample = 0; sample < NEXUS_TIMEMODE_SAMPLES_PER_PACKAGE; sample++) {
                     for (int channel = 0; channel < NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE; channel++) {
@@ -164,19 +172,6 @@ namespace UNP.Sources {
                 }
 
             }
-
-    /*        
-            char comname[5];
-
-            // store the value of the needed parameters
-            samplerate = Parameter( "SamplingRate" );
-            comport = Parameter( "ComPort" );
-            int protocol = Parameter("Protocol");
-            mCount=0;
-
-            strcpy(comname,"COM ");comname[3]=comport+'0';
-	*/
-
             
             // lock for thread safety
             lock (lockSerialPort) {
@@ -185,14 +180,15 @@ namespace UNP.Sources {
                 if (serialPort != null) closeSerialPort();
 
                 // try to open the port
-                if (!openSerialPort("COM4", deviceProtocol)) {
+                if (!openSerialPort(comPort, deviceProtocol)) {
 
-                    // message
-                    logger.Error("Could not open Comport");
+                    // message is already given by openSerialPort
 
                     // return failure
                     return false;
-                }
+
+                } else
+                    closeSerialPort();
 
             }
 
@@ -216,9 +212,14 @@ namespace UNP.Sources {
                 // if a serial port object is still there, close the port first
                 if (serialPort != null) closeSerialPort();
 
-                if (!openSerialPort("COM4", deviceProtocol)) {
-                    logger.Error("Could not open Comport");
+                // open the serial port
+                if (!openSerialPort(comPort, deviceProtocol)) {
+
+                    // message is already given by openSerialPort
+
+                    // return
                     return;
+
                 }
 
                 // set the initial packet time to zero
@@ -495,10 +496,17 @@ namespace UNP.Sources {
             serialPort.RtsEnable = false;   // no hardware handshake (RTS/CTS handshake)
 
             try {
+
                 serialPort.Open();
+
             } catch (Exception) {
-                logger.Error("Could not open port (" + portName + ")");
+
+                // message
+                logger.Error("Could not open COM-port (" + portName + ")");
+
+                // return failure
                 return false;
+
             }
 
 
@@ -766,8 +774,19 @@ namespace UNP.Sources {
                         // check if we are started
                         if (started) {
 
-                            // log the buffer content before timing correction
-                            Data.LogSourceInputValues(packet.buffer);
+                            // check if there are input values to log (depends mainly on the device protocol)
+                            if (numberOfInputValues > 0) {
+
+                                // pick the values from the buffer
+                                ushort[] values = new ushort[numberOfInputValues];
+                                Array.Copy(packet.buffer, 0, values, 0, numberOfInputValues);
+
+
+                                // log the values as source input before timing correction
+                                Data.LogSourceInputValues(values);
+                            }
+                            
+
                             
                         }
 

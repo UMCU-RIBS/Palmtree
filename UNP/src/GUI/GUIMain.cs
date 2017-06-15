@@ -81,11 +81,18 @@ namespace UNP.GUI {
                 // check if a visualization form is created (and not closed)
                 if (frmVisualization != null && !frmVisualization.IsDisposed) {
 
-                    // destroy/unload all graphs
-                    frmVisualization.destroyGraphs();
+                    try {
 
-                    // dispose of the form
-                    frmVisualization.Dispose();
+                        // destroy/unload all graphs
+                        frmVisualization.destroyGraphs();
+
+                        // close the form
+                        frmVisualization.Close();
+
+                        // dispose of the form
+                        frmVisualization.Dispose();
+
+                    } catch (Exception) { }
 
                 }
                 

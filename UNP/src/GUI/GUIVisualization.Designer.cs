@@ -26,7 +26,15 @@
         /// the contents of this method with the code editor.
         /// </summary>
         private void InitializeComponent() {
+            this.components = new System.ComponentModel.Container();
+            this.tmrUpdate = new System.Windows.Forms.Timer(this.components);
             this.SuspendLayout();
+            // 
+            // tmrUpdate
+            // 
+            this.tmrUpdate.Enabled = true;
+            this.tmrUpdate.Interval = 1000;
+            this.tmrUpdate.Tick += new System.EventHandler(this.tmrUpdate_Tick);
             // 
             // GUIVisualization
             // 
@@ -47,6 +55,9 @@
         }
 
         #endregion
+
+        private System.Windows.Forms.Timer tmrUpdate;
+
 
 
     }

@@ -41,7 +41,6 @@ namespace UNP.Core.Helpers {
                     Array.Copy(mData, 0, retArr, 0, mData.Count());
                 else {
                     Array.Copy(mData, mCursor, retArr, 0, mData.Count() - mCursor);
-
                     Array.Copy(mData, 0, retArr, mData.Count() - mCursor, mCursor);
                 }
             } else {
