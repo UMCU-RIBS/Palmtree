@@ -84,6 +84,10 @@ namespace UNP.Sources {
             // calculate the sample interval
             sampleInterval = (int)Math.Floor(1000.0 / sampleRate);
 
+            // TODO: debug, even sourceinput dingen
+            Data.RegisterSourceInputStream("Ch0", null);
+            Data.RegisterSourceInputStream("Ch1", null);
+
             // flag as configured
             configured = true;
 
@@ -270,6 +274,9 @@ namespace UNP.Sources {
                             //sample[i] = rand.NextDouble();
                             sample[i] = rand.Next(0,10) + 100;
                         }
+
+                        // TODO: debug, even sourceinput dingen
+                        Data.LogSourceInputValues(sample);
 
                         // pass the sample
                         main.eventNewSample(sample);
