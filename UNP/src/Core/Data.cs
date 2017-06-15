@@ -117,10 +117,12 @@ namespace UNP.Core {
          **/
         public static bool Configure() {
 
-            // clear the registered source input
+            // clear the registered source input streams
+            registeredSourceInputStreamNames.Clear();
+            registeredSourceInputStreamTypes.Clear();
             numSourceInputStreams = 0;
 
-            // clear the registered streams
+            // clear the registered data streams
             registeredDataStreamNames.Clear();
             registeredDataStreamTypes.Clear();
             numDataStreams = 0;

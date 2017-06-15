@@ -33,6 +33,24 @@ namespace UNP.Core.Helpers {
             return mData;
         }
 
+        public double[] DataSequential() {
+            double[] retArr;
+            if (mWrapped) {
+                retArr = new double[mData.Count()];
+                if (mCursor == 0)
+                    Array.Copy(mData, 0, retArr, 0, mData.Count());
+                else {
+                    Array.Copy(mData, mCursor, retArr, 0, mData.Count() - mCursor);
+
+                    Array.Copy(mData, 0, retArr, mData.Count() - mCursor, mCursor);
+                }
+            } else {
+                retArr = new double[mCursor];
+                Array.Copy(mData, 0, retArr, 0, mCursor);
+            }
+            return retArr;
+        }
+
         public void Put(double inData) {
 
             if (mData.Count() > 0)    mData[mCursor] = inData;
@@ -42,6 +60,9 @@ namespace UNP.Core.Helpers {
             }
         }
 
+        public int Size() {
+            return mData.Length;
+        }
     }
 
 }

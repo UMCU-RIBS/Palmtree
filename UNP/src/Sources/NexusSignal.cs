@@ -129,15 +129,41 @@ namespace UNP.Sources {
 
             // check the device protocol setting
             deviceProtocol = parameters.getValue<int>("DeviceProtocol");
-            if (deviceProtocol < 4) {
+            deviceProtocol++;       // legacy code assumes protocol 1 to 6 (instead of 0 to 5)
+
+            // message on the protocol
+            if (deviceProtocol < 5) {
                 logger.Warn("Device protocol is set to one of the Nexus legacy protocols");
+            } else if (deviceProtocol == 5) {
+                logger.Info("Using Nexus power-mode protocol");
+            } else if (deviceProtocol == 6) {
+                logger.Info("Using Nexus time-mode protocol");
             }
 
             // calculate and register the source input streams
-            int numberOfStreams = 0;
-            if (deviceProtocol == 5)     numberOfStreams = NEXUS_POWERMODE_CHANNELS_PER_PACKAGE * NEXUS_POWERMODE_SAMPLES_PER_PACKAGE;
-            if (deviceProtocol == 6)     numberOfStreams = NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE * NEXUS_TIMEMODE_SAMPLES_PER_PACKAGE;
-            //Data.RegisterSourceInput(numberOfStreams);
+            //int numberOfStreams = 0;
+            if (deviceProtocol == 5) {
+                //numberOfStreams = NEXUS_POWERMODE_CHANNELS_PER_PACKAGE * NEXUS_POWERMODE_SAMPLES_PER_PACKAGE;
+
+                // register the streams
+                for (int sample = 0; sample < NEXUS_POWERMODE_SAMPLES_PER_PACKAGE; sample++) {
+                    for (int channel = 0; channel < NEXUS_POWERMODE_CHANNELS_PER_PACKAGE; channel++) {
+                        Data.RegisterSourceInputStream("Nexus_Input_Ch" + (channel + 1) + "_Smpl" + (sample + 1), null);
+                    }
+                }
+
+            }
+            if (deviceProtocol == 6) {
+                //numberOfStreams = NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE * NEXUS_TIMEMODE_SAMPLES_PER_PACKAGE;
+    
+                // register the streams
+                for (int sample = 0; sample < NEXUS_TIMEMODE_SAMPLES_PER_PACKAGE; sample++) {
+                    for (int channel = 0; channel < NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE; channel++) {
+                        Data.RegisterSourceInputStream("Nexus_Input_Ch" + (channel + 1) + "_Smpl" + (sample + 1), null);
+                    }
+                }
+
+            }
 
     /*        
             char comname[5];
@@ -150,6 +176,25 @@ namespace UNP.Sources {
 
             strcpy(comname,"COM ");comname[3]=comport+'0';
 	*/
+
+            
+            // lock for thread safety
+            lock (lockSerialPort) {
+
+                // if a serial port object is still there, close the port first
+                if (serialPort != null) closeSerialPort();
+
+                // try to open the port
+                if (!openSerialPort("COM4", deviceProtocol)) {
+
+                    // message
+                    logger.Error("Could not open Comport");
+
+                    // return failure
+                    return false;
+                }
+
+            }
 
             // flag as configured
             configured = true;
@@ -171,7 +216,7 @@ namespace UNP.Sources {
                 // if a serial port object is still there, close the port first
                 if (serialPort != null) closeSerialPort();
 
-                if (!openSerialPort("COM4", 5)) {
+                if (!openSerialPort("COM4", deviceProtocol)) {
                     logger.Error("Could not open Comport");
                     return;
                 }
@@ -339,18 +384,14 @@ namespace UNP.Sources {
 		    // loop while running
 		    while(running) {
 
-
-                int numInChannels = 5;      // 16
-                int numSamples = 1;         // 1
-
                 // lock for thread safety
                 lock (lockSerialPort) {
 
-                    // after initialization start reading
+                    // check if we should start reading (after initialization)
                     if (readCom) {
 
-                        // 
-                        readChannels(5);
+                        // read the channels
+                        readChannels(deviceProtocol);
 
                     }
 
@@ -360,38 +401,62 @@ namespace UNP.Sources {
                         // check if we are started
                         if (started) {
 
-                            // 
-                            for (int sample = 0; sample < numSamples; sample++) {
-                                for (int channel = 0; channel < numInChannels; channel++) {
+                            if (deviceProtocol == 5) {
+                                // power mode
 
-                                    int value = packet.buffer[sample * numInChannels + channel];
-                                    /*
-                                    if (value > maxvalue) {
-                                        value = maxvalue;
-                                        bciout << "Value larger than " << maxvalue << endl;
+                                // 
+                                double[] retSample = new double[outputChannels];
+
+                                // loop through the samples and channels
+                                for (int sample = 0; sample < NEXUS_POWERMODE_SAMPLES_PER_PACKAGE; sample++) {              // should be one sample
+                                    for (int channel = 0; channel < NEXUS_POWERMODE_CHANNELS_PER_PACKAGE; channel++) {
+                                        
+                                        // if there are less output channels configured than coming in from the nexus
+                                        if (channel >= outputChannels)   break;
+
+                                        // transfer the values
+                                        retSample[channel] = packet.buffer[sample * NEXUS_POWERMODE_CHANNELS_PER_PACKAGE + channel];
+
                                     }
-                                    if (value < minvalue) {
-                                        value = minvalue;
-                                        bciout << "Value smaller than " << minvalue << endl;
-                                    }
-                                        */
-
-                                    //signal(channel, sample) = (short)value;
-                                    //logger.Warn("channel: " + channel + " - sample: " + sample + " = " + (short)value);
-
                                 }
+
+                                // pass the sample
+                                main.eventNewSample(retSample);
+
                             }
 
-                            // set values for the generated sample
-                            double[] retSample = new double[outputChannels];
-                            for (int i = 0; i < outputChannels; i++) {
-                                //sample[i] = rand.NextDouble();
-                                retSample[i] = 0.0;
+                            if (deviceProtocol == 6) {
+                                // time mode
+
+
+                                // TODO: implement ARFilter, converting time to power using software
+                                // 40 samples coming in here with x channels
+
+                                // 
+                                //for (int sample = 0; sample < numSamples; sample++) {
+                                    //for (int channel = 0; channel < numInChannels; channel++) {
+
+                                        //int value = packet.buffer[sample * numInChannels + channel];
+
+                                        //signal(channel, sample) = (short)value;
+
+                                        //logger.Warn("channel: " + channel + " - sample: " + sample + " = " + (short)value);
+
+                                    //}
+                                //}
+
+
+                                // set values for the generated sample
+                                double[] retSample = new double[outputChannels];
+                                for (int i = 0; i < outputChannels; i++) {
+                                    retSample[i] = 123.0;
+                                }
+
+                                // pass the sample
+                                main.eventNewSample(retSample);
+
                             }
 
-                            // pass the sample
-                            main.eventNewSample(retSample);
-                        
                         } else {
                             // not started
 
@@ -663,7 +728,7 @@ namespace UNP.Sources {
             } else {
                 // packet finished
 
-                // 
+                // flag to hold whether the packet is corrupt
                 bool packetIsCorrupt = false;
 
                 // check if the protocol packet allows for a CRC check
@@ -778,8 +843,6 @@ namespace UNP.Sources {
 
                 try {
                     int rv = serialPort.Read(buf, 0, size);         // returns The number of bytes read.
-
-                    //logger.Debug("Buffer " + buf[0] + ", ");
 
                 } catch (Exception e) {
                     logger.Error("exception");

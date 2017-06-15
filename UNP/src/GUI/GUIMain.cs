@@ -78,6 +78,17 @@ namespace UNP.GUI {
             // check if the form is actually closing
             if (e.Cancel == false) {
 
+                // check if a visualization form is created (and not closed)
+                if (frmVisualization != null && !frmVisualization.IsDisposed) {
+
+                    // destroy/unload all graphs
+                    frmVisualization.destroyGraphs();
+
+                    // dispose of the form
+                    frmVisualization.Dispose();
+
+                }
+                
                 // stop the update timer
                 if (tmrUpdate != null) {
                     tmrUpdate.Enabled = false;
@@ -204,6 +215,14 @@ namespace UNP.GUI {
 
         private void btnSetConfig_Click(object sender, EventArgs e) {
 
+            // check if a visualization form is created (and not closed)
+            if (frmVisualization != null && !frmVisualization.IsDisposed) {
+
+                // destroy/unload all graphs
+                frmVisualization.destroyGraphs();
+
+            } 
+
             // check if there is a main thread
             if (mainThread != null) {
 
@@ -216,6 +235,13 @@ namespace UNP.GUI {
 
                     // set configuration as applied
                     configApplied = true;
+
+                    // check if a visualization form is created (and not closed)
+                    if (frmVisualization != null && !frmVisualization.IsDisposed) {
+
+                        // initialize all graphs
+                        frmVisualization.initGraphs();
+                    }
 
                 }
 
@@ -256,8 +282,11 @@ namespace UNP.GUI {
 
         private void btnVisualization_Click(object sender, EventArgs e) {
 
-            if (frmVisualization == null) frmVisualization = new GUIVisualization();
-            //DialogResult dr = frmVisualization.ShowDialog();
+            if (frmVisualization != null && frmVisualization.IsDisposed)    frmVisualization = null;
+            if (frmVisualization == null) {
+                frmVisualization = new GUIVisualization();
+                frmVisualization.initGraphs();
+            }
             frmVisualization.Show();
             
         }

@@ -54,31 +54,6 @@ namespace UNP.GUI {
 
         private void GUIVisualization_Load(object sender, EventArgs e) {
 
-            // retrieve the number of visualization data streams
-            numVisualizationStreams = Data.GetNumberOfVisualizationStreams();
-            
-            // retrieve the visualization stream names (this is already an array copy of the list held in the data class)
-            string[] visualizationStreamNames = Data.GetVisualizationStreamNames();
-
-            // create a struct for each stream
-            visualizationStreams = new VisualizationStream[numVisualizationStreams];
-            for (int i = 0; i < numVisualizationStreams; i++) {
-                visualizationStreams[i].name = visualizationStreamNames[i];
-            }
-
-            // create graphs
-
-            visualizationGraphs = new Graph[NumberOfGraphs];
-            for (int i = 0; i < NumberOfGraphs; i++)
-                createGraph(i, ref visualizationGraphs[i]);
-
-
-            // connect the events
-            Data.newVisualizationSourceInputValues += newSourceInputValues;      // add the method to the event handle
-            Data.newVisualizationStreamValues += newStreamValues;                // add the method to the event handle
-            Data.newVisualizationEvent += newEvent;                             // add the method to the event handle
-
-
 
             /*
             var series1 = new System.Windows.Forms.DataVisualization.Charting.Series
@@ -113,7 +88,65 @@ namespace UNP.GUI {
             chart1.Invalidate();
             */
         }
-        
+
+        public void initGraphs() {
+
+            // retrieve the number of visualization data streams
+            numVisualizationStreams = Data.GetNumberOfVisualizationStreams();
+
+            // retrieve the visualization stream names (this is already an array copy of the list held in the data class)
+            string[] visualizationStreamNames = Data.GetVisualizationStreamNames();
+
+            // create a struct for each stream
+            visualizationStreams = new VisualizationStream[numVisualizationStreams];
+            for (int i = 0; i < numVisualizationStreams; i++) {
+                visualizationStreams[i].name = visualizationStreamNames[i];
+            }
+
+            // create graphs
+            visualizationGraphs = new Graph[NumberOfGraphs];
+            for (int i = 0; i < NumberOfGraphs; i++)
+                createGraph(i, ref visualizationGraphs[i]);
+
+            // connect the events
+            Data.newVisualizationSourceInputValues += newSourceInputValues;      // add the method to the event handle
+            Data.newVisualizationStreamValues += newStreamValues;                // add the method to the event handle
+            Data.newVisualizationEvent += newEvent;                              // add the method to the event handle
+
+        }
+
+        public void destroyGraphs() {
+
+            // disconnect the events
+            Data.newVisualizationSourceInputValues -= newSourceInputValues;      // add the method to the event handle
+            Data.newVisualizationStreamValues -= newStreamValues;                // add the method to the event handle
+            Data.newVisualizationEvent -= newEvent;                              // add the method to the event handle
+
+            if (visualizationGraphs != null) {
+                // clear the graph structs
+                for (int i = 0; i < NumberOfGraphs; i++) {
+                    if (i >= visualizationGraphs.Count()) break;
+
+                    // remove/clear the char control
+                    this.Controls.Remove(visualizationGraphs[i].chartObject);
+                    visualizationGraphs[i].chartObject.Dispose();
+                    visualizationGraphs[i].chartObject = null;
+
+                    // clear the streams
+                    visualizationGraphs[i].streams = new GraphStream[0];
+
+                }
+
+                // clear the graphs
+                visualizationGraphs = null;
+
+            }
+
+            // clear the data streams
+            visualizationStreams = null;
+            numVisualizationStreams = 0;
+
+        }
         
 
         private void createGraph(int id, ref Graph graph) {
@@ -199,6 +232,11 @@ namespace UNP.GUI {
         }
 
         private void GUIVisualization_FormClosing(object sender, FormClosingEventArgs e) {
+            logger.Error("GUIVisualization_FormClosing");
+
+            destroyGraphs();
+
+            
             /*
             // TODO: check for changes
 
@@ -238,6 +276,7 @@ namespace UNP.GUI {
          * @param e
          */
         public void newSourceInputValues(object sender, VisualizationValuesArgs e) {
+            logger.Debug("newSourceInputValues " + e.values.Length);
 
         }
 
