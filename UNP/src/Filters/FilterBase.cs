@@ -62,20 +62,25 @@ namespace UNP.Filters {
             // check if the streams should be logged to a file (initial setting) or visualization is allowed 
             if (mLogDataStreams || mAllowDataVisualization) {
 
-                for (uint channel = 0; channel < inputChannels; ++channel) {
+                for (int channel = 0; channel < inputChannels; ++channel) {
 
-                    // check if the logging of streams is needed/allowed during runtime
-                    if (mLogDataStreamsRuntime) {
-                        // enabled initially and at runtime
+                    // check if the stream are initially set to be logged
+                    if (mLogDataStreams) {
 
-                        // log values
-                        Data.LogStreamValue(input[channel]);
+                        // check if the logging of streams is needed/allowed during runtime
+                        if (mLogDataStreamsRuntime) {
+                            // enabled initially and at runtime
 
-                    } else {
-                        // enabled initially but not at runtime
+                            // log values
+                            Data.LogStreamValue(input[channel]);
 
-                        // log zeros
-                        Data.LogStreamValue(0.0);
+                        } else {
+                            // enabled initially but not at runtime
+
+                            // log zeros
+                            Data.LogStreamValue(0.0);
+
+                        }
 
                     }
 
