@@ -22,26 +22,32 @@ namespace UNP.Core {
         private static Logger logger = LogManager.GetLogger("Data");
         private static Parameters parameters = ParameterManager.GetParameters("Data", Parameters.ParamSetTypes.Data);
 
-        private static bool mLogSourceInput = false;            								// source input logging enabled/disabled (by configuration parameter)
-        private static bool mLogSourceInputRuntime = false;     								// stores whether during runtime the source input should be logged    (if it was on, then it can be switched off, resulting in 0's being logged)
-        private static bool mLogDataStreams = false;            								// stream logging enabled/disabled (by configuration parameter)
-        private static bool mLogDataStreamsRuntime = false;     								// stores whether during runtime the streams should be logged    (if it was on, then it can be switched off, resulting in 0's being logged)
+        // event logging
         private static bool mLogEvents = false;                 								// 
         private static bool mLogEventsRuntime = false;          								// stores whether during runtime the events should be logged    (if it was on, then it can be switched off, resulting in 0's being logged)
+        private static int[] mEventLoggingLevels = new int[0];
 
-        private static bool mAllowDataVisualization = false;                                    // data visualization enabled/disabled
-
+        private static FileStream eventStream = null;                                          // filestream that is fed to the binarywriter, containing the stream of events to be written to the .evt file
+        private static StreamWriter eventStreamWriter = null;                                  // writer that writes values to the .evt file
+         
         // source streams
+        private static bool mLogSourceInput = false;            								// source input logging enabled/disabled (by configuration parameter)
+        private static bool mLogSourceInputRuntime = false;     								// stores whether during runtime the source input should be logged    (if it was on, then it can be switched off, resulting in 0's being logged)
+        
         private static int numSourceInputStreams = 0;                                           // the number of streams coming from the source input
         private static List<string> registeredSourceInputStreamNames = new List<string>(0);     // the names of the registered source input streams to store in the .src file
         private static List<int> registeredSourceInputStreamTypes = new List<int>(0);           // the types of the registered source input streams to store in the .src file
+        
         private static FileStream sourceStream = null;                                          // filestream that is fed to the binarywriter, containing the stream of values to be written to the .src file
         private static BinaryWriter sourceStreamWriter = null;                                  // writer that writes values to the .src file
         private static uint sourceSampleCounter = 0;                                            // the current row of values being written to the .src file, acts as id
         private static Stopwatch sourceStopWatch = new Stopwatch();                             // creates stopwatch to measure time difference between incoming samples
         private static double sourceElapsedTime = 0;                                            // amount of time [ms] elapsed since start of proccesing of previous sample
 
-        // datastreams
+        // data streams
+        private static bool mLogDataStreams = false;            								// stream logging enabled/disabled (by configuration parameter)
+        private static bool mLogDataStreamsRuntime = false;     								// stores whether during runtime the streams should be logged    (if it was on, then it can be switched off, resulting in 0's being logged)
+        
         private static int numDataStreams = 0;                                                  // the total number of data streams to be logged in the .dat file
         private static List<string> registeredDataStreamNames = new List<string>(0);            // the names of the registered streams to store in the .dat file
         private static List<int> registeredDataStreamTypes = new List<int>(0);                  // the types of the registered streams to store in the .dat file
@@ -55,6 +61,7 @@ namespace UNP.Core {
         private static double dataElapsedTime = 0;                                              // amount of time [ms] elapsed since start of proccesing of previous sample
 
 		// visualization
+        private static bool mAllowDataVisualization = false;                                    // data visualization enabled/disabled
         private static int numVisualizationStreams = 0;                                         // the total number of streams to visualize
         private static List<string> registeredVisualizationStreamNames = new List<string>(0);   // the names of the registered streams to visualize
         private static List<int> registeredVisualizationStreamTypes = new List<int>(0);         // the types of the registered streams to visualize
@@ -150,6 +157,7 @@ namespace UNP.Core {
             mLogDataStreamsRuntime = mLogDataStreams;
             mLogEvents = parameters.getValue<bool>("LogEvents");
             mLogEventsRuntime = mLogEvents;
+            mEventLoggingLevels = parameters.getValue<int[]>("EventLoggingLevels");
             // ...
 
             // if there is data to store, create data directory
@@ -198,6 +206,7 @@ namespace UNP.Core {
         public static int GetNumberOfSourceInputStreams() {
             return numSourceInputStreams;
         }
+
         public static string[] GetSourceInputStreamNames() {
             return registeredSourceInputStreamNames.ToArray();
         }
@@ -245,6 +254,7 @@ namespace UNP.Core {
         public static int GetNumberOfVisualizationDataStreams() {
             return numVisualizationStreams;
         }
+
         public static string[] GetVisualizationDataStreamNames() {
             return registeredVisualizationStreamNames.ToArray();
         }
@@ -253,12 +263,33 @@ namespace UNP.Core {
 
             // get location of data directory and current time to use as timestamp for files to be created
             String dataDir = parameters.getValue<String>("DataDirectory");
-            String fileName = DateTime.Now.ToString("yyyyMMddHHmmssfff");
+            String fileName = DateTime.Now.ToString("yyyyMMdd_HHmmss");
 
 			// TODO: identifier toevoegen aan filename
             // TODO make subdirs (+ add param to set and check this)
             // TODO create (and close) the parameter file
             // TODO create the event file
+
+            // check if we want to log events
+            if (mLogEvents) {
+
+                // construct filepath of event file, with current time as filename 
+                String fileNameEvt = fileName + ".evt";
+                String path = Path.Combine(Directory.GetCurrentDirectory(), dataDir, fileNameEvt);
+
+                // create filestream: create file if it does not exists, allow to write, do not share with other processes and use buffer of 8192 bytes
+                try {
+                    eventStream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 8192);
+                    eventStreamWriter = new StreamWriter(eventStream);
+                    eventStreamWriter.AutoFlush = true;                                         // ensures that after every write operation content of stream is flushed to file
+                    logger.Info("Created event file at " + path);
+                } catch (Exception e) {
+                    logger.Error("Unable to create event file at " + path + " (" + e.ToString() + ")");
+                }
+
+                // TODO: header?
+
+            }
 
             // check if we want to log the source input
             if (mLogSourceInput && numSourceInputStreams > 0) {
@@ -333,13 +364,13 @@ namespace UNP.Core {
             }
 
         }
-
+        
         public static void Stop() {
             
             // TODO: more closing things/variables
 
             // 
-            if (dataStream != null) {
+            if (dataStreamWriter != null) {
                 
                 // log the data stop event
                 LogEvent(1, "DataStop", "");
@@ -347,13 +378,11 @@ namespace UNP.Core {
                 // close the data stream file
                 dataStreamWriter.Close();
                 dataStreamWriter = null;
-
-                dataStream.Close();
                 dataStream = null;
 
             }
 
-            if (sourceStream != null) {
+            if (dataStreamWriter != null) {
 
                 // log the source stop event
                 LogEvent(1, "SourceStop", "");
@@ -361,8 +390,6 @@ namespace UNP.Core {
                 // close the source stream file
                 dataStreamWriter.Close();
                 dataStreamWriter = null;
-
-                dataStream.Close();
                 dataStream = null;
 
             }
@@ -394,12 +421,17 @@ namespace UNP.Core {
          **/
         public static void SampleProcessingStart() {
 
-            // reset the array pointers for data samples
-            dataValuePointer = 0;
+            // check if data logging is allowed
+            if (mLogDataStreams) {
 
-            // store the milliseconds past since the last sample and reset the data stopwatch timer
-            dataElapsedTime = dataStopWatch.ElapsedMilliseconds;
-            dataStopWatch.Restart();
+                // reset the array pointers for samples in data stream
+                dataValuePointer = 0;
+
+                // store the milliseconds past since the last sample and reset the data stopwatch timer
+                dataElapsedTime = dataStopWatch.ElapsedMilliseconds;
+                dataStopWatch.Restart();
+
+            }
 
             // reset the visualization data stream counter
             visualizationStreamValueCounter = 0;
@@ -426,6 +458,9 @@ namespace UNP.Core {
 				
 			} else {
 
+                // check if data logging is allowed
+                if (mLogDataStreams) {
+
                     // transform variables that will be stored in .dat to binary arrays (except for dataStreamValues array which is copied directly)
                     byte[] dataElapsedTimeBinary = BitConverter.GetBytes(dataElapsedTime);
                     byte[] dataSampleCounterBinary = BitConverter.GetBytes(dataSampleCounter);
@@ -440,10 +475,12 @@ namespace UNP.Core {
                     Buffer.BlockCopy(dataElapsedTimeBinary, 0, streamOut, 0, l1);
                     Buffer.BlockCopy(dataSampleCounterBinary, 0, streamOut, l1, l2);
                     Buffer.BlockCopy(dataStreamValues, 0, streamOut, l1 + l2, l3);
-                    
+
                     // write data to file
                     dataStreamWriter.Write(streamOut);
-					
+
+                }
+
             }
 
             // advance sample counter, if gets to max value, reset to 0
@@ -478,14 +515,13 @@ namespace UNP.Core {
          * 
          **/
         public static void LogSourceInputValues(double[] sourceStreamValues) {
-            //logger.Error("LogSourceInputValues " + values.Length);
-
+            
             // get time since last source sample
             sourceElapsedTime = sourceStopWatch.ElapsedMilliseconds;
             sourceStopWatch.Restart();
 
             // debug
-            logger.Info("To .src file: " + sourceElapsedTime + " " + sourceSampleCounter + " " + string.Join("|", sourceStreamValues));
+            logger.Info("To .src file: " + sourceElapsedTime + " " + sourceSampleCounter + " " + String.Join("|", sourceStreamValues));
 
             // integrity check of collected source values
             if (sourceStreamValues.Length != numSourceInputStreams) {
@@ -495,24 +531,30 @@ namespace UNP.Core {
 				
             } else {
 
-                // transform variables that will be stored in .src to binary arrays (except for sourceStreamValues array which is copied directly)
-                byte[] sourceElapsedTimeBinary = BitConverter.GetBytes(sourceElapsedTime);
-                byte[] sourceSampleCounterBinary = BitConverter.GetBytes(sourceSampleCounter);
+                // check if source logging is allowed
+                if (mLogSourceInput) {
 
-                // create new array to hold all bytes
-                int l1 = sourceElapsedTimeBinary.Length;
-                int l2 = sourceSampleCounterBinary.Length;
-                int l3 = sourceStreamValues.Length * sizeof(double);
-                byte[] streamOut = new byte[l1 + l2 + l3];
+                    // TODO: mLogSourceInputRuntime (if false, then create 0's)
 
-                // blockcopy all bytes to this array
-                Buffer.BlockCopy(sourceElapsedTimeBinary, 0, streamOut, 0, l1);
-                Buffer.BlockCopy(sourceSampleCounterBinary, 0, streamOut, l1, l2);
-                Buffer.BlockCopy(sourceStreamValues, 0, streamOut, l1 + l2, l3);
+                    // transform variables that will be stored in .src to binary arrays (except for sourceStreamValues array which is copied directly)
+                    byte[] sourceElapsedTimeBinary = BitConverter.GetBytes(sourceElapsedTime);
+                    byte[] sourceSampleCounterBinary = BitConverter.GetBytes(sourceSampleCounter);
 
-                // write source to file
-                sourceStreamWriter.Write(streamOut);
-				
+                    // create new array to hold all bytes
+                    int l1 = sourceElapsedTimeBinary.Length;
+                    int l2 = sourceSampleCounterBinary.Length;
+                    int l3 = sourceStreamValues.Length * sizeof(double);
+                    byte[] streamOut = new byte[l1 + l2 + l3];
+
+                    // blockcopy all bytes to this array
+                    Buffer.BlockCopy(sourceElapsedTimeBinary, 0, streamOut, 0, l1);
+                    Buffer.BlockCopy(sourceSampleCounterBinary, 0, streamOut, l1, l2);
+                    Buffer.BlockCopy(sourceStreamValues, 0, streamOut, l1 + l2, l3);
+
+                    // write source to file
+                    sourceStreamWriter.Write(streamOut);
+                }
+
             }
 
             // advance sample counter, if gets to max value, reset to 0
@@ -529,6 +571,7 @@ namespace UNP.Core {
             }
 
         }
+
         public static void LogSourceInputValues(ushort[] values) {
             
             // TODO: temp until we have a standard format, we might want to store as ushort
@@ -548,20 +591,25 @@ namespace UNP.Core {
         public static void LogStreamValue(double value) {
             //Console.WriteLine("LogStreamValue");
 
-            // check if the counter is within the size of the value array
-            if (dataValuePointer >= numDataStreams) {
-                
-                // message
-                logger.Error("More data streams are logged than have been registered for logging, discarded, check code (currently logging at values array index " + dataValuePointer + ")");
+            // check if data logging is allowed
+            if (mLogDataStreams) {
 
-            } else {
+                // check if the counter is within the size of the value array
+                if (dataValuePointer >= numDataStreams) {
 
-                // store the incoming value in the array, advance the pointer
-                dataStreamValues[dataValuePointer] = value;
-                dataValuePointer++;
+                    // message
+                    logger.Error("More data streams are logged than have been registered for logging, discarded, check code (currently logging at values array index " + dataValuePointer + ")");
 
+                } else {
+
+                    // TODO: mLogDataInputRuntime (if false, then create 0's)
+
+                    // store the incoming value in the array, advance the pointer
+                    dataStreamValues[dataValuePointer] = value;
+                    dataValuePointer++;
+
+                }
             }
-
         }
 
         /**
@@ -569,6 +617,29 @@ namespace UNP.Core {
          * 
          **/
         public static void LogEvent(int level, string text, string value) {
+
+            // check if data logging is allowed
+            if (mLogEvents && Array.IndexOf(mEventLoggingLevels, level) > -1 ) {
+
+                // TODO: mLogEventsRuntime
+
+                // get time of event
+                DateTime eventTime = DateTime.Now;
+
+
+                // if no value given, log '-'for value to keep consistent number of fields per row in event file 
+                if (String.IsNullOrEmpty(value)) { value = "-"; }
+
+                // construct event String    
+                String eventOut = eventTime.ToString("yyyyMMdd_HHmmss_fff") + " " + sourceSampleCounter.ToString() + " " + dataSampleCounter.ToString() + " " + text + " " + value;
+
+                // write event to event file
+                try { eventStreamWriter.WriteLine(eventOut); } catch (IOException e) { logger.Error("Can't write to event file: " + e.Message); }
+
+                // debug
+                logger.Info("Event logged: " + eventOut);
+
+            }
 
         }
 
@@ -612,7 +683,7 @@ namespace UNP.Core {
         }
 
         /**
-         * Create log file of given type
+         * Create header of .dat or .src file
          * 
          **/
         private static void writeHeader(List<string> streamNames, BinaryWriter writer) {
