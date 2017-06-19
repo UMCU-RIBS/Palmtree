@@ -335,14 +335,37 @@ namespace UNP.Core {
         }
 
         public static void Stop() {
+            
+            // TODO: more closing things/variables
 
-            // log the source and data stop event
-            LogEvent(1, "DataStop", "");
-            LogEvent(1, "SourceStop", "");
+            // 
+            if (dataStream != null) {
+                
+                // log the data stop event
+                LogEvent(1, "DataStop", "");
 
-            // close the source and data stream file
-            dataStreamWriter.Close();
-            sourceStreamWriter.Close();
+                // close the data stream file
+                dataStreamWriter.Close();
+                dataStreamWriter = null;
+
+                dataStream.Close();
+                dataStream = null;
+
+            }
+
+            if (sourceStream != null) {
+
+                // log the source stop event
+                LogEvent(1, "SourceStop", "");
+
+                // close the source stream file
+                dataStreamWriter.Close();
+                dataStreamWriter = null;
+
+                dataStream.Close();
+                dataStream = null;
+
+            }
 
             // close the event file
 
@@ -354,7 +377,12 @@ namespace UNP.Core {
 
         public static void Destroy() {
 
-            // stop the Data Class
+            // stop the data Class
+            // Note: At this point stop will probably have been called from the mainthread before destroy, however there is a slight
+            // chance that in the future someone accidentally will put something in the configure/initialize that should have
+            // actually been put in the start. If start is not called in the mainthread, then stop will also not be called at the
+            // modules. For these accidents we do an extra stop here.
+            Stop();
 
 			// TODO: Finalize stopwatches
 			
@@ -384,8 +412,8 @@ namespace UNP.Core {
         public static void SampleProcessingEnd() {
 
             // debug, show data values being stored
-            logger.Info("To .dat file: " + dataElapsedTime + " " + dataSampleCounter + " " + String.Join(",", dataStreamValues.Select(p => p.ToString()).ToArray()));
-            
+            logger.Info("To .dat file: " + dataElapsedTime + " " + dataSampleCounter + " " + string.Join(" |", dataStreamValues));
+
 			// TODO: cutting up files based on the maximum size limit
             // TODO? create function that stores data that can be used for both src and dat?
 
@@ -449,12 +477,15 @@ namespace UNP.Core {
          * Log raw source input values to the source input file (.src) 
          * 
          **/
-        public static void LogSourceInputValues(double[] values) {
+        public static void LogSourceInputValues(double[] sourceStreamValues) {
             //logger.Error("LogSourceInputValues " + values.Length);
 
             // get time since last source sample
             sourceElapsedTime = sourceStopWatch.ElapsedMilliseconds;
             sourceStopWatch.Restart();
+
+            // debug
+            logger.Info("To .src file: " + sourceElapsedTime + " " + sourceSampleCounter + " " + string.Join("|", sourceStreamValues));
 
             // integrity check of collected source values
             if (sourceStreamValues.Length != numSourceInputStreams) {
@@ -486,9 +517,6 @@ namespace UNP.Core {
 
             // advance sample counter, if gets to max value, reset to 0
             if (++sourceSampleCounter == uint.MaxValue) sourceSampleCounter = 0;
-
-            // debug
-            logger.Info("To .src file: " + sourceElapsedTime + " " + sourceSampleCounter + " " + String.Join(",", sourceStreamValues.Select(p => p.ToString()).ToArray()));
 
             // check if data visualization is allowed
             if (mAllowDataVisualization) {
