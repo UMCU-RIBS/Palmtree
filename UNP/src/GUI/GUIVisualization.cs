@@ -25,34 +25,26 @@ namespace UNP.GUI {
         private static Logger logger = LogManager.GetLogger("GUIVisualization");
         private Object lockVisualization = new Object();                          // threadsafety lock for visualization
 
-        private struct VisualizationStream {
-            public string name;
-        }
-
         private struct Graph {
             public int id;
             public bool source;
             public bool updateOnNewData;
             public int numDataPoints;
             public GraphStream[] streams;
-            public Chart chartObject;
+            public Chart chart;
         }
 
         private struct GraphStream {
+            public string name;
             public bool display;
             public bool standardize;                // standardize the values around 0
             public RingBuffer values;               // the stream values are stored in this ringbuffer
             public RingBuffer intervals;            // the intervals between the time a value came in and the previous one coming in are stored in this ringbuffer
             public Series series;
+            public int numValuesAddedSinceUpdate;   // tracks the number of values added since the last chart update
         }
-        
-        private int numVisualizationSourceInputStreams = 0;
-        private VisualizationStream[] visualizationSourceInputStreams = null;   // array that holds all the visualization source input streams
-        
-        private int numVisualizationDataStreams = 0;
-        private VisualizationStream[] visualizationDataStreams = null;          // array that holds all the visualization data streams
-        
-        private Graph[] visualizationGraphs = null;                             // array that holds all the visualization graphs
+
+        private Graph[] visualizationGraphs = null;           // array that holds all the visualization graphs
 
         public GUIVisualization() {
 
@@ -73,47 +65,23 @@ namespace UNP.GUI {
 
                 try {
 
-                    //
-                    // retrieve and process source input streams
-                    //
-
-                    // retrieve the number of source input streams
-                    numVisualizationSourceInputStreams = Data.GetNumberOfSourceInputStreams();
-
                     // retrieve the visualization stream names (this is already an array copy of the list held in the data class)
                     string[] visualizationSourceInputStreamNames = Data.GetSourceInputStreamNames();
-
-                    // create a struct for each stream
-                    visualizationSourceInputStreams = new VisualizationStream[numVisualizationSourceInputStreams];
-                    for (int i = 0; i < numVisualizationSourceInputStreams; i++) {
-                        visualizationSourceInputStreams[i].name = visualizationSourceInputStreamNames[i];
-                    }
-
-
-                    //
-                    // retrieve and process data streams
-                    //
-
-                    // retrieve the number of visualization data streams
-                    numVisualizationDataStreams = Data.GetNumberOfVisualizationDataStreams();
 
                     // retrieve the visualization stream names (this is already an array copy of the list held in the data class)
                     string[] visualizationStreamNames = Data.GetVisualizationDataStreamNames();
 
-                    // create a struct for each stream
-                    visualizationDataStreams = new VisualizationStream[numVisualizationDataStreams];
-                    for (int i = 0; i < numVisualizationDataStreams; i++) {
-                        visualizationDataStreams[i].name = visualizationStreamNames[i];
-                    }
-
-                    //
-                    // create graphs
-                    //
-
                     // create graphs
                     visualizationGraphs = new Graph[NumberOfGraphs];
                     for (int i = 0; i < NumberOfGraphs; i++) {
-                        createGraph(i, ref visualizationGraphs[i], i == 0);
+
+                        visualizationGraphs[i].source = i == 0;
+
+                        if (visualizationGraphs[i].source)
+                            createGraph(i, ref visualizationGraphs[i], visualizationSourceInputStreamNames);
+                        else
+                            createGraph(i, ref visualizationGraphs[i], visualizationStreamNames);
+
                     }
 
                     // connect the events
@@ -142,15 +110,17 @@ namespace UNP.GUI {
                 Data.newVisualizationStreamValues -= newStreamValues;                // add the method to the event handle
                 Data.newVisualizationEvent -= newEvent;                              // add the method to the event handle
 
+                // check if there are graphs initialized
                 if (visualizationGraphs != null) {
+
                     // clear the graph structs
                     for (int i = 0; i < NumberOfGraphs; i++) {
                         if (i >= visualizationGraphs.Count()) break;
 
                         // remove/clear the char control
-                        this.Controls.Remove(visualizationGraphs[i].chartObject);
-                        visualizationGraphs[i].chartObject.Dispose();
-                        visualizationGraphs[i].chartObject = null;
+                        this.Controls.Remove(visualizationGraphs[i].chart);
+                        visualizationGraphs[i].chart.Dispose();
+                        visualizationGraphs[i].chart = null;
 
                         // clear the streams
                         visualizationGraphs[i].streams = new GraphStream[0];
@@ -162,39 +132,20 @@ namespace UNP.GUI {
 
                 }
 
-                // clear the data streams
-                visualizationDataStreams = null;
-                numVisualizationDataStreams = 0;
-
-                // clear the source input streams
-                visualizationSourceInputStreams = null;
-                numVisualizationSourceInputStreams = 0;
-            
             }
             
         }
-        
 
-        private void createGraph(int id, ref Graph graph, bool source) {
-            
-            // define
-            int numStreams = 0;
-            VisualizationStream[] streams;
-            if (source) {
-                numStreams = numVisualizationSourceInputStreams;
-                streams = visualizationSourceInputStreams;
-            } else {
-                numStreams = numVisualizationDataStreams;
-                streams = visualizationDataStreams;
-            }
-            
+
+        private void createGraph(int id, ref Graph graph, string[] streamNames) {
+
+            int numStreams = streamNames.Length;
+
             // 
             int y = 12 + id * 200;
 
             // create the actual control
             Chart chart = new Chart();
-            ChartArea chartArea = new ChartArea("ChartArea");
-            chart.ChartAreas.Add(chartArea);
             chart.Location = new System.Drawing.Point(12, y);
             chart.Name = "crtGraph" + id;
             chart.Size = new System.Drawing.Size(800, 190);
@@ -203,13 +154,18 @@ namespace UNP.GUI {
             chart.BorderlineWidth = 1;
             chart.BorderlineColor = Color.Black;
             chart.BorderlineDashStyle = ChartDashStyle.Solid;
+            
+            ChartArea chartArea = new ChartArea("ChartArea");
+            //chartArea.AxisX.Interval = 1;
+            //chartArea.AxisX.IntervalAutoMode = IntervalAutoMode.FixedCount;
+            chart.ChartAreas.Add(chartArea);
+
             this.Controls.Add(chart);
 
             // store the id and a reference to the chart object in the graph struct
             graph.id = id;
-            graph.source = source;
-            graph.updateOnNewData = true;
-            graph.chartObject = chart;
+            graph.updateOnNewData = false;
+            graph.chart = chart;
             
             // set a standard amount of data points for the graph
             graph.numDataPoints = 100;
@@ -217,44 +173,50 @@ namespace UNP.GUI {
             // add all the streams to the graph
             graph.streams = new GraphStream[numStreams];
             for (int i = 0; i < numStreams; i++) {
+                graph.streams[i].name = streamNames[i];
                 graph.streams[i].display = false;
                 graph.streams[i].standardize = false;
                 graph.streams[i].values = new RingBuffer((uint)graph.numDataPoints);
                 graph.streams[i].intervals = new RingBuffer((uint)graph.numDataPoints);
+                graph.streams[i].numValuesAddedSinceUpdate = 0;
             }
             
             // TODO: debug: make the first stream visible
             if (numStreams > 0) {
                 graph.streams[0].display = true;
-                graph.streams[0].series = new Series(streams[0].name);
+                graph.streams[0].series = new Series(streamNames[0]);
                 graph.streams[0].series.Name = "Series0";
                 graph.streams[0].series.Color = Color.Black;
                 graph.streams[0].series.ChartType = SeriesChartType.Line;
-                graph.streams[0].series.IsXValueIndexed = true;
+                graph.streams[0].series.MarkerStyle = MarkerStyle.Circle;
+                graph.streams[0].series.MarkerSize = 8;
+                graph.streams[0].series.MarkerColor = Color.Black;
                 chart.Series.Add(graph.streams[0].series);
             }
 
             // create a context menu for the chart
-            ContextMenu mnu = createGraphContextMenu(chart, ref graph, ref streams);
+            ContextMenu mnu = createGraphContextMenu(chart, ref graph);
             chart.ContextMenu = mnu;
 
         }
 
-        private ContextMenu createGraphContextMenu(Chart chart, ref Graph graph, ref VisualizationStream[] streams) {
+        private ContextMenu createGraphContextMenu(Chart chart, ref Graph graph) {
 
             // main context menu
             ContextMenu mnuContextMenu = new ContextMenu();
 
             // stream submenu
             MenuItem mnuStreams = new MenuItem("Streams");
-            for (int i = 0; i < streams.Length; i++) {
-                MenuItem mnuStreamItem = new MenuItem(streams[i].name);
+            for (int i = 0; i < graph.streams.Length; i++) {
+                MenuItem mnuStreamItem = new MenuItem(graph.streams[i].name);
 
                 MenuItem mnuStreamItemDisplay = new MenuItem("Display");
                 mnuStreamItemDisplay.Click += (sender, e) => {
                     toggleStreamDisplay_Click(sender, e, chart);
                 };
+                mnuStreamItemDisplay.Checked = graph.streams[i].display;
                 
+
                 MenuItem mnuStreamItemStandard = new MenuItem("Standardize");
                 MenuItem mnuStreamItemColor = new MenuItem("Set color");
 
@@ -298,37 +260,6 @@ namespace UNP.GUI {
             // destroy all graph related objects
             destroyGraphs();
 
-            
-            /*
-            // TODO: check for changes
-
-            // check whether the user is closing the form
-            if (e.CloseReason == CloseReason.UserClosing) {
-
-                // ask the user for confirmation
-                if (MessageBox.Show("Are you sure you want to close?", "Are you sure?", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.No) {
-                    // user clicked no
-
-                    // cancel the closing
-                    e.Cancel = true;
-
-                } else {
-
-                    // continuing will close the form
-
-                }
-
-            }
-            
-            // check if the form is actually closing
-            if (e.Cancel == false) {
-
-                // flag the configuration as adjusted
-                //this.DialogResult = DialogResult.Cancel;
-
-            }
-            */
-            
         }
 
 
@@ -365,21 +296,24 @@ namespace UNP.GUI {
 
             // thread safety
             lock (lockVisualization) {
-
+                
                 // loop through the graphs
                 for (int i = 0; i < visualizationGraphs.Length; i++) {
-
+                    
                     // if the current graph is a source graph and the data is not (or visa versa) then skip
                     if (source != visualizationGraphs[i].source) continue;
-
+                    
                     // check if the graph's chart wants to be updated on new data
                     if (visualizationGraphs[i].updateOnNewData) updateOnNewData = true;
-
+                    
                     // loop through the visualization streams
-                    for (int j = 0; j < numVisualizationSourceInputStreams; j++) {
-
+                    for (int j = 0; j < visualizationGraphs[i].streams.Length; j++) {
+                        
                         // in every graph add the values respectively over the streams 
                         visualizationGraphs[i].streams[j].values.Put(values[j]);
+
+                        // count the values that have been added
+                        visualizationGraphs[i].streams[j].numValuesAddedSinceUpdate++;
 
                     }
 
@@ -405,7 +339,12 @@ namespace UNP.GUI {
                             if (visualizationGraphs[i].updateOnNewData) {
 
                                 this.Invoke((MethodInvoker)delegate {
-                                    updateChart(visualizationGraphs[i]);
+                                    
+                                // thread safety
+                                lock (lockVisualization) {
+            
+                                        updateChart(visualizationGraphs[i]);
+                                    }
                                 });
 
                             }
@@ -424,43 +363,71 @@ namespace UNP.GUI {
 
         /**
          * update the chart display to reflect the data
+         * 
+         * Assumes lock (visualizationLock) on certain objects before being called
          **/
         private void updateChart(Graph graph) {
             //logger.Error("updateChart " + graph.id);
 
-            Chart chart = graph.chartObject;
-
             // loop through the streams in the graph
             for (int i = 0; i < graph.streams.Length; i++) {
 
-                
-
-
-
                 // check if the stream should be displayed
                 if (graph.streams[i].display) {
-                    double[] aap = graph.streams[i].values.DataSequential();
 
-                    graph.streams[i].series.Points.Add(aap[aap.Length - 1]);
-                    
-                    //graph.streams[i].series.Points.Add(10);
-                    //graph.streams[i].series.Points.AddXY(1, 10);
-                    //graph.streams[i].series.Points.AddXY(2, 20);
-                    //graph.streams[i].series.Points.AddXY(3, 25);
+                    // check if there are points added to this stream since the last update of the chart
+                    if (graph.streams[i].numValuesAddedSinceUpdate > 0) {
 
+                        // check if the number of values added is greater than the number of data points in the graph (and it's stream buffers)
+                        if (graph.streams[i].numValuesAddedSinceUpdate < graph.numDataPoints) {
+                            // a smaller of amount of values added then the graphs data size
 
+                            // retrieve the number of values to added and the data
+                            double[] values = graph.streams[i].values.DataSequential();
+                            int numValues = graph.streams[i].numValuesAddedSinceUpdate;
+                            
+                            // add the values to the series
+                            for (int j = values.Length - numValues; j < values.Length; j++) {
+                                
+                                //graph.streams[i].series.Points.Add(values[j]);
+
+                                /*
+                                int x = graph.streams[i].series.Points.Count;
+                                if (x > 10) {
+                                    x = x * x;
+                                }
+                                graph.streams[i].series.Points.AddXY(x, values[j]);
+                                */
+                                
+                            }
+
+                            // decreases the number of values added since last chart update with the number of values that were just added
+                            graph.streams[i].numValuesAddedSinceUpdate -= numValues;
+
+                        } else {
+                            // bigger (or equal) amount of values added than the graph (and it's stream buffers) should hold
+
+                            // TODO: one time update the entire series with the last x datapoints
+                            graph.streams[i].series.Points.Clear();
+                            double[] values = graph.streams[i].values.DataSequential();
+                            //graph.streams[i].series.Points.AddY(
+
+                        }
+
+                        //graph.streams[i].series.Points.Add(10);
+                        //graph.streams[i].series.Points.AddXY(1, 10);
+                        //graph.streams[i].series.Points.AddXY(2, 20);
+                        //graph.streams[i].series.Points.AddXY(3, 25);
+
+                    }
                 }
                     
 
             }
             
-            chart.Invalidate();
+            graph.chart.Invalidate();
 
-            /*
-            this.Invoke((MethodInvoker)delegate {
-                graph.chartObject.Invalidate();
-            });
-            */
+            
             /*
             var series = new Series("Finance");
             // Frist parameter is X-Axis and Second is Collection of Y- Axis
@@ -468,44 +435,7 @@ namespace UNP.GUI {
             chart1.Series.Add(series);
             */
 
-            //if (graph.id == 1)
-
-            /*
-            var series1 = new System.Windows.Forms.DataVisualization.Charting.Series
-            {
-                Name = "Series1",
-                Color = System.Drawing.Color.Green,
-                IsVisibleInLegend = false,
-                IsXValueIndexed = true,
-                ChartType = SeriesChartType.Line
-            };
-
-            this.chart1.Series.Add(series1);
-
-            for (int i=0; i < 100; i++)
-            {
-                series1.Points.AddXY(i, f(i));
-            }
-            chart1.Invalidate();
-            var series1 = new System.Windows.Forms.DataVisualization.Charting.Series {
-                Name = "Series1",
-                Color = System.Drawing.Color.Green,
-                IsVisibleInLegend = false,
-                IsXValueIndexed = true,
-                ChartType = SeriesChartType.Line
-            };
-
-            this.chart1.Series.Add(series1);
-
-            for (int i = 0; i < 100; i++) {
-                series1.Points.AddXY(i, f(i));
-            }
-            chart1.Invalidate();
-            */
-
-
-            //chart.Refresh();
-
+            
         }
 
         /**
@@ -518,11 +448,25 @@ namespace UNP.GUI {
         }
 
         private void tmrUpdate_Tick(object sender, EventArgs e) {
-            logger.Error("Tick");
+            //logger.Error("Tick");
+            
+            // thread safety
+            lock (lockVisualization) {
 
-            for (int i = 0; i < visualizationGraphs.Length; i++) {
-                updateChart(visualizationGraphs[i]);
-            }
+                // loop through the graphs
+                for (int i = 0; i < visualizationGraphs.Length; i++) {
+
+                    // check if the graph needs to be updated on the timer (instead of on new data)
+                    if (!visualizationGraphs[i].updateOnNewData) {
+
+                        // update the chart
+                        updateChart(visualizationGraphs[i]);
+
+                    }
+
+                }   // end loop
+
+            }   // end lock
 
         }
 
