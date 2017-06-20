@@ -21,14 +21,19 @@ namespace UNP.Core {
 
         private static Logger logger = LogManager.GetLogger("Data");
         private static Parameters parameters = ParameterManager.GetParameters("Data", Parameters.ParamSetTypes.Data);
+        
+        private static String dataDir = null;                                                   // location of data directory
+        private static Boolean subDir = false;                                                  // whether or not a sub-directory must be made in the data directory to hold the generated files
+        private static String identifier = null;                                                // file identifier, prefix in filename
+        private static String currDir = null;                                                   // contains full path of current directory files are written in
 
         // event logging
         private static bool mLogEvents = false;                 								// 
         private static bool mLogEventsRuntime = false;          								// stores whether during runtime the events should be logged    (if it was on, then it can be switched off, resulting in 0's being logged)
         private static int[] mEventLoggingLevels = new int[0];
 
-        private static FileStream eventStream = null;                                          // filestream that is fed to the binarywriter, containing the stream of events to be written to the .evt file
-        private static StreamWriter eventStreamWriter = null;                                  // writer that writes values to the .evt file
+        private static FileStream eventStream = null;                                           // filestream that is fed to the binarywriter, containing the stream of events to be written to the .evt file
+        private static StreamWriter eventStreamWriter = null;                                   // writer that writes values to the .evt file
          
         // source streams
         private static bool mLogSourceInput = false;            								// source input logging enabled/disabled (by configuration parameter)
@@ -85,6 +90,11 @@ namespace UNP.Core {
                 "DataDirectory",
                 "Path to the directory to store the data in.\nThe path can be absolute (e.g. 'c:\\data\\') or relative (to the program executable, e.g. 'data\\').",
                 "", "", "data\\");
+
+            parameters.addParameter<bool>(
+                "addSubDir",
+                "Store all files generated during this session in a sub-directory within the data directory.",
+                "1");
 
             parameters.addParameter<string>(
                 "Identifier",
@@ -158,24 +168,36 @@ namespace UNP.Core {
             mLogEvents = parameters.getValue<bool>("LogEvents");
             mLogEventsRuntime = mLogEvents;
             mEventLoggingLevels = parameters.getValue<int[]>("EventLoggingLevels");
+
+            identifier = parameters.getValue<String>("Identifier");
+            subDir = parameters.getValue<bool>("addSubDir");
+
             // ...
 
-            // if there is data to store, create data directory
+            // if there is data to store, create data (sub-)directory
             if (mLogSourceInput || mLogDataStreams || mLogEvents) {
 
                 // construct path name of data directory
-                String dataDir = parameters.getValue<String>("DataDirectory");
-                String path = Path.Combine(Directory.GetCurrentDirectory(), dataDir);
+                dataDir = parameters.getValue<String>("DataDirectory");
+                currDir = Path.Combine(Directory.GetCurrentDirectory(), dataDir);
 
-                // create the data directory 
+                // if sub-directory is desired, add this to path
+                if (subDir) {
+                    String sub = DateTime.Now.ToString("yyyyMMdd_HHmm");
+                    currDir = Path.Combine(currDir, sub);
+
+                    logger.Info("subDir: " + currDir);
+                }
+
+                // create the data (sub-)directory 
                 try {
-                    if (Directory.Exists(path)) { logger.Info("Data directory already exists."); }    
+                    if (Directory.Exists(currDir)) { logger.Info("Data (sub-)directory already exists."); }    
                     else {
-                        Directory.CreateDirectory(path);
-                        logger.Info("Created data directory at " + path );
+                        Directory.CreateDirectory(currDir);
+                        logger.Info("Created data (sub-)directory at " + currDir );
 	                 }    
                 } catch (Exception e) {
-                    logger.Error("Unable to create data directory at " + path + " (" + e.ToString() + ")");
+                    logger.Error("Unable to create data (sub-)directory at " + currDir + " (" + e.ToString() + ")");
                 } 
 
             }
@@ -262,20 +284,16 @@ namespace UNP.Core {
         public static void Start() {
 
             // get location of data directory and current time to use as timestamp for files to be created
-            String dataDir = parameters.getValue<String>("DataDirectory");
-            String fileName = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            String fileName = identifier + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss");
 
-			// TODO: identifier toevoegen aan filename
-            // TODO make subdirs (+ add param to set and check this)
             // TODO create (and close) the parameter file
-            // TODO create the event file
 
             // check if we want to log events
             if (mLogEvents) {
 
                 // construct filepath of event file, with current time as filename 
                 String fileNameEvt = fileName + ".evt";
-                String path = Path.Combine(Directory.GetCurrentDirectory(), dataDir, fileNameEvt);
+                String path = Path.Combine(currDir, fileNameEvt);
 
                 // create filestream: create file if it does not exists, allow to write, do not share with other processes and use buffer of 8192 bytes
                 try {
@@ -287,7 +305,9 @@ namespace UNP.Core {
                     logger.Error("Unable to create event file at " + path + " (" + e.ToString() + ")");
                 }
 
-                // TODO: header?
+                // write header to event file
+                String eventHeader = "Time " + "ID source sample " + "ID data sample " + "Event code " + "Event value";
+                try { eventStreamWriter.WriteLine(eventHeader); } catch (IOException e) { logger.Error("Can't write to event file: " + e.Message); }
 
             }
 
@@ -305,7 +325,7 @@ namespace UNP.Core {
 
                 // construct filepath of source file, with current time as filename 
                 String fileNameSrc = fileName + ".src";
-                String path = Path.Combine(Directory.GetCurrentDirectory(), dataDir, fileNameSrc);
+                String path = Path.Combine(currDir, fileNameSrc);
 
                 // create filestream: create file if it does not exists, allow to write, do not share with other processes and use buffer of 8192 bytes (roughly 1000 samples)
                 try {
@@ -338,7 +358,7 @@ namespace UNP.Core {
 
                 // construct filepath of data file, with current time as filename 
                 String fileNameDat = fileName + ".dat";
-                String path = Path.Combine(Directory.GetCurrentDirectory(), dataDir, fileNameDat);
+                String path = Path.Combine(currDir, fileNameDat);
 
                 // create filestream: create file if it does not exists, allow to write, do not share with other processes and use buffer of 8192 bytes (roughly 1000 samples)
                 try {
@@ -462,18 +482,18 @@ namespace UNP.Core {
                 if (mLogDataStreams) {
 
                     // transform variables that will be stored in .dat to binary arrays (except for dataStreamValues array which is copied directly)
-                    byte[] dataElapsedTimeBinary = BitConverter.GetBytes(dataElapsedTime);
                     byte[] dataSampleCounterBinary = BitConverter.GetBytes(dataSampleCounter);
-
+                    byte[] dataElapsedTimeBinary = BitConverter.GetBytes(dataElapsedTime);
+                    
                     // create new array to hold all bytes
-                    int l1 = dataElapsedTimeBinary.Length;
-                    int l2 = dataSampleCounterBinary.Length;
+                    int l1 = dataSampleCounterBinary.Length;
+                    int l2 = dataElapsedTimeBinary.Length;
                     int l3 = dataStreamValues.Length * sizeof(double);
                     byte[] streamOut = new byte[l1 + l2 + l3];
 
                     // blockcopy all bytes to this array
-                    Buffer.BlockCopy(dataElapsedTimeBinary, 0, streamOut, 0, l1);
-                    Buffer.BlockCopy(dataSampleCounterBinary, 0, streamOut, l1, l2);
+                    Buffer.BlockCopy(dataSampleCounterBinary, 0, streamOut, 0, l1);
+                    Buffer.BlockCopy(dataElapsedTimeBinary, 0, streamOut, l1, l2);
                     Buffer.BlockCopy(dataStreamValues, 0, streamOut, l1 + l2, l3);
 
                     // write data to file
@@ -534,21 +554,22 @@ namespace UNP.Core {
                 // check if source logging is allowed
                 if (mLogSourceInput) {
 
-                    // TODO: mLogSourceInputRuntime (if false, then create 0's)
+                    // if during runtime the setting for source logging has been set to false, zero out the array of measured source samples
+                    if (!mLogSourceInputRuntime) { Array.Clear(sourceStreamValues, 0, sourceStreamValues.Length); }
 
                     // transform variables that will be stored in .src to binary arrays (except for sourceStreamValues array which is copied directly)
-                    byte[] sourceElapsedTimeBinary = BitConverter.GetBytes(sourceElapsedTime);
                     byte[] sourceSampleCounterBinary = BitConverter.GetBytes(sourceSampleCounter);
-
+                    byte[] sourceElapsedTimeBinary = BitConverter.GetBytes(sourceElapsedTime);
+                    
                     // create new array to hold all bytes
-                    int l1 = sourceElapsedTimeBinary.Length;
-                    int l2 = sourceSampleCounterBinary.Length;
+                    int l1 = sourceSampleCounterBinary.Length;
+                    int l2 = sourceElapsedTimeBinary.Length;
                     int l3 = sourceStreamValues.Length * sizeof(double);
                     byte[] streamOut = new byte[l1 + l2 + l3];
 
                     // blockcopy all bytes to this array
-                    Buffer.BlockCopy(sourceElapsedTimeBinary, 0, streamOut, 0, l1);
-                    Buffer.BlockCopy(sourceSampleCounterBinary, 0, streamOut, l1, l2);
+                    Buffer.BlockCopy(sourceSampleCounterBinary, 0, streamOut, 0, l1);
+                    Buffer.BlockCopy(sourceElapsedTimeBinary, 0, streamOut, l1, l2);
                     Buffer.BlockCopy(sourceStreamValues, 0, streamOut, l1 + l2, l3);
 
                     // write source to file
@@ -602,7 +623,8 @@ namespace UNP.Core {
 
                 } else {
 
-                    // TODO: mLogDataInputRuntime (if false, then create 0's)
+                    // if during runtime logging is turned off, log 0's
+                    if (!mLogDataStreamsRuntime) { value = 0; }
 
                     // store the incoming value in the array, advance the pointer
                     dataStreamValues[dataValuePointer] = value;
@@ -618,10 +640,8 @@ namespace UNP.Core {
          **/
         public static void LogEvent(int level, string text, string value) {
 
-            // check if data logging is allowed
-            if (mLogEvents && Array.IndexOf(mEventLoggingLevels, level) > -1 ) {
-
-                // TODO: mLogEventsRuntime
+            // check if event logging of this level is allowed
+            if (mLogEvents && mLogEventsRuntime && Array.IndexOf(mEventLoggingLevels, level) > -1) {
 
                 // get time of event
                 DateTime eventTime = DateTime.Now;
@@ -690,7 +710,7 @@ namespace UNP.Core {
 
             // create header: convert list with names of streams to String, with tabs between names 
             String header = string.Join("\t", streamNames.ToArray());
-            header = "Elapsed time [ms] \t Sample # \t" + header;
+            header = "Sample #  \t Elapsed time [ms] \t" + header;
             byte[] headerBinary = Encoding.ASCII.GetBytes(header);
 
             // store length [bytes] of header 
