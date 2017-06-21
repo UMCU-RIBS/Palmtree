@@ -24,7 +24,10 @@ namespace MoleTask {
 			EndText
 		};
 
-        private static Logger logger = LogManager.GetLogger("MoleTask");                        // the logger object for the view
+        private const int CLASS_VERSION = 0;
+        private const string CLASS_NAME = "MoleTask";
+
+        private static Logger logger = LogManager.GetLogger(CLASS_NAME);                        // the logger object for the view
         private static Parameters parameters = null;
         
         private uint inputChannels = 0;
@@ -202,6 +205,14 @@ namespace MoleTask {
 
         public Parameters getParameters() {
             return parameters;
+        }
+
+        public String getClassName() {
+            return CLASS_NAME;
+        }
+
+        public int getClassVersion() {
+            return CLASS_VERSION;
         }
 
         public bool configure(ref SampleFormat input) {

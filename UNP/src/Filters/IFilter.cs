@@ -9,6 +9,7 @@ namespace UNP.Filters {
 
     interface IFilter {
 
+        int getClassVersion();
         string getName();
         Parameters getParameters();
 

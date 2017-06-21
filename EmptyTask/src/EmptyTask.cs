@@ -12,8 +12,11 @@ namespace EmptyTask {
 
     public class EmptyTask : IApplication {
 
-        private static Logger logger = LogManager.GetLogger("EmptyTask");                        // the logger object for the view
-        private static Parameters parameters = ParameterManager.GetParameters("EmptyTask", Parameters.ParamSetTypes.Application);
+        private const int CLASS_VERSION = 0;
+        private const string CLASS_NAME = "Emptytask";
+
+        private static Logger logger = LogManager.GetLogger(CLASS_NAME);                        // the logger object for the view
+        private static Parameters parameters = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Application);
 
         private EmptyView mSceneThread = null;
         private Object lockView = new Object();                         // threadsafety lock for all event on the view
@@ -31,6 +34,14 @@ namespace EmptyTask {
 
         public Parameters getParameters() {
             return parameters;
+        }
+
+        public int getClassVersion() {
+            return CLASS_VERSION;
+        }
+
+        public String getClassName() {
+            return CLASS_NAME;
         }
 
         public bool configure(ref SampleFormat input) {

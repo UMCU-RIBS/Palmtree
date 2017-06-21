@@ -13,8 +13,11 @@ namespace UNP.Sources {
 
     public class PlaybackSignal : ISource {
 
-        private static Logger logger = LogManager.GetLogger("PlaybackSignal");
-        private static Parameters parameters = ParameterManager.GetParameters("PlaybackSignal", Parameters.ParamSetTypes.Source);
+        private const string CLASS_NAME = "PlaybackSignal";
+        private const int CLASS_VERSION = 0;
+
+        private static Logger logger = LogManager.GetLogger(CLASS_NAME);
+        private static Parameters parameters = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Source);
 
         private MainThread main = null;
 
@@ -30,6 +33,14 @@ namespace UNP.Sources {
             Thread thread = new Thread(this.run);
             thread.Start();
 
+        }
+
+        public int getClassVersion() {
+            return CLASS_VERSION;
+        }
+
+        public String getClassName() {
+            return CLASS_NAME;
         }
 
         public Parameters getParameters() {

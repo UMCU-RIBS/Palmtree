@@ -9,7 +9,9 @@ namespace UNP.Applications {
 
     public interface IApplication {
 
+        int getClassVersion();
         Parameters getParameters();
+        String getClassName();
 
         bool configure(ref SampleFormat input);
         void initialize();

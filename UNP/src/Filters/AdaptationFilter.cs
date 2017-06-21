@@ -11,7 +11,9 @@ using UNP.Core.Params;
 namespace UNP.Filters {
 
     public class AdaptationFilter : FilterBase, IFilter {
-        
+
+        private const int CLASS_VERSION = 0;
+
         private int[] mAdaptation = null;
         private int mBufferSize = 0;                        // time window of past data per buffer that enters into statistic
         private int mAdaptationMinimalLength = 0;           // length of the buffer that has to be filled before adaptation starts

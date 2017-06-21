@@ -15,6 +15,9 @@ namespace UNP.Sources {
 
     public class NexusSignal : ISource {
 
+        private const string CLASS_NAME = "NexusSignal";
+        private const int CLASS_VERSION = 0;
+
         public const int NEXUS_POWERMODE_SAMPLES_PER_PACKAGE = 1;
         public const int NEXUS_POWERMODE_CHANNELS_PER_PACKAGE = 4;
         public const int NEXUS_TIMEMODE_SAMPLES_PER_PACKAGE = 40;
@@ -28,8 +31,8 @@ namespace UNP.Sources {
         public const int PACKET_FINISHED = 8;                       // packet-state for completed packet
 
 
-        private static Logger logger = LogManager.GetLogger("NexusSignal");
-        private static Parameters parameters = ParameterManager.GetParameters("NexusSignal", Parameters.ParamSetTypes.Source);
+        private static Logger logger = LogManager.GetLogger(CLASS_NAME);
+        private static Parameters parameters = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Source);
 
         private MainThread main = null;
 
@@ -108,6 +111,14 @@ namespace UNP.Sources {
             signalThread = new Thread(this.run);
             signalThread.Start();
 
+        }
+
+        public int getClassVersion() {
+            return CLASS_VERSION;
+        }
+
+        public String getClassName() {
+            return CLASS_NAME;
         }
 
         public Parameters getParameters() {

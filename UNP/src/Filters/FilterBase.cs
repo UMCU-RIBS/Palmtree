@@ -11,6 +11,8 @@ namespace UNP.Filters {
 
     public class FilterBase {
 
+        protected const int CLASS_VERSION = 0;
+
         protected string filterName = "";
         protected Logger logger = null;
         protected Parameters parameters = null;
@@ -29,6 +31,10 @@ namespace UNP.Filters {
 
         public Parameters getParameters() {
             return parameters;
+        }
+
+        public int getClassVersion() {
+            return CLASS_VERSION;
         }
 
         public void configureInputLogging(string prefix, SampleFormat input) {

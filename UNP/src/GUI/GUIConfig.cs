@@ -9,6 +9,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
+using UNP.Core;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
 
@@ -762,6 +763,14 @@ namespace UNP.GUI {
             }
             */
             
+        }
+
+        private void btnLoadPrmFile_Click(object sender, EventArgs e) {
+            MainThread.loadParameterFile();
+        }
+
+        private void btnSavePrmFile_Click(object sender, EventArgs e) {
+            MainThread.saveParameterFile();
         }
 
     }

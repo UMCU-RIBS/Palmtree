@@ -14,8 +14,11 @@ namespace UNP.Sources {
 
     public class GenerateSignal : ISource {
 
-        private static Logger logger = LogManager.GetLogger("GenerateSignal");
-        private static Parameters parameters = ParameterManager.GetParameters("GenerateSignal", Parameters.ParamSetTypes.Source);
+        private const string CLASS_NAME = "GenerateSignal";
+        private const int CLASS_VERSION = 0;
+
+        private static Logger logger = LogManager.GetLogger(CLASS_NAME);
+        private static Parameters parameters = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Source);
 
         private MainThread main = null;
 
@@ -54,6 +57,14 @@ namespace UNP.Sources {
             signalThread = new Thread(this.run);
             signalThread.Start();
 
+        }
+
+        public int getClassVersion() {
+            return CLASS_VERSION;
+        }
+
+        public String getClassName() {
+            return CLASS_NAME;
         }
 
         public Parameters getParameters() {

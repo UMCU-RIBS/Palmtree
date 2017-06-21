@@ -18,11 +18,14 @@ namespace UNP.Sources {
 
     public class KeypressSignal : ISource {
 
+        private const string CLASS_NAME = "KeypressSignal";
+        private const int CLASS_VERSION = 0;
+
         [DllImport("user32.dll")]
         public static extern short GetAsyncKeyState(int vKey);
 
-        private static Logger logger = LogManager.GetLogger("KeypressSignal");
-        private static Parameters parameters = ParameterManager.GetParameters("KeypressSignal", Parameters.ParamSetTypes.Source);
+        private static Logger logger = LogManager.GetLogger(CLASS_NAME);
+        private static Parameters parameters = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Source);
 
         private MainThread main = null;
 
@@ -72,6 +75,14 @@ namespace UNP.Sources {
             signalThread = new Thread(this.run);
             signalThread.Start();
 
+        }
+
+        public int getClassVersion() {
+            return CLASS_VERSION;
+        }
+
+        public String getClassName() {
+            return CLASS_NAME;
         }
 
         public Parameters getParameters() {

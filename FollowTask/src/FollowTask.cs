@@ -22,7 +22,10 @@ namespace FollowTask {
 			EndText
 		};
 
-        private static Logger logger = LogManager.GetLogger("FollowTask");                        // the logger object for the view
+        private const int CLASS_VERSION = 0;
+        private const string CLASS_NAME = "FollowTask";
+
+        private static Logger logger = LogManager.GetLogger(CLASS_NAME);                        // the logger object for the view
         private static Parameters parameters = null;
 
         private uint inputChannels = 0;
@@ -257,6 +260,14 @@ namespace FollowTask {
 
         public Parameters getParameters() {
             return parameters;
+        }
+
+        public String getClassName() {
+            return CLASS_NAME;
+        }
+
+        public int getClassVersion() {
+            return CLASS_VERSION;
         }
 
         public bool configure(ref SampleFormat input) {

@@ -732,6 +732,70 @@ namespace UNP.Core {
             for (int i = 0; i < newParameters.Length; i++)      configureRunningFilter(newParameters[i], (i < resetFilter.Length ? resetFilter[i] : false));
         }
 
+        public static void saveParameterFile() {
+
+            // get versions
+            int sourceVersion = source.getClassVersion();
+            foreach (IFilter filter in filters) {
+                int filterVersion = filter.getClassVersion();
+            }
+            // TODO: reference
+            // int applicationVersion = application.getClassVersion();
+            
+            // get parameterSets
+            Dictionary<string, Parameters> parameterSets = ParameterManager.getParameterSets();
+
+            // for each parameter set, cycle through all iParam objects contained within
+            foreach (KeyValuePair<string, Parameters> entry in parameterSets) {
+
+                // get setName
+                String setname = entry.Key;
+                logger.Info("ParameterSet name: " + setname);
+
+                // get Parameter object and iParams contained within
+                Parameters parameterSet = entry.Value;
+                List<iParam> parameters = parameterSet.getParameters();
+                
+                // cycle thorugh iParams
+                foreach (iParam parameter in parameters) {
+                    
+                    // param name
+                    String paramName = parameter.Name;
+                    logger.Info("Param name: " + paramName);
+
+                    // param type
+                    String paramType = parameter.GetType().ToString();
+                    logger.Info("Param type: " + paramType);
+
+                    // param value
+                    String paramValue = parameter.ToString();
+                    logger.Info("Param value: " + paramValue);
+                }
+                
+            }
+
+            /* TODO convert strings to XML format:
+             * 
+            <xml>
+            <root>
+                <versions>
+                    <version name="" type="" value="">
+                <versions>
+                <parameterSet name="setname">
+                    <param name="" type="" value="">
+                    <param name="" type="" value="">
+                    <param name="" type="" value="">
+                    <param name="" type="" value=""> 
+                </parameterSet>
+            </root>
+            */
+
+        }
+
+        public static void loadParameterFile() {
+
+        }
+
     }
 
 }

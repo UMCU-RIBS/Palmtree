@@ -9,6 +9,8 @@ namespace UNP.Sources {
 
     interface ISource {
 
+        int getClassVersion();
+        String getClassName(); 
         Parameters getParameters();
 
         bool configure(out SampleFormat output);

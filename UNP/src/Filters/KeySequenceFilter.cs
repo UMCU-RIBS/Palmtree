@@ -11,6 +11,8 @@ namespace UNP.Filters {
 
     public class KeySequenceFilter : FilterBase, IFilter {
 
+        private const int CLASS_VERSION = 0;
+
         private int filterInputChannel = 1;							// input channel
         private double mThreshold = 0;                              // 
         private double mProportionCorrect = 0;                      // 
