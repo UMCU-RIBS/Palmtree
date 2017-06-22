@@ -22,10 +22,10 @@ namespace UNP.Core {
         private static Logger logger = LogManager.GetLogger("Data");
         private static Parameters parameters = ParameterManager.GetParameters("Data", Parameters.ParamSetTypes.Data);
         
-        private static String dataDir = null;                                                   // location of data directory
-        private static Boolean subDir = false;                                                  // whether or not a sub-directory must be made in the data directory to hold the generated files
-        private static String identifier = null;                                                // file identifier, prefix in filename
-        private static String currDir = null;                                                   // contains full path of current directory files are written in
+        private static string dataDir = "";                                                     // location of data directory
+        private static bool subDirPerRun = false;                                               // whether or not a sub-directory must be made in the data directory to hold the generated files per run
+        private static string identifier = "";                                                  // file identifier, prefix in filename
+        private static string currDir = "";                                                     // contains full path of current directory files are written in
 
         // event logging
         private static bool mLogEvents = false;                 								// 
@@ -92,8 +92,8 @@ namespace UNP.Core {
                 "", "", "data\\");
 
             parameters.addParameter<bool>(
-                "addSubDir",
-                "Store all files generated during this session in a sub-directory within the data directory.",
+                "SubDirectoryPerRun",
+                "Store all files generated during each run in a seperate sub-directory within the data directory.",
                 "1");
 
             parameters.addParameter<string>(
@@ -169,8 +169,8 @@ namespace UNP.Core {
             mLogEventsRuntime = mLogEvents;
             mEventLoggingLevels = parameters.getValue<int[]>("EventLoggingLevels");
 
-            identifier = parameters.getValue<String>("Identifier");
-            subDir = parameters.getValue<bool>("addSubDir");
+            identifier = parameters.getValue<string>("Identifier");
+            subDirPerRun = parameters.getValue<bool>("SubDirectoryPerRun");
 
             // ...
 
@@ -178,15 +178,15 @@ namespace UNP.Core {
             if (mLogSourceInput || mLogDataStreams || mLogEvents) {
 
                 // construct path name of data directory
-                dataDir = parameters.getValue<String>("DataDirectory");
+                dataDir = parameters.getValue<string>("DataDirectory");
                 currDir = Path.Combine(Directory.GetCurrentDirectory(), dataDir);
 
                 // if sub-directory is desired, add this to path
-                if (subDir) {
-                    String sub = DateTime.Now.ToString("yyyyMMdd_HHmm");
+                if (subDirPerRun) {
+                    string sub = DateTime.Now.ToString("yyyyMMdd_HHmm");
                     currDir = Path.Combine(currDir, sub);
 
-                    logger.Info("subDir: " + currDir);
+                    logger.Info("subDirPerRun: " + currDir);
                 }
 
                 // create the data (sub-)directory 
@@ -284,7 +284,7 @@ namespace UNP.Core {
         public static void Start() {
 
             // get location of data directory and current time to use as timestamp for files to be created
-            String fileName = identifier + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            string fileName = identifier + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss");
 
             // TODO create (and close) the parameter file
 
@@ -292,8 +292,8 @@ namespace UNP.Core {
             if (mLogEvents) {
 
                 // construct filepath of event file, with current time as filename 
-                String fileNameEvt = fileName + ".evt";
-                String path = Path.Combine(currDir, fileNameEvt);
+                string fileNameEvt = fileName + ".evt";
+                string path = Path.Combine(currDir, fileNameEvt);
 
                 // create filestream: create file if it does not exists, allow to write, do not share with other processes and use buffer of 8192 bytes
                 try {
@@ -306,7 +306,7 @@ namespace UNP.Core {
                 }
 
                 // write header to event file
-                String eventHeader = "Time " + "ID source sample " + "ID data sample " + "Event code " + "Event value";
+                string eventHeader = "Time " + "ID source sample " + "ID data sample " + "Event code " + "Event value";
                 try { eventStreamWriter.WriteLine(eventHeader); } catch (IOException e) { logger.Error("Can't write to event file: " + e.Message); }
 
             }
@@ -324,8 +324,8 @@ namespace UNP.Core {
                 sourceSampleCounter = 0;
 
                 // construct filepath of source file, with current time as filename 
-                String fileNameSrc = fileName + ".src";
-                String path = Path.Combine(currDir, fileNameSrc);
+                string fileNameSrc = fileName + ".src";
+                string path = Path.Combine(currDir, fileNameSrc);
 
                 // create filestream: create file if it does not exists, allow to write, do not share with other processes and use buffer of 8192 bytes (roughly 1000 samples)
                 try {
@@ -357,8 +357,8 @@ namespace UNP.Core {
                 dataStreamValues = new double[numDataStreams];
 
                 // construct filepath of data file, with current time as filename 
-                String fileNameDat = fileName + ".dat";
-                String path = Path.Combine(currDir, fileNameDat);
+                string fileNameDat = fileName + ".dat";
+                string path = Path.Combine(currDir, fileNameDat);
 
                 // create filestream: create file if it does not exists, allow to write, do not share with other processes and use buffer of 8192 bytes (roughly 1000 samples)
                 try {
@@ -541,7 +541,7 @@ namespace UNP.Core {
             sourceStopWatch.Restart();
 
             // debug
-            logger.Info("To .src file: " + sourceElapsedTime + " " + sourceSampleCounter + " " + String.Join("|", sourceStreamValues));
+            logger.Info("To .src file: " + sourceElapsedTime + " " + sourceSampleCounter + " " + string.Join("|", sourceStreamValues));
 
             // integrity check of collected source values
             if (sourceStreamValues.Length != numSourceInputStreams) {
@@ -648,10 +648,10 @@ namespace UNP.Core {
 
 
                 // if no value given, log '-'for value to keep consistent number of fields per row in event file 
-                if (String.IsNullOrEmpty(value)) { value = "-"; }
+                if (string.IsNullOrEmpty(value)) { value = "-"; }
 
                 // construct event String    
-                String eventOut = eventTime.ToString("yyyyMMdd_HHmmss_fff") + " " + sourceSampleCounter.ToString() + " " + dataSampleCounter.ToString() + " " + text + " " + value;
+                string eventOut = eventTime.ToString("yyyyMMdd_HHmmss_fff") + " " + sourceSampleCounter.ToString() + " " + dataSampleCounter.ToString() + " " + text + " " + value;
 
                 // write event to event file
                 try { eventStreamWriter.WriteLine(eventOut); } catch (IOException e) { logger.Error("Can't write to event file: " + e.Message); }
@@ -709,7 +709,7 @@ namespace UNP.Core {
         private static void writeHeader(List<string> streamNames, BinaryWriter writer) {
 
             // create header: convert list with names of streams to String, with tabs between names 
-            String header = string.Join("\t", streamNames.ToArray());
+            string header = string.Join("\t", streamNames.ToArray());
             header = "Sample #  \t Elapsed time [ms] \t" + header;
             byte[] headerBinary = Encoding.ASCII.GetBytes(header);
 

@@ -195,35 +195,38 @@ namespace UNP.GUI {
             }
 
             // create a context menu for the chart
-            ContextMenu mnu = createGraphContextMenu(chart, ref graph);
+            ContextMenu mnu = createGraphContextMenu(ref graph);
             chart.ContextMenu = mnu;
 
         }
 
-        private ContextMenu createGraphContextMenu(Chart chart, ref Graph graph) {
+        private ContextMenu createGraphContextMenu(ref Graph graph) {
 
             // main context menu
             ContextMenu mnuContextMenu = new ContextMenu();
 
             // stream submenu
             MenuItem mnuStreams = new MenuItem("Streams");
-            for (int i = 0; i < graph.streams.Length; i++) {
-                MenuItem mnuStreamItem = new MenuItem(graph.streams[i].name);
+            for (int irr = 0; irr < graph.streams.Length; irr++) {
+                MenuItem mnuStreamItem = new MenuItem(graph.streams[irr].name);
 
                 MenuItem mnuStreamItemDisplay = new MenuItem("Display");
                 mnuStreamItemDisplay.Click += (sender, e) => {
-                    toggleStreamDisplay_Click(sender, e, chart);
+                    int val = irr;
+                    //toggleStreamDisplay_Click(sender, e, ref graph, ref graph.streams[i]);   
+                    logger.Error(val);
                 };
-                mnuStreamItemDisplay.Checked = graph.streams[i].display;
-                
+                mnuStreamItemDisplay.Checked = graph.streams[irr].display;
+                mnuStreamItem.MenuItems.Add(mnuStreamItemDisplay);
 
                 MenuItem mnuStreamItemStandard = new MenuItem("Standardize");
-                MenuItem mnuStreamItemColor = new MenuItem("Set color");
-
-
-                mnuStreamItem.MenuItems.Add(mnuStreamItemDisplay);
+                //mnuStreamItemStandard.Click += (sender, e) => {      toggleStreamStandardize_Click(sender, e, chart);    };
                 mnuStreamItem.MenuItems.Add(mnuStreamItemStandard);
+
+                MenuItem mnuStreamItemColor = new MenuItem("Set color");
+                //mnuStreamItemColor.Click += (sender, e) => {      toggleStreamColor_Click(sender, e, chart);    };
                 mnuStreamItem.MenuItems.Add(mnuStreamItemColor);
+
                 mnuStreams.MenuItems.Add(mnuStreamItem);
             }
             mnuStreams.MenuItems.Add("-");
@@ -245,14 +248,6 @@ namespace UNP.GUI {
 
             return mnuContextMenu;
 
-        }
-
-        private void toggleStreamDisplay_Click(object sender, EventArgs e, Chart chart) {
-            //ToolStripItem clickedItem = sender as ToolStripItem;
-            // your code here
-            logger.Error("click");
-            MenuItem aap = (MenuItem)sender;
-            aap.Checked = true;
         }
 
         private void GUIVisualization_FormClosing(object sender, FormClosingEventArgs e) {
@@ -389,7 +384,7 @@ namespace UNP.GUI {
                             // add the values to the series
                             for (int j = values.Length - numValues; j < values.Length; j++) {
                                 
-                                //graph.streams[i].series.Points.Add(values[j]);
+                                graph.streams[i].series.Points.Add(values[j]);
 
                                 /*
                                 int x = graph.streams[i].series.Points.Count;
@@ -470,6 +465,21 @@ namespace UNP.GUI {
 
         }
 
+
+        private void toggleStreamDisplay_Click(object sender, EventArgs e, Graph graph, GraphStream stream) {
+
+            // toggie the display setting
+            stream.display = !stream.display;
+
+            // update the menu item
+            MenuItem menuItem = (MenuItem)sender;
+            menuItem.Checked = stream.display;
+
+            // clear the stream it's graph points (if it had any)
+            stream.series.Points.Clear();
+
+
+        }
 
 
     }

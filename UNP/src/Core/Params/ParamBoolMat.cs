@@ -18,7 +18,7 @@ namespace UNP.Core.Params {
             string strRet = "";
             for (int c = 0; c < this.values.Length; c++) {
                 if (c != 0) strRet += ";";
-                for (int r = 0; r < this.values.Length; r++) {
+                for (int r = 0; r < this.values[c].Length; r++) {
                     if (r != 0) strRet += " ";
                     strRet += (this.values[c][r] ? "1" : "0");
                 }
