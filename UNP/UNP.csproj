@@ -145,6 +145,7 @@
     <Compile Include="src\GUI\GUIMain.Designer.cs">
       <DependentUpon>GUIMain.cs</DependentUpon>
     </Compile>
+    <Compile Include="src\Plugins\WindowsSensorsPlugin.cs" />
     <Compile Include="src\Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="src\Filters\TimeSmoothingFilter.cs" />
