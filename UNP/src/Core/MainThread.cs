@@ -17,6 +17,9 @@ using UNP.Core.Helpers;
 using UNP.Sources;
 using UNP.Views;
 using UNP.Core.Params;
+using System.Windows.Forms;
+using System.Xml;
+using System.IO;
 
 namespace UNP.Core {
 
@@ -37,7 +40,7 @@ namespace UNP.Core {
 
         private static ISource source = null;                               //
         private static List<IFilter> filters = new List<IFilter>();         //
-        private IApplication application = null;                            // reference to the view, used to pull information from and push commands to
+        private static IApplication application = null;                            // reference to the view, used to pull information from and push commands to
 
         const int sampleBufferSize = 10000;                                 // the size (and maximum samples) of the sample buffer/que 
         private double[][] sampleBuffer = new double[sampleBufferSize][];   // the sample buffer in which samples are queud
@@ -732,68 +735,286 @@ namespace UNP.Core {
             for (int i = 0; i < newParameters.Length; i++)      configureRunningFilter(newParameters[i], (i < resetFilter.Length ? resetFilter[i] : false));
         }
 
-        public static void saveParameterFile() {
+        public static void saveParameterFile()
+        {
 
-            // get versions
-            int sourceVersion = source.getClassVersion();
-            foreach (IFilter filter in filters) {
-                int filterVersion = filter.getClassVersion();
-            }
-            // TODO: reference
-            // int applicationVersion = application.getClassVersion();
-            
-            // get parameterSets
-            Dictionary<string, Parameters> parameterSets = ParameterManager.getParameterSets();
+            // TODO: indent with tabs
+            // TODO: save with correct name in correct path
 
-            // for each parameter set, cycle through all iParam objects contained within
-            foreach (KeyValuePair<string, Parameters> entry in parameterSets) {
+            // file name to save xml parameter file to 
+            String xmlFileName = null;
 
-                // get setName
-                String setname = entry.Key;
-                logger.Info("ParameterSet name: " + setname);
+            // create save file dialog box for user with standard filename set to current time
+            SaveFileDialog savefile = new SaveFileDialog();
+            savefile.FileName = DateTime.Now.ToString("yyyyMMdd_HHmm") + ".prm";
 
-                // get Parameter object and iParams contained within
-                Parameters parameterSet = entry.Value;
-                List<iParam> parameters = parameterSet.getParameters();
-                
-                // cycle thorugh iParams
-                foreach (iParam parameter in parameters) {
-                    
-                    // param name
-                    String paramName = parameter.Name;
-                    logger.Info("Param name: " + paramName);
+            // if user sucessfully selected location, save location and store file
+            if (savefile.ShowDialog() == DialogResult.OK)
+            {
+                xmlFileName = savefile.FileName;
 
-                    // param type
-                    String paramType = parameter.GetType().ToString();
-                    logger.Info("Param type: " + paramType);
+                // create parameter XML file with encoding declaration
+                XmlDocument paramFile = new XmlDocument();
+                XmlNode paramFileNode = paramFile.CreateXmlDeclaration("1.0", "UTF-8", null);
+                paramFile.AppendChild(paramFileNode);
 
-                    // param value
-                    String paramValue = parameter.ToString();
-                    logger.Info("Param value: " + paramValue);
+                // add root node
+                XmlNode rootNode = paramFile.CreateElement("root");
+                paramFile.AppendChild(rootNode);
+
+                // VERSION NODES
+                // create versions node and add to root node
+                XmlNode versionsNode = paramFile.CreateElement("versions");
+                rootNode.AppendChild(versionsNode);
+
+                // get source name and version value, and create source version node 
+                int sourceVersionValue = source.getClassVersion();
+                String sourceVersionName = source.getClassName();
+                XmlNode sourceVersionNode = paramFile.CreateElement("version");
+
+                // add name attribute 
+                XmlAttribute sourceNameAttr = paramFile.CreateAttribute("name");
+                sourceNameAttr.Value = sourceVersionName;
+                sourceVersionNode.Attributes.Append(sourceNameAttr);
+
+                // add type attribute 
+                XmlAttribute sourceTypeAttr = paramFile.CreateAttribute("type");
+                sourceTypeAttr.Value = "source";
+                sourceVersionNode.Attributes.Append(sourceTypeAttr);
+
+                // add value attribute
+                XmlAttribute sourceValueAttr = paramFile.CreateAttribute("value");
+                sourceValueAttr.Value = sourceVersionValue.ToString();
+                sourceVersionNode.Attributes.Append(sourceValueAttr);
+
+                // add source version node to versions node
+                versionsNode.AppendChild(sourceVersionNode);
+
+                // cycle through filters
+                foreach (IFilter filter in filters)
+                {
+
+                    // get filter version and create filter version node 
+                    int filterVersionValue = filter.getClassVersion();
+                    String filterVersionName = filter.getName();
+                    XmlNode filterVersionNode = paramFile.CreateElement("version");
+
+                    // add name attribute 
+                    XmlAttribute filterNameAttr = paramFile.CreateAttribute("name");
+                    filterNameAttr.Value = filterVersionName;
+                    filterVersionNode.Attributes.Append(filterNameAttr);
+
+                    // add type attribute 
+                    XmlAttribute filterTypeAttr = paramFile.CreateAttribute("type");
+                    filterTypeAttr.Value = "filter";
+                    filterVersionNode.Attributes.Append(filterTypeAttr);
+
+                    // add value attribute
+                    XmlAttribute fillterValueAttr = paramFile.CreateAttribute("value");
+                    fillterValueAttr.Value = filterVersionValue.ToString();
+                    filterVersionNode.Attributes.Append(fillterValueAttr);
+
+                    // add filter version node to versions node
+                    versionsNode.AppendChild(filterVersionNode);
                 }
-                
+
+                // get application version and create application version node 
+                int applicationVersionValue = application.getClassVersion();
+                String applicationVersionName = application.getClassName();
+                XmlNode applicationVersionNode = paramFile.CreateElement("version");
+
+                // add name attribute 
+                XmlAttribute applicationNameAttr = paramFile.CreateAttribute("name");
+                applicationNameAttr.Value = applicationVersionName;
+                applicationVersionNode.Attributes.Append(applicationNameAttr);
+
+                // add type attribute 
+                XmlAttribute applicationTypeAttr = paramFile.CreateAttribute("type");
+                applicationTypeAttr.Value = "application";
+                applicationVersionNode.Attributes.Append(applicationTypeAttr);
+
+                // add value attribute
+                XmlAttribute applicationValueAttr = paramFile.CreateAttribute("value");
+                applicationValueAttr.Value = applicationVersionValue.ToString();
+                applicationVersionNode.Attributes.Append(applicationValueAttr);
+
+                // add application version node to versions node
+                versionsNode.AppendChild(applicationVersionNode);
+
+                // PARAMETERSET NODES
+                // get parameterSets
+                Dictionary<string, Parameters> parameterSets = ParameterManager.getParameterSets();
+
+                // cycle through parameter sets
+                foreach (KeyValuePair<string, Parameters> entry in parameterSets)
+                {
+
+                    // get name of parameter set
+                    String setname = entry.Key;
+                    logger.Debug("Saving parameter set: " + setname);
+
+                    // create parameterSet node 
+                    XmlNode parameterSetNode = paramFile.CreateElement("parameterSet");
+
+                    // add name attribute to parameterSet node and set equal to set name
+                    XmlAttribute parameterSetName = paramFile.CreateAttribute("name");
+                    parameterSetName.Value = setname;
+                    parameterSetNode.Attributes.Append(parameterSetName);
+
+                    // add parameterSet node to root node
+                    rootNode.AppendChild(parameterSetNode);
+
+                    // get Parameter object and iParams contained within
+                    Parameters parameterSet = entry.Value;
+                    List<iParam> parameters = parameterSet.getParameters();
+
+                    // cycle thorugh iParams
+                    foreach (iParam parameter in parameters)
+                    {
+
+                        // param name
+                        String paramName = parameter.Name;
+                        String paramType = parameter.GetType().ToString();
+                        String paramValue = parameter.ToString();
+                        logger.Debug("Saving parameter " + paramName + " of type " + paramType + " with value of " + paramValue + " to parameter file.");
+                        
+                        // create param node 
+                        XmlNode paramNode = paramFile.CreateElement("param");
+
+                        // add name attribute 
+                        XmlAttribute paramNameAttr = paramFile.CreateAttribute("name");
+                        paramNameAttr.Value = paramName;
+                        paramNode.Attributes.Append(paramNameAttr);
+
+                        // add type attribute 
+                        XmlAttribute paramTypeAttr = paramFile.CreateAttribute("type");
+                        paramTypeAttr.Value = paramType;
+                        paramNode.Attributes.Append(paramTypeAttr);
+
+                        // add value attribute
+                        XmlAttribute paramValueAttr = paramFile.CreateAttribute("value");
+                        paramValueAttr.Value = paramValue;
+                        paramNode.Attributes.Append(paramValueAttr);
+
+                        // add param node to parameterSet node
+                        parameterSetNode.AppendChild(paramNode);
+
+                    }
+
+                }
+
+                // check if filename is set and save parameter file
+                if (!String.IsNullOrEmpty(xmlFileName))
+                {
+
+                    // save parameter XML file and give feedback
+                    try
+                    {
+                        paramFile.Save(xmlFileName);
+                        logger.Info("Saved parameter file " + xmlFileName);
+                        MessageBox.Show("Saved parameter file " + xmlFileName);
+                    }
+                    catch (Exception e)
+                    {
+                        logger.Error("Unable to save parameter file " + xmlFileName + " (" + e.Message + ")");
+                    }
+
+                }
             }
-
-            /* TODO convert strings to XML format:
-             * 
-            <xml>
-            <root>
-                <versions>
-                    <version name="" type="" value="">
-                <versions>
-                <parameterSet name="setname">
-                    <param name="" type="" value="">
-                    <param name="" type="" value="">
-                    <param name="" type="" value="">
-                    <param name="" type="" value=""> 
-                </parameterSet>
-            </root>
-            */
-
         }
 
-        public static void loadParameterFile() {
+        public static void loadParameterFile()
+        {
 
+            // initialize stream and XmlDocument object
+            Stream xmlParameters = null;
+            XmlDocument paramFile = new XmlDocument();
+
+            // open file dialog to open parameter file, starting in current directory, with filter for .prm files
+            OpenFileDialog loadXmlFile = new OpenFileDialog();
+            loadXmlFile.InitialDirectory = Directory.GetCurrentDirectory();
+            loadXmlFile.Filter = "parameter files (*.prm)|*.prm|All files (*.*)|*.*";
+            loadXmlFile.RestoreDirectory = true;            // restores current directory to the previously selected directory, potentially beneficial if other code relies on the currently set directory
+
+            // if dialog is succesfully shown
+            if (loadXmlFile.ShowDialog() == DialogResult.OK)
+            {
+
+                // load contents of parameter xml file to stream and then to XmlDocument object
+                try
+                {
+                    if ((xmlParameters = loadXmlFile.OpenFile()) != null)
+                    {
+                        paramFile.Load(xmlParameters);
+                    }
+                }
+                catch (Exception e)
+                {
+                    MessageBox.Show("Error: Could not read parameter file (" + e.Message + ")");
+                }
+            }
+
+            // get versions, output for debug
+            XmlNodeList versions = paramFile.GetElementsByTagName("version");
+            for (int v = 0; v < versions.Count; v++) { logger.Debug("Current version of " + versions[v].Attributes["type"].Value + " " + versions[v].Attributes["name"].Value + " in parameter file: " + versions[v].Attributes["value"].Value); }
+
+            // load current parametersSets
+            Dictionary<string, Parameters> currParameterSets = ParameterManager.getParameterSets();
+
+            // get parametersets and params from xml
+            XmlNodeList parameterSets = paramFile.GetElementsByTagName("parameterSet");
+
+            // for each parameter set
+            for (int s = 0; s < parameterSets.Count; s++)
+            {
+
+                // get name of set
+                string parameterSetName = parameterSets[s].Attributes["name"].Value;
+                logger.Debug("Loading parameter set " + parameterSetName + "from parameter file.");
+
+                // load current parameters of set
+                Parameters currParameterSet = currParameterSets[parameterSetName];
+
+                // set current parameters in set to values in xml
+                if (parameterSets[s].HasChildNodes)
+                {
+
+                    // cycle through all parameters in this set contained in xml
+                    for (int p = 0; p < parameterSets[s].ChildNodes.Count; p++)
+                    {
+
+                        // get name, type and value of param
+                        string paramName = parameterSets[s].ChildNodes[p].Attributes["name"].Value;
+                        string paramType = parameterSets[s].ChildNodes[p].Attributes["type"].Value;
+                        string paramValue = parameterSets[s].ChildNodes[p].Attributes["value"].Value;
+
+                        // get current type of this param
+                        string currType = currParameterSet.getType(paramName);
+
+                        // if type in xml is equal to current type, update value of param to value in xml
+                        if (paramType == currType)
+                        {
+                            // logger.Debug("Parameter " + paramName + " is same type as currently registered.");
+                            currParameterSet.setValue(paramName, paramValue);
+                            logger.Debug("Parameter " + paramName + " is updated to " + paramValue + " (value taken from parameter file.)");
+                            // TODO: try catch
+                            // TODO: give feedback in logger and Dialog that loading was succesful
+                            // TODO relaod GUI so any updated values are immediately visible
+
+                        }
+                        else
+                        {
+                            logger.Error("Parameter " + paramName + " is not same type as currently registered and is not updated to file in parameter file");
+                        }
+
+                        // debug
+                        //logger.Debug(parameterSets[s].ChildNodes[p].Attributes["name"].Value);
+                        //logger.Debug(parameterSets[s].ChildNodes[p].Attributes["type"].Value);
+                        //logger.Debug(parameterSets[s].ChildNodes[p].Attributes["value"].Value);
+
+                    }
+                }
+            }
         }
 
     }

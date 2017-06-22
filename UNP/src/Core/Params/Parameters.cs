@@ -260,7 +260,32 @@ namespace UNP.Core.Params {
             }
 
         }
-        
+
+        public String getType(string paramName)
+        {
+
+            lock (lockParameters)
+            {
+
+                iParam param = getParameter(paramName);
+                if (param == null)
+                {
+
+                    // message
+                    logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', returning 0");
+
+                    // return ""
+                    return "";
+
+                }
+
+                // return the value
+                return param.GetType().ToString();
+
+            }
+
+        }
+
         public T getUnit<T>(string paramName) {
 
             lock (lockParameters) {
