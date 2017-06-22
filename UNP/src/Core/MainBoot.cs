@@ -14,16 +14,24 @@ namespace UNP.Core {
         private static Logger logger = LogManager.GetLogger("MainBoot");
 
         public static void Run(string[] args, Type applicationType) {
-            
+
             // TODO: check if all dependencies exists
             // TODO: also 32/64 bit (freetype or other dlls)
 
-            // TODO: Add startup arguments (args)
-            // - nogui = start without GUI
-            // - parameter file =
-            // - autosetconfig = 
-            // - autostart = 
-            // - source (GenerateSignal/KeypressSignal/PlaybackSignal) = 
+            String parameterFile = null;
+
+            // process startup arguments
+            for (int i = 0; i < args.Length; i++)
+            {
+                // TODO: process following startup arguments 
+                // - nogui = start without GUI
+                // - autosetconfig = 
+                // - autostart = 
+                // - source (GenerateSignal/KeypressSignal/PlaybackSignal) = 
+
+                // if parameterfile flag is given, store next argument if it is not empty
+                if (args[i] == "-parameterfile" && !String.IsNullOrEmpty(args[i+1]) ) { parameterFile = args[i + 1]; }                    
+            }
 
             //(GenerateSignal/KeypressSignal/PlaybackSignal)
             Type sourceType = Type.GetType("UNP.Sources.GenerateSignal");
@@ -82,7 +90,12 @@ namespace UNP.Core {
             // debug: load 
             mainThread.loadDebugConfig();
 
-            // TODO: load parameter file
+            // load parameter file if given in startup arguments
+            if (!String.IsNullOrEmpty(parameterFile)) {
+                MainThread.loadParameterFile(parameterFile);
+            }
+            
+            
 
             /*
             // TODO:

@@ -5,7 +5,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading;
-
+using UNP;
 using UNP.Applications;
 using UNP.Core;
 using UNP.Core.Helpers;
@@ -496,6 +496,9 @@ namespace FollowTask {
             // lock for thread safety
             lock(lockView) {
 
+                // log the task start event
+                Data.LogEvent(2, "TaskStart", "Followtask");
+
                 if (mSceneThread == null)   return;
 
 	            // reset the score
@@ -871,12 +874,15 @@ namespace FollowTask {
 
         }
 
-        // pauzes the task
+        // pauses the task
         private void pauzeTask() {
             if (mSceneThread == null)   return;
 
-	        // set task as pauzed
-	        mTaskPauzed = true;
+            // log the task pause event
+            Data.LogEvent(2, "TaskPause", "Followtask");
+
+            // set task as pauzed
+            mTaskPauzed = true;
 
 	        // store the previous state
 	        previousTaskState = taskState;
@@ -900,8 +906,11 @@ namespace FollowTask {
         private void resumeTask() {
             if (mSceneThread == null)   return;
 
-	        // re-instate the block positions
-	        if (previousTaskState == TaskStates.Task) {
+            // log the task pause event
+            Data.LogEvent(2, "TaskResume", "Followtask");
+
+            // re-instate the block positions
+            if (previousTaskState == TaskStates.Task) {
 		        mSceneThread.loadBlockPositions();
 	        }
 
@@ -1015,7 +1024,11 @@ namespace FollowTask {
 
         // Stop the task
         private void stopTask() {
+            
             if (mSceneThread == null)   return;
+
+            // log the task stop event
+            Data.LogEvent(2, "TaskStop", "Followtask");
 
             // set the current block to no block
             mCurrentBlock = FollowView.noBlock;

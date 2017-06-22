@@ -15,7 +15,7 @@ namespace UNP.Core.Params {
         public string getValue() {
             string strRet = "";
             for (int i = 0; i < this.values.Length; i++) {
-                if (i != 0)     strRet += " ";
+                if (i != 0)     strRet += ' ';
                 strRet += this.values[i].ToString(Parameters.NumberCulture);
                 strRet += (this.units[i] == Parameters.Units.Seconds ? "s" : "");
             }

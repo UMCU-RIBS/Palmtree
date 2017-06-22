@@ -46,7 +46,7 @@ namespace UNP.GUI {
         }
 
         private static Dictionary<string, Parameters> paramSets = ParameterManager.getParameterSets();
-        private const int labelWidth = 250;
+        private const int labelWidth = 200;
         private const int itemTopPadding = 10;
         private const int itemBottomPadding = 10;
 
@@ -575,9 +575,9 @@ namespace UNP.GUI {
                                 Object cell = grd[c, r].Value;
                                 if (cell==null)     matstring += " ";
                                 else                matstring += cell.ToString().Trim().Replace(',','.');
-                                if (r != rows - 1) matstring += ","; 
+                                if (r != rows - 1) matstring += Parameters.MatRowDelimiters[0]; 
                             }
-                            if (c != columns - 1) matstring += ";"; 
+                            if (c != columns - 1) matstring += Parameters.MatColumnDelimiters[0]; 
                         }
                     }
                     

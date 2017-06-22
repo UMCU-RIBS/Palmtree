@@ -464,7 +464,7 @@ namespace UNP.Core {
         public static void SampleProcessingEnd() {
 
             // debug, show data values being stored
-            logger.Info("To .dat file: " + dataElapsedTime + " " + dataSampleCounter + " " + string.Join(" |", dataStreamValues));
+            //logger.Debug("To .dat file: " + dataElapsedTime + " " + dataSampleCounter + " " + string.Join(" |", dataStreamValues));
 
 			// TODO: cutting up files based on the maximum size limit
             // TODO? create function that stores data that can be used for both src and dat?
@@ -541,7 +541,7 @@ namespace UNP.Core {
             sourceStopWatch.Restart();
 
             // debug
-            logger.Info("To .src file: " + sourceElapsedTime + " " + sourceSampleCounter + " " + string.Join("|", sourceStreamValues));
+            //logger.Debug("To .src file: " + sourceElapsedTime + " " + sourceSampleCounter + " " + string.Join("|", sourceStreamValues));
 
             // integrity check of collected source values
             if (sourceStreamValues.Length != numSourceInputStreams) {

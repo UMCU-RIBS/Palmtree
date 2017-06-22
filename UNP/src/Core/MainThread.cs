@@ -923,34 +923,50 @@ namespace UNP.Core {
             }
         }
 
-        public static void loadParameterFile()
+        public static void loadParameterFile() {
+            loadParameterFile("");
+        }
+
+        public static void loadParameterFile(string xmlFile)
         {
 
             // initialize stream and XmlDocument object
             Stream xmlParameters = null;
             XmlDocument paramFile = new XmlDocument();
 
-            // open file dialog to open parameter file, starting in current directory, with filter for .prm files
-            OpenFileDialog loadXmlFile = new OpenFileDialog();
-            loadXmlFile.InitialDirectory = Directory.GetCurrentDirectory();
-            loadXmlFile.Filter = "parameter files (*.prm)|*.prm|All files (*.*)|*.*";
-            loadXmlFile.RestoreDirectory = true;            // restores current directory to the previously selected directory, potentially beneficial if other code relies on the currently set directory
+            // if filename is given, load xml file, otherwise let user select xml file
+            if (!string.IsNullOrEmpty(xmlFile)) {
 
-            // if dialog is succesfully shown
-            if (loadXmlFile.ShowDialog() == DialogResult.OK)
-            {
+                try {
+                    paramFile.Load(xmlFile);
+                    logger.Info("Read parameter file " + xmlFile + " given on commandline.");
+                } catch (Exception e) {MessageBox.Show("Error: Could not read parameter file (" + e.Message + ")"); }
 
-                // load contents of parameter xml file to stream and then to XmlDocument object
-                try
+            }
+            else {
+                
+                // open file dialog to open parameter file, starting in current directory, with filter for .prm files
+                OpenFileDialog loadXmlFile = new OpenFileDialog();
+                loadXmlFile.InitialDirectory = Directory.GetCurrentDirectory();
+                loadXmlFile.Filter = "Parameter files (*.prm)|*.prm|All files (*.*)|*.*";
+                loadXmlFile.RestoreDirectory = true;            // restores current directory to the previously selected directory, potentially beneficial if other code relies on the currently set directory
+
+                // if dialog is succesfully shown
+                if (loadXmlFile.ShowDialog() == DialogResult.OK)
                 {
-                    if ((xmlParameters = loadXmlFile.OpenFile()) != null)
+
+                    // load contents of parameter xml file to stream and then to XmlDocument object
+                    try
                     {
-                        paramFile.Load(xmlParameters);
+                        if ((xmlParameters = loadXmlFile.OpenFile()) != null)
+                        {
+                            paramFile.Load(xmlParameters);
+                        }
                     }
-                }
-                catch (Exception e)
-                {
-                    MessageBox.Show("Error: Could not read parameter file (" + e.Message + ")");
+                    catch (Exception e)
+                    {
+                        MessageBox.Show("Error: Could not read parameter file (" + e.Message + ")");
+                    }
                 }
             }
 
@@ -995,8 +1011,9 @@ namespace UNP.Core {
                         if (paramType == currType)
                         {
                             // logger.Debug("Parameter " + paramName + " is same type as currently registered.");
-                            currParameterSet.setValue(paramName, paramValue);
-                            logger.Debug("Parameter " + paramName + " is updated to " + paramValue + " (value taken from parameter file.)");
+                            if (currParameterSet.setValue(paramName, paramValue)) {
+                                logger.Debug("Parameter " + paramName + " is updated to " + paramValue + " (value taken from parameter file.)");
+                            }
                             // TODO: try catch
                             // TODO: give feedback in logger and Dialog that loading was succesful
                             // TODO relaod GUI so any updated values are immediately visible
@@ -1015,6 +1032,9 @@ namespace UNP.Core {
                     }
                 }
             }
+
+            // TODO: update fileds after laoding GUIConfig.updateFields() is private
+
         }
 
     }
