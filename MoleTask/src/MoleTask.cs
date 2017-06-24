@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using UNP;
+
 using UNP.Applications;
 using UNP.Core;
 using UNP.Core.Helpers;
@@ -394,11 +394,8 @@ namespace MoleTask {
 
                 if (mSceneThread == null)   return;
 
-                // log the task start event
-                Data.LogEvent(2, "TaskStart", "Moletask");
-
-                // reset the score
-                score = 0;
+	            // reset the score
+	            score = 0;
 
 	            // reset countdown
 	            mCountdownCounter = 15;
@@ -691,12 +688,9 @@ namespace MoleTask {
 					            // add one to the score and display
 					            score++;
 					            mSceneThread.setScore(score);
-                                
-                                // log the mole hit event
-                                Data.LogEvent(2, "MoleHit", "");
 
-                                // go to next target in the sequence and set mole
-                                mTargetIndex++;
+					            // go to next target in the sequence and set mole
+					            mTargetIndex++;
 
 					            // check whether at the end of targetsequence
 					            if(mTargetIndex == mTargetSequence.Count()) {
@@ -715,13 +709,10 @@ namespace MoleTask {
 					            }
 
 				            } else {
-                                // no hit
+					            // no hit
 
-                                // log the mole miss event
-                                Data.LogEvent(2, "MoleMiss", "");
-
-                                // Start again selecting rows from the top
-                                setState(TaskStates.RowSelect);
+					            // Start again selecting rows from the top
+					            setState(TaskStates.RowSelect);
 
 				            }
 
@@ -795,11 +786,8 @@ namespace MoleTask {
         private void pauzeTask() {
 	        if (mSceneThread == null)   return;
 
-            // log the task pause event
-            Data.LogEvent(2, "TaskPause", "Moletask");
-
-            // set task as pauzed
-            mTaskPauzed = true;
+	        // set task as pauzed
+	        mTaskPauzed = true;
 
 	        // store the previous state
 	        previousTaskState = taskState;
@@ -813,12 +801,9 @@ namespace MoleTask {
         // resumes the task
         private void resumeTask() {
             if (mSceneThread == null)   return;
-
-            // log the task pause event
-            Data.LogEvent(2, "TaskResume", "MoleTask");
-
-            // show the grid and set the mole
-            if (previousTaskState == TaskStates.RowSelect || previousTaskState == TaskStates.RowSelected || previousTaskState == TaskStates.ColumnSelect || previousTaskState == TaskStates.ColumnSelected) {
+	        
+		    // show the grid and set the mole
+		    if (previousTaskState == TaskStates.RowSelect || previousTaskState == TaskStates.RowSelected || previousTaskState == TaskStates.ColumnSelect || previousTaskState == TaskStates.ColumnSelected) {
 			
 			    // show the grid and set the mole
 			    mSceneThread.showGrid(true);
@@ -978,11 +963,8 @@ namespace MoleTask {
         private void stopTask() {
             if (mSceneThread == null) return;
 
-            // log the task stop event
-            Data.LogEvent(2, "TaskStop", "Moletask");
-
-            // Set state to Wait
-            setState(TaskStates.Wait);
+	        // Set state to Wait
+	        setState(TaskStates.Wait);
 
             // check if there is no fixed target sequence
 	        if (fixedTargetSequence.Length == 0) {
@@ -1147,11 +1129,8 @@ namespace MoleTask {
                 // restart the view thread
                 if (mSceneThread != null) {
 
-                    // log the task resume event
-                    Data.LogEvent(2, "TaskResume", "Moletask");
-
-                    // restart the view thread
-                    mSceneThread.start();
+	                // restart the view thread
+		            mSceneThread.start();
 
 	                // wait till the resources are loaded or a maximum amount of 5 seconds (5.000 / 10 = 500)
                     // (resourcesLoaded also includes whether GL is loaded)
@@ -1182,7 +1161,7 @@ namespace MoleTask {
             pauzeTask();
 
             // lock for thread safety
-            lock (lockView) {
+            lock(lockView) {
 
                 // stop the view thread
                 if (mSceneThread != null)   mSceneThread.stop();

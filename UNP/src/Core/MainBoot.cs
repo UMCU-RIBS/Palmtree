@@ -30,7 +30,9 @@ namespace UNP.Core {
                 // - source (GenerateSignal/KeypressSignal/PlaybackSignal) = 
 
                 // if parameterfile flag is given, store next argument if it is not empty
-                if (args[i] == "-parameterfile" && !String.IsNullOrEmpty(args[i+1]) ) { parameterFile = args[i + 1]; }                    
+                if (args[i] == "-parameterfile" && !String.IsNullOrEmpty(args[i+1]) ) {
+                    parameterFile = args[i + 1];
+                }                    
             }
 
             //(GenerateSignal/KeypressSignal/PlaybackSignal)

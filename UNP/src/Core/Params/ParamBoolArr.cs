@@ -17,7 +17,7 @@ namespace UNP.Core.Params {
         public string getValue() {
             string strRet = "";
             for (int i = 0; i < this.values.Length; i++) {
-                if (i != 0)     strRet += " ";
+                if (i != 0)     strRet += Parameters.ArrDelimiters[0];
                 strRet += (this.values[i] ? "1" : "0");
             }
             return strRet;

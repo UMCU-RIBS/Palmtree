@@ -1,13 +1,10 @@
 ﻿using NLog;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
 using System.Globalization;
-using System.Linq;
+using System.IO;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Windows.Forms;
 using UNP.Core;
 using UNP.Core.Helpers;
@@ -53,7 +50,7 @@ namespace UNP.GUI {
         private List<ParamControl> paramControls = new List<ParamControl>(0);
 
         public GUIConfig() {
-
+            
             // initialize components
             InitializeComponent();
 
@@ -367,25 +364,25 @@ namespace UNP.GUI {
                     int maxRows = 0;
                     if (param is ParamBoolMat) {
                         boolValues = ((ParamBoolMat)param).Value;
-                        columns = boolValues.Count();
-                        for (int c = 0; c < columns; c++)   if (boolValues[c].Count() > maxRows)    maxRows = boolValues[c].Count();
+                        columns = boolValues.Length;
+                        for (int c = 0; c < columns; c++)   if (boolValues[c].Length > maxRows)    maxRows = boolValues[c].Length;
                     }
                     if (param is ParamIntMat) {
                         intValues = ((ParamIntMat)param).Value;
                         units = ((ParamIntMat)param).Unit;
-                        columns = intValues.Count();
-                        for (int c = 0; c < columns; c++)   if (intValues[c].Count() > maxRows)    maxRows = intValues[c].Count();
+                        columns = intValues.Length;
+                        for (int c = 0; c < columns; c++)   if (intValues[c].Length > maxRows)    maxRows = intValues[c].Length;
                     }
                     if (param is ParamDoubleMat) {
                         dblValues = ((ParamDoubleMat)param).Value;
                         units = ((ParamDoubleMat)param).Unit;
-                        columns = dblValues.Count();
-                        for (int c = 0; c < columns; c++)   if (dblValues[c].Count() > maxRows)    maxRows = dblValues[c].Count();
+                        columns = dblValues.Length;
+                        for (int c = 0; c < columns; c++)   if (dblValues[c].Length > maxRows)    maxRows = dblValues[c].Length;
                     }
                     if (param is ParamStringMat) {
                         strValues = ((ParamStringMat)param).Value;
-                        columns = strValues.Count();
-                        for (int c = 0; c < columns; c++)   if (strValues[c].Count() > maxRows)    maxRows = strValues[c].Count();
+                        columns = strValues.Length;
+                        for (int c = 0; c < columns; c++)   if (strValues[c].Length > maxRows)    maxRows = strValues[c].Length;
                     }
 
                     // set the columns (the changevalue property of the of the NumericUpDown control will do the actual resizing of the grid)
@@ -407,23 +404,23 @@ namespace UNP.GUI {
                     for (int c = 0; c < columns; c++) {
 
                         if (param is ParamBoolMat) {
-                            for (int r = 0; r < boolValues[c].Count(); r++) {
+                            for (int r = 0; r < boolValues[c].Length; r++) {
                                 grd[c, r].Value = (boolValues[c][r] ? "1" : "0");
                             }
                         }
                         if (param is ParamIntMat) {
-                            for (int r = 0; r < intValues[c].Count(); r++) {
+                            for (int r = 0; r < intValues[c].Length; r++) {
                                 grd[c, r].Value = (intValues[c][r].ToString(NumberCulture) + (units[c][r] == Parameters.Units.Seconds ? "s" : ""));
                                 
                             }
                         }
                         if (param is ParamDoubleMat) {
-                            for (int r = 0; r < dblValues[c].Count(); r++) {
+                            for (int r = 0; r < dblValues[c].Length; r++) {
                                 grd[c, r].Value = (dblValues[c][r].ToString(NumberCulture) + (units[c][r] == Parameters.Units.Seconds ? "s" : ""));
                             }
                         }
                         if (param is ParamStringMat) {
-                            for (int r = 0; r < strValues[c].Count(); r++) {
+                            for (int r = 0; r < strValues[c].Length; r++) {
                                 grd[c, r].Value = strValues[c][r];
                             }
                         }
@@ -442,7 +439,7 @@ namespace UNP.GUI {
             
         }
 
-        private bool saveFields(bool checkInputFirst = true) {
+        private bool processFields(bool saveFields) {
             bool hasError = false;
             TabPage hasErrorFirstTab = null;
 
@@ -454,7 +451,7 @@ namespace UNP.GUI {
                     CheckBox chk = (CheckBox)paramControls[i].control;
                     
                     // testing or saving
-                    if (checkInputFirst) {
+                    if (!saveFields) {
                         // testing the values before saving
 
                         // 
@@ -482,7 +479,7 @@ namespace UNP.GUI {
                     ComboBox cmb = (ComboBox)paramControls[i].control;
 
                     // testing or saving
-                    if (checkInputFirst) {
+                    if (!saveFields) {
                         // testing
 
                         // try to parse the text
@@ -522,7 +519,7 @@ namespace UNP.GUI {
                     TextBox txt = (TextBox)paramControls[i].control;
 
                     // testing or saving
-                    if (checkInputFirst) {
+                    if (!saveFields) {
                         // testing
 
                         // try to parse the text
@@ -582,7 +579,7 @@ namespace UNP.GUI {
                     }
                     
                     // testing or saving
-                    if (checkInputFirst) {
+                    if (!saveFields) {
                         // testing
 
                         // try to parse the value
@@ -637,7 +634,7 @@ namespace UNP.GUI {
                     string picString = pic.BackColor.R + ";" + pic.BackColor.G + ";" + pic.BackColor.B;
 
                     // testing or saving
-                    if (checkInputFirst) {
+                    if (!saveFields) {
                         // testing
 
                         // try to parse the string
@@ -689,9 +686,6 @@ namespace UNP.GUI {
 
             }
 
-            // check if this was only a check, if so, now continue to actually store the fields
-            if (checkInputFirst)    return saveFields(false);
-
             // return success (if no error and not checking input but actually saving)
             return true;
 
@@ -699,24 +693,30 @@ namespace UNP.GUI {
 
         private void btnSave_Click(object sender, EventArgs e) {
 
-            // try to save the field
-            if (saveFields()) {
-                // success
+            // check the fields
+            if (processFields(false)) {
 
-                // message
-                logger.Info("Configuration was saved.");
+                // try to save the fields
+                if (processFields(true)) {
+                    // success
 
-                // flag the configuration as adjusted
-                this.DialogResult = DialogResult.OK;
+                    // message
+                    logger.Info("Configuration was saved.");
 
-                // close the form
-                this.Close();
+                    // flag the configuration as adjusted
+                    this.DialogResult = DialogResult.OK;
 
-            } else {
-                // failure
+                    // close the form
+                    this.Close();
 
-                // messagebox
-                var result = MessageBox.Show("One or more parameters are invalid, these parameters are indicated in red.", "Error while saving", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                } else {
+                    // failure
+
+                    // messagebox
+                    var result = MessageBox.Show("One or more parameters are invalid, these parameters are indicated in red.", "Error while saving", MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+                }
+
 
             }
 
@@ -766,11 +766,48 @@ namespace UNP.GUI {
         }
 
         private void btnLoadPrmFile_Click(object sender, EventArgs e) {
-            MainThread.loadParameterFile();
+			
+			// open file dialog to open parameter file, starting in current directory, with filter for .prm files
+			OpenFileDialog dlgLoadPrmFile = new OpenFileDialog();
+            dlgLoadPrmFile.InitialDirectory = Directory.GetCurrentDirectory();
+            dlgLoadPrmFile.Filter = "Parameter files (*.prm)|*.prm|All files (*.*)|*.*";
+            dlgLoadPrmFile.RestoreDirectory = true;            // restores current directory to the previously selected directory, potentially beneficial if other code relies on the currently set directory
+
+			// if dialog is succesfully shown
+			if (dlgLoadPrmFile.ShowDialog() == DialogResult.OK) {
+                
+                // try to load the parameter file
+                MainThread.loadParameterFile(dlgLoadPrmFile.FileName);
+
+                // update the field here with the loaded settings
+                updateFields();
+
+			}
+			
+            
         }
 
         private void btnSavePrmFile_Click(object sender, EventArgs e) {
-            MainThread.saveParameterFile();
+
+            // check the fields
+            if (processFields(false)) {
+
+                // TODO: debug: moet nu even
+                btnSave_Click(null, null);
+
+                // create save file dialog box for user with standard filename set to current time
+                SaveFileDialog dlgSavePrmFile = new SaveFileDialog();
+                dlgSavePrmFile.FileName = DateTime.Now.ToString("yyyyMMdd_HHmm") + ".prm";
+
+                // if user sucessfully selected location, save location and store file
+                if (dlgSavePrmFile.ShowDialog() == DialogResult.OK) {
+
+                    MainThread.saveParameterFile(dlgSavePrmFile.FileName);
+
+                }
+
+            }
+
         }
 
     }

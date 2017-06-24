@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using UNP;
+
 using UNP.Applications;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
@@ -13,7 +13,7 @@ namespace EmptyTask {
     public class EmptyTask : IApplication {
 
         private const int CLASS_VERSION = 0;
-        private const string CLASS_NAME = "Emptytask";
+        private const string CLASS_NAME = "EmptyTask";
 
         private static Logger logger = LogManager.GetLogger(CLASS_NAME);                        // the logger object for the view
         private static Parameters parameters = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Application);

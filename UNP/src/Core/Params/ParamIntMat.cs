@@ -15,10 +15,9 @@ namespace UNP.Core.Params {
         public string getValue() {
             string strRet = "";
             for (int c = 0; c < this.values.Length; c++) {
-                if (c != 0) strRet += ";";
+                if (c != 0) strRet += Parameters.MatColumnDelimiters[0];
                 for (int r = 0; r < this.values[c].Length; r++) {
-                    if (r != 0) strRet += " ";
-
+                    if (r != 0) strRet += Parameters.MatRowDelimiters[0];
                     strRet += this.values[c][r].ToString(Parameters.NumberCulture);
                     strRet += (this.units[c][r] == Parameters.Units.Seconds ? "s" : "");
                 }

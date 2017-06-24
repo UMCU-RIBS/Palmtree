@@ -27,7 +27,8 @@ namespace UNP.Core.Params {
             Data = 0,
             Source = 1,
             Filter = 2,
-            Application = 3
+            Application = 3,
+            Plugin = 4
         }
 
         public enum Units : int {
