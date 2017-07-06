@@ -363,6 +363,8 @@ namespace UNP.Sources {
                             // set the sample value accordingly
                             sample[mConfigOutputChannels[i]] = (pressed ? mConfigPressed[i] : mConfigNotPressed[i]);
 
+                            if (pressed) { logger.Info("pressed!"); }
+
                         }
 
                         // pass the sample
