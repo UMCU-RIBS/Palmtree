@@ -19,7 +19,8 @@ namespace UNP.Plugins {
         void stop();
         bool isStarted();
 
-        void process();
+        void preFiltersProcess();      // execute before the filters
+        void postFiltersProcess();     // execute after the filters
 
         void destroy();
 

@@ -253,7 +253,7 @@ namespace UNP.Filters {
                 for (int channel = 0; channel < inputChannels; ++channel) {
 
                     // normalize
-                    output[channel] = input[channel] - mOffsets[channel] * mGains[channel];
+                    output[channel] = (input[channel] - mOffsets[channel]) * mGains[channel];
 
                 }
 

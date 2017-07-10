@@ -519,7 +519,7 @@ namespace UNP.Core {
 
                             // debug 
                             for (int i = 0; i < plugins.Count(); i++) {
-                                plugins[i].process();
+                                plugins[i].preFiltersProcess();
                             }
 
                             // process the sample (filters)
@@ -527,6 +527,11 @@ namespace UNP.Core {
                                 filters[i].process(sample, out output);
                                 sample = output;
                                 output = null;
+                            }
+
+                            // debug 
+                            for (int i = 0; i < plugins.Count(); i++) {
+                                plugins[i].postFiltersProcess();
                             }
 
                             // process the sample (application)

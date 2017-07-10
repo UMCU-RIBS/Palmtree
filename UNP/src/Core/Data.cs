@@ -464,9 +464,9 @@ namespace UNP.Core {
         public static void SampleProcessingEnd() {
 
             // debug, show data values being stored
-            //logger.Debug("To .dat file: " + dataElapsedTime + " " + dataSampleCounter + " " + string.Join(" |", dataStreamValues));
+            logger.Debug("To .dat file: " + dataSampleCounter + " " + dataElapsedTime + " " + string.Join(" |", dataStreamValues));
 
-			// TODO: cutting up files based on the maximum size limit
+            // TODO: cutting up files based on the maximum size limit
             // TODO? create function that stores data that can be used for both src and dat?
 
             // integrity check of collected data stream values: if the pointer is not exactly at end of array, not all values have been

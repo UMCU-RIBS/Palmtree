@@ -101,8 +101,14 @@ namespace UNP.Plugins {
             return true;
         }
 
-        public void process() {
+        // execute before the filters
+        public void preFiltersProcess() {
             //logger.Warn("accelerationX " + accelerationX);
+        }
+
+        // execute after the filters
+        public void postFiltersProcess() {
+
         }
 
         public void destroy() {
