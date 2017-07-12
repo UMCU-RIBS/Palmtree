@@ -23,9 +23,11 @@ namespace UNP.Core {
         private static Parameters parameters = ParameterManager.GetParameters("Data", Parameters.ParamSetTypes.Data);
         
         private static string dataDir = "";                                                     // location of data directory
-        private static bool subDirPerRun = false;                                               // whether or not a sub-directory must be made in the data directory to hold the generated files per run
-        private static string identifier = "";                                                  // file identifier, prefix in filename
+        private static string sessionDir = null;                                                  // contains full path of directory all files of one sesison are written to
         private static string currDir = "";                                                     // contains full path of current directory files are written in
+        private static string identifier = "";                                                  // file identifier, prefix in filename
+        private static bool subDirPerRun = false;                                               // whether or not a sub-directory must be made in the session directory to hold the generated files per run
+        private static int run = 0;                                                             // contains number of current run
 
         // event logging
         private static bool mLogEvents = false;                 								// 
@@ -181,14 +183,10 @@ namespace UNP.Core {
                 dataDir = parameters.getValue<string>("DataDirectory");
                 currDir = Path.Combine(Directory.GetCurrentDirectory(), dataDir);
 
-                // if sub-directory is desired, add this to path
-                if (subDirPerRun) {
-                    string sub = DateTime.Now.ToString("yyyyMMdd_HHmm");
-                    currDir = Path.Combine(currDir, sub);
-
-                    logger.Info("subDirPerRun: " + currDir);
-                }
-
+                // construct path name of directory for this session
+                string sub = DateTime.Now.ToString("yyyyMMdd_HHmm");
+                currDir = Path.Combine(currDir, sub);
+                
                 // create the data (sub-)directory 
                 try {
                     if (Directory.Exists(currDir)) { logger.Info("Data (sub-)directory already exists."); }    
@@ -283,8 +281,35 @@ namespace UNP.Core {
 
         public static void Start() {
 
+            // increase run number
+            run++;
+
             // get location of data directory and current time to use as timestamp for files to be created
             string fileName = identifier + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss");
+
+            // create subdirectory for this run if required
+            if(subDirPerRun) {
+
+                // set directory for this session if was not already set   
+                if (sessionDir == null) { sessionDir = currDir;}
+
+                // set pointer for current directory to directory for this run
+                String runDir = "run" + run;
+                currDir = Path.Combine(sessionDir, runDir);
+
+                // create subdirectory for this run
+                try {
+                    if (Directory.Exists(currDir)) { logger.Info("Data directory for this run already exists."); } 
+                    else {
+                        Directory.CreateDirectory(currDir);
+                        logger.Info("Created data directory for run " + run + " at " + currDir);
+                    }
+                } catch (Exception e) {
+                    logger.Error("Unable to create data directory for run " + run + " at " + currDir + " (" + e.ToString() + ")");
+                }
+
+            }
+
 
             // TODO create (and close) the parameter file
 
