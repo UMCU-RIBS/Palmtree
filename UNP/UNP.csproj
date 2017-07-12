@@ -92,8 +92,10 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="src\Applications\ExCommunicator.cs" />
     <Compile Include="src\Applications\IApplication.cs" />
     <Compile Include="src\Applications\IApplicationUNP.cs" />
+    <Compile Include="src\Applications\IExternalApplication.cs" />
     <Compile Include="src\Core\Data.cs" />
     <Compile Include="src\Core\Events\VisualizationEventArgs.cs" />
     <Compile Include="src\Core\Events\VisualizationValuesArgs.cs" />

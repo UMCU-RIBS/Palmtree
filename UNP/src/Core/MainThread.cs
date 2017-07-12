@@ -43,6 +43,7 @@ namespace UNP.Core {
         private static List<IFilter> filters = new List<IFilter>();         //
         private static IApplication application = null;                     // reference to the view, used to pull information from and push commands to
         private static List<IPlugin> plugins = new List<IPlugin>();         //
+        private static List<IExternalApplication> exApplications = new List<IExternalApplication>();         //
 
         const int sampleBufferSize = 10000;                                 // the size (and maximum samples) of the sample buffer/que 
         private double[][] sampleBuffer = new double[sampleBufferSize][];   // the sample buffer in which samples are queud
@@ -71,6 +72,9 @@ namespace UNP.Core {
 
             // create/add plugins
             //plugins.Add(new WindowsSensorsPlugin());
+
+            // create/add links to external applications
+            exApplications.Add(new ExCommunicator()); 
 
             // create a source
             try {
@@ -269,6 +273,24 @@ namespace UNP.Core {
 
             }
 
+            // configure the links to the external applications
+            for (int i = 0; i < exApplications.Count(); i++) {
+
+                // configure each external application
+                if (!exApplications[i].configure(ref tempFormat)) {
+
+                    // message
+                    logger.Error("An error occured while configuring external application " + exApplications[i].getClassName() );
+
+                    // flag as not configured
+                    systemConfigured = false;
+
+                    // return failure and go no further
+                    return false;
+                }
+            }
+
+
             // flag as configured
             systemConfigured = true;
 
@@ -307,6 +329,7 @@ namespace UNP.Core {
             if (source != null)                         source.initialize();
             for (int i = 0; i < filters.Count(); i++)   filters[i].initialize();
             if (application != null)                    application.initialize();
+            for (int i = 0; i < exApplications.Count(); i++) { exApplications[i].initialize(); }
 
             // flag as initialized
             systemInitialized = true;
