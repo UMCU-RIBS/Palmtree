@@ -7,7 +7,7 @@ using UNP.Core.Params;
 
 namespace UNP.Filters {
 
-    interface IFilter {
+    public interface IFilter {
 
         int getClassVersion();
         string getName();

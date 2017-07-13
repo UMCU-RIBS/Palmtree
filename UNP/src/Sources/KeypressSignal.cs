@@ -81,7 +81,7 @@ namespace UNP.Sources {
             return CLASS_VERSION;
         }
 
-        public String getClassName() {
+        public string getClassName() {
             return CLASS_NAME;
         }
 
@@ -362,8 +362,6 @@ namespace UNP.Sources {
                             
                             // set the sample value accordingly
                             sample[mConfigOutputChannels[i]] = (pressed ? mConfigPressed[i] : mConfigNotPressed[i]);
-
-                            if (pressed) { logger.Info("pressed!"); }
 
                         }
 

@@ -26,7 +26,7 @@ namespace UNP.Applications {
         [DllImport("user32.dll")]                                                   // import dll for setting focus to external application
         private static extern bool SetForegroundWindow(IntPtr wndH);                // function for setting focus
 		
-        private String filepath = null;                                             // path to executable
+        private string filepath = null;                                             // path to executable
         private bool started = false;						                        // flag to hold whether the external application is running
         Process process = null;                                         			// process to start external application
 

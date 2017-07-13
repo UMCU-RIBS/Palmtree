@@ -12,7 +12,7 @@ namespace UNP.Filters {
 
     public class AdaptationFilter : FilterBase, IFilter {
 
-        private const int CLASS_VERSION = 0;
+        private new const int CLASS_VERSION = 0;
 
         private int[] mAdaptation = null;
         private int mBufferSize = 0;                        // time window of past data per buffer that enters into statistic
@@ -39,6 +39,9 @@ namespace UNP.Filters {
         };
 
         public AdaptationFilter(string filterName) {
+
+            // set class version
+            base.CLASS_VERSION = CLASS_VERSION;
 
             // store the filter name
             this.filterName = filterName;

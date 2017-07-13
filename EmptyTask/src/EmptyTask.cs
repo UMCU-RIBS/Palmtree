@@ -40,7 +40,7 @@ namespace EmptyTask {
             return CLASS_VERSION;
         }
 
-        public String getClassName() {
+        public string getClassName() {
             return CLASS_NAME;
         }
 

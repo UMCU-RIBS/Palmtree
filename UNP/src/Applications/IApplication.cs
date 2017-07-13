@@ -8,7 +8,7 @@ namespace UNP.Applications {
 
         int getClassVersion();
         Parameters getParameters();
-        String getClassName();
+        string getClassName();
 
         bool configure(ref SampleFormat input);
         void initialize();

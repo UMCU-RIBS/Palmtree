@@ -207,7 +207,7 @@ namespace MoleTask {
             return parameters;
         }
 
-        public String getClassName() {
+        public string getClassName() {
             return CLASS_NAME;
         }
 

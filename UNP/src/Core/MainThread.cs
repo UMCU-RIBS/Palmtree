@@ -43,7 +43,6 @@ namespace UNP.Core {
         private static List<IFilter> filters = new List<IFilter>();         //
         private static IApplication application = null;                     // reference to the view, used to pull information from and push commands to
         private static List<IPlugin> plugins = new List<IPlugin>();         //
-        private static List<IExternalApplication> exApplications = new List<IExternalApplication>();         //
 
         const int sampleBufferSize = 10000;                                 // the size (and maximum samples) of the sample buffer/que 
         private double[][] sampleBuffer = new double[sampleBufferSize][];   // the sample buffer in which samples are queud
@@ -71,10 +70,7 @@ namespace UNP.Core {
             Data.Construct();
 
             // create/add plugins
-            //plugins.Add(new WindowsSensorsPlugin());
-
-            // create/add links to external applications
-            exApplications.Add(new ExCommunicator()); 
+            //plugins.Add(new WindowsSensorsPlugin("WindowsSensorsPlugin"));
 
             // create a source
             try {
@@ -213,6 +209,28 @@ namespace UNP.Core {
             // configure the data object
             Data.Configure();
 
+            // configure the plugins
+            for (int i = 0; i < plugins.Count(); i++) {
+
+                // configure the filter
+                if (!plugins[i].configure()) {
+
+                    // message
+                    //logger.Error("An error occured while configuring plugin '" + plugins[i]. + "', stopped");
+                    
+                    // flag as not configured
+                    systemConfigured = false;
+
+                    // return failure and go no further
+                    return false;
+
+                }
+                
+            }
+
+
+
+
             // configure source (this will also give the output format information)
             SampleFormat tempFormat = null;
             if (source != null) {
@@ -273,24 +291,6 @@ namespace UNP.Core {
 
             }
 
-            // configure the links to the external applications
-            for (int i = 0; i < exApplications.Count(); i++) {
-
-                // configure each external application
-                if (!exApplications[i].configure(ref tempFormat)) {
-
-                    // message
-                    logger.Error("An error occured while configuring external application " + exApplications[i].getClassName() );
-
-                    // flag as not configured
-                    systemConfigured = false;
-
-                    // return failure and go no further
-                    return false;
-                }
-            }
-
-
             // flag as configured
             systemConfigured = true;
 
@@ -324,12 +324,14 @@ namespace UNP.Core {
                 return;
 
             }
-            
+
+            // initialize the plugins
+            for (int i = 0; i < plugins.Count(); i++)   plugins[i].initialize();
+
             // initialize source, filter and view
             if (source != null)                         source.initialize();
             for (int i = 0; i < filters.Count(); i++)   filters[i].initialize();
             if (application != null)                    application.initialize();
-            for (int i = 0; i < exApplications.Count(); i++) { exApplications[i].initialize(); }
 
             // flag as initialized
             systemInitialized = true;
@@ -380,13 +382,15 @@ namespace UNP.Core {
                 
                 // start the data
                 Data.Start();
-                
+
+                // start the plugins
+                for (int i = 0; i < plugins.Count(); i++)   plugins[i].start();
+
                 // start the application
                 if (application != null)    application.start();
-                
 
                 // start the filters
-                for (int i = 0; i < filters.Count(); i++) filters[i].start();
+                for (int i = 0; i < filters.Count(); i++)   filters[i].start();
                 
                 // allow the main loop to process samples
                 process = true;
@@ -422,16 +426,19 @@ namespace UNP.Core {
 
                     // stop the source
                     // (stop first so no new samples are coming in)
-                    if (source != null)     source.stop();
+                    if (source != null)         source.stop();
 
                     // stop the processing of samples in the main loop
                     process = false;
 
                     // stop the filters
-                    for (int i = 0; i < filters.Count(); i++) filters[i].stop();
+                    for (int i = 0; i < filters.Count(); i++)   filters[i].stop();
 
                     // stop the application
                     if (application != null)    application.stop();
+
+                    // start the plugins
+                    for (int i = 0; i < plugins.Count(); i++)   plugins[i].stop();
 
                     // stop the data
                     Data.Stop();
@@ -691,6 +698,17 @@ namespace UNP.Core {
             
         }
 
+        public static ISource getSource() {
+            return source;
+        }
+
+        public static List<IFilter> getFilters() {
+            return filters;
+        }
+
+        public static IApplication getApplication() {
+            return application;
+        }
 
         /**
          * Static function to return 
@@ -772,307 +790,7 @@ namespace UNP.Core {
         public static void configureRunningFilter(Parameters[] newParameters, bool[] resetFilter) {
             for (int i = 0; i < newParameters.Length; i++)      configureRunningFilter(newParameters[i], (i < resetFilter.Length ? resetFilter[i] : false));
         }
-
-        public static void saveParameterFile(string xmlFile) {
-
-            // check if the filename is not empty
-            if (string.IsNullOrEmpty(xmlFile)) {
-
-                // message
-                logger.Error("Save parameter file called with invalid filename");
-
-                return;
-
-            }
-
-            // TODO: indent with tabs
-
-            // create parameter XML file with encoding declaration
-            XmlDocument paramFile = new XmlDocument();
-            XmlNode paramFileNode = paramFile.CreateXmlDeclaration("1.0", "UTF-8", null);
-            paramFile.AppendChild(paramFileNode);
-
-            // add root node
-            XmlNode rootNode = paramFile.CreateElement("root");
-            paramFile.AppendChild(rootNode);
-
-            // VERSION NODES
-            // create versions node and add to root node
-            XmlNode versionsNode = paramFile.CreateElement("versions");
-            rootNode.AppendChild(versionsNode);
-
-            // get source name and version value, and create source version node 
-            int sourceVersionValue = source.getClassVersion();
-            String sourceVersionName = source.getClassName();
-            XmlNode sourceVersionNode = paramFile.CreateElement("version");
-
-            // add name attribute 
-            XmlAttribute sourceNameAttr = paramFile.CreateAttribute("name");
-            sourceNameAttr.Value = sourceVersionName;
-            sourceVersionNode.Attributes.Append(sourceNameAttr);
-
-            // add type attribute 
-            XmlAttribute sourceTypeAttr = paramFile.CreateAttribute("type");
-            sourceTypeAttr.Value = "source";
-            sourceVersionNode.Attributes.Append(sourceTypeAttr);
-
-            // add value attribute
-            XmlAttribute sourceValueAttr = paramFile.CreateAttribute("value");
-            sourceValueAttr.Value = sourceVersionValue.ToString();
-            sourceVersionNode.Attributes.Append(sourceValueAttr);
-
-            // add source version node to versions node
-            versionsNode.AppendChild(sourceVersionNode);
-
-            // cycle through filters
-            foreach (IFilter filter in filters) {
-
-                // get filter version and create filter version node 
-                int filterVersionValue = filter.getClassVersion();
-                String filterVersionName = filter.getName();
-                XmlNode filterVersionNode = paramFile.CreateElement("version");
-
-                // add name attribute 
-                XmlAttribute filterNameAttr = paramFile.CreateAttribute("name");
-                filterNameAttr.Value = filterVersionName;
-                filterVersionNode.Attributes.Append(filterNameAttr);
-
-                // add type attribute 
-                XmlAttribute filterTypeAttr = paramFile.CreateAttribute("type");
-                filterTypeAttr.Value = "filter";
-                filterVersionNode.Attributes.Append(filterTypeAttr);
-
-                // add value attribute
-                XmlAttribute fillterValueAttr = paramFile.CreateAttribute("value");
-                fillterValueAttr.Value = filterVersionValue.ToString();
-                filterVersionNode.Attributes.Append(fillterValueAttr);
-
-                // add filter version node to versions node
-                versionsNode.AppendChild(filterVersionNode);
-            }
-
-            // get application version and create application version node 
-            int applicationVersionValue = application.getClassVersion();
-            String applicationVersionName = application.getClassName();
-            XmlNode applicationVersionNode = paramFile.CreateElement("version");
-
-            // add name attribute 
-            XmlAttribute applicationNameAttr = paramFile.CreateAttribute("name");
-            applicationNameAttr.Value = applicationVersionName;
-            applicationVersionNode.Attributes.Append(applicationNameAttr);
-
-            // add type attribute 
-            XmlAttribute applicationTypeAttr = paramFile.CreateAttribute("type");
-            applicationTypeAttr.Value = "application";
-            applicationVersionNode.Attributes.Append(applicationTypeAttr);
-
-            // add value attribute
-            XmlAttribute applicationValueAttr = paramFile.CreateAttribute("value");
-            applicationValueAttr.Value = applicationVersionValue.ToString();
-            applicationVersionNode.Attributes.Append(applicationValueAttr);
-
-            // add application version node to versions node
-            versionsNode.AppendChild(applicationVersionNode);
-
-            // PARAMETERSET NODES
-            // get parameterSets
-            Dictionary<string, Parameters> parameterSets = ParameterManager.getParameterSets();
-
-            // cycle through parameter sets
-            foreach (KeyValuePair<string, Parameters> entry in parameterSets) {
-
-                // get name of parameter set
-                String setname = entry.Key;
-                //logger.Debug("Saving parameter set: " + setname);
-
-                // create parameterSet node 
-                XmlNode parameterSetNode = paramFile.CreateElement("parameterSet");
-
-                // add name attribute to parameterSet node and set equal to set name
-                XmlAttribute parameterSetName = paramFile.CreateAttribute("name");
-                parameterSetName.Value = setname;
-                parameterSetNode.Attributes.Append(parameterSetName);
-
-                // add parameterSet node to root node
-                rootNode.AppendChild(parameterSetNode);
-
-                // get Parameter object and iParams contained within
-                Parameters parameterSet = entry.Value;
-                List<iParam> parameters = parameterSet.getParameters();
-
-                // cycle thorugh iParams
-                foreach (iParam parameter in parameters) {
-
-                    // param name
-                    String paramName = parameter.Name;
-                    String paramType = parameter.GetType().ToString();
-                    String paramValue = parameter.ToString();
-                    //logger.Debug("Saving parameter " + paramName + " of type " + paramType + " with value of " + paramValue + " to parameter file.");
-                        
-                    // create param node 
-                    XmlNode paramNode = paramFile.CreateElement("param");
-
-                    // add name attribute 
-                    XmlAttribute paramNameAttr = paramFile.CreateAttribute("name");
-                    paramNameAttr.Value = paramName;
-                    paramNode.Attributes.Append(paramNameAttr);
-
-                    // add type attribute 
-                    XmlAttribute paramTypeAttr = paramFile.CreateAttribute("type");
-                    paramTypeAttr.Value = paramType;
-                    paramNode.Attributes.Append(paramTypeAttr);
-
-                    // add value attribute
-                    XmlAttribute paramValueAttr = paramFile.CreateAttribute("value");
-                    paramValueAttr.Value = paramValue;
-                    paramNode.Attributes.Append(paramValueAttr);
-
-                    // add param node to parameterSet node
-                    parameterSetNode.AppendChild(paramNode);
-
-                }
-                
-            }
-
-            try {
-
-                // save xml string to file
-                paramFile.Save(xmlFile);
-
-                // message
-                logger.Info("Saved parameter file: " + xmlFile);
-
-            } catch (Exception e) {
-
-                // message error
-                logger.Error("Unable to save parameter file (" + xmlFile + "). " + e.Message);
-
-            }
-
-        }
-
-        public static void loadParameterFile(string xmlFile) {
-
-            // check if the filename is not empty
-            if (string.IsNullOrEmpty(xmlFile)) {
-
-                // message
-                logger.Error("Load parameter file called with invalid filename");
-
-                return;
-                
-			}
-
-
-
-            // initialize stream and XmlDocument object
-            Stream xmlParameters = null;
-            XmlDocument paramFile = new XmlDocument();
-
-            // message
-            logger.Info("Loaded parameter file: " + xmlFile);
-
-            try {
-                paramFile.Load(xmlFile);
-			} catch (Exception) {
-                
-                // message
-                MessageBox.Show("Error: Could not read parameter file ('" + xmlFile + "')");
-
-
-                return;
-
-            }
-
-
-            /*
-            // load contents of parameter xml file to stream and then to XmlDocument object
-            try {
-
-                if ((xmlParameters = loadXmlFile.OpenFile()) != null) {
-                    paramFile.Load(xmlParameters);
-                }
-
-            } catch (Exception e) {
-                MessageBox.Show("Error: Could not read parameter file (" + e.Message + ")");
-            }
-            */
-
-
-            // get versions, output for debug
-            //XmlNodeList versions = paramFile.GetElementsByTagName("version");
-            //for (int v = 0; v < versions.Count; v++) { 
-            //	logger.Debug("Current version of " + versions[v].Attributes["type"].Value + " " + versions[v].Attributes["name"].Value + " in parameter file: " + versions[v].Attributes["value"].Value);
-            //}
-
-            // load current parametersSets
-            Dictionary<string, Parameters> currParameterSets = ParameterManager.getParameterSets();
-
-            // get parametersets and params from xml
-            XmlNodeList parameterSets = paramFile.GetElementsByTagName("parameterSet");
-
-            // for each parameter set
-            for (int s = 0; s < parameterSets.Count; s++) {
-
-                // get name of set
-                string parameterSetName = parameterSets[s].Attributes["name"].Value;
-                //logger.Debug("Loading parameter set " + parameterSetName + "from parameter file.");
-
-                // load current parameters of set
-                Parameters currParameterSet = currParameterSets[parameterSetName];
-
-                // set current parameters in set to values in xml
-                if (parameterSets[s].HasChildNodes) {
-
-                    // cycle through all parameters in this set contained in xml
-                    for (int p = 0; p < parameterSets[s].ChildNodes.Count; p++) {
-
-                        // get name, type and value of param
-                        string paramName = parameterSets[s].ChildNodes[p].Attributes["name"].Value;
-                        string paramType = parameterSets[s].ChildNodes[p].Attributes["type"].Value;
-                        string paramValue = parameterSets[s].ChildNodes[p].Attributes["value"].Value;
-
-                        // get current type of this param
-                        string currType = currParameterSet.getType(paramName);
-
-						// check if the type in xml is the same as the current type
-                        if (paramType == currType) {
-                            
-							// logger.Debug("Parameter " + paramName + " is same type as currently registered.");
-							
-							// update value of param to value in xml
-                            if (currParameterSet.setValue(paramName, paramValue)) {
-                                //logger.Debug("Parameter " + paramName + " is updated to " + paramValue + " (value taken from parameter file.)");
-								
-                            }
-							
-							// update value of param to value in xml
-                            // TODO: try catch
-                            // TODO: give feedback in logger and Dialog that loading was succesful
-                            // TODO relaod GUI so any updated values are immediately visible
-
-                        } else {
-							
-							// message
-                            logger.Error("Parameter " + paramName + " is not same type as currently registered and is not updated to file in parameter file");
-							
-                        }
-
-                        // debug
-                        //logger.Debug(parameterSets[s].ChildNodes[p].Attributes["name"].Value);
-                        //logger.Debug(parameterSets[s].ChildNodes[p].Attributes["type"].Value);
-                        //logger.Debug(parameterSets[s].ChildNodes[p].Attributes["value"].Value);
-
-                    }
-					
-                }
-				
-            }
-
-            // TODO: update fileds after laoding GUIConfig.updateFields() is private
-
-        }
-
+        
     }
 
 }

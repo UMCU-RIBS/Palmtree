@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
+using UNP.Core.Params;
 using UNP.GUI;
 
 namespace UNP.Core {
@@ -18,7 +19,7 @@ namespace UNP.Core {
             // TODO: check if all dependencies exists
             // TODO: also 32/64 bit (freetype or other dlls)
 
-            String parameterFile = null;
+            string parameterFile = null;
 
             // process startup arguments
             for (int i = 0; i < args.Length; i++)
@@ -30,14 +31,14 @@ namespace UNP.Core {
                 // - source (GenerateSignal/KeypressSignal/PlaybackSignal) = 
 
                 // if parameterfile flag is given, store next argument if it is not empty
-                if (args[i] == "-parameterfile" && !String.IsNullOrEmpty(args[i+1]) ) {
+                if (args[i] == "-parameterfile" && !string.IsNullOrEmpty(args[i+1]) ) {
                     parameterFile = args[i + 1];
                 }                    
             }
 
             //(GenerateSignal/KeypressSignal/PlaybackSignal)
-            //Type sourceType = Type.GetType("UNP.Sources.GenerateSignal");
-            Type sourceType = Type.GetType("UNP.Sources.KeypressSignal");
+            Type sourceType = Type.GetType("UNP.Sources.GenerateSignal");
+            //Type sourceType = Type.GetType("UNP.Sources.KeypressSignal");
             //Type sourceType = Type.GetType("UNP.Sources.NexusSignal");
 
             // name this thread
@@ -92,9 +93,12 @@ namespace UNP.Core {
             // debug: load 
             mainThread.loadDebugConfig();
 
-            // load parameter file if given in startup arguments
+            // check if a parameter file was given to load at startup
             if (!String.IsNullOrEmpty(parameterFile)) {
-                MainThread.loadParameterFile(parameterFile);
+
+                // load parameter file to the applications parametersets
+                ParameterManager.loadParameterFile(parameterFile, ParameterManager.getParameterSets());
+
             }
             
             

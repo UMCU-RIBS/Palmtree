@@ -9,12 +9,13 @@ using UNP.Core.Params;
 namespace UNP.Plugins {
 
     public class WindowsSensorsPlugin : IPlugin {
-
-        private const string CLASS_NAME = "WindowsSensorsPlugin";
+        
         private const int CLASS_VERSION = 0;
 
-        private static Logger logger = LogManager.GetLogger(CLASS_NAME);
-        private static Parameters parameters = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Plugin);
+        private static Logger logger = null;
+        private static Parameters parameters = null;
+
+        protected string pluginName = "";
 
         private bool sensorEnabled = false;                                 // flag to hold whether the Windows sensors functions can be used
         private Windows.Devices.Sensors.Accelerometer accelerometer;        // hold Accelerometer (only do anything with this variable inside a try block (outside will cause an InvalidTypeException at startup of the project)
@@ -22,7 +23,15 @@ namespace UNP.Plugins {
         private double accelerationY = 0;
         private double accelerationZ = 0;
 
-        public WindowsSensorsPlugin() {
+        public WindowsSensorsPlugin(string pluginName) {
+
+            // store the plugin name
+            this.pluginName = pluginName;
+
+            // initialize the logger and parameters with the filter name
+            logger = LogManager.GetLogger(pluginName);
+            parameters = ParameterManager.GetParameters(pluginName, Parameters.ParamSetTypes.Plugin);
+
             try {
                 init_safe();
             } catch (Exception) {
@@ -30,16 +39,16 @@ namespace UNP.Plugins {
             }
         }
 
-        public int getClassVersion() {
-            return CLASS_VERSION;
-        }
-
-        public String getClassName() {
-            return CLASS_NAME;
+        public string getName() {
+            return pluginName;
         }
 
         public Parameters getParameters() {
             return parameters;
+        }
+
+        public int getClassVersion() {
+            return CLASS_VERSION;
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]

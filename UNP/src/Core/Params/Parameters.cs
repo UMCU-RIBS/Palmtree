@@ -262,15 +262,12 @@ namespace UNP.Core.Params {
 
         }
 
-        public String getType(string paramName)
-        {
+        public string getType(string paramName) {
 
-            lock (lockParameters)
-            {
+            lock (lockParameters) {
 
                 iParam param = getParameter(paramName);
-                if (param == null)
-                {
+                if (param == null) {
 
                     // message
                     logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', returning 0");

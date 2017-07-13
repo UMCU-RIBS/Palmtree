@@ -7,10 +7,10 @@ using UNP.Core.Params;
 
 namespace UNP.Sources {
 
-    interface ISource {
+    public interface ISource {
 
         int getClassVersion();
-        String getClassName(); 
+        string getClassName(); 
         Parameters getParameters();
 
         bool configure(out SampleFormat output);

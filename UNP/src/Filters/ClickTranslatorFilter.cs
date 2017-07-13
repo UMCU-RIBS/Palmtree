@@ -11,7 +11,7 @@ namespace UNP.Filters {
 
     public class ClickTranslatorFilter : FilterBase, IFilter {
 
-        private const int CLASS_VERSION = 0;
+        private new const int CLASS_VERSION = 0;
 
         private int activePeriod = 0;                               // time window of buffer used for determining clicks
         private int mBufferSize = 0;                                // now equals the activeperiod variable, can be used to enlarge the buffer but only use the last part (activeperiod)
@@ -23,8 +23,10 @@ namespace UNP.Filters {
         private RingBuffer[] mDataBuffers = null;                   // an array of ringbuffers, a ringbuffer for every channel
         private bool active_state = true;
 
-
         public ClickTranslatorFilter(string filterName) {
+
+            // set class version
+            base.CLASS_VERSION = CLASS_VERSION;
 
             // store the filter name
             this.filterName = filterName;

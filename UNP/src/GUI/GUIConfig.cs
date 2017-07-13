@@ -18,31 +18,45 @@ namespace UNP.GUI {
         private static Logger logger = LogManager.GetLogger("GUIConfig");
 
         private struct ParamControl {
-            public iParam param;
+            public iParam globalParam;          // reference to global copy of the parameter (used to save the parameter for runtime usage)
+            public iParam localParam;           // reference to local copy of the parameter (used to load/save the parameter set from/as file)
+
             public Control control;
             public TabPage tab;
             public Control additionalControl1;
             public Control additionalControl2;
-            
-            public ParamControl(iParam param, Control control, TabPage tab) {
-                this.param = param;
-                this.control = control;
+
+            public ParamControl(ref iParam globalParam, ref iParam localParam, TabPage tab) {
+                this.globalParam = globalParam;
+                this.localParam = localParam;
                 this.tab = tab;
+                this.control = null;
+                this.additionalControl1 = null;
+                this.additionalControl2 = null;
+            }
+
+            public ParamControl(ref iParam globalParam, ref iParam localParam, TabPage tab, Control control) {
+                this.globalParam = globalParam;
+                this.localParam = localParam;
+                this.tab = tab;
+                this.control = control;
                 this.additionalControl1 = null;
                 this.additionalControl2 = null;
             }
         
-            public ParamControl(iParam param, Control control, TabPage tab, Control additionalControl1, Control additionalControl2) {
-                this.param = param;
-                this.control = control;
+            public ParamControl(iParam globalParam, iParam localParam, TabPage tab, Control control, Control additionalControl1, Control additionalControl2) {
+                this.globalParam = globalParam;
+                this.localParam = localParam;
                 this.tab = tab;
+                this.control = control;
                 this.additionalControl1 = additionalControl1;
                 this.additionalControl2 = additionalControl2;
             }
         
         }
 
-        private static Dictionary<string, Parameters> paramSets = ParameterManager.getParameterSets();
+        private static Dictionary<string, Parameters> localParamSets = null;         // local copy of the parameter sets (used to load/save the parameter set from/as file)
+
         private const int labelWidth = 200;
         private const int itemTopPadding = 10;
         private const int itemBottomPadding = 10;
@@ -50,17 +64,23 @@ namespace UNP.GUI {
         private List<ParamControl> paramControls = new List<ParamControl>(0);
 
         public GUIConfig() {
-            
+
             // initialize components
             InitializeComponent();
 
             // suspend the tabcontrol layout
             tabControl.SuspendLayout();
 
+            // retrieve the parameter set to build the controls on
+            Dictionary<string, Parameters> paramSets = ParameterManager.getParameterSets();
+
+            // create a local copy of the dataset
+            localParamSets = ParameterManager.getParameterSetsClone();
+            
             // loop through each paramset
             int counter = 0;
             foreach (KeyValuePair<string, Parameters> entry in paramSets) {
-                
+
                 // create a new tab for the paramset and suspend the layout
                 TabPage newTab = new TabPage();
                 newTab.SuspendLayout();
@@ -86,15 +106,30 @@ namespace UNP.GUI {
                 newPanel.Size = new Size(newTab.Width, newTab.Height);
                 newPanel.Name = "pnl" + entry.Key;
                 newPanel.AutoScroll = true;
-                newTab.Controls.Add(newPanel); 
+                newTab.Controls.Add(newPanel);
 
                 // TODO: check grouping etc
 
+
                 // loop through the parameters
-                List<iParam> parameters = entry.Value.getParameters();
+                List<iParam> globalParameters = entry.Value.getParameters();
+                List<iParam> localParameters = localParamSets[entry.Key].getParameters();
                 int y = 20;
-                for (int i = 0; i < parameters.Count; i++) {
-                    addConfigItemToControl(newTab, newPanel, parameters[i], ref y);
+                for (int i = 0; i < globalParameters.Count; i++) {
+
+                    // retrieve references to the global and local parameter
+                    iParam globalParam = globalParameters[i];
+                    iParam localParam = localParameters[i];
+
+                    // create ParamControl object
+                    ParamControl paramControl = new ParamControl(ref globalParam, ref localParam, newTab);
+
+                    // create the control (and attach to ParamControl object)
+                    addConfigItemToControl(newTab, newPanel, ref paramControl, ref y);
+
+                    // add paramControl to collection
+                    paramControls.Add(paramControl);
+
                 }
 
                 // check if the y is higher than the panel height (if there is scrolling; the VerticalScroll.Visible property does not work at this point)
@@ -128,7 +163,10 @@ namespace UNP.GUI {
 
         }
         
-        private void addConfigItemToControl(TabPage tab, Control panel, iParam param, ref int y) {
+        private void addConfigItemToControl(TabPage tab, Control panel, ref ParamControl paramControl, ref int y) {
+
+            // retrieve reference to the global parameter
+            iParam param = paramControl.globalParam;
 
             // create and add a label
             Label newLbl = new Label();
@@ -155,7 +193,7 @@ namespace UNP.GUI {
                 newChk.Text = "";
                 newChk.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
                 panel.Controls.Add(newChk);
-                paramControls.Add(new ParamControl(param, newChk, tab));
+                paramControl.control = newChk;
                 itemHeight = 20;
 
             } else if (param is ParamInt || param is ParamDouble) {
@@ -171,7 +209,7 @@ namespace UNP.GUI {
                     newTxt.Size = new System.Drawing.Size(260, 20);
                     newTxt.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
                     panel.Controls.Add(newTxt);
-                    paramControls.Add(new ParamControl(param, newTxt, tab));
+                    paramControl.control = newTxt;
                     itemHeight = 20;
 
                 } else {
@@ -185,7 +223,7 @@ namespace UNP.GUI {
                     newCmb.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
                     for (int i = 0; i < param.Options.Length; i++)  newCmb.Items.Add(param.Options[i]);
                     panel.Controls.Add(newCmb);
-                    paramControls.Add(new ParamControl(param, newCmb, tab));
+                    paramControl.control = newCmb;
                     itemHeight = 22;
 
                 }
@@ -208,7 +246,7 @@ namespace UNP.GUI {
                     }
                 };
                 panel.Controls.Add(newPic);
-                paramControls.Add(new ParamControl(param, newPic, tab));
+                paramControl.control = newPic;
                 itemHeight = 20;
 
             } else if (param is ParamBoolArr || param is ParamIntArr || param is ParamDoubleArr || param is ParamString) {
@@ -220,7 +258,7 @@ namespace UNP.GUI {
                 newTxt.Size = new System.Drawing.Size(340, 20);
                 newTxt.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
                 panel.Controls.Add(newTxt);
-                paramControls.Add(new ParamControl(param, newTxt, tab));
+                paramControl.control = newTxt;
                 itemHeight = 20;
 
             } else if (param is ParamBoolMat || param is ParamIntMat || param is ParamDoubleMat || param is ParamStringMat) {
@@ -292,8 +330,9 @@ namespace UNP.GUI {
                 panel.Controls.Add(newLblColumns);
                 panel.Controls.Add(newColumns);
 
-                paramControls.Add(new ParamControl(param, newGrid, tab, newRows, newColumns));
-
+                paramControl.control = newGrid;
+                paramControl.additionalControl1 = newRows;
+                paramControl.additionalControl2 = newColumns;
 
                 itemHeight = 180;
 
@@ -320,17 +359,25 @@ namespace UNP.GUI {
         private void GUIConfig_Load(object sender, EventArgs e) {
 
             // fill the fields with values
-            updateFields();
+            updateFields(false);
 
         }
 
-        private void updateFields() {
+        // local determine is the fields should be loaded the local copy or global (runtime) parameter-sets
+        private void updateFields(bool local) {
 
             // loop through each paramset
             for (int i = 0; i < paramControls.Count; i++) {
-                iParam param = paramControls[i].param;
 
+                // get the parameter reference
+                iParam param = null;
+                if (local)      param = paramControls[i].localParam;
+                else            param = paramControls[i].globalParam;
+
+         
+                // determine type of parameter and update accordingly
                 if (param is ParamBool) {
+
                     CheckBox chk = (CheckBox)paramControls[i].control;
                     chk.Checked = ((ParamBool)param).Value;
                     
@@ -439,13 +486,19 @@ namespace UNP.GUI {
             
         }
 
-        private bool processFields(bool saveFields) {
+        // local determine is the fields should be loaded the local copy or global (runtime) parameter-sets
+        private bool processFields(bool saveFields, bool local) {
             bool hasError = false;
             TabPage hasErrorFirstTab = null;
 
             // loop through each paramset
             for (int i = 0; i < paramControls.Count; i++) {
-                iParam param = paramControls[i].param;
+
+
+                // get the parameter reference
+                iParam param = null;
+                if (local)      param = paramControls[i].localParam;
+                else            param = paramControls[i].globalParam;
 
                 if (param is ParamBool) {
                     CheckBox chk = (CheckBox)paramControls[i].control;
@@ -694,10 +747,10 @@ namespace UNP.GUI {
         private void btnSave_Click(object sender, EventArgs e) {
 
             // check the fields
-            if (processFields(false)) {
+            if (processFields(false, false)) {
 
                 // try to save the fields
-                if (processFields(true)) {
+                if (processFields(true, false)) {
                     // success
 
                     // message
@@ -777,10 +830,10 @@ namespace UNP.GUI {
 			if (dlgLoadPrmFile.ShowDialog() == DialogResult.OK) {
                 
                 // try to load the parameter file
-                MainThread.loadParameterFile(dlgLoadPrmFile.FileName);
+                ParameterManager.loadParameterFile(dlgLoadPrmFile.FileName, localParamSets);
 
-                // update the field here with the loaded settings
-                updateFields();
+                // update the fields in the form with the local settings
+                updateFields(true);
 
 			}
 			
@@ -790,22 +843,28 @@ namespace UNP.GUI {
         private void btnSavePrmFile_Click(object sender, EventArgs e) {
 
             // check the fields
-            if (processFields(false)) {
+            if (processFields(false, true)) {
+                Dictionary<string, Parameters> test = ParameterManager.getParameterSets();
 
-                // TODO: debug: moet nu even
-                btnSave_Click(null, null);
+                // try to save the fields
+                if (processFields(true, true)) {
+                    // success
 
-                // create save file dialog box for user with standard filename set to current time
-                SaveFileDialog dlgSavePrmFile = new SaveFileDialog();
-                dlgSavePrmFile.FileName = DateTime.Now.ToString("yyyyMMdd_HHmm") + ".prm";
+                    // create save file dialog box for user with standard filename set to current time
+                    SaveFileDialog dlgSavePrmFile = new SaveFileDialog();
+                    dlgSavePrmFile.Filter = "Parameter files (*.prm)|*.prm|All files (*.*)|*.*";
+                    dlgSavePrmFile.RestoreDirectory = true;                                         // restores current directory to the previously selected directory, potentially beneficial if other code relies on the currently set directory
+                    dlgSavePrmFile.FileName = DateTime.Now.ToString("yyyyMMdd_HHmm") + ".prm";
 
-                // if user sucessfully selected location, save location and store file
-                if (dlgSavePrmFile.ShowDialog() == DialogResult.OK) {
+                    // if user sucessfully selected location, save location and store file
+                    if (dlgSavePrmFile.ShowDialog() == DialogResult.OK) {
 
-                    MainThread.saveParameterFile(dlgSavePrmFile.FileName);
+                        // store the parameters based on the local copy of the parameter set
+                        ParameterManager.saveParameterFile(dlgSavePrmFile.FileName, localParamSets);
+
+                    }
 
                 }
-
             }
 
         }

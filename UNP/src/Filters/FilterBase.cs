@@ -11,7 +11,7 @@ namespace UNP.Filters {
 
     public class FilterBase {
 
-        protected const int CLASS_VERSION = 0;
+        protected int CLASS_VERSION = -1;
 
         protected string filterName = "";
         protected Logger logger = null;
