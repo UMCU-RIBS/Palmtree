@@ -105,7 +105,7 @@ namespace UNP.Core {
             
             
             Parameters sourceParameters = source.getParameters();
-            sourceParameters.setValue("Channels", 2);
+            //sourceParameters.setValue("Channels", 2);
             //sourceParameters.setValue("SampleRate", 5.0);
             //sourceParameters.setValue("Keys", "F,G;1,2;1,1;-1,-1");
             
