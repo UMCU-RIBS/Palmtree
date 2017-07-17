@@ -19,6 +19,8 @@ namespace UNP.Core {
     // performance (important since the Data class is called upon frequently)
     public static class Data {
 
+        private const int DATAFORMAT_VERSION = 1;
+
         private static Logger logger = LogManager.GetLogger("Data");
         private static Parameters parameters = ParameterManager.GetParameters("Data", Parameters.ParamSetTypes.Data);
         
@@ -36,7 +38,25 @@ namespace UNP.Core {
 
         private static FileStream eventStream = null;                                           // filestream that is fed to the binarywriter, containing the stream of events to be written to the .evt file
         private static StreamWriter eventStreamWriter = null;                                   // writer that writes values to the .evt file
-         
+
+        // plugin streams
+        private static bool mLogPluginInput = false;            								// plugin input logging enabled/disabled (by configuration parameter)
+        private static bool mLogPluginInputRuntime = false;                                     // stores whether during runtime the plugin input should be logged    (if it was on, then it can be switched off, resulting in 0's being logged)
+
+        private static int numPlugins = 0;                                                      // stores the amount of registered plugins
+        private static List<string> registeredPluginNames = new List<string>(0);                // stores the names of the registered plugins
+
+        private static List<int> numPluginInputStreams = new List<int>(0);                                  // the number of streams that will be logged for each plugin
+        private static List<List<string>> registeredPluginInputStreamNames = new List<List<string>>(0);     // for each plugin, the names of the registered plugin input streams to store in the plugin data log file
+        private static List<List<int>> registeredPluginInputStreamTypes = new List<List<int>>(0);           // for each plugin, the types of the registered plugin input streams to store in the plugin data log file
+
+        private static List<double[,]> pluginDataValues = new List<double[,]>(0);               // list of two dimensional arrays to hold plugin data as it comes in 
+        private static int bufferSize = 10000;                                                  // TEMP size of buffer, ie amount of datavalues stored for each plugin before the buffer is flushed to the data file at sampleProcessingEnd
+        private static List<int> bufferPointers = new List<int>(0);
+
+        private static List<FileStream> pluginStreams = null;                                   // list of filestreams, one for each plugin, to be able to write to different files with different frequencies. Each filestream is fed to a binarywriter, containing the stream of values to be written to the plugin log file
+        private static List<BinaryWriter> pluginStreamWriters = null;                           // list of writers, one for each plugin, each writes values specific for that plugin to the plugin data log file
+
         // source streams
         private static bool mLogSourceInput = false;            								// source input logging enabled/disabled (by configuration parameter)
         private static bool mLogSourceInputRuntime = false;     								// stores whether during runtime the source input should be logged    (if it was on, then it can be switched off, resulting in 0's being logged)
@@ -133,6 +153,11 @@ namespace UNP.Core {
                 "Indicate which levels of event logging are allowed.\n(leave empty to log all levels)\n\nNote: whether events are logged or not is also dependent on the runtime configuration of the modules. It is possible\nthat the user, though an application module user-interface, sets certain events to be or not be logged.",
                 "0");
 
+            parameters.addParameter<bool>(
+                "LogPluginInput",
+                "Enable/disable plugin input logging.\n\nNote: when there is no plugin input then no plugin data file will be created nor will there be any logging of plugin input",
+                "1");
+
         }
 
         /**
@@ -158,6 +183,13 @@ namespace UNP.Core {
             registeredVisualizationStreamTypes.Clear();
             numVisualizationStreams = 0;
 
+            // clear the registered plugin streams
+            registeredPluginNames.Clear();
+            numPlugins = 0;
+            registeredPluginInputStreamNames.Clear();
+            registeredPluginInputStreamTypes.Clear();
+            numPluginInputStreams.Clear();
+
             // check and transfer visualization parameter settings
             mAllowDataVisualization = parameters.getValue<bool>("AllowDataVisualization");
             Globals.setValue<bool>("AllowDataVisualization", mAllowDataVisualization ? "1" : "0");
@@ -170,14 +202,16 @@ namespace UNP.Core {
             mLogEvents = parameters.getValue<bool>("LogEvents");
             mLogEventsRuntime = mLogEvents;
             mEventLoggingLevels = parameters.getValue<int[]>("EventLoggingLevels");
-
+            mLogPluginInput = parameters.getValue<bool>("LogPluginInput");
+            mLogPluginInputRuntime = mLogPluginInput;
+            
             identifier = parameters.getValue<string>("Identifier");
             subDirPerRun = parameters.getValue<bool>("SubDirectoryPerRun");
 
             // ...
 
             // if there is data to store, create data (sub-)directory
-            if (mLogSourceInput || mLogDataStreams || mLogEvents) {
+            if (mLogSourceInput || mLogDataStreams || mLogEvents || mLogPluginInput) {
 
                 // construct path name of data directory
                 dataDir = parameters.getValue<string>("DataDirectory");
@@ -205,16 +239,16 @@ namespace UNP.Core {
 
         /**
          * Register a source input stream
-         * Every source that wants to log a stream should announce every stream respectively beforehand using this function
+         * Every source that wants to log input should announce every stream respectively beforehand using this function
          * 
          * (this should be called during configuration, by all sources that will log their samples)
          **/
         public static void RegisterSourceInputStream(string streamName, SampleFormat streamType) {
-            
+
             // register a new stream
             registeredSourceInputStreamNames.Add(streamName);
             registeredSourceInputStreamTypes.Add(0);
-            
+
             // add one to the total number of streams
             numSourceInputStreams++;
 
@@ -279,6 +313,55 @@ namespace UNP.Core {
             return registeredVisualizationStreamNames.ToArray();
         }
 
+        /**
+         * Register all input streams for a plugin
+         * Every plugin that wants to log input should announce every stream respectively beforehand using this function
+         * This should be called during configuration, by all plugins that will log their samples).
+         * 
+         * (in contrast to registering source and datastreams this function takes all streams in one go, because plugins are assigned an id at this point to allow to write the data from all streams from one plugin to one file)  
+         **/
+        public static int RegisterPluginInputStream(string pluginName, string[] streamNames, SampleFormat[] streamTypes) {
+
+            // assign id to plugin 
+            int pluginId = numPlugins;
+
+            // register plugin name
+            registeredPluginNames[pluginId] = pluginName;
+
+            // register al  streams for this plugin
+            for (int i = 0; i < streamNames.Length; i++) {
+                registeredPluginInputStreamNames[pluginId].Add(streamNames[i]);
+                registeredPluginInputStreamTypes[pluginId].Add(0);
+            }
+
+            // create array to hold incoming data and set pointer in buffer to initital value
+            // TODO: set size depending on difference in output frequency of plugin and source, now set to 10000 to be on the safe side
+            double[,] pluginData = new double[bufferSize, 2];
+            pluginDataValues.Add(pluginData);
+            bufferPointers.Add(0);
+
+            // add one to the total number of registered plugins
+            numPlugins++;
+
+            // message
+            logger.Debug("Registered " + streamNames.Length + " streams for plugin with id " + pluginId);
+
+            // return assigned id to plugin, so plugin can use this to uniquely identify the data sent to this class
+            return pluginId;
+        }
+
+        public static int GetNumberOfPlugins() {
+            return numPlugins;
+        }
+
+        public static int GetNumberOfPluginInputStreams(int pluginId) {
+            return registeredPluginInputStreamNames[pluginId].Count;
+        }
+
+        public static string[] GetPluginInputStreamNames(int pluginId) {
+            return registeredPluginInputStreamNames[pluginId].ToArray();
+        }
+
         public static void Start() {
 
             // increase run number
@@ -310,8 +393,9 @@ namespace UNP.Core {
 
             }
 
-
-            // TODO create (and close) the parameter file
+            // create parameter file and save current parameters
+            Dictionary<string, Parameters> localParamSets = ParameterManager.getParameterSetsClone();
+            ParameterManager.saveParameterFile(fileName + ".prm", localParamSets);
 
             // check if we want to log events
             if (mLogEvents) {
@@ -362,7 +446,7 @@ namespace UNP.Core {
                 }
 
                 // write header
-                writeHeader(registeredSourceInputStreamNames, sourceStreamWriter);
+                writeHeader(registeredSourceInputStreamNames, sourceStreamWriter, true);
 
             }
 
@@ -395,10 +479,38 @@ namespace UNP.Core {
                 }
 
                 // write header
-                writeHeader(registeredDataStreamNames, dataStreamWriter);
+                writeHeader(registeredDataStreamNames, dataStreamWriter, true);
 
             }
 
+
+            // check if we want to log the plugin input
+            if (mLogPluginInput && numPlugins > 0) {
+
+                // for each plugin, create stream, writer and file
+                for(int i = 0; i < numPlugins; i++) {
+
+                    // log the source start event
+                    LogEvent(1, "PluginLogStart", "plugin id: " + i);
+
+                    // construct filepath of plugin data file, with current time and name of plugin as filename 
+                    string fileNamePlugin = fileName + "_" + registeredPluginNames[i] + ".dat";
+                    string path = Path.Combine(currDir, fileNamePlugin);
+
+                    // create filestream: create file if it does not exists, allow to write, do not share with other processes and use buffer of 8192 bytes (roughly 1000 samples)
+                    try {
+                        pluginStreams.Add(new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 8192));
+                        pluginStreamWriters.Add(new BinaryWriter(pluginStreams[i]));
+                        logger.Info("Created plugin data log file for plugin " + registeredPluginNames[i] + " at " + path);
+                    } catch (Exception e) {
+                        logger.Error("Unable to create plugin data log file for plugin " + registeredPluginNames[i] + " at " + path + " (" + e.ToString() + ")");
+                    }
+
+                    // write header
+                    writeHeader(registeredPluginInputStreamNames[i], pluginStreamWriters[i], false);
+                }
+
+            }
 
             // check if data visualization is enabled
             if (mAllowDataVisualization) {
@@ -411,10 +523,10 @@ namespace UNP.Core {
         }
         
         public static void Stop() {
-            
-            // TODO: more closing things/variables
 
-            // 
+            // TODO: close the event file (and more closing things/variables?)
+
+            // stop and close data stream 
             if (dataStreamWriter != null) {
                 
                 // log the data stop event
@@ -424,22 +536,34 @@ namespace UNP.Core {
                 dataStreamWriter.Close();
                 dataStreamWriter = null;
                 dataStream = null;
-
             }
 
-            if (dataStreamWriter != null) {
+            // stop and close source stream 
+            if (sourceStreamWriter != null) {
 
                 // log the source stop event
                 LogEvent(1, "SourceStop", "");
 
                 // close the source stream file
-                dataStreamWriter.Close();
-                dataStreamWriter = null;
-                dataStream = null;
-
+                sourceStreamWriter.Close();
+                sourceStreamWriter = null;
+                sourceStream = null;
             }
 
-            // close the event file
+            // stop and close all plugin data streams 
+            for(int i=0; i<numPlugins; i++) {
+
+                if (pluginStreamWriters[i] != null) {
+
+                    // log the plugin log stop event
+                    LogEvent(1, "PluginLogStop", "plugin id: " + i);
+
+                    // close the plugin stream file
+                    pluginStreamWriters[i].Close();
+                    pluginStreamWriters[i] = null;
+                    pluginStreams[i] = null;
+                }
+            }
 
             // if there is still a stopwatch running, stop it
             if (dataStopWatch.IsRunning) { dataStopWatch.Stop(); }
@@ -543,7 +667,7 @@ namespace UNP.Core {
                     args.values = visualizationStreamValues;
                     newVisualizationStreamValues(null, args);
 
-                } else {
+                } else { 
                     // number of values mismatches
 
                     // message
@@ -689,6 +813,47 @@ namespace UNP.Core {
         }
 
         /**
+       * Log a plugin value to the buffer to later write to file
+       * 
+       **/
+        public static void LogPluginDataValue(double value, int pluginId) {
+
+            /**
+            // check if data logging is allowed
+            if (mLogPluginInput) {
+
+                // check if there is still room in buffer
+                if(bufferPointers[pluginId] < bufferSize) {
+
+                } else {
+
+                    // TODO: flush buffer to file and 
+                }
+                    pluginDataValues
+
+                // check if the counter is within the size of the value array
+                if (dataValuePointer >= numDataStreams) {
+
+                    // message
+                    logger.Error("More data streams are logged than have been registered for logging, discarded, check code (currently logging at values array index " + dataValuePointer + ")");
+
+                } else {
+
+                    // if during runtime logging is turned off, log 0's
+                    if (!mLogDataStreamsRuntime) { value = 0; }
+
+                    // store the incoming value in the array, advance the pointer
+                    dataStreamValues[dataValuePointer] = value;
+                    dataValuePointer++;
+
+                }
+            }
+
+            */
+        }
+
+
+        /**
          * Log a raw stream value to visualize
          * 
          **/
@@ -728,24 +893,44 @@ namespace UNP.Core {
         }
 
         /**
-         * Create header of .dat or .src file
+         * Create header of .dat (plugin or filter) or .src file
          * 
+         * boolean timing either includes (true) or excludes (false) extra column in header file for storing elapsed time 
          **/
-        private static void writeHeader(List<string> streamNames, BinaryWriter writer) {
+        private static void writeHeader(List<string> streamNames, BinaryWriter writer, bool timing) {
 
-            // create header: convert list with names of streams to String, with tabs between names 
+            // get number of columns (columns with data values + sample id column)
+            int ncol = streamNames.Count + 1; 
+
+            // convert list with names of streams to String, with tabs between names 
             string header = string.Join("\t", streamNames.ToArray());
-            header = "Sample #  \t Elapsed time [ms] \t" + header;
+
+            // create sample id column
+            string col = "Sample #  \t";
+
+            // create timing column if desired
+            if (timing) { col = col + "Elapsed time [ms] \t"; ncol++; }
+
+            // add sample id (and if desired timing column) to header
+            header = col + header;
+
+            // add version number and create header
+            header = "UNP_V" + DATAFORMAT_VERSION + "\n" + header;
             byte[] headerBinary = Encoding.ASCII.GetBytes(header);
+
+            // store number of columns [bytes] 
+            byte[] ncolBinary = BitConverter.GetBytes(ncol);
 
             // store length [bytes] of header 
             int headerLen = headerBinary.Length;
+            logger.Info("Length of header: " + headerLen);
             byte[] headerLenBinary = BitConverter.GetBytes(headerLen);
 
-            // creat output byte array and copy length of header and header into this array
-            byte[] headerOut = new byte[sizeof(int) + headerLen];
-            Buffer.BlockCopy(headerLenBinary, 0, headerOut, 0, sizeof(int));
-            Buffer.BlockCopy(headerBinary, 0, headerOut, sizeof(int), headerLen);
+            // creat output byte array and copy number of cols, length of header, and header itself into this array
+            byte[] headerOut = new byte[2*sizeof(int) + headerLen];
+            Buffer.BlockCopy(ncolBinary, 0, headerOut, 0, sizeof(int));
+            Buffer.BlockCopy(headerLenBinary, 0, headerOut, sizeof(int), sizeof(int));
+            Buffer.BlockCopy(headerBinary, 0, headerOut, 2*sizeof(int), headerLen);
 
             // write header to file
             writer.Write(headerOut);   
