@@ -829,33 +829,21 @@ namespace UNP.Core {
             // check if data logging is allowed
             if (mLogPluginInput) {
 
+                // if during runtime logging is turned off, log 0's
+                if (!mLogPluginInputRuntime) { value = 0; }
+
                 // check if there is still room in buffer
                 if (bufferPointers[pluginId] < bufferSize) {
 
-                    double[,] tempData = pluginDataValues[pluginId];
-
-
-                } else {
-
-                    // TODO: flush buffer to file
-                }
-
-
-                // check if the counter is within the size of the value array
-                if (dataValuePointer >= numDataStreams) {
-
-                    // message
-                    logger.Error("More data streams are logged than have been registered for logging, discarded, check code (currently logging at values array index " + dataValuePointer + ")");
+                    // store plugin data value, together with current sample id, to later be able to synchronize the plugin data
+                    pluginDataValues[pluginId][bufferPointers[pluginId], 1] = dataSampleCounter;
+                    pluginDataValues[pluginId][bufferPointers[pluginId], 2] = value;
+                    
+                    // advance pointer
+                    bufferPointers[pluginId]++;
 
                 } else {
-
-                    // if during runtime logging is turned off, log 0's
-                    if (!mLogDataStreamsRuntime) { value = 0; }
-
-                    // store the incoming value in the array, advance the pointer
-                    dataStreamValues[dataValuePointer] = value;
-                    dataValuePointer++;
-
+                    // TODO: flush buffer to file and store new value
                 }
             }
         }
@@ -923,10 +911,10 @@ namespace UNP.Core {
             header = col + header;
 
             // add version number and create header
-            header = "UNP_V" + DATAFORMAT_VERSION + "\n" + header;
             byte[] headerBinary = Encoding.ASCII.GetBytes(header);
 
             // store number of columns and of source channels [bytes] 
+            byte[] versionBinary = BitConverter.GetBytes(DATAFORMAT_VERSION);
             byte[] ncolBinary = BitConverter.GetBytes(ncol);
             byte[] sourceChannelsBinary = BitConverter.GetBytes(sourceChannels);
 
@@ -935,11 +923,17 @@ namespace UNP.Core {
             byte[] headerLenBinary = BitConverter.GetBytes(headerLen);
 
             // creat output byte array and copy number of cols, length of header, and header itself into this array
-            byte[] headerOut = new byte[3 * sizeof(int) + headerLen];
-            Buffer.BlockCopy(sourceChannelsBinary, 0, headerOut, 0, sizeof(int));
-            Buffer.BlockCopy(ncolBinary, 0, headerOut, sizeof(int), sizeof(int));
-            Buffer.BlockCopy(headerLenBinary, 0, headerOut, 2 * sizeof(int), sizeof(int));
-            Buffer.BlockCopy(headerBinary, 0, headerOut, 3 * sizeof(int), headerLen);
+            byte[] headerOut = new byte[4 * sizeof(int) + headerLen];
+            int filePointer = 0;
+            Buffer.BlockCopy(versionBinary, 0, headerOut, filePointer, sizeof(int));
+            filePointer += sizeof(int);
+            Buffer.BlockCopy(sourceChannelsBinary, 0, headerOut, filePointer, sizeof(int));
+            filePointer += sizeof(int);
+            Buffer.BlockCopy(ncolBinary, 0, headerOut, filePointer, sizeof(int));
+            filePointer += sizeof(int);
+            Buffer.BlockCopy(headerLenBinary, 0, headerOut, filePointer, sizeof(int));
+            filePointer += sizeof(int);
+            Buffer.BlockCopy(headerBinary, 0, headerOut, filePointer, headerLen);
 
             // write header to file
             writer.Write(headerOut);
