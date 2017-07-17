@@ -103,6 +103,9 @@ namespace UNP.Sources {
                 return false;
             }
 
+            // notify data class on the number of output channels
+            Data.SetSourceOutputChannels(outputChannels);
+
             // retrieve the sample rate
             sampleRate = parameters.getValue<double>("SampleRate");
             if (sampleRate <= 0) {

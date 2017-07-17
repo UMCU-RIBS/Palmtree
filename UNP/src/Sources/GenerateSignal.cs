@@ -85,6 +85,9 @@ namespace UNP.Sources {
                 return false;
             }
 
+            // notify data class on the number of output channels
+            Data.SetSourceOutputChannels(outputChannels);
+
             // retrieve the sample rate
             sampleRate = parameters.getValue<double>("SampleRate");
             if (sampleRate <= 0) {
@@ -95,9 +98,10 @@ namespace UNP.Sources {
             // calculate the sample interval
             sampleInterval = (int)Math.Floor(1000.0 / sampleRate);
 
-            // TODO: debug, even sourceinput dingen
-            Data.RegisterSourceInputStream("Ch0", null);
-            Data.RegisterSourceInputStream("Ch1", null);
+            // TODO: debug, even sourceinput dingen; tijdelijk, dit hoort niet in generateSignal klasse
+            for (int i = 0; i < outputChannels; i++) {
+                Data.RegisterSourceInputStream(("Ch" + i), null);
+            }
 
             // flag as configured
             configured = true;
