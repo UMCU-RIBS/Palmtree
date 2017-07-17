@@ -12,16 +12,19 @@ namespace UNP.Plugins {
         
         private const int CLASS_VERSION = 0;
 
+       
         private static Logger logger = null;
         private static Parameters parameters = null;
 
         protected string pluginName = "";
+        private static int pluginId = -1;                                   // id used to identify plugin at data class
 
         private bool sensorEnabled = false;                                 // flag to hold whether the Windows sensors functions can be used
         private Windows.Devices.Sensors.Accelerometer accelerometer;        // hold Accelerometer (only do anything with this variable inside a try block (outside will cause an InvalidTypeException at startup of the project)
         private double accelerationX = 0;
         private double accelerationY = 0;
         private double accelerationZ = 0;
+        double[] logAcceleration = new double[3];
 
         public WindowsSensorsPlugin(string pluginName) {
 
@@ -37,8 +40,12 @@ namespace UNP.Plugins {
             } catch (Exception) {
                 logger.Warn("Could not load Windows Driver Kit dependency, no sensory input");
             }
-        }
 
+            // register streams
+            string[] streamNames = new string[3] { "accelerationX", "accelerationY", "accelerationZ" };
+            pluginId = Core.Data.RegisterPluginInputStream(pluginName, streamNames, null); 
+
+        }
         public string getName() {
             return pluginName;
         }
@@ -54,10 +61,11 @@ namespace UNP.Plugins {
         [MethodImpl(MethodImplOptions.NoInlining)]
         public void init_safe() {
 
-            // Init vars, accelerometer and logging frequency
+            // Init accelerometer 
             accelerometer = Windows.Devices.Sensors.Accelerometer.GetDefault();
-            
-            uint requestedReportInterval = 10;
+
+            // set sampling frequency and set array to hold incoming data
+            uint requestedReportInterval = 10;              // in ms
 
             // Check if accelerometer is found
             if (accelerometer != null) {
@@ -74,12 +82,16 @@ namespace UNP.Plugins {
                 // new meter values anonymous callback
                 accelerometer.ReadingChanged += new Windows.Foundation.TypedEventHandler<Windows.Devices.Sensors.Accelerometer, Windows.Devices.Sensors.AccelerometerReadingChangedEventArgs>(delegate (Windows.Devices.Sensors.Accelerometer sender, Windows.Devices.Sensors.AccelerometerReadingChangedEventArgs e) {
 
-                    accelerationX = e.Reading.AccelerationX;
-                    accelerationY = e.Reading.AccelerationY;
-                    accelerationZ = e.Reading.AccelerationZ;
+                    logAcceleration[0] = e.Reading.AccelerationX;
+                    logAcceleration[1] = e.Reading.AccelerationY;
+                    logAcceleration[2] = e.Reading.AccelerationZ;
 
-                });
+                    // send to data class
+                    Core.Data.LogPluginDataValue(logAcceleration, pluginId);
+        });
                 
+
+
                 // flag sensor as enabled
                 sensorEnabled = true;
 

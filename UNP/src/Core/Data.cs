@@ -341,7 +341,7 @@ namespace UNP.Core {
 
             // create array to hold incoming data and set pointer in buffer to initital value
             // TODO: set size depending on difference in output frequency of plugin and source, now set to 10000 to be on the safe side
-            double[,] pluginData = new double[bufferSize, 2];
+            double[,] pluginData = new double[2, bufferSize];
             pluginDataValues.Add(pluginData);
             bufferPointers.Add(0);
 
@@ -532,7 +532,7 @@ namespace UNP.Core {
 
         public static void Stop() {
 
-            // TODO: close the event file (and more closing things/variables?)
+            // TODO: close the event file, and flush any remaining data in plugin buffers to respective files (and more closing things/variables?)
 
             // stop and close data stream 
             if (dataStreamWriter != null) {
@@ -685,6 +685,9 @@ namespace UNP.Core {
 
             }
 
+            // flush plugin buffers to file
+            writePluginData();
+
         }
 
         /**
@@ -824,7 +827,10 @@ namespace UNP.Core {
        * Log a plugin value to the buffer to later write to file
        * 
        **/
-        public static void LogPluginDataValue(double value, int pluginId) {
+        public static void LogPluginDataValue(double[] values, int pluginId) {
+
+            // TODO: store all values correctly in array
+            double value = values[0];
 
             // check if data logging is allowed
             if (mLogPluginInput) {
@@ -836,8 +842,8 @@ namespace UNP.Core {
                 if (bufferPointers[pluginId] < bufferSize) {
 
                     // store plugin data value, together with current sample id, to later be able to synchronize the plugin data
-                    pluginDataValues[pluginId][bufferPointers[pluginId], 1] = dataSampleCounter;
-                    pluginDataValues[pluginId][bufferPointers[pluginId], 2] = value;
+                    pluginDataValues[pluginId][0, bufferPointers[pluginId]] = dataSampleCounter;
+                    pluginDataValues[pluginId][1, bufferPointers[pluginId]] = value;
                     
                     // advance pointer
                     bufferPointers[pluginId]++;
@@ -848,6 +854,38 @@ namespace UNP.Core {
             }
         }
 
+        public static void writePluginData() {
+
+            // for all plugins, flush buffers to respective files
+            for (int pluginId = 0; pluginId < numPlugins; pluginId++) {
+
+                // get pointer, indicating size of buffer currently used
+                int pointer = bufferPointers[pluginId];
+
+                // init temp arrays to hold sampleCounters and plugin data 
+                double[] sampleCounterData = new double[pointer];
+                double[] pluginData = new double[pointer];
+
+                // copy to values to samplecounterdata and pluginData arrays
+                Buffer.BlockCopy(pluginDataValues[pluginId], sizeof(double) * bufferSize * 0, sampleCounterData, 0, sizeof(double) * pointer);
+                Buffer.BlockCopy(pluginDataValues[pluginId], sizeof(double) * bufferSize * 1, pluginData, 0, sizeof(double) * pointer);
+
+                // interleave arrays
+                double[] streamOut = new double[2 * pointer];
+                for(int i=0; i<sampleCounterData.Length; i++) {
+                    streamOut[i] = sampleCounterData[i];
+                    streamOut[(i*2)+1] = pluginData[i];
+                }
+
+                // get binary version of array and write to file
+                byte[] streamOutBinary = new byte[streamOut.Length * sizeof(double)];
+                pluginStreamWriters[pluginId].Write(streamOutBinary);
+
+                // reset buffer pointer
+                bufferPointers[pluginId] = 0;
+
+            }
+        }
 
         /**
          * Log a raw stream value to visualize
