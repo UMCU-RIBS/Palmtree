@@ -668,7 +668,7 @@ namespace MoleTask {
                                 /*
 					            #ifdef UNPMENU
 						
-						            if (mUNPMenuTask)	UNP_Stop();
+						            if (mUNPMenuTask)	UNP_stop();
 
 					            #else
 
@@ -729,7 +729,7 @@ namespace MoleTask {
                             /*
 				            #ifdef UNPMENU
 						
-					            if (mUNPMenuTask)	UNP_Stop();
+					            if (mUNPMenuTask)	UNP_stop();
 
 				            #else
 

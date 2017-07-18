@@ -36,7 +36,7 @@ namespace UNP.Filters {
 
             parameters.addParameter<bool>(
                 "LogDataStreams",
-                "Log the filter's intermediate and input data streams. See 'Data' tab for more settings on sample stream logging.",
+                "Log the filter's intermediate and output data streams. See 'Data' tab for more settings on sample stream logging.",
                 "0");
 
             parameters.addParameter <double[]>  (
@@ -80,8 +80,8 @@ namespace UNP.Filters {
             // transfer the parameters to local variables
             transferParameters(parameters);
 
-            // configure input logging for this filter
-            configureInputLogging("Normalize_", input);
+            // configure output logging for this filter
+            configureOutputLogging("Normalize_", output);
 
             // debug output
             logger.Debug("--- Filter configuration: " + filterName + " ---");
@@ -242,9 +242,6 @@ namespace UNP.Filters {
 
         public void process(double[] input, out double[] output) {
 
-            // handle the data logging of the input (both to file and for visualization)
-            processInputLogging(input);
-
             // create an output sample
             output = new double[outputChannels];
 
@@ -260,7 +257,6 @@ namespace UNP.Filters {
 
                 }
 
-
             } else {
                 // filter disabled
 
@@ -268,6 +264,9 @@ namespace UNP.Filters {
                 for (uint channel = 0; channel < inputChannels; ++channel)  output[channel] = input[channel];
 
             }
+
+            // handle the data logging of the output (both to file and for visualization)
+            processOutputLogging(output);
 
         }
 

@@ -102,10 +102,7 @@ namespace UNP.Sources {
                 logger.Error("Number of output channels cannot be 0");
                 return false;
             }
-
-            // notify data class on the number of output channels
-            Data.setSourceOutputChannels(outputChannels);
-
+            
             // retrieve the sample rate
             sampleRate = parameters.getValue<double>("SampleRate");
             if (sampleRate <= 0) {

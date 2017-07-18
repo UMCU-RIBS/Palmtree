@@ -3,23 +3,14 @@
 
 using NLog;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
 using UNP.Applications;
 using UNP.Filters;
 using UNP.Core.Helpers;
 using UNP.Sources;
-using UNP.Views;
 using UNP.Core.Params;
-using System.Windows.Forms;
-using System.Xml;
-using System.IO;
 using UNP.Plugins;
 
 namespace UNP.Core {
@@ -67,10 +58,10 @@ namespace UNP.Core {
         public void initPipeline(Type sourceType, Type applicationType) {
 
             // constuct the Data static class (this makes sure that the Data parameterset is created for configuration)
-            Data.Construct();
+            Data.construct();
 
             // create/add plugins
-            plugins.Add(new WindowsSensorsPlugin("WindowsSensorsPlugin"));
+            //plugins.Add(new WindowsSensorsPlugin("WindowsSensorsPlugin"));
 
             // create a source
             try {
@@ -108,7 +99,9 @@ namespace UNP.Core {
             //sourceParameters.setValue("Channels", 2);
             //sourceParameters.setValue("SampleRate", 5.0);
             //sourceParameters.setValue("Keys", "F,G;1,2;1,1;-1,-1");
-            
+
+            sourceParameters.setValue("Input", "D:\\UNP\\other\\testrun\\test_20170718_154814.dat");
+
             Parameters timeSmoothingParameters = getFilterParameters("TimeSmoothing");
             timeSmoothingParameters.setValue("EnableFilter", true);
             timeSmoothingParameters.setValue("LogDataStreams", false);
@@ -207,17 +200,25 @@ namespace UNP.Core {
         public bool configureSystem() {
 
             // configure the data object
-            Data.Configure();
+            if (!Data.configure()) {
+
+                // message
+                logger.Error("An error occured while configuring the data class, stopped");
+
+                // return failure and go no further
+                return false;
+
+            }
 
             // configure the plugins
-            for (int i = 0; i < plugins.Count(); i++) {
+            for (int i = 0; i < plugins.Count; i++) {
 
                 // configure the filter
                 if (!plugins[i].configure()) {
 
                     // message
-                    //logger.Error("An error occured while configuring plugin '" + plugins[i]. + "', stopped");
-                    
+                    logger.Error("An error occured while configuring plugin '" + plugins[i].getName() + "', stopped");
+
                     // flag as not configured
                     systemConfigured = false;
 
@@ -227,9 +228,6 @@ namespace UNP.Core {
                 }
                 
             }
-
-
-
 
             // configure source (this will also give the output format information)
             SampleFormat tempFormat = null;
@@ -247,9 +245,12 @@ namespace UNP.Core {
                 }
 
             }
+
+            // register the pipeline input streams based on the output format of the source
+            Data.registerPipelineInputStreams(tempFormat);
             
             // configure the filters
-            for (int i = 0; i < filters.Count(); i++) {
+            for (int i = 0; i < filters.Count; i++) {
 
                 // create a local variable to temporarily store the output format of the filter in
                 // (will be given in the configure step)
@@ -326,11 +327,11 @@ namespace UNP.Core {
             }
 
             // initialize the plugins
-            for (int i = 0; i < plugins.Count(); i++)   plugins[i].initialize();
+            for (int i = 0; i < plugins.Count; i++)   plugins[i].initialize();
 
             // initialize source, filter and view
             if (source != null)                         source.initialize();
-            for (int i = 0; i < filters.Count(); i++)   filters[i].initialize();
+            for (int i = 0; i < filters.Count; i++)   filters[i].initialize();
             if (application != null)                    application.initialize();
 
             // flag as initialized
@@ -381,16 +382,16 @@ namespace UNP.Core {
                 }
                 
                 // start the data
-                Data.Start();
+                Data.start();
 
                 // start the plugins
-                for (int i = 0; i < plugins.Count(); i++)   plugins[i].start();
+                for (int i = 0; i < plugins.Count; i++)   plugins[i].start();
 
                 // start the application
                 if (application != null)    application.start();
 
                 // start the filters
-                for (int i = 0; i < filters.Count(); i++)   filters[i].start();
+                for (int i = 0; i < filters.Count; i++)   filters[i].start();
                 
                 // allow the main loop to process samples
                 process = true;
@@ -426,22 +427,22 @@ namespace UNP.Core {
 
                     // stop the source
                     // (stop first so no new samples are coming in)
-                    if (source != null)         source.stop();
+                    if (source != null)                         source.stop();
 
                     // stop the processing of samples in the main loop
                     process = false;
 
                     // stop the filters
-                    for (int i = 0; i < filters.Count(); i++)   filters[i].stop();
+                    for (int i = 0; i < filters.Count; i++)     filters[i].stop();
 
                     // stop the application
-                    if (application != null)    application.stop();
+                    if (application != null)                    application.stop();
 
                     // start the plugins
-                    for (int i = 0; i < plugins.Count(); i++)   plugins[i].stop();
+                    for (int i = 0; i < plugins.Count; i++)     plugins[i].stop();
 
                     // stop the data
-                    Data.Stop();
+                    Data.stop();
 
                     // flag the system as stopped
                     started = false;
@@ -541,26 +542,37 @@ namespace UNP.Core {
 
                         // check if there is a sample to process
                         if (sample != null) {
-                            
+
                             double[] output = null;
 
                             // Announce the sample at the beginning of the pipeline
-                            Data.SampleProcessingStart();
+                            Data.sampleProcessingstart();
 
                             // debug 
-                            for (int i = 0; i < plugins.Count(); i++) {
+                            for (int i = 0; i < plugins.Count; i++) {
                                 plugins[i].preFiltersProcess();
+                            }
+                            
+                            // loop through the pipeline input samples
+                            for (int i = 0; i < sample.Length; i++) {
+
+                                // log data (the 'LogPipelineInputStreamValue' function not log the sample if pipeline input logging is disabled)
+                                Data.logPipelineInputStreamValue(sample[i]);
+
+                                // log for visualization (the 'LogVisualizationStreamValue' function will discard the sample if visualization is disabled)
+                                Data.logVisualizationStreamValue(sample[i]);
+
                             }
 
                             // process the sample (filters)
-                            for (int i = 0; i < filters.Count(); i++) {
+                            for (int i = 0; i < filters.Count; i++) {
                                 filters[i].process(sample, out output);
                                 sample = output;
                                 output = null;
                             }
 
                             // debug 
-                            for (int i = 0; i < plugins.Count(); i++) {
+                            for (int i = 0; i < plugins.Count; i++) {
                                 plugins[i].postFiltersProcess();
                             }
 
@@ -568,7 +580,7 @@ namespace UNP.Core {
                             if (application != null)    application.process(sample);
 
                             // Announce the sample at the end of the pipeline
-                            Data.SampleProcessingEnd();
+                            Data.sampleProcessingEnd();
 
                             #if(DEBUG_SAMPLES_LOG_PERFORMANCE)
 
@@ -616,7 +628,7 @@ namespace UNP.Core {
             }
 
             // destoy the filters
-            for (int i = 0; i < filters.Count(); i++) filters[i].destroy();
+            for (int i = 0; i < filters.Count; i++) filters[i].destroy();
 
             // destroy the view
             if (application != null)    application.destroy();

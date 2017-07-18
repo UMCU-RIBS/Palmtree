@@ -37,7 +37,7 @@ namespace UNP.Filters {
             return CLASS_VERSION;
         }
 
-        public void configureInputLogging(string prefix, SampleFormat input) {
+        public void configureOutputLogging(string prefix, SampleFormat output) {
 
             // retrieve and prepare the logging of streams
             mLogDataStreams = parameters.getValue<bool>("LogDataStreams");
@@ -45,8 +45,8 @@ namespace UNP.Filters {
             if (mLogDataStreams) {
 
                 // register the streams
-                for (int channel = 0; channel < inputChannels; channel++)
-                    Data.RegisterDataStream((prefix + "Input_Ch" + (channel + 1)), input);
+                for (int channel = 0; channel < outputChannels; channel++)
+                    Data.registerDataStream((prefix + "Output_Ch" + (channel + 1)), output);
 
             }
 
@@ -55,24 +55,24 @@ namespace UNP.Filters {
             if (mAllowDataVisualization) {
 
                 // register the streams to visualize
-                for (int channel = 0; channel < inputChannels; channel++) {
-                    Data.RegisterVisualizationStream((prefix + "Input_Ch" + (channel + 1)), input);
+                for (int channel = 0; channel < outputChannels; channel++) {
+                    Data.registerVisualizationStream((prefix + "Output_Ch" + (channel + 1)), output);
 
                     // debug
-                    //logger.Warn((prefix + "Input_Ch" + (channel + 1)));
+                    //logger.Warn((prefix + "Output_Ch" + (channel + 1)));
 
                 }
             }
 
         }
 
-        // standard function to process the input loggin
-        public void processInputLogging(double[] input) {
+        // standard function to process the output logging
+        public void processOutputLogging(double[] output) {
 
             // check if the streams should be logged to a file (initial setting) or visualization is allowed 
             if (mLogDataStreams || mAllowDataVisualization) {
 
-                for (int channel = 0; channel < inputChannels; ++channel) {
+                for (int channel = 0; channel < outputChannels; ++channel) {
 
                     // check if logging of the steams was initially allowed
                     if (mLogDataStreams) {
@@ -82,13 +82,13 @@ namespace UNP.Filters {
                             // enabled initially and at runtime
 
                             // log values
-                            Data.LogStreamValue(input[channel]);
+                            Data.logStreamValue(output[channel]);
 
                         } else {
                             // enabled initially but not at runtime
 
                             // log zeros
-                            Data.LogStreamValue(0.0);
+                            Data.logStreamValue(0.0);
 
                         }
 
@@ -98,10 +98,10 @@ namespace UNP.Filters {
                     if (mAllowDataVisualization) {
                         
                         // log values
-                        Data.LogVisualizationStreamValue(input[channel]);
+                        Data.logVisualizationStreamValue(output[channel]);
 
                         // debug
-                        //logger.Warn(("Input_Ch" + (channel + 1)));
+                        //logger.Warn(("Output_Ch" + (channel + 1)));
 
                     }
 
@@ -109,7 +109,7 @@ namespace UNP.Filters {
 
             }
 
-        }   // end processInputLogging
+        }   // end processOutputLogging
 
 
     }

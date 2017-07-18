@@ -66,10 +66,10 @@ namespace UNP.GUI {
                 try {
 
                     // retrieve the visualization stream names (this is already an array copy of the list held in the data class)
-                    string[] visualizationSourceInputStreamNames = Data.GetSourceInputStreamNames();
+                    string[] visualizationSourceInputStreamNames = Data.getSourceInputStreamNames();
 
                     // retrieve the visualization stream names (this is already an array copy of the list held in the data class)
-                    string[] visualizationStreamNames = Data.GetVisualizationDataStreamNames();
+                    string[] visualizationStreamNames = Data.getVisualizationDataStreamNames();
 
                     // create graphs
                     visualizationGraphs = new Graph[NumberOfGraphs];
@@ -349,7 +349,7 @@ namespace UNP.GUI {
                     //}
 
                 //});
-                //updateThread.Start();
+                //updateThread.start();
 
             }
             */

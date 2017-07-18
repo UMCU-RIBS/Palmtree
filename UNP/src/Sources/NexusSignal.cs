@@ -138,10 +138,7 @@ namespace UNP.Sources {
                 logger.Error("Number of output channels cannot be 0");
                 return false;
             }
-
-            // notify data class on the number of output channels
-            Data.setSourceOutputChannels(outputChannels);
-
+            
             // retrieve and set the comport
             int comPortOption = parameters.getValue<int>("ComPort");
             comPort = "COM" + (comPortOption + 1);
@@ -170,7 +167,7 @@ namespace UNP.Sources {
                 // register the streams
                 for (int sample = 0; sample < NEXUS_POWERMODE_SAMPLES_PER_PACKAGE; sample++) {
                     for (int channel = 0; channel < NEXUS_POWERMODE_CHANNELS_PER_PACKAGE; channel++) {
-                        Data.RegisterSourceInputStream("Nexus_Input_Ch" + (channel + 1) + "_Smpl" + (sample + 1), null);
+                        Data.registerSourceInputStream("Nexus_Input_Ch" + (channel + 1) + "_Smpl" + (sample + 1), null);
                     }
                 }
 
@@ -181,7 +178,7 @@ namespace UNP.Sources {
                 // register the streams
                 for (int sample = 0; sample < NEXUS_TIMEMODE_SAMPLES_PER_PACKAGE; sample++) {
                     for (int channel = 0; channel < NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE; channel++) {
-                        Data.RegisterSourceInputStream("Nexus_Input_Ch" + (channel + 1) + "_Smpl" + (sample + 1), null);
+                        Data.registerSourceInputStream("Nexus_Input_Ch" + (channel + 1) + "_Smpl" + (sample + 1), null);
                     }
                 }
 
@@ -742,7 +739,7 @@ namespace UNP.Sources {
                 logger.Warn("Source packet timed out");
 
                 // log timeout event
-                Data.LogEvent(1, "SourcePacketTimeout", "");
+                Data.logEvent(1, "SourcePacketTimeout", "");
                 
                 // reset the timeout timer (stops the timer and sets elapsed time to zero)
                 swNexusPacketTimeout.Reset();
@@ -766,7 +763,7 @@ namespace UNP.Sources {
                         logger.Warn("Corrupt data-packet received (CRC wrong: " + packet.crc + " != " + crc_calculated + ")");
 
                         // log event
-                        Data.LogEvent(1, "SourcePacketBadCRC", "");
+                        Data.logEvent(1, "SourcePacketBadCRC", "");
 
                         // set buffer values to zero
                         for (int i = 0; i < PACKET_BUFFER_SIZE; i++)
@@ -797,7 +794,7 @@ namespace UNP.Sources {
 
 
                                 // log the values as source input before timing correction
-                                Data.LogSourceInputValues(values);
+                                Data.logSourceInputValues(values);
                             }
                             
 

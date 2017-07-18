@@ -107,10 +107,10 @@ namespace UNP.Core {
             }
 
             // debug
-            source = "UNP.Sources.GenerateSignal";
+            //source = "UNP.Sources.GenerateSignal";
             //source = "UNP.Sources.KeypressSignal";
             //source = "UNP.Sources.NexusSignal";
-            //source = "UNP.Sources.PlaybackSignal";
+            source = "UNP.Sources.PlaybackSignal";
 
             // check if no (valid) source was given
             if (string.IsNullOrEmpty(source)) {
@@ -223,7 +223,6 @@ namespace UNP.Core {
         private string[][] sources = null;
         public string source = "";
 
-        private System.ComponentModel.IContainer components = null;
         private System.Windows.Forms.ListBox lstSources;
         private System.Windows.Forms.Button btnOK;
         private System.Windows.Forms.Button btnExit;

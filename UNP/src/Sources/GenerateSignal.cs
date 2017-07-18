@@ -84,10 +84,7 @@ namespace UNP.Sources {
                 logger.Error("Number of output channels cannot be 0");
                 return false;
             }
-
-            // notify data class on the number of output channels
-            Data.setSourceOutputChannels(outputChannels);
-
+            
             // retrieve the sample rate
             sampleRate = parameters.getValue<double>("SampleRate");
             if (sampleRate <= 0) {
@@ -100,7 +97,7 @@ namespace UNP.Sources {
 
             // TODO: debug, even sourceinput dingen; tijdelijk, dit hoort niet in generateSignal klasse
             for (int i = 0; i < outputChannels; i++) {
-                Data.RegisterSourceInputStream(("Ch" + i), null);
+                Data.registerSourceInputStream(("Ch" + i), null);
             }
 
             // flag as configured
@@ -291,7 +288,7 @@ namespace UNP.Sources {
                         }
 
                         // TODO: debug, even sourceinput dingen
-                        Data.LogSourceInputValues(sample);
+                        Data.logSourceInputValues(sample);
 
                         // pass the sample
                         main.eventNewSample(sample);

@@ -12,18 +12,16 @@ namespace UNP.Plugins {
     public class WindowsSensorsPlugin : IPlugin {
         
         private const int CLASS_VERSION = 0;
-
+       
         private static Logger logger = null;
         private static Parameters parameters = null;
 
-        protected string pluginName = "";
-        private int pluginId = -1;                                          // id used to identify plugin at data class
+        private string pluginName = "";
+        private static int pluginId = -1;                                   // id used to identify plugin at data class
 
         private bool sensorEnabled = false;                                 // flag to hold whether the Windows sensors functions can be used
-        private bool logData = false;                                       // flag to hold whether data should be sent to the data class, ie be logged
-
         private Windows.Devices.Sensors.Accelerometer accelerometer;        // hold Accelerometer (only do anything with this variable inside a try block (outside will cause an InvalidTypeException at startup of the project)
-        private double[] logAcceleration = new double[3];
+        double[] acceleration = new double[3];
 
         Timer debugTimer = null;                                            // debug purposes: allows use of timer to test in absence of sensor input
 
@@ -42,18 +40,22 @@ namespace UNP.Plugins {
                 logger.Warn("Could not load Windows Driver Kit dependency, no sensory input");
             }
 
-        }
+            // register streams
+            string[] streamNames = new string[3] { "accelerationX", "accelerationY", "accelerationZ" };
+            pluginId = Core.Data.registerPluginInputStream(pluginName, streamNames, null); 
 
-        public string getName() {
-            return this.pluginName;
-        }
-
-        public Parameters getParameters() {
-            return parameters;
         }
 
         public int getClassVersion() {
             return CLASS_VERSION;
+        }
+
+        public string getName() {
+            return pluginName;
+        }
+
+        public Parameters getParameters() {
+            return parameters;
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -80,12 +82,14 @@ namespace UNP.Plugins {
                 // new meter values anonymous callback
                 accelerometer.ReadingChanged += new Windows.Foundation.TypedEventHandler<Windows.Devices.Sensors.Accelerometer, Windows.Devices.Sensors.AccelerometerReadingChangedEventArgs>(delegate (Windows.Devices.Sensors.Accelerometer sender, Windows.Devices.Sensors.AccelerometerReadingChangedEventArgs e) {
 
-                    logAcceleration[0] = e.Reading.AccelerationX;
-                    logAcceleration[1] = e.Reading.AccelerationY;
-                    logAcceleration[2] = e.Reading.AccelerationZ;
+                    // log the data
+                    acceleration[0] = e.Reading.AccelerationX;
+                    acceleration[1] = e.Reading.AccelerationY;
+                    acceleration[2] = e.Reading.AccelerationZ;
 
-                    // send to data class, if flag is set
-                    if(this.logData) Core.Data.LogPluginDataValue(logAcceleration, pluginId);
+                    // log the values
+                    Data.logPluginDataValue(acceleration, pluginId);
+
                 });
                 
                 // flag sensor as enabled

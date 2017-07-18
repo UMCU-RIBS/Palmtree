@@ -10,6 +10,7 @@ namespace UNP.Plugins {
     interface IPlugin {
 
         int getClassVersion();
+        string getName();
         Parameters getParameters();
 
         bool configure();
