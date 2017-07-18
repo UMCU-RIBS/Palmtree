@@ -45,7 +45,7 @@ namespace UNP.Core {
                 // check if no gui should be shown
                 if (argument == "-nogui") nogui = true;
 
-                // check if the parameterfile is given
+                // check if the source is given
                 if (argument == "-source") {
 
                     // the next element should be the parameter file, try to retrieve
@@ -107,10 +107,10 @@ namespace UNP.Core {
             }
 
             // debug
-            //source = "UNP.Sources.GenerateSignal";
+            source = "UNP.Sources.GenerateSignal";
             //source = "UNP.Sources.KeypressSignal";
             //source = "UNP.Sources.NexusSignal";
-            source = "UNP.Sources.PlaybackSignal";
+            //source = "UNP.Sources.PlaybackSignal";
 
             // check if no (valid) source was given
             if (string.IsNullOrEmpty(source)) {

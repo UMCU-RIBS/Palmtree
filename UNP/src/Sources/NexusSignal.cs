@@ -140,7 +140,7 @@ namespace UNP.Sources {
             }
 
             // notify data class on the number of output channels
-            Data.SetSourceOutputChannels(outputChannels);
+            Data.setSourceOutputChannels(outputChannels);
 
             // retrieve and set the comport
             int comPortOption = parameters.getValue<int>("ComPort");

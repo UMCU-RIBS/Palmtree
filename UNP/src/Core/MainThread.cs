@@ -70,7 +70,7 @@ namespace UNP.Core {
             Data.Construct();
 
             // create/add plugins
-            //plugins.Add(new WindowsSensorsPlugin("WindowsSensorsPlugin"));
+            plugins.Add(new WindowsSensorsPlugin("WindowsSensorsPlugin"));
 
             // create a source
             try {
