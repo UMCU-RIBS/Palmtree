@@ -546,7 +546,7 @@ namespace UNP.Core {
                             double[] output = null;
 
                             // Announce the sample at the beginning of the pipeline
-                            Data.sampleProcessingstart();
+                            Data.sampleProcessingStart();
 
                             // debug 
                             for (int i = 0; i < plugins.Count; i++) {
@@ -634,7 +634,7 @@ namespace UNP.Core {
             if (application != null)    application.destroy();
 
             // destroy the data class
-            Data.Destroy();
+            Data.destroy();
 
             // log message
             logger.Debug("Thread stopped");

@@ -20,7 +20,7 @@ namespace UNP.Filters {
         protected bool mEnableFilter = false;                   // Filter is enabled or disabled
         protected bool mLogDataStreams = false;                 // stores whether the initial configuration has the logging of data streams enabled or disabled
         protected bool mLogDataStreamsRuntime = false;          // stores whether during runtime the data streams should be logged (if it was on, then it can be switched off, resulting in 0's being logged)
-        protected bool mAllowDataVisualization = false;         // stores whether data visualization is enabled or disabled. This is a local copy of the setting from Globals (originating from the Data class), set during configuration of the filter
+        protected bool mEnableDataVisualization = false;         // stores whether data visualization is enabled or disabled. This is a local copy of the setting from Globals (originating from the Data class), set during configuration of the filter
 
         protected uint inputChannels = 0;
         protected uint outputChannels = 0;
@@ -51,8 +51,8 @@ namespace UNP.Filters {
             }
 
             // retrieve and prepare the visualization of streams
-            mAllowDataVisualization = Globals.getValue<bool>("AllowDataVisualization");
-            if (mAllowDataVisualization) {
+            mEnableDataVisualization = Globals.getValue<bool>("EnableDataVisualization");
+            if (mEnableDataVisualization) {
 
                 // register the streams to visualize
                 for (int channel = 0; channel < outputChannels; channel++) {
@@ -70,7 +70,7 @@ namespace UNP.Filters {
         public void processOutputLogging(double[] output) {
 
             // check if the streams should be logged to a file (initial setting) or visualization is allowed 
-            if (mLogDataStreams || mAllowDataVisualization) {
+            if (mLogDataStreams || mEnableDataVisualization) {
 
                 for (int channel = 0; channel < outputChannels; ++channel) {
 
@@ -95,7 +95,7 @@ namespace UNP.Filters {
                     }
 
                     // check if the data should be visualized
-                    if (mAllowDataVisualization) {
+                    if (mEnableDataVisualization) {
                         
                         // log values
                         Data.logVisualizationStreamValue(output[channel]);

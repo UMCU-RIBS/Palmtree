@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Timers;
+using UNP.Core;
 using UNP.Core.Params;
 
 namespace UNP.Plugins {
@@ -17,7 +18,7 @@ namespace UNP.Plugins {
         private static Parameters parameters = null;
 
         private string pluginName = "";
-        private static int pluginId = -1;                                   // id used to identify plugin at data class
+        private static int pluginId = -1;                                   // unique id used to identify plugin at data class (this number is generated and returned by the Data class upon registration of the plugin)
 
         private bool sensorEnabled = false;                                 // flag to hold whether the Windows sensors functions can be used
         private Windows.Devices.Sensors.Accelerometer accelerometer;        // hold Accelerometer (only do anything with this variable inside a try block (outside will cause an InvalidTypeException at startup of the project)
@@ -108,7 +109,7 @@ namespace UNP.Plugins {
 
             // register streams
             string[] streamNames = new string[3] { "accelerationX", "accelerationY", "accelerationZ" };
-            this.pluginId = Core.Data.RegisterPluginInputStream(pluginName, streamNames, null);
+            pluginId = Data.registerPluginInputStream(pluginName, streamNames, null);
 
             return true;
         }
@@ -124,9 +125,7 @@ namespace UNP.Plugins {
             debugTimer.Elapsed += OnTimedEvent;
             debugTimer.AutoReset = true;
             debugTimer.Enabled = true;
-
-            // set flag to start sending data
-            logData = true;
+            
         }
 
         // debug, send data based on timer
@@ -140,7 +139,8 @@ namespace UNP.Plugins {
             logAcceleration[2] = rnd.Next(1, 200);
 
             logger.Info("Data [x,y,z]: " + logAcceleration[0] + "," + logAcceleration[1] + "," + logAcceleration[2]);
-            Core.Data.LogPluginDataValue(logAcceleration, this.pluginId);        
+            Data.logPluginDataValue(logAcceleration, pluginId);        
+
         }
 
         public void stop() {
@@ -148,8 +148,6 @@ namespace UNP.Plugins {
             // debug
             debugTimer.Enabled = false;
 
-            // stop sending data
-            logData = false;
         }
 
         public bool isStarted() {
