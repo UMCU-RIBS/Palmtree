@@ -24,6 +24,8 @@ namespace UNP.Core {
         private static Logger logger = LogManager.GetLogger("Data");
         private static Parameters parameters = ParameterManager.GetParameters("Data", Parameters.ParamSetTypes.Data);
 
+        private static Random rand = new Random(Guid.NewGuid().GetHashCode());
+
         private static string dataDir = "";                                                     // location of data directory
         private static string sessionDir = null;                                                  // contains full path of directory all files of one sesison are written to
         private static string currDir = "";                                                     // contains full path of current directory files are written in
@@ -75,10 +77,10 @@ namespace UNP.Core {
         private static bool mLogPluginInput = false;            								// plugin input logging enabled/disabled (by configuration parameter)
         private static int numPlugins = 0;                                                      // stores the amount of registered plugins
         private static List<string> registeredPluginNames = new List<string>(0);                // stores the names of the registered plugins
-
-        private static List<int> numPluginInputStreams = new List<int>(0);                                  // the number of streams that will be logged for each plugin
+        private static List<string> registeredPluginExtentions = new List<string>(0);           // stores the extentions of the registered plugins
         private static List<List<string>> registeredPluginInputStreamNames = new List<List<string>>(0);     // for each plugin, the names of the registered plugin input streams to store in the plugin data log file
         private static List<List<int>> registeredPluginInputStreamTypes = new List<List<int>>(0);           // for each plugin, the types of the registered plugin input streams to store in the plugin data log file
+        private static List<int> numPluginInputStreams = new List<int>(0);                                  // the number of streams that will be logged for each plugin
 
         private static List<double[]> pluginDataValues = new List<double[]>(0);               // list of two dimensional arrays to hold plugin data as it comes in 
         private static int bufferSize = 10000;                                                  // TEMP size of buffer, ie amount of datavalues stored for each plugin before the buffer is flushed to the data file at sampleProcessingEnd
@@ -194,9 +196,10 @@ namespace UNP.Core {
 
             // clear the registered plugin streams
             registeredPluginNames.Clear();
-            numPlugins = 0;
+            registeredPluginExtentions.Clear();
             registeredPluginInputStreamNames.Clear();
             registeredPluginInputStreamTypes.Clear();
+            numPlugins = 0;
             numPluginInputStreams.Clear();
 
             // check and transfer visualization parameter settings
@@ -375,13 +378,42 @@ namespace UNP.Core {
          * 
          * (in contrast to registering source and datastreams this function takes all streams in one go, because plugins are assigned an id at this point to allow to write the data from all streams from one plugin to one file)  
          **/
-        public static int registerPluginInputStream(string pluginName, string[] streamNames, SampleFormat[] streamTypes) {
+        public static int registerPluginInputStream(string pluginName, string pluginExt, string[] streamNames, SampleFormat[] streamTypes) {
 
             // assign id to plugin 
             int pluginId = numPlugins;
 
+            // make sure the extention is valid
+            bool isValid = true;
+            do {
+                isValid = true;
+                if (pluginExt.Length != 3 || string.Compare(pluginExt, "src", true) == 0 | string.Compare(pluginExt, "dat", true) == 0) {
+                    isValid = false;
+                } else {
+                    for (int i = 0; i < registeredPluginExtentions.Count; i++) {
+                        if (string.Compare(registeredPluginExtentions[i], pluginExt, true) == 0) {
+                            isValid = false;
+                            break;
+                        }
+                    }
+                }
+                if (!isValid) {
+
+                    // generate random string
+                    string randomChars = "abcdefghijklmnopqrstuvwxyz";
+                    pluginExt = randomChars[rand.Next(randomChars.Length)].ToString();
+                    pluginExt += randomChars[rand.Next(randomChars.Length)].ToString();
+                    pluginExt += randomChars[rand.Next(randomChars.Length)].ToString();
+
+                    // message
+                    logger.Error("Plugin ('" + pluginName + "') extention is not 3 characters, is reserved ('src' or 'dat') or already exists, extention changed to '" + pluginExt + "', check code");
+                }
+
+            } while (!isValid);
+
             // register plugin name
             registeredPluginNames.Add(pluginName);
+            registeredPluginExtentions.Add(pluginExt);
 
             // register al  streams for this plugin
             for (int i = 0; i < streamNames.Length; i++) {
@@ -399,7 +431,7 @@ namespace UNP.Core {
             numPlugins++;
 
             // message
-            logger.Debug("Registered " + streamNames.Length + " streams for plugin " + pluginName + " with id " + pluginId + "(" + numPlugins + ")");
+            logger.Debug("Registered " + streamNames.Length + " streams for plugin " + pluginName + " with id " + pluginId + " and extention " + pluginExt);
 
             // return assigned id to plugin, so plugin can use this to uniquely identify the data sent to this class
             return pluginId;
@@ -484,7 +516,7 @@ namespace UNP.Core {
                 }
 
                 // write header
-                writeHeader(registeredSourceInputStreamNames, sourceStreamWriter, false);
+                writeHeader("src", registeredSourceInputStreamNames, sourceStreamWriter);
             }
 
             // check if there are any samples streams to be logged
@@ -522,7 +554,7 @@ namespace UNP.Core {
                 }
 
                 // write header
-                writeHeader(registeredDataStreamNames, dataStreamWriter, false);
+                writeHeader("dat", registeredDataStreamNames, dataStreamWriter);
 
             }
 
@@ -534,9 +566,9 @@ namespace UNP.Core {
 
                     // log the source start event
                     logEvent(1, "PluginLogStart", "plugin id: " + i);
-
+                    
                     // construct filepath of plugin data file, with current time and name of plugin as filename 
-                    string fileNamePlugin = fileName + "_" + registeredPluginNames[i] + ".dat";
+                    string fileNamePlugin = fileName + "." + registeredPluginExtentions[i];
                     string path = Path.Combine(sessionDir, fileNamePlugin);
 
                     // create filestream: create file if it does not exists, allow to write, do not share with other processes and use buffer of 8192 bytes (roughly 1000 samples)
@@ -547,9 +579,9 @@ namespace UNP.Core {
                     } catch (Exception e) {
                         logger.Error("Unable to create plugin data log file for plugin " + registeredPluginNames[i] + " at " + path + " (" + e.ToString() + ")");
                     }
-
+                    
                     // write header
-                    writeHeader(registeredPluginInputStreamNames[i], pluginStreamWriters[i], true);
+                    writeHeader(registeredPluginExtentions[i], registeredPluginInputStreamNames[i], pluginStreamWriters[i]);
                 }
 
             }
@@ -596,10 +628,8 @@ namespace UNP.Core {
             writePluginData(-1);
 
             // stop and close all plugin data streams
-            for (int i = 0; i < numPlugins; i++) {
-
-                if (pluginStreamWriters[i] != null) {
-
+            for (int i = 0; i < pluginStreams.Count; i++) {
+                
                     // log the plugin log stop event
                     logEvent(1, "PluginLogStop", "plugin id: " + i);
 
@@ -607,8 +637,10 @@ namespace UNP.Core {
                     pluginStreamWriters[i].Close();
                     pluginStreamWriters[i] = null;
                     pluginStreams[i] = null;
-                }
+
             }
+            pluginStreamWriters.Clear();
+            pluginStreams.Clear();
 
             // if there is still a stopwatch running, stop it
             if (dataStopWatch.IsRunning)        dataStopWatch.Stop();
@@ -1001,61 +1033,95 @@ namespace UNP.Core {
          * 
          * boolean timing either includes (true) or excludes (false) extra column in header file for storing elapsed time 
          **/
-        private static void writeHeader(List<string> streamNames, BinaryWriter writer, bool plugin) {
+        private static void writeHeader(string headerExtention, List<string> streamNames, BinaryWriter writer) {
 
-            // get number of columns (columns with data values + sample id column)
-            int ncol = streamNames.Count + 1;
+            // make sure the header extention is always 3 characters long
+            if (headerExtention.Length != 3)    headerExtention = "xxx";
 
-            // convert list with names of streams to String, with tabs between names 
-            string header = string.Join("\t", streamNames.ToArray());
+            // determine whether the header is a plugin
+            bool isPlugin = !(string.Compare(headerExtention, "src") == 0 || string.Compare(headerExtention, "dat") == 0);
 
-            // create sample id column
-            string col = "Sample\t";
 
-            // create timing column if desired
-            if (!plugin) { 
-                col = col + "Elapsed_ms\t";
-                ncol++;
+
+            //
+            //
+            //
+
+            // variable holding the column names and columncount
+            string columnNames = "";
+            int numColumns = 0;
+
+            // add sample id column
+            columnNames += "Sample\t";
+            numColumns++;
+
+            // add timing column if desired
+            if (!isPlugin) {
+                columnNames += "Elapsed_ms\t";
+                numColumns++;
             }
 
-            // add sample id (and if desired timing column) to header
-            header = col + header;
+            // add streams as columns
+            columnNames += string.Join("\t", streamNames.ToArray());
+            numColumns += streamNames.Count;
+            
+            // convert column names to binary and store the length (in bytes)
+            byte[] columnNamesBinary = Encoding.ASCII.GetBytes(columnNames);
+            
 
-            // add version number and create header
-            byte[] headerBinary = Encoding.ASCII.GetBytes(header);
+
+            //
+            //
+            //
 
             // store number of columns and of source channels [bytes] 
             byte[] versionBinary = BitConverter.GetBytes(DATAFORMAT_VERSION);
-            //string fileType = "src";
-            //string fileType = "dat";
-            //string fileType = "...";
-
-            byte[] pluginBinary = BitConverter.GetBytes(plugin);
-            byte[] ncolBinary = BitConverter.GetBytes(ncol);
+            byte[] headerExtentionBinary = Encoding.ASCII.GetBytes(headerExtention);
             byte[] pipelineInputStreamsBinary = BitConverter.GetBytes(numPipelineInputStreams);
+            byte[] ncolBinary = BitConverter.GetBytes(numColumns);
+            byte[] columnNamesLengthBinary = BitConverter.GetBytes(columnNamesBinary.Length);
 
-            // store length [bytes] of header 
-            int headerLen = headerBinary.Length;
-            byte[] headerLenBinary = BitConverter.GetBytes(headerLen);
+            // determine the length of the header
+            int headerLength = 0;
+            headerLength += versionBinary.Length;               // sizeof(int)
+            headerLength += headerExtentionBinary.Length;       // sizeof(int)
+            headerLength += pipelineInputStreamsBinary.Length;  // sizeof(int)
+            headerLength += ncolBinary.Length;                  // sizeof(int)
+            headerLength += columnNamesLengthBinary.Length;     // sizeof(int)
+            headerLength += columnNamesBinary.Length;           // chars * sizeof(char)
 
-            // creat output byte array and copy number of cols, length of header, and header itself into this array
-            byte[] headerOut = new byte[1 + (4 * sizeof(int)) + headerLen];
+            // create an output header
+            byte[] headerOut = new byte[headerLength];
             int filePointer = 0;
-            Buffer.BlockCopy(pluginBinary, 0, headerOut, filePointer, sizeof(bool));
-            filePointer += sizeof(bool);
-            Buffer.BlockCopy(versionBinary, 0, headerOut, filePointer, sizeof(int));
-            filePointer += sizeof(int);
-            Buffer.BlockCopy(pipelineInputStreamsBinary, 0, headerOut, filePointer, sizeof(int));
-            filePointer += sizeof(int);
-            Buffer.BlockCopy(ncolBinary, 0, headerOut, filePointer, sizeof(int));
-            filePointer += sizeof(int);
-            Buffer.BlockCopy(headerLenBinary, 0, headerOut, filePointer, sizeof(int));
-            filePointer += sizeof(int);
-            Buffer.BlockCopy(headerBinary, 0, headerOut, filePointer, headerLen);
+
+            // version
+            Buffer.BlockCopy(versionBinary, 0, headerOut, filePointer, versionBinary.Length);
+            filePointer += versionBinary.Length;
+
+            // header extention
+            Buffer.BlockCopy(headerExtentionBinary, 0, headerOut, filePointer, headerExtentionBinary.Length);
+            filePointer += headerExtentionBinary.Length;
+
+            // pipeline input streams
+            Buffer.BlockCopy(pipelineInputStreamsBinary, 0, headerOut, filePointer, pipelineInputStreamsBinary.Length);
+            filePointer += pipelineInputStreamsBinary.Length;
+
+            // number of streams/columns
+            Buffer.BlockCopy(ncolBinary, 0, headerOut, filePointer, ncolBinary.Length);
+            filePointer += ncolBinary.Length;
+
+            // total length of the header names
+            Buffer.BlockCopy(columnNamesLengthBinary, 0, headerOut, filePointer, columnNamesLengthBinary.Length);
+            filePointer += columnNamesLengthBinary.Length;
+
+            // column names
+            Buffer.BlockCopy(columnNamesBinary, 0, headerOut, filePointer, columnNamesBinary.Length);
 
             // write header to file
             writer.Write(headerOut);
+
         }
         
     }
+
 }

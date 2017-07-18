@@ -27,34 +27,33 @@ namespace UNP.Core {
                 dataStream.Read(bVersion, 0, sizeof(int));
                 header.version = BitConverter.ToInt32(bVersion, 0);
                 
+                
                 if (header.version == 1) {
 
+                    // retrieve the extention from the header
+                    byte[] bExtention = new byte[3];
+                    dataStream.Read(bExtention, 0, 3);
+                    header.extention = Encoding.ASCII.GetString(bExtention);    
+
                     // retrieve the fixed fields from the header    (note that the pointer has already been moved till after the version bytes)
-                    int fixedBytesInHeader = sizeof(int) * 3;
+                    int fixedBytesInHeader = 3 * sizeof(int);   // 3 x int     (- the first int, representing the version, which is already taken before here; - 3 bytes, representing extention, also taken before)
                     byte[] bFixedHeader = new byte[fixedBytesInHeader];
                     dataStream.Read(bFixedHeader, 0, fixedBytesInHeader);
-
+                    
                     // interpret the information from the header's fixed fields
                     header.pipelineInputStreams     = BitConverter.ToInt32(bFixedHeader, 0);
-                    header.numColumns               = BitConverter.ToInt32(bFixedHeader, sizeof(int));
-                    header.columnNamesLength        = BitConverter.ToInt32(bFixedHeader, sizeof(int) * 2);
+                    header.numColumns               = BitConverter.ToInt32(bFixedHeader, 0 + sizeof(int));
+                    header.columnNamesLength        = BitConverter.ToInt32(bFixedHeader, 0 + sizeof(int) * 2);
 
-                    // retrieve the column numes from the header (variable length)
+                    // retrieve the column names from the header
                     byte[] bColumnNames = new byte[header.columnNamesLength];
                     dataStream.Read(bColumnNames, 0, header.columnNamesLength);
+                    header.columnNames = Encoding.ASCII.GetString(bColumnNames).Split('\t');
 
 
-                    string strheader = Encoding.ASCII.GetString(bColumnNames);
-                    // try to split up the string
-                    logger.Warn(strheader);
-                    string[] strHeaders = strheader.Split('\t');
-                    for (int i = 0; i < strHeaders.Length; i++) {
-                        logger.Error(strHeaders[i]);
+                    for (int i = 0; i < header.columnNames.Length; i++) {
+                        logger.Error(header.columnNames[i]);
                     }
-
-                    
-                    //byte[] bColumnNames = stream.Skip(3 * sizeof(int)).Take(headerLen).ToArray();           // TODO: Linq expression, change
-                    //string header = Encoding.ASCII.GetString(headerBinary);
 
                     
                 
