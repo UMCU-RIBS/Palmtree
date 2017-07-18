@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace UNP.Core {
+
     public class DataCommon {
 
         private static Logger logger = LogManager.GetLogger("DataCommon");
@@ -26,7 +27,6 @@ namespace UNP.Core {
                 byte[] bVersion = new byte[sizeof(int)];
                 dataStream.Read(bVersion, 0, sizeof(int));
                 header.version = BitConverter.ToInt32(bVersion, 0);
-                
                 
                 if (header.version == 1) {
 
@@ -53,15 +53,11 @@ namespace UNP.Core {
 
                     for (int i = 0; i < header.columnNames.Length; i++) {
                         logger.Error(header.columnNames[i]);
-                    }
-
-                    
+                    }   
                 
                 }
 
-
-
-            } catch (IOException) {
+            } catch (Exception) {
 
                 // close the data stream
                 dataStream.Close();
@@ -75,27 +71,6 @@ namespace UNP.Core {
                 dataStream.Close();
 
             }
-
-            /*
-
-            BinaryReader br = new BinaryReader(dataStream);
-
-            // read the complete stream
-            using (var ms = new MemoryStream()) {
-                FileStream dataStream.CopyTo(ms);
-                stream = ms.ToArray();
-            }
-
-            // get dedicated fields: amount of source channels (in case of .src file) and amount of columns in file 
-            int sourceChannels = BitConverter.ToInt32(stream, 0);
-            int amountStreams = BitConverter.ToInt32(stream, sizeof(int));
-
-            // get header
-            int headerLen = BitConverter.ToInt32(stream, 2 * sizeof(int));
-            byte[] headerBinary = stream.Skip(3 * sizeof(int)).Take(headerLen).ToArray();           // TODO: Linq expression, change
-            string header = Encoding.ASCII.GetString(headerBinary);
-            */
-
 
             return header;
         }

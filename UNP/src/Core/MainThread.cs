@@ -9,14 +9,16 @@ using System.Threading;
 using UNP.Applications;
 using UNP.Filters;
 using UNP.Core.Helpers;
-using UNP.Sources;
 using UNP.Core.Params;
+using UNP.Sources;
 using UNP.Plugins;
 
+
+
 namespace UNP.Core {
-
+    
     public class MainThread {
-
+        
         private static Logger logger = LogManager.GetLogger("MainThread");
 
         public const int threadLoopDelayNoProc = 30;                        // thread loop delay when not processing (1000ms / 5 run times per second = rest 200ms)
@@ -56,10 +58,10 @@ namespace UNP.Core {
 	    }
 
         public void initPipeline(Type sourceType, Type applicationType) {
-
+            
             // constuct the Data static class (this makes sure that the Data parameterset is created for configuration)
             Data.construct();
-
+            
             // create/add plugins
             //plugins.Add(new WindowsSensorsPlugin("WindowsSensorsPlugin", "wsp"));
 

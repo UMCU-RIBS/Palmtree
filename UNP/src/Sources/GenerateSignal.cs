@@ -99,7 +99,7 @@ namespace UNP.Sources {
             for (int i = 0; i < outputChannels; i++) {
                 Data.registerSourceInputStream(("Ch" + i), null);
             }
-
+            
             // flag as configured
             configured = true;
 

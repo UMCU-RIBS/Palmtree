@@ -104,6 +104,17 @@ namespace UNP.Sources {
 
             }
 
+            // check if the internal data type is dat
+            if (string.Compare(header.extension, "dat") != 0) {
+
+                // message
+                logger.Error("The input .dat file is internally marked as '" + header.extension + "', while a data stream file is required");
+
+                // return
+                output = new SampleFormat((uint)0);
+                return false;
+
+            }
 
             // check if the number of pipeline input streams in the .dat is higher than 0
             if (header.pipelineInputStreams <= 0) {
