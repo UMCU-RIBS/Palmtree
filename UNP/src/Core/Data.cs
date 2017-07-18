@@ -241,24 +241,23 @@ namespace UNP.Core {
 
                 // construct path name of data directory
                 dataDir = parameters.getValue<string>("DataDirectory");
-                currDir = Path.Combine(Directory.GetCurrentDirectory(), dataDir);
+                dataDir = Path.Combine(Directory.GetCurrentDirectory(), dataDir);
 
                 // construct path name of directory for this session
-                string sub = DateTime.Now.ToString("yyyyMMdd_HHmm");
-                currDir = Path.Combine(currDir, sub);
+                string session = identifier + "_" + DateTime.Now.ToString("yyyyMMdd");
+                sessionDir = Path.Combine(dataDir, session);
 
-                // create the data (sub-)directory 
+                // create the session data directory 
                 try {
-
-                    if (Directory.Exists(currDir)) {
-                        logger.Info("Data (sub-)directory already exists.");
+                    if (Directory.Exists(sessionDir)) {
+                        logger.Info("Session data directory already exists.");
                     } else {
-                        Directory.CreateDirectory(currDir);
-                        logger.Info("Created data (sub-)directory at " + currDir);
+                        Directory.CreateDirectory(sessionDir);
+                        logger.Info("Created session data directory at " + sessionDir);
                     }
 
                 } catch (Exception e) {
-                    logger.Error("Unable to create data (sub-)directory at " + currDir + " (" + e.ToString() + ")");
+                    logger.Error("Unable to create sesion data directory at " + sessionDir + " (" + e.ToString() + ")");
                 }
 
             }
@@ -423,44 +422,19 @@ namespace UNP.Core {
             // increase run number
             run++;
 
-            // get location of data directory and current time to use as timestamp for files to be created
-            string fileName = identifier + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss");
-
-            // create subdirectory for this run if required
-            if (subDirPerRun) {
-
-                // set directory for this session if was not already set   
-                if (sessionDir == null)     sessionDir = currDir;
-
-                // set pointer for current directory to directory for this run
-                String runDir = "run" + run;
-                currDir = Path.Combine(sessionDir, runDir);
-
-                // create subdirectory for this run
-                try {
-
-                    if (Directory.Exists(currDir)) {
-                        logger.Info("Data directory for this run already exists.");
-                    } else {
-                        Directory.CreateDirectory(currDir);
-                        logger.Info("Created data directory for run " + run + " at " + currDir);
-                    }
-                } catch (Exception e) {
-                    logger.Error("Unable to create data directory for run " + run + " at " + currDir + " (" + e.ToString() + ")");
-                }
-
-            }
+            // get identifier and current time to use as filenames
+            string fileName = identifier + "_" + DateTime.Now.ToString("yyyyMMdd") + "_run_" + run;
 
             // create parameter file and save current parameters
             Dictionary<string, Parameters> localParamSets = ParameterManager.getParameterSetsClone();
-            ParameterManager.saveParameterFile(fileName + ".prm", localParamSets);
+            ParameterManager.saveParameterFile(Path.Combine(sessionDir, fileName + ".prm"), localParamSets);
 
             // check if we want to log events
             if (mLogEvents) {
 
                 // construct filepath of event file, with current time as filename 
                 string fileNameEvt = fileName + ".evt";
-                string path = Path.Combine(currDir, fileNameEvt);
+                string path = Path.Combine(sessionDir, fileNameEvt);
 
                 // create filestream: create file if it does not exists, allow to write, do not share with other processes and use buffer of 8192 bytes
                 try {
@@ -498,7 +472,7 @@ namespace UNP.Core {
 
                 // construct filepath of source file, with current time as filename 
                 string fileNameSrc = fileName + ".src";
-                string path = Path.Combine(currDir, fileNameSrc);
+                string path = Path.Combine(sessionDir, fileNameSrc);
 
                 // create filestream: create file if it does not exists, allow to write, do not share with other processes and use buffer of 8192 bytes (roughly 1000 samples)
                 try {
@@ -530,7 +504,7 @@ namespace UNP.Core {
 
                 // construct filepath of data file, with current time as filename 
                 string fileNameDat = fileName + ".dat";
-                string path = Path.Combine(currDir, fileNameDat);
+                string path = Path.Combine(sessionDir, fileNameDat);
                 
                 try {
 
@@ -563,7 +537,7 @@ namespace UNP.Core {
 
                     // construct filepath of plugin data file, with current time and name of plugin as filename 
                     string fileNamePlugin = fileName + "_" + registeredPluginNames[i] + ".dat";
-                    string path = Path.Combine(currDir, fileNamePlugin);
+                    string path = Path.Combine(sessionDir, fileNamePlugin);
 
                     // create filestream: create file if it does not exists, allow to write, do not share with other processes and use buffer of 8192 bytes (roughly 1000 samples)
                     try {
@@ -1051,8 +1025,12 @@ namespace UNP.Core {
             byte[] headerBinary = Encoding.ASCII.GetBytes(header);
 
             // store number of columns and of source channels [bytes] 
-            byte[] pluginBinary = BitConverter.GetBytes(plugin);
             byte[] versionBinary = BitConverter.GetBytes(DATAFORMAT_VERSION);
+            //string fileType = "src";
+            //string fileType = "dat";
+            //string fileType = "...";
+
+            byte[] pluginBinary = BitConverter.GetBytes(plugin);
             byte[] ncolBinary = BitConverter.GetBytes(ncol);
             byte[] pipelineInputStreamsBinary = BitConverter.GetBytes(numPipelineInputStreams);
 
