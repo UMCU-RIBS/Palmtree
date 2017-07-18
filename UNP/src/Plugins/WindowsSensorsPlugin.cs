@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Timers;
 using UNP.Core.Params;
 
 namespace UNP.Plugins {
@@ -12,19 +13,19 @@ namespace UNP.Plugins {
         
         private const int CLASS_VERSION = 0;
 
-       
         private static Logger logger = null;
         private static Parameters parameters = null;
 
         protected string pluginName = "";
-        private static int pluginId = -1;                                   // id used to identify plugin at data class
+        private int pluginId = -1;                                          // id used to identify plugin at data class
 
         private bool sensorEnabled = false;                                 // flag to hold whether the Windows sensors functions can be used
+        private bool logData = false;                                       // flag to hold whether data should be sent to the data class, ie be logged
+
         private Windows.Devices.Sensors.Accelerometer accelerometer;        // hold Accelerometer (only do anything with this variable inside a try block (outside will cause an InvalidTypeException at startup of the project)
-        private double accelerationX = 0;
-        private double accelerationY = 0;
-        private double accelerationZ = 0;
-        double[] logAcceleration = new double[3];
+        private double[] logAcceleration = new double[3];
+
+        Timer debugTimer = null;                                            // debug purposes: allows use of timer to test in absence of sensor input
 
         public WindowsSensorsPlugin(string pluginName) {
 
@@ -41,13 +42,10 @@ namespace UNP.Plugins {
                 logger.Warn("Could not load Windows Driver Kit dependency, no sensory input");
             }
 
-            // register streams
-            string[] streamNames = new string[3] { "accelerationX", "accelerationY", "accelerationZ" };
-            pluginId = Core.Data.RegisterPluginInputStream(pluginName, streamNames, null); 
-
         }
+
         public string getName() {
-            return pluginName;
+            return this.pluginName;
         }
 
         public Parameters getParameters() {
@@ -86,12 +84,10 @@ namespace UNP.Plugins {
                     logAcceleration[1] = e.Reading.AccelerationY;
                     logAcceleration[2] = e.Reading.AccelerationZ;
 
-                    // send to data class
-                    Core.Data.LogPluginDataValue(logAcceleration, pluginId);
-        });
+                    // send to data class, if flag is set
+                    if(this.logData) Core.Data.LogPluginDataValue(logAcceleration, pluginId);
+                });
                 
-
-
                 // flag sensor as enabled
                 sensorEnabled = true;
 
@@ -104,20 +100,54 @@ namespace UNP.Plugins {
             
         }
 
-
         public bool configure() {
+
+            // register streams
+            string[] streamNames = new string[3] { "accelerationX", "accelerationY", "accelerationZ" };
+            this.pluginId = Core.Data.RegisterPluginInputStream(pluginName, streamNames, null);
+
             return true;
         }
+
         public void initialize() {
 
         }
 
         public void start() {
 
+            // debug, create timer to generate data 
+            debugTimer = new Timer(1000);
+            debugTimer.Elapsed += OnTimedEvent;
+            debugTimer.AutoReset = true;
+            debugTimer.Enabled = true;
+
+            // set flag to start sending data
+            logData = true;
         }
+
+        // debug, send data based on timer
+        private void OnTimedEvent(Object source, ElapsedEventArgs e) {
+
+            double[] logAcceleration = new double[3];
+            Random rnd = new Random();
+
+            logAcceleration[0] = rnd.Next(1, 200);
+            logAcceleration[1] = rnd.Next(1, 200);
+            logAcceleration[2] = rnd.Next(1, 200);
+
+            logger.Info("Data [x,y,z]: " + logAcceleration[0] + "," + logAcceleration[1] + "," + logAcceleration[2]);
+            Core.Data.LogPluginDataValue(logAcceleration, this.pluginId);        
+        }
+
         public void stop() {
 
+            // debug
+            debugTimer.Enabled = false;
+
+            // stop sending data
+            logData = false;
         }
+
         public bool isStarted() {
             return true;
         }
