@@ -48,7 +48,7 @@ namespace UNP.Sources {
             
             parameters.addParameter<string>(
                 "Input",
-                "The data input file(s) that should be used for playback.\nWhich file of a set is irrelevant as long as the set has the same filename (the file extention is ignored as multiple files might be used).",
+                "The data input file(s) that should be used for playback.\nWhich file of a set is irrelevant as long as the set has the same filename (the file extension is ignored as multiple files might be used).",
                 "", "", "");
 
             // start a new thread
@@ -72,7 +72,7 @@ namespace UNP.Sources {
         public bool configure(out SampleFormat output) {
             
             
-            // retrieve the input file and remove the extention
+            // retrieve the input file and remove the extension
             inputFile = parameters.getValue<string>("Input");
             int extIndex = inputFile.LastIndexOf('.');
             if (extIndex != -1)     inputFile = inputFile.Substring(0, extIndex);

@@ -284,7 +284,7 @@ namespace UNP.Sources {
                         double[] sample = new double[outputChannels];
                         for (int i = 0; i < outputChannels; i++) {
                             //sample[i] = rand.NextDouble();
-                            sample[i] = rand.Next(0,10) + 100;
+                            sample[i] = rand.Next(0, 10) + 100;
                         }
 
                         // TODO: debug, even sourceinput dingen

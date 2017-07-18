@@ -10,7 +10,7 @@ namespace UNP.Core {
 
         
         public int version = 0;                         // version
-        public string extention = "";                   // extention
+        public string extension = "";                   // extension
 
         public int pipelineInputStreams = 0;            // number of pipeline input streams (needs to be > 0 for playback)
         public int numColumns = 0;                      // total number of columns per sample

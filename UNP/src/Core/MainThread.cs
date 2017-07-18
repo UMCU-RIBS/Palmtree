@@ -61,7 +61,7 @@ namespace UNP.Core {
             Data.construct();
 
             // create/add plugins
-            //plugins.Add(new WindowsSensorsPlugin("WindowsSensorsPlugin"));
+            //plugins.Add(new WindowsSensorsPlugin("WindowsSensorsPlugin", "wsp"));
 
             // create a source
             try {
@@ -100,7 +100,7 @@ namespace UNP.Core {
             //sourceParameters.setValue("SampleRate", 5.0);
             //sourceParameters.setValue("Keys", "F,G;1,2;1,1;-1,-1");
 
-            sourceParameters.setValue("Input", "D:\\UNP\\other\\testrun\\test_20170718_154814.dat");
+            sourceParameters.setValue("Input", "D:\\UNP\\other\\testrun\\test_20170718_run_1.dat");
 
             Parameters timeSmoothingParameters = getFilterParameters("TimeSmoothing");
             timeSmoothingParameters.setValue("EnableFilter", true);

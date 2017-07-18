@@ -30,13 +30,13 @@ namespace UNP.Core {
                 
                 if (header.version == 1) {
 
-                    // retrieve the extention from the header
-                    byte[] bExtention = new byte[3];
-                    dataStream.Read(bExtention, 0, 3);
-                    header.extention = Encoding.ASCII.GetString(bExtention);    
+                    // retrieve the extension from the header
+                    byte[] bExtension = new byte[3];
+                    dataStream.Read(bExtension, 0, 3);
+                    header.extension = Encoding.ASCII.GetString(bExtension);    
 
                     // retrieve the fixed fields from the header    (note that the pointer has already been moved till after the version bytes)
-                    int fixedBytesInHeader = 3 * sizeof(int);   // 3 x int     (- the first int, representing the version, which is already taken before here; - 3 bytes, representing extention, also taken before)
+                    int fixedBytesInHeader = 3 * sizeof(int);   // 3 x int     (- the first int, representing the version, which is already taken before here; - 3 bytes, representing extension, also taken before)
                     byte[] bFixedHeader = new byte[fixedBytesInHeader];
                     dataStream.Read(bFixedHeader, 0, fixedBytesInHeader);
                     

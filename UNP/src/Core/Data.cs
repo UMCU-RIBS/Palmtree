@@ -77,7 +77,7 @@ namespace UNP.Core {
         private static bool mLogPluginInput = false;            								// plugin input logging enabled/disabled (by configuration parameter)
         private static int numPlugins = 0;                                                      // stores the amount of registered plugins
         private static List<string> registeredPluginNames = new List<string>(0);                // stores the names of the registered plugins
-        private static List<string> registeredPluginExtentions = new List<string>(0);           // stores the extentions of the registered plugins
+        private static List<string> registeredPluginExtensions = new List<string>(0);           // stores the extensions of the registered plugins
         private static List<List<string>> registeredPluginInputStreamNames = new List<List<string>>(0);     // for each plugin, the names of the registered plugin input streams to store in the plugin data log file
         private static List<List<int>> registeredPluginInputStreamTypes = new List<List<int>>(0);           // for each plugin, the types of the registered plugin input streams to store in the plugin data log file
         private static List<int> numPluginInputStreams = new List<int>(0);                                  // the number of streams that will be logged for each plugin
@@ -196,7 +196,7 @@ namespace UNP.Core {
 
             // clear the registered plugin streams
             registeredPluginNames.Clear();
-            registeredPluginExtentions.Clear();
+            registeredPluginExtensions.Clear();
             registeredPluginInputStreamNames.Clear();
             registeredPluginInputStreamTypes.Clear();
             numPlugins = 0;
@@ -383,15 +383,15 @@ namespace UNP.Core {
             // assign id to plugin 
             int pluginId = numPlugins;
 
-            // make sure the extention is valid
+            // make sure the extension is valid
             bool isValid = true;
             do {
                 isValid = true;
                 if (pluginExt.Length != 3 || string.Compare(pluginExt, "src", true) == 0 | string.Compare(pluginExt, "dat", true) == 0) {
                     isValid = false;
                 } else {
-                    for (int i = 0; i < registeredPluginExtentions.Count; i++) {
-                        if (string.Compare(registeredPluginExtentions[i], pluginExt, true) == 0) {
+                    for (int i = 0; i < registeredPluginExtensions.Count; i++) {
+                        if (string.Compare(registeredPluginExtensions[i], pluginExt, true) == 0) {
                             isValid = false;
                             break;
                         }
@@ -406,14 +406,14 @@ namespace UNP.Core {
                     pluginExt += randomChars[rand.Next(randomChars.Length)].ToString();
 
                     // message
-                    logger.Error("Plugin ('" + pluginName + "') extention is not 3 characters, is reserved ('src' or 'dat') or already exists, extention changed to '" + pluginExt + "', check code");
+                    logger.Error("Plugin ('" + pluginName + "') extension is not 3 characters, is reserved ('src' or 'dat') or already exists, extension changed to '" + pluginExt + "', check code");
                 }
 
             } while (!isValid);
 
             // register plugin name
             registeredPluginNames.Add(pluginName);
-            registeredPluginExtentions.Add(pluginExt);
+            registeredPluginExtensions.Add(pluginExt);
 
             // register al  streams for this plugin
             for (int i = 0; i < streamNames.Length; i++) {
@@ -431,7 +431,7 @@ namespace UNP.Core {
             numPlugins++;
 
             // message
-            logger.Debug("Registered " + streamNames.Length + " streams for plugin " + pluginName + " with id " + pluginId + " and extention " + pluginExt);
+            logger.Debug("Registered " + streamNames.Length + " streams for plugin " + pluginName + " with id " + pluginId + " and extension " + pluginExt);
 
             // return assigned id to plugin, so plugin can use this to uniquely identify the data sent to this class
             return pluginId;
@@ -568,7 +568,7 @@ namespace UNP.Core {
                     logEvent(1, "PluginLogStart", "plugin id: " + i);
                     
                     // construct filepath of plugin data file, with current time and name of plugin as filename 
-                    string fileNamePlugin = fileName + "." + registeredPluginExtentions[i];
+                    string fileNamePlugin = fileName + "." + registeredPluginExtensions[i];
                     string path = Path.Combine(sessionDir, fileNamePlugin);
 
                     // create filestream: create file if it does not exists, allow to write, do not share with other processes and use buffer of 8192 bytes (roughly 1000 samples)
@@ -581,7 +581,7 @@ namespace UNP.Core {
                     }
                     
                     // write header
-                    writeHeader(registeredPluginExtentions[i], registeredPluginInputStreamNames[i], pluginStreamWriters[i]);
+                    writeHeader(registeredPluginExtensions[i], registeredPluginInputStreamNames[i], pluginStreamWriters[i]);
                 }
 
             }
@@ -1033,13 +1033,13 @@ namespace UNP.Core {
          * 
          * boolean timing either includes (true) or excludes (false) extra column in header file for storing elapsed time 
          **/
-        private static void writeHeader(string headerExtention, List<string> streamNames, BinaryWriter writer) {
+        private static void writeHeader(string headerExtension, List<string> streamNames, BinaryWriter writer) {
 
-            // make sure the header extention is always 3 characters long
-            if (headerExtention.Length != 3)    headerExtention = "xxx";
+            // make sure the header extension is always 3 characters long
+            if (headerExtension.Length != 3)    headerExtension = "xxx";
 
             // determine whether the header is a plugin
-            bool isPlugin = !(string.Compare(headerExtention, "src") == 0 || string.Compare(headerExtention, "dat") == 0);
+            bool isPlugin = !(string.Compare(headerExtension, "src") == 0 || string.Compare(headerExtension, "dat") == 0);
 
 
 
@@ -1076,7 +1076,7 @@ namespace UNP.Core {
 
             // store number of columns and of source channels [bytes] 
             byte[] versionBinary = BitConverter.GetBytes(DATAFORMAT_VERSION);
-            byte[] headerExtentionBinary = Encoding.ASCII.GetBytes(headerExtention);
+            byte[] headerExtensionBinary = Encoding.ASCII.GetBytes(headerExtension);
             byte[] pipelineInputStreamsBinary = BitConverter.GetBytes(numPipelineInputStreams);
             byte[] ncolBinary = BitConverter.GetBytes(numColumns);
             byte[] columnNamesLengthBinary = BitConverter.GetBytes(columnNamesBinary.Length);
@@ -1084,7 +1084,7 @@ namespace UNP.Core {
             // determine the length of the header
             int headerLength = 0;
             headerLength += versionBinary.Length;               // sizeof(int)
-            headerLength += headerExtentionBinary.Length;       // sizeof(int)
+            headerLength += headerExtensionBinary.Length;       // sizeof(int)
             headerLength += pipelineInputStreamsBinary.Length;  // sizeof(int)
             headerLength += ncolBinary.Length;                  // sizeof(int)
             headerLength += columnNamesLengthBinary.Length;     // sizeof(int)
@@ -1098,9 +1098,9 @@ namespace UNP.Core {
             Buffer.BlockCopy(versionBinary, 0, headerOut, filePointer, versionBinary.Length);
             filePointer += versionBinary.Length;
 
-            // header extention
-            Buffer.BlockCopy(headerExtentionBinary, 0, headerOut, filePointer, headerExtentionBinary.Length);
-            filePointer += headerExtentionBinary.Length;
+            // header extension
+            Buffer.BlockCopy(headerExtensionBinary, 0, headerOut, filePointer, headerExtensionBinary.Length);
+            filePointer += headerExtensionBinary.Length;
 
             // pipeline input streams
             Buffer.BlockCopy(pipelineInputStreamsBinary, 0, headerOut, filePointer, pipelineInputStreamsBinary.Length);

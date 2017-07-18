@@ -18,6 +18,7 @@ namespace UNP.Plugins {
         private static Parameters parameters = null;
 
         private string pluginName = "";
+        private string pluginExt = "";
         private static int pluginId = -1;                                   // unique id used to identify plugin at data class (this number is generated and returned by the Data class upon registration of the plugin)
 
         private bool sensorEnabled = false;                                 // flag to hold whether the Windows sensors functions can be used
@@ -26,10 +27,11 @@ namespace UNP.Plugins {
 
         Timer debugTimer = null;                                            // debug purposes: allows use of timer to test in absence of sensor input
 
-        public WindowsSensorsPlugin(string pluginName) {
+        public WindowsSensorsPlugin(string pluginName, string pluginExt) {
 
-            // store the plugin name
+            // store the plugin name and extension
             this.pluginName = pluginName;
+            this.pluginExt = pluginExt;
 
             // initialize the logger and parameters with the filter name
             logger = LogManager.GetLogger(pluginName);
@@ -40,10 +42,6 @@ namespace UNP.Plugins {
             } catch (Exception) {
                 logger.Warn("Could not load Windows Driver Kit dependency, no sensory input");
             }
-
-            // register streams
-            string[] streamNames = new string[3] { "accelerationX", "accelerationY", "accelerationZ" };
-            pluginId = Core.Data.registerPluginInputStream(pluginName, streamNames, null); 
 
         }
 
@@ -109,7 +107,7 @@ namespace UNP.Plugins {
 
             // register streams
             string[] streamNames = new string[3] { "accelerationX", "accelerationY", "accelerationZ" };
-            pluginId = Data.registerPluginInputStream(pluginName, streamNames, null);
+            pluginId = Data.registerPluginInputStream(pluginName, pluginExt, streamNames, null);
 
             return true;
         }
