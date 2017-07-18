@@ -14,6 +14,10 @@ namespace UNP.GUI {
 
     public partial class GUIConfig : Form {
 
+        private const int labelWidth = 240;
+        private const int itemTopPadding = 10;
+        private const int itemBottomPadding = 10;
+
         public static CultureInfo NumberCulture = CultureInfo.CreateSpecificCulture("en-US");
         private static Logger logger = LogManager.GetLogger("GUIConfig");
 
@@ -56,11 +60,6 @@ namespace UNP.GUI {
         }
 
         private static Dictionary<string, Parameters> localParamSets = null;         // local copy of the parameter sets (used to load/save the parameter set from/as file)
-
-        private const int labelWidth = 200;
-        private const int itemTopPadding = 10;
-        private const int itemBottomPadding = 10;
-
         private List<ParamControl> paramControls = new List<ParamControl>(0);
 
         public GUIConfig() {

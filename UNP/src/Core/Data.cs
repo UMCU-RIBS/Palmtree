@@ -223,6 +223,14 @@ namespace UNP.Core {
 
             }
 
+            // check if pipeline input streams logging is disabled
+            if (!mLogPipelineInputStreams) {
+
+                // message (warning)
+                logger.Warn("The logging of pipeline input streams is disabled, the resulting .dat file cannot be used for playback");
+
+            }
+
 
             subDirPerRun = parameters.getValue<bool>("SubDirectoryPerRun");
 
@@ -289,11 +297,11 @@ namespace UNP.Core {
         // register the pipeline input streams based on the output format of the source
         public static void registerPipelineInputStreams(SampleFormat output) {
 
-            // use the number of input channels for the pipeline to the number of output channels from the source
-            numPipelineInputStreams = (int)output.getNumberOfChannels();
-
             // check if the pipeline input streams should be logged
             if (mLogPipelineInputStreams) {
+
+                // use the number of input channels for the pipeline to the number of output channels from the source
+                numPipelineInputStreams = (int)output.getNumberOfChannels();
 
                 // register the streams
                 for (int channel = 0; channel < numPipelineInputStreams; channel++)
