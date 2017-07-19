@@ -9,7 +9,6 @@ namespace UNP.Applications {
     public class Communicator : ExecWrapper {
 
         private static Logger logger = LogManager.GetLogger("Communicator");
-        private string filepath = null;                                             // path to executable
 
         public Communicator(string filepath) : base(filepath) { }
 

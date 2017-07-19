@@ -24,8 +24,8 @@
         /// </summary>
         private void InitializeComponent() {
             this.grpInput = new System.Windows.Forms.GroupBox();
-            this.txtInputFile = new System.Windows.Forms.TextBox();
             this.btnBrowse = new System.Windows.Forms.Button();
+            this.txtInputFile = new System.Windows.Forms.TextBox();
             this.txtOutput = new System.Windows.Forms.TextBox();
             this.btnRead = new System.Windows.Forms.Button();
             this.grpInput.SuspendLayout();
@@ -42,13 +42,6 @@
             this.grpInput.TabStop = false;
             this.grpInput.Text = "Input";
             // 
-            // txtInputFile
-            // 
-            this.txtInputFile.Location = new System.Drawing.Point(12, 28);
-            this.txtInputFile.Name = "txtInputFile";
-            this.txtInputFile.Size = new System.Drawing.Size(552, 22);
-            this.txtInputFile.TabIndex = 1;
-            // 
             // btnBrowse
             // 
             this.btnBrowse.Location = new System.Drawing.Point(571, 27);
@@ -59,13 +52,24 @@
             this.btnBrowse.UseVisualStyleBackColor = true;
             this.btnBrowse.Click += new System.EventHandler(this.btnBrowse_Click);
             // 
+            // txtInputFile
+            // 
+            this.txtInputFile.Location = new System.Drawing.Point(12, 28);
+            this.txtInputFile.Name = "txtInputFile";
+            this.txtInputFile.Size = new System.Drawing.Size(552, 22);
+            this.txtInputFile.TabIndex = 1;
+            // 
             // txtOutput
             // 
+            this.txtOutput.BackColor = System.Drawing.Color.White;
             this.txtOutput.Location = new System.Drawing.Point(12, 147);
             this.txtOutput.Multiline = true;
             this.txtOutput.Name = "txtOutput";
+            this.txtOutput.ReadOnly = true;
+            this.txtOutput.ScrollBars = System.Windows.Forms.ScrollBars.Both;
             this.txtOutput.Size = new System.Drawing.Size(671, 412);
             this.txtOutput.TabIndex = 2;
+            this.txtOutput.WordWrap = false;
             // 
             // btnRead
             // 

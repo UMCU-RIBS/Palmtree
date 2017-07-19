@@ -8,7 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using UNP.Core;
+using UNP.Core.DataIO;
 
 namespace UNPLogReader {
 
@@ -18,6 +18,9 @@ namespace UNPLogReader {
             InitializeComponent();
 
             txtInputFile.Text = "D:\\UNP\\other\\testrun\\test_20170718_run_1.dat";
+            //txtInputFile.Text = "D:\\UNP\\other\\testrun\\test_20170720_Run_0.dat";
+
+            
         }
 
         private void btnBrowse_Click(object sender, EventArgs e) {
@@ -78,23 +81,97 @@ namespace UNPLogReader {
                 return;
             }
 
-            // read the header
-            DataHeader header = DataCommon.readHeader(txtInputFile.Text);
-            if (header == null) {
-                MessageBox.Show("Could not interpret input file", "File error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            // create a data reader
+            DataReader reader = new DataReader(txtInputFile.Text);
+
+            // open the reader
+            if (!reader.open()) {
+                MessageBox.Show("Could not interpret input file '" + txtOutput.Text  + "'", "File error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
+            // retrieve the header
+            DataHeader header = reader.getHeader();
+
+            // print header information
             txtOutput.Text = "Data file: " + txtInputFile.Text + Environment.NewLine;
             txtOutput.Text += "Internal extension: " + header.extension + Environment.NewLine;
             txtOutput.Text += "Number of pipeline input streams: " + header.pipelineInputStreams + Environment.NewLine;
             txtOutput.Text += "Number of columns: " + header.numColumns + Environment.NewLine;
-            txtOutput.Text += "Column names length (in bytes): " + header.columnNamesLength + Environment.NewLine;
+            txtOutput.Text += "Column names size (in bytes): " + header.columnNamesSize + Environment.NewLine;
             txtOutput.Text += "Column names: " + string.Join(", ", header.columnNames) + Environment.NewLine;
+            txtOutput.Text += "Row size (in bytes): " + header.rowSize + Environment.NewLine;
+            txtOutput.Text += "Number of rows: " + header.numRows + Environment.NewLine;
+            txtOutput.Text += "Data start position: " + header.posDataStart + Environment.NewLine;
+
             txtOutput.Text += "Data:" + Environment.NewLine + Environment.NewLine;
+            txtOutput.Text += string.Join("\t", header.columnNames) + Environment.NewLine;
 
+            // make sure the data pointer is at the start of the data
+            reader.resetDataPointer();
 
+            // loop until the end of the data
+            while(!reader.reachedEnd()) {
 
+                uint[] samples = null;
+                double[][] values = null;
+
+                // read the next rows
+                reader.readNextRows(4, out samples, out values);
+
+                // loop through the rows in set
+                txtOutput.Text += Environment.NewLine;
+                for (int i = 0; i < samples.Length; i++) {
+
+                    string text = samples[i] + "\t";
+                    text += string.Join("\t", values[i]);
+                    text += Environment.NewLine;
+                    txtOutput.Text += text;
+                }
+                
+                /*
+                // read the next rows
+                byte[] rowData = reader.readNextRows(4);
+                
+                // determine the number of rows returned
+                int rows = rowData.Length / header.rowSize;
+
+                // loop through the rows in set
+                txtOutput.Text += Environment.NewLine;
+                for (int i = 0; i < rows; i++) {
+
+                    uint sampleCounter = BitConverter.ToUInt32(rowData, i * header.rowSize);
+                    double elapsedTime = BitConverter.ToDouble(rowData, i * header.rowSize + sizeof(uint));
+
+                    // convert remainder bytes to double array
+                    double[] values = new double[header.numColumns - 2];
+                    Buffer.BlockCopy(rowData, i * header.rowSize + sizeof(uint) + sizeof(double), values, 0, header.rowSize - (sizeof(double) + sizeof(uint)));
+
+                    string text = sampleCounter + "\t" + elapsedTime + "\t";
+                    text += string.Join("\t", values);
+                    text += Environment.NewLine;
+                    txtOutput.Text += text;
+
+                }
+                */
+                
+                
+            }
+
+            /*
+            uint[] samples = null;
+            double[] values = null;
+
+            reader.readNextRows(2, ref samples, ref values);
+            if (samples == null || values == null) {
+                // error
+
+            } else {
+                // successfull read
+
+            }
+            //txtOutput.Text
+            */
         }
     }
 }

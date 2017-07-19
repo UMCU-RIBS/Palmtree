@@ -101,9 +101,9 @@
   <ItemGroup>
     <Compile Include="src\Applications\IApplication.cs" />
     <Compile Include="src\Applications\IApplicationUNP.cs" />
-    <Compile Include="src\Core\Data.cs" />
-    <Compile Include="src\Core\DataCommon.cs" />
-    <Compile Include="src\Core\DataHeader.cs" />
+    <Compile Include="src\Core\DataIO\Data.cs" />
+    <Compile Include="src\Core\DataIO\DataHeader.cs" />
+    <Compile Include="src\Core\DataIO\DataReader.cs" />
     <Compile Include="src\Core\Events\VisualizationEventArgs.cs" />
     <Compile Include="src\Core\Events\VisualizationValuesArgs.cs" />
     <Compile Include="src\Core\Helpers\Communicator.cs" />

@@ -8,6 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using UNP.Core;
+using UNP.Core.DataIO;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
 
@@ -92,7 +93,7 @@ namespace UNP.Sources {
             
             
             // read the data header
-            DataHeader header = DataCommon.readHeader(inputDatFile);
+            DataHeader header = DataReader.readHeader(inputDatFile);
             if (header == null) {
 
                 // message
@@ -142,7 +143,7 @@ namespace UNP.Sources {
             logger.Info("Playback data file: " + inputDatFile);
             logger.Info("Data file version: " + header.version);
             logger.Info("Number of pipeline input streams / output channels: " + outputChannels);
-
+            logger.Info("Number of rows: " + header.numRows);
 
             // flag as configured
             configured = true;

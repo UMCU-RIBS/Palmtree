@@ -7,6 +7,7 @@ using System.IO.Ports;
 using System.Reflection;
 using System.Threading;
 using UNP.Core;
+using UNP.Core.DataIO;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
 
