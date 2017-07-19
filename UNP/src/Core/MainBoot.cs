@@ -107,10 +107,10 @@ namespace UNP.Core {
             }
 
             // debug
-            //source = "UNP.Sources.GenerateSignal";
+            source = "UNP.Sources.GenerateSignal";
             //source = "UNP.Sources.KeypressSignal";
             //source = "UNP.Sources.NexusSignal";
-            source = "UNP.Sources.PlaybackSignal";
+            //source = "UNP.Sources.PlaybackSignal";
 
             // check if no (valid) source was given
             if (string.IsNullOrEmpty(source)) {

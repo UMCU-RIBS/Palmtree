@@ -81,25 +81,16 @@ namespace UNP.Applications {
         }
 
         public void close() {
-			
-			
-			
-            // Communicator has a button to quit when it receives a F13 keypress
-            // TODO: make a parameter of the button to be used for closing so user can define it?
-            SendKeys.SendWait("{F13}");
-			// Dit naar UNP menu
-			
-			
         }
 
         public bool isStarted() {
             return started;
         }
 
-		public void sendKeyDown() {
+		public void sendKeyDown(string key) {
 
             // send key
-            SendKeys.SendWait("{ENTER}");
+            SendKeys.SendWait(key);
 
 		}
 		
@@ -119,6 +110,8 @@ namespace UNP.Applications {
 		public void setFocus() {
 
             // TODO: check if started
+
+
 
             // get the handle of the process
             IntPtr windowHandle = process.MainWindowHandle;

@@ -27,11 +27,12 @@ namespace UNP.Core {
         private static Random rand = new Random(Guid.NewGuid().GetHashCode());
 
         private static string dataDir = "";                                                     // location of data directory
-        private static string sessionDir = null;                                                  // contains full path of directory all files of one sesison are written to
+        private static string sessionDir = null;                                                // contains full path of directory all files of one sesison are written to
         private static string currDir = "";                                                     // contains full path of current directory files are written in
         private static string identifier = "";                                                  // file identifier, prefix in filename
         private static bool subDirPerRun = false;                                               // whether or not a sub-directory must be made in the session directory to hold the generated files per run
-        private static int run = 0;                                                             // contains number of current run
+        private static int run = 0;                                                            // contains number of current run
+        private static string runsuffix = "run";                                                // suffix used to append to created files
         private static bool mCensorLogging = false;                                             // flag whether the logging should be censored (zeros should be written instead)
 
         // event logging
@@ -262,7 +263,6 @@ namespace UNP.Core {
                 } catch (Exception e) {
                     logger.Error("Unable to create sesion data directory at " + sessionDir + " (" + e.ToString() + ")");
                 }
-
             }
             return true;
 
@@ -451,11 +451,31 @@ namespace UNP.Core {
 
         public static void start() {
 
-            // increase run number
-            run++;
+            // check to see if there are already log files in session directory
+            string[] files = Directory.GetFiles(sessionDir, "*" + runsuffix + "_*");
+
+            // if there are already log files
+            if (files.Length != 0) {
+
+                bool foundRun = false;
+                run = 0;
+
+                // cycle through files in session directory and see which run numbers have already been used
+                while (!foundRun) {
+                    files = Directory.GetFiles(sessionDir, "*" + runsuffix + "_" + run + "*");
+                    if (files.Length == 0) {
+                        foundRun = true;
+                    } else {
+                        run++;
+                    }
+                }
+
+            }
+
+            
 
             // get identifier and current time to use as filenames
-            string fileName = identifier + "_" + DateTime.Now.ToString("yyyyMMdd") + "_run_" + run;
+            string fileName = identifier + "_" + DateTime.Now.ToString("yyyyMMdd") + "_" + runsuffix + "_" + run;
 
             // create parameter file and save current parameters
             Dictionary<string, Parameters> localParamSets = ParameterManager.getParameterSetsClone();
@@ -598,7 +618,18 @@ namespace UNP.Core {
 
         public static void stop() {
 
-            // TODO: close the event file,(and more closing things/variables?)
+            // stop and close source stream 
+            if (sourceStreamWriter != null) {
+
+                // log the source stop event
+                logEvent(1, "SourceStop", "");
+
+                // close the source stream file
+                sourceStreamWriter.Close();
+                sourceStreamWriter = null;
+                sourceStream = null;
+            }
+
 
             // stop and close data stream 
             if (dataStreamWriter != null) {
@@ -612,17 +643,6 @@ namespace UNP.Core {
                 dataStream = null;
             }
 
-            // stop and close source stream 
-            if (sourceStreamWriter != null) {
-
-                // log the source stop event
-                logEvent(1, "SourceStop", "");
-
-                // close the source stream file
-                sourceStreamWriter.Close();
-                sourceStreamWriter = null;
-                sourceStream = null;
-            }
 
             //  flush any remaining data in plugin buffers to files
             writePluginData(-1);
@@ -630,21 +650,39 @@ namespace UNP.Core {
             // stop and close all plugin data streams
             for (int i = 0; i < pluginStreams.Count; i++) {
                 
-                    // log the plugin log stop event
-                    logEvent(1, "PluginLogStop", "plugin id: " + i);
+                // log the plugin log stop event
+                logEvent(1, "PluginLogStop", "plugin id: " + i);
 
-                    // close the plugin stream file
-                    pluginStreamWriters[i].Close();
-                    pluginStreamWriters[i] = null;
-                    pluginStreams[i] = null;
+                // close the plugin stream file
+                pluginStreamWriters[i].Close();
+                pluginStreamWriters[i] = null;
+                pluginStreams[i] = null;
 
             }
+
+            // clear the lists containing plugin writers
             pluginStreamWriters.Clear();
             pluginStreams.Clear();
+
 
             // if there is still a stopwatch running, stop it
             if (dataStopWatch.IsRunning)        dataStopWatch.Stop();
             if (sourceStopWatch.IsRunning)      sourceStopWatch.Stop();
+
+
+            // lastly, close event writer, so any remaining events can still be written
+            if (eventStreamWriter != null) {
+
+                // log the data stop event
+                logEvent(1, "Eventstop", "");
+
+                // close the writer and stream
+                eventStreamWriter.Close();
+                eventStreamWriter = null;
+                eventStream = null;
+
+            }
+
 
         }
 
