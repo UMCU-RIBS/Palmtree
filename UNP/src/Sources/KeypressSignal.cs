@@ -89,17 +89,37 @@ namespace UNP.Sources {
             return parameters;
         }
 
+        /**
+         * function to retrieve the number of samples per second
+         * 
+         * This value could be requested by the main thread and is used to allow parameters
+         * to be converted from seconds to samples
+         **/
+        public double getSamplesPerSecond() {
+
+            // check if the source is not configured yet
+            if (!configured) {
+
+                // message
+                logger.Error("Trying to retrieve the samples per second before the source was configured, first configure the source, returning 0");
+
+                // return 0
+                return 0;
+
+            }
+
+            // return the samples per second
+            return sampleRate;
+
+        }
+
         public bool configure(out SampleFormat output) {
 
             // retrieve the number of output channels
             outputChannels = parameters.getValue<int>("Channels");
-
-            // create a sampleformat
-            output = new SampleFormat((uint)outputChannels);
-
-            // check if the number of output channels is higher than 0
             if (outputChannels <= 0) {
                 logger.Error("Number of output channels cannot be 0");
+                output = null;
                 return false;
             }
             
@@ -107,8 +127,12 @@ namespace UNP.Sources {
             sampleRate = parameters.getValue<double>("SampleRate");
             if (sampleRate <= 0) {
                 logger.Error("The sample rate cannot be 0 or lower");
+                output = null;
                 return false;
             }
+
+            // create a sampleformat
+            output = new SampleFormat(outputChannels, sampleRate);
 
             // calculate the sample interval
             sampleInterval = (int)Math.Floor(1000.0 / sampleRate);
@@ -190,30 +214,6 @@ namespace UNP.Sources {
 
         }
 
-        /**
-         * function to retrieve the number of samples per second
-         * 
-         * This value could be requested by the main thread and is used to allow parameters
-         * to be converted from seconds to samples
-         **/
-        public double getSamplesPerSecond() {
-            
-            // check if the source is not configured yet
-            if (!configured) {
-
-                // message
-                logger.Error("Trying to retrieve the samples per second before the source was configured, first configure the source, returning 0");
-
-                // return 0
-                return 0;
-
-            }
-
-            // return the samples per second
-            return sampleRate;
-
-        }
-
 	    /**
 	     * Start
 	     */
@@ -251,10 +251,7 @@ namespace UNP.Sources {
 
                 // check if the source is generating signals
                 if (started) {
-
-                    // message
-                    //logger.Info("Collection stopped for '" + collectionName + "'");
-
+                    
                     // stop generating
                     started = false;
 

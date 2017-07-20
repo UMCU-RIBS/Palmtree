@@ -39,7 +39,7 @@ namespace UNP.Core {
         const int sampleBufferSize = 10000;                                 // the size (and maximum samples) of the sample buffer/que 
         private double[][] sampleBuffer = new double[sampleBufferSize][];   // the sample buffer in which samples are queud
         private int sampleBufferAddIndex = 0;                               // the index where in the (ring) sample buffer the next sample will be added
-        private int sampleBufferReadIndex = 0;                              // the index where in the (ring) sample buffer of the next sample that should be read
+        private int sampleBufferReadIndex = 0;                              // the index where in the (ring) sample buffer the next sample that should be read is
         private int numberOfSamples = 0;                                    // the number of added but unread samples in the (ring) sample buffer
 
         /**
@@ -101,7 +101,7 @@ namespace UNP.Core {
             //sourceParameters.setValue("SampleRate", 5.0);
             //sourceParameters.setValue("Keys", "F,G;1,2;1,1;-1,-1");
 
-            sourceParameters.setValue("Input", "D:\\UNP\\other\\testrun\\test_20170718_run_1.dat");
+            sourceParameters.setValue("Input", "D:\\UNP\\other\\testrun\\test_20170720_Run_0.dat");
 
             Parameters timeSmoothingParameters = getFilterParameters("TimeSmoothing");
             timeSmoothingParameters.setValue("EnableFilter", true);
@@ -247,8 +247,8 @@ namespace UNP.Core {
 
             }
 
-            // register the pipeline input streams based on the output format of the source
-            Data.registerPipelineInputStreams(tempFormat);
+            // register the pipeline input based on the output format of the source
+            Data.registerPipelineInput(tempFormat);
             
             // configure the filters
             for (int i = 0; i < filters.Count; i++) {
@@ -629,10 +629,13 @@ namespace UNP.Core {
             }
 
             // destoy the filters
-            for (int i = 0; i < filters.Count; i++) filters[i].destroy();
+            for (int i = 0; i < filters.Count; i++)     filters[i].destroy();
 
             // destroy the view
-            if (application != null)    application.destroy();
+            if (application != null)                    application.destroy();
+
+            // destroy the plugins
+            for (int i = 0; i < plugins.Count; i++)     plugins[i].destroy();
 
             // destroy the data class
             Data.destroy();

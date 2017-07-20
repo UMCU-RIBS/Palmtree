@@ -30,7 +30,7 @@ namespace MoleTask {
         private static Logger logger = LogManager.GetLogger(CLASS_NAME);                        // the logger object for the view
         private static Parameters parameters = null;
         
-        private uint inputChannels = 0;
+        private int inputChannels = 0;
         private MoleView mSceneThread = null;
 
         Random rand = new Random(Guid.NewGuid().GetHashCode());

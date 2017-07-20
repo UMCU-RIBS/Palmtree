@@ -17,8 +17,7 @@ namespace UNPLogReader {
         public frmMain() {
             InitializeComponent();
 
-            txtInputFile.Text = "D:\\UNP\\other\\testrun\\test_20170718_run_1.dat";
-            //txtInputFile.Text = "D:\\UNP\\other\\testrun\\test_20170720_Run_0.dat";
+            txtInputFile.Text = "D:\\UNP\\other\\testrun\\test_20170720_Run_0.dat";
 
             
         }
@@ -76,6 +75,10 @@ namespace UNPLogReader {
             // clear the output
             txtOutput.Text = "";
 
+            // output string buffer
+            string strOutput = "";
+
+            // check if the file exists
             if (!File.Exists(txtInputFile.Text)) {
                 MessageBox.Show("Could not find input file", "File error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
@@ -86,7 +89,7 @@ namespace UNPLogReader {
 
             // open the reader
             if (!reader.open()) {
-                MessageBox.Show("Could not interpret input file '" + txtOutput.Text  + "'", "File error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Could not interpret input file '" + txtInputFile.Text  + "'", "File error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
@@ -94,50 +97,58 @@ namespace UNPLogReader {
             DataHeader header = reader.getHeader();
 
             // print header information
-            txtOutput.Text = "Data file: " + txtInputFile.Text + Environment.NewLine;
-            txtOutput.Text += "Internal extension: " + header.extension + Environment.NewLine;
-            txtOutput.Text += "Number of pipeline input streams: " + header.pipelineInputStreams + Environment.NewLine;
-            txtOutput.Text += "Number of columns: " + header.numColumns + Environment.NewLine;
-            txtOutput.Text += "Column names size (in bytes): " + header.columnNamesSize + Environment.NewLine;
-            txtOutput.Text += "Column names: " + string.Join(", ", header.columnNames) + Environment.NewLine;
-            txtOutput.Text += "Row size (in bytes): " + header.rowSize + Environment.NewLine;
-            txtOutput.Text += "Number of rows: " + header.numRows + Environment.NewLine;
-            txtOutput.Text += "Data start position: " + header.posDataStart + Environment.NewLine;
+            strOutput = "Data file: " + txtInputFile.Text + Environment.NewLine;
+            strOutput += "Internal extension: " + header.extension + Environment.NewLine;
+            strOutput += "Pipeline sample rate: " + header.pipelineSampleRate + Environment.NewLine;
+            strOutput += "Number of pipeline input streams: " + header.pipelineInputStreams + Environment.NewLine;
+            strOutput += "Number of columns: " + header.numColumns + Environment.NewLine;
+            strOutput += "Column names size (in bytes): " + header.columnNamesSize + Environment.NewLine;
+            strOutput += "Column names: " + string.Join(", ", header.columnNames) + Environment.NewLine;
+            strOutput += "Row size (in bytes): " + header.rowSize + Environment.NewLine;
+            strOutput += "Number of rows: " + header.numRows + Environment.NewLine;
+            strOutput += "Data start position: " + header.posDataStart + Environment.NewLine;
 
-            txtOutput.Text += "Data:" + Environment.NewLine + Environment.NewLine;
-            txtOutput.Text += string.Join("\t", header.columnNames) + Environment.NewLine;
+            strOutput += "Data:" + Environment.NewLine + Environment.NewLine;
+            strOutput += string.Join("\t", header.columnNames) + Environment.NewLine;
 
             // make sure the data pointer is at the start of the data
             reader.resetDataPointer();
 
             // loop until the end of the data
             while(!reader.reachedEnd()) {
-
+                
                 uint[] samples = null;
                 double[][] values = null;
 
                 // read the next rows
-                reader.readNextRows(4, out samples, out values);
+                long rows = reader.readNextRows(4, out samples, out values);
+
+                // check for error while reading, return if so
+                if (rows == -1)     return;
 
                 // loop through the rows in set
-                txtOutput.Text += Environment.NewLine;
-                for (int i = 0; i < samples.Length; i++) {
+                strOutput += Environment.NewLine;
+                for (long i = 0; i < rows; i++) {
 
                     string text = samples[i] + "\t";
                     text += string.Join("\t", values[i]);
                     text += Environment.NewLine;
-                    txtOutput.Text += text;
+                    strOutput += text;
                 }
                 
+
+
                 /*
+                byte[] rowData = null;
+
                 // read the next rows
-                byte[] rowData = reader.readNextRows(4);
+                long rows = reader.readNextRows(4, out rowData);
                 
-                // determine the number of rows returned
-                int rows = rowData.Length / header.rowSize;
+                // check for error while reading, return if so
+                if (rows == -1) return;
 
                 // loop through the rows in set
-                txtOutput.Text += Environment.NewLine;
+                strOutput += Environment.NewLine;
                 for (int i = 0; i < rows; i++) {
 
                     uint sampleCounter = BitConverter.ToUInt32(rowData, i * header.rowSize);
@@ -150,28 +161,18 @@ namespace UNPLogReader {
                     string text = sampleCounter + "\t" + elapsedTime + "\t";
                     text += string.Join("\t", values);
                     text += Environment.NewLine;
-                    txtOutput.Text += text;
+                    strOutput += text;
 
                 }
                 */
-                
-                
-            }
 
-            /*
-            uint[] samples = null;
-            double[] values = null;
 
-            reader.readNextRows(2, ref samples, ref values);
-            if (samples == null || values == null) {
-                // error
-
-            } else {
-                // successfull read
 
             }
-            //txtOutput.Text
-            */
+
+            // update the output textbox
+            txtOutput.Text = strOutput;
+
         }
     }
 }

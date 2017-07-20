@@ -23,8 +23,8 @@ namespace UNP.Filters {
         protected bool mLogDataStreamsRuntime = false;          // stores whether during runtime the data streams should be logged (if it was on, then it can be switched off, resulting in 0's being logged)
         protected bool mEnableDataVisualization = false;         // stores whether data visualization is enabled or disabled. This is a local copy of the setting from Globals (originating from the Data class), set during configuration of the filter
 
-        protected uint inputChannels = 0;
-        protected uint outputChannels = 0;
+        protected int inputChannels = 0;
+        protected int outputChannels = 0;
 
         public string getName() {
             return filterName;

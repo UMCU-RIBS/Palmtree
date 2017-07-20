@@ -9,7 +9,7 @@ using UNP.Core.Helpers;
 using UNP.Core.Params;
 using System.Linq;
 
-namespace UNP.Core {
+namespace UNP.Core.DataIO {
 
     // Data class. Takes care of data storage and visualization
     // 
@@ -20,6 +20,7 @@ namespace UNP.Core {
     public static class Data {
 
         private const int DATAFORMAT_VERSION = 1;
+        private const string RUN_SUFFIX = "Run_";                                                // suffix used to append to created files
 
         private static Logger logger = LogManager.GetLogger("Data");
         private static Parameters parameters = ParameterManager.GetParameters("Data", Parameters.ParamSetTypes.Data);
@@ -28,11 +29,10 @@ namespace UNP.Core {
 
         private static string dataDir = "";                                                     // location of data directory
         private static string sessionDir = null;                                                // contains full path of directory all files of one sesison are written to
-        private static string currDir = "";                                                     // contains full path of current directory files are written in
         private static string identifier = "";                                                  // file identifier, prefix in filename
         private static bool subDirPerRun = false;                                               // whether or not a sub-directory must be made in the session directory to hold the generated files per run
         private static int run = 0;                                                            // contains number of current run
-        private static string runsuffix = "run";                                                // suffix used to append to created files
+        
         private static bool mCensorLogging = false;                                             // flag whether the logging should be censored (zeros should be written instead)
 
         // event logging
@@ -57,6 +57,7 @@ namespace UNP.Core {
         // pipeline input streams
         private static bool mLogPipelineInputStreams = false;            				        // stream logging for pipeline input enabled/disabled (by configuration parameter)
         private static int numPipelineInputStreams = 0;                                         // amount of pipeline input streams
+        private static double pipelineSampleRate = 0;                                           // the sample rate of the pipeline (in Hz)
 
         // filters and application streams
         private static bool mLogFiltersAndApplicationStreams = false;            				// stream logging for filters and application modules enabled/disabled (by configuration parameter)
@@ -296,14 +297,17 @@ namespace UNP.Core {
             return registeredSourceInputStreamNames.ToArray();
         }
         
-        // register the pipeline input streams based on the output format of the source
-        public static void registerPipelineInputStreams(SampleFormat output) {
+        // register the pipeline input based on the output format of the source
+        public static void registerPipelineInput(SampleFormat output) {
 
+            // store the pipeline sample rate
+            pipelineSampleRate = output.getRate();
+            
             // check if the pipeline input streams should be logged
             if (mLogPipelineInputStreams) {
 
                 // use the number of input channels for the pipeline to the number of output channels from the source
-                numPipelineInputStreams = (int)output.getNumberOfChannels();
+                numPipelineInputStreams = output.getNumberOfChannels();
 
                 // register the streams
                 for (int channel = 0; channel < numPipelineInputStreams; channel++)
@@ -452,7 +456,7 @@ namespace UNP.Core {
         public static void start() {
 
             // check to see if there are already log files in session directory
-            string[] files = Directory.GetFiles(sessionDir, "*" + runsuffix + "_*");
+            string[] files = Directory.GetFiles(sessionDir, "*" + RUN_SUFFIX + "*");
 
             // if there are already log files
             if (files.Length != 0) {
@@ -464,7 +468,7 @@ namespace UNP.Core {
                 for (int f = 0; f < files.Length; f++) {
 
                     // get run numbers by removing part before runsuffix and then removing extension for each log file
-                    files[f] = files[f].Substring(files[f].LastIndexOf(runsuffix + "_") + runsuffix.Length+1);
+                    files[f] = files[f].Substring(files[f].LastIndexOf(RUN_SUFFIX) + RUN_SUFFIX.Length);
                     files[f] = files[f].Substring(0, files[f].IndexOf('.'));
 
                     // convert to ints for reliable sorting
@@ -479,10 +483,8 @@ namespace UNP.Core {
                 run = 0;
             }
 
-            
-
             // get identifier and current time to use as filenames
-            string fileName = identifier + "_" + DateTime.Now.ToString("yyyyMMdd") + "_" + runsuffix + "_" + run;
+            string fileName = identifier + "_" + DateTime.Now.ToString("yyyyMMdd") + "_" + RUN_SUFFIX + run;
 
             // create parameter file and save current parameters
             Dictionary<string, Parameters> localParamSets = ParameterManager.getParameterSetsClone();
@@ -735,7 +737,7 @@ namespace UNP.Core {
         public static void sampleProcessingEnd() {
 
             // debug, show data values being stored
-            logger.Debug("To .dat file: " + dataSampleCounter + " " + dataElapsedTime + " " + string.Join(" |", dataStreamValues));
+            //logger.Debug("To .dat file: " + dataSampleCounter + " " + dataElapsedTime + " " + string.Join(" |", dataStreamValues));
 
             // TODO: cutting up files based on the maximum size limit
             // TODO? create function that stores data that can be used for both src and dat?
@@ -1112,7 +1114,7 @@ namespace UNP.Core {
             
             // convert column names to binary and store the length (in bytes)
             byte[] columnNamesBinary = Encoding.ASCII.GetBytes(columnNames);
-            
+
 
 
             //
@@ -1122,6 +1124,7 @@ namespace UNP.Core {
             // store number of columns and of source channels [bytes] 
             byte[] versionBinary = BitConverter.GetBytes(DATAFORMAT_VERSION);
             byte[] headerExtensionBinary = Encoding.ASCII.GetBytes(headerExtension);
+            byte[] pipelineSampleRateBinary = BitConverter.GetBytes(pipelineSampleRate);
             byte[] pipelineInputStreamsBinary = BitConverter.GetBytes(numPipelineInputStreams);
             byte[] ncolBinary = BitConverter.GetBytes(numColumns);
             byte[] columnNamesLengthBinary = BitConverter.GetBytes(columnNamesBinary.Length);
@@ -1130,6 +1133,7 @@ namespace UNP.Core {
             int headerLength = 0;
             headerLength += versionBinary.Length;               // sizeof(int)
             headerLength += headerExtensionBinary.Length;       // sizeof(int)
+            headerLength += pipelineSampleRateBinary.Length;    // sizeof(double)
             headerLength += pipelineInputStreamsBinary.Length;  // sizeof(int)
             headerLength += ncolBinary.Length;                  // sizeof(int)
             headerLength += columnNamesLengthBinary.Length;     // sizeof(int)
@@ -1146,6 +1150,10 @@ namespace UNP.Core {
             // header extension
             Buffer.BlockCopy(headerExtensionBinary, 0, headerOut, filePointer, headerExtensionBinary.Length);
             filePointer += headerExtensionBinary.Length;
+
+            // pipeline sample rate
+            Buffer.BlockCopy(pipelineSampleRateBinary, 0, headerOut, filePointer, pipelineSampleRateBinary.Length);
+            filePointer += pipelineSampleRateBinary.Length;
 
             // pipeline input streams
             Buffer.BlockCopy(pipelineInputStreamsBinary, 0, headerOut, filePointer, pipelineInputStreamsBinary.Length);

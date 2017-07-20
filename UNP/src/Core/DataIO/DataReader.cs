@@ -85,7 +85,16 @@ namespace UNP.Core.DataIO {
             lock (lockReader) {
 
                 // if a datastream is open, close it
-                if (dataStream != null)     dataStream.Close();
+                if (dataStream != null) {
+                    dataStream.Close();
+                    dataStream = null;
+                }
+
+                // clear the header
+                header = null;
+
+                // reset the row index
+                currentRowIndex = 0;
 
             }
 
@@ -118,8 +127,9 @@ namespace UNP.Core.DataIO {
 
         }
 
-        public byte[] readNextRows(long numRows) {
-            
+
+        public long readNextRows(long numRows, out byte[] buffer) {
+
             // threadsafety
             lock (lockReader) {
 
@@ -130,17 +140,21 @@ namespace UNP.Core.DataIO {
                     logger.Error("Trying to read rows without opening the reader first, returning null");
 
                     // return
-                    return null;
+                    buffer = null;
+                    return -1;
 
                 }
-                
+
                 // check if the reading the given number of rows exceeds the end of the data
                 // correct the number of rows to the maximum available rows
                 if (currentRowIndex + numRows > header.numRows)
                     numRows = header.numRows - currentRowIndex;
 
-                // if there are no rows left to read, return 0
-                if (numRows == 0)   return null;
+                // if there are no rows left to read, return -1
+                if (numRows == 0) {
+                    buffer = null;
+                    return -1;
+                }
 
                 // calculate the number of bytes to read
                 long numBytes = header.rowSize * numRows;
@@ -152,7 +166,8 @@ namespace UNP.Core.DataIO {
                     logger.Error("The function 'readNextRows' is asked to read too much data at once, ask for a smaller amount of rows per call");
 
                     // return
-                    return null;
+                    buffer = null;
+                    return -1;
 
                 }
 
@@ -163,60 +178,61 @@ namespace UNP.Core.DataIO {
                     logger.Error("The function 'readNextRows' tries to read beyond the length of the file, something wrong with determining the number of rows, check code");
 
                     // return
-                    return null;
+                    buffer = null;
+                    return -1;
 
                 }
 
                 // read the data
-                byte[] rowData = new byte[numBytes];
-                if (dataStream.Read(rowData, 0, (int)(numBytes)) < 0) {
+                buffer = new byte[numBytes];
+                if (dataStream.Read(buffer, 0, (int)(numBytes)) < 0) {
 
                     // message
                     logger.Error("The function 'readNextRows' tries to read beyond the length of the file, something wrong with determining the number of rows, check code");
 
                     // return
-                    return null;
+                    buffer = null;
+                    return -1;
 
                 }
 
                 // move the current row index up the number of read rows
                 currentRowIndex += numRows;
-                
-                // return the rowData as byte array
-                return rowData;
 
-            }
+                // return the rowData as byte array
+                return numRows;
+
+            } // end lock
 
         }
+        
+        public long readNextRows(long numRows, out uint[] arrSamples, out double[][] matValues) {
+            byte[] bOutput = null;
 
-
-        public void readNextRows(long numRows, out uint[] arrSamples, out double[][] matValues) {
-            byte[] bOutput = readNextRows(numRows);
+            // read the next rows
+            numRows = readNextRows(numRows, out bOutput);
 
             // check if an error occured while reading
-            if (bOutput == null) {
+            if (numRows == -1) {
 
                 // set output to null
                 arrSamples = null;
                 matValues = null;
 
                 // return
-                return;
+                return -1;
 
             }
 
             // threadsafety
             lock (lockReader) {
-
-                // determine the number of rows in the result (since the function could have capped it)
-                int outputNumRows = bOutput.Length / header.rowSize;
-
+                
                 // create new arrays
-                arrSamples = new uint[outputNumRows];
-                matValues = new double[outputNumRows][];
+                arrSamples = new uint[numRows];
+                matValues = new double[numRows][];
 
                 // loop through the rows
-                for (int i = 0; i < outputNumRows; i++) {
+                for (int i = 0; i < numRows; i++) {
 
                     // store the samples
                     arrSamples[i] = BitConverter.ToUInt32(bOutput, i * header.rowSize);
@@ -227,12 +243,22 @@ namespace UNP.Core.DataIO {
 
                 }
 
-            }       // end lock
+                // return the numbers of rows
+                return numRows;
+
+            } // end lock
 
         }
 
         public bool reachedEnd() {
-            return currentRowIndex >= header.numRows;
+
+            // threadsafety
+            lock (lockReader) {
+
+                return currentRowIndex >= header.numRows;
+
+            }
+
         }
 
         public static DataHeader readHeader(String fileName) {
@@ -259,14 +285,32 @@ namespace UNP.Core.DataIO {
                     header.extension = Encoding.ASCII.GetString(bExtension);
 
                     // retrieve the fixed fields from the header    (note that the pointer has already been moved till after the version bytes)
-                    int fixedBytesInHeader = 3 * sizeof(int);   // 3 x int     (- the first int, representing the version, which is already taken before here; - 3 bytes, representing extension, also taken before)
+                    int fixedBytesInHeader = 0;
+                    fixedBytesInHeader += sizeof(double);   // pipeline sample rate
+                    fixedBytesInHeader += sizeof(int);      // number of pipeline input streams
+                    fixedBytesInHeader += sizeof(int);      // number of columns
+                    fixedBytesInHeader += sizeof(int);      // size of the column names
                     byte[] bFixedHeader = new byte[fixedBytesInHeader];
                     dataStream.Read(bFixedHeader, 0, fixedBytesInHeader);
 
-                    // interpret the information from the header's fixed fields
-                    header.pipelineInputStreams = BitConverter.ToInt32(bFixedHeader, 0);
-                    header.numColumns = BitConverter.ToInt32(bFixedHeader, 0 + sizeof(int));
-                    header.columnNamesSize = BitConverter.ToInt32(bFixedHeader, 0 + sizeof(int) * 2);
+                    // pointer to a variable in the fixed header
+                    int ptrFixedHeader = 0;
+
+                    // retrieve the pipeline sample rate
+                    header.pipelineSampleRate = BitConverter.ToDouble(bFixedHeader, ptrFixedHeader);
+                    ptrFixedHeader += sizeof(double);
+
+                    // retrieve the number of pipeline input streams
+                    header.pipelineInputStreams = BitConverter.ToInt32(bFixedHeader, ptrFixedHeader);
+                    ptrFixedHeader += sizeof(int);
+
+                    // retrieve the number of columns
+                    header.numColumns = BitConverter.ToInt32(bFixedHeader, ptrFixedHeader);
+                    ptrFixedHeader += sizeof(int);
+
+                    // retrieve the size of the column names
+                    header.columnNamesSize = BitConverter.ToInt32(bFixedHeader, ptrFixedHeader);
+                    ptrFixedHeader += sizeof(int);
 
                     // retrieve the column names from the header
                     byte[] bColumnNames = new byte[header.columnNamesSize];
@@ -288,7 +332,7 @@ namespace UNP.Core.DataIO {
             } catch (Exception) {
 
                 // close the data stream
-                dataStream.Close();
+                if (dataStream != null)     dataStream.Close();
 
                 // return failure
                 return null;
@@ -296,7 +340,7 @@ namespace UNP.Core.DataIO {
             } finally {
 
                 // close the data stream
-                dataStream.Close();
+                if (dataStream != null)     dataStream.Close();
 
             }
 

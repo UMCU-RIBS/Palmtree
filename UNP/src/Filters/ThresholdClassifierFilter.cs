@@ -85,7 +85,7 @@ namespace UNP.Filters {
                     if (mConfigOutputChannels[row] > highestOutputChannel)
                         highestOutputChannel = mConfigOutputChannels[row];
                 }
-                outputChannels = (uint)highestOutputChannel;
+                outputChannels = highestOutputChannel;
 
             } else {
                 // filter disabled
@@ -96,7 +96,7 @@ namespace UNP.Filters {
             }
 
             // create an output sampleformat
-            output = new SampleFormat(outputChannels);
+            output = new SampleFormat(outputChannels, input.getRate());
 
             // configure output logging for this filter
             configureOutputLogging("ThresholdClassifier_", output);

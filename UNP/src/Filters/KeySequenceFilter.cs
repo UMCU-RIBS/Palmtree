@@ -86,7 +86,7 @@ namespace UNP.Filters {
             outputChannels = inputChannels;
 
             // create an output sampleformat
-            output = new SampleFormat(outputChannels);
+            output = new SampleFormat(outputChannels, input.getRate());
 
             // check the values and application logic of the parameters
             if (!checkParameters(parameters)) return false;
