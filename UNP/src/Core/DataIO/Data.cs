@@ -9,7 +9,7 @@ using UNP.Core.Helpers;
 using UNP.Core.Params;
 using System.Linq;
 
-namespace UNP.Core.DataIO {
+namespace UNP.Core {
 
     // Data class. Takes care of data storage and visualization
     // 
@@ -20,7 +20,6 @@ namespace UNP.Core.DataIO {
     public static class Data {
 
         private const int DATAFORMAT_VERSION = 1;
-        private const string RUN_SUFFIX = "Run_";                                                // suffix used to append to created files
 
         private static Logger logger = LogManager.GetLogger("Data");
         private static Parameters parameters = ParameterManager.GetParameters("Data", Parameters.ParamSetTypes.Data);
@@ -29,10 +28,11 @@ namespace UNP.Core.DataIO {
 
         private static string dataDir = "";                                                     // location of data directory
         private static string sessionDir = null;                                                // contains full path of directory all files of one sesison are written to
+        private static string currDir = "";                                                     // contains full path of current directory files are written in
         private static string identifier = "";                                                  // file identifier, prefix in filename
         private static bool subDirPerRun = false;                                               // whether or not a sub-directory must be made in the session directory to hold the generated files per run
         private static int run = 0;                                                            // contains number of current run
-        
+        private static string runsuffix = "run";                                                // suffix used to append to created files
         private static bool mCensorLogging = false;                                             // flag whether the logging should be censored (zeros should be written instead)
 
         // event logging
@@ -452,30 +452,37 @@ namespace UNP.Core.DataIO {
         public static void start() {
 
             // check to see if there are already log files in session directory
-            string[] files = Directory.GetFiles(sessionDir, "*" + RUN_SUFFIX + "*");
+            string[] files = Directory.GetFiles(sessionDir, "*" + runsuffix + "_*");
 
             // if there are already log files
             if (files.Length != 0) {
 
-                bool foundRun = false;
-                run = 0;
+                // init runs array to hold run numbers
+                int[] runs = new int[files.Length];
 
-                // cycle through files in session directory and see which run numbers have already been used
-                while (!foundRun) {
-                    files = Directory.GetFiles(sessionDir, "*" + RUN_SUFFIX + run + "*");
-                    if (files.Length == 0) {
-                        foundRun = true;
-                    } else {
-                        run++;
-                    }
+                // cycle through files in sessionDir
+                for (int f = 0; f < files.Length; f++) {
+
+                    // get run numbers by removing part before runsuffix and then removing extension for each log file
+                    files[f] = files[f].Substring(files[f].LastIndexOf(runsuffix + "_") + runsuffix.Length+1);
+                    files[f] = files[f].Substring(0, files[f].IndexOf('.'));
+
+                    // convert to ints for reliable sorting
+                    runs[f] = Int32.Parse(files[f]);
                 }
 
+                // sort runs array and take last item (= highest), and increase by one
+                Array.Sort(runs);
+                run = runs[runs.Length - 1] + 1;
+
+            } else {
+                run = 0;
             }
 
             
 
             // get identifier and current time to use as filenames
-            string fileName = identifier + "_" + DateTime.Now.ToString("yyyyMMdd") + "_" + RUN_SUFFIX + run;
+            string fileName = identifier + "_" + DateTime.Now.ToString("yyyyMMdd") + "_" + runsuffix + "_" + run;
 
             // create parameter file and save current parameters
             Dictionary<string, Parameters> localParamSets = ParameterManager.getParameterSetsClone();
