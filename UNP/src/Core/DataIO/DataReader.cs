@@ -49,10 +49,13 @@ namespace UNP.Core.DataIO {
                     return false;
 
                 }
+                DataHeader a = getHeader();
 
                 // make sure the header is read
                 // return false if the header could not be read
-                if (getHeader() == null)    return false;
+                if (getHeader() == null || string.IsNullOrEmpty(getHeader().extension)) {
+                    return false;
+                }
 
                 try {
 

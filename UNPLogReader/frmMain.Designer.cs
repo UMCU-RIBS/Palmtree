@@ -28,6 +28,8 @@
             this.txtInputFile = new System.Windows.Forms.TextBox();
             this.txtOutput = new System.Windows.Forms.TextBox();
             this.btnRead = new System.Windows.Forms.Button();
+            this.btnReadBCI2000 = new System.Windows.Forms.Button();
+            this.btnConvertBCIToUNP = new System.Windows.Forms.Button();
             this.grpInput.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -77,15 +79,37 @@
             this.btnRead.Name = "btnRead";
             this.btnRead.Size = new System.Drawing.Size(110, 37);
             this.btnRead.TabIndex = 3;
-            this.btnRead.Text = "Read";
+            this.btnRead.Text = "Read UNP";
             this.btnRead.UseVisualStyleBackColor = true;
             this.btnRead.Click += new System.EventHandler(this.btnRead_Click);
+            // 
+            // btnReadBCI2000
+            // 
+            this.btnReadBCI2000.Location = new System.Drawing.Point(153, 95);
+            this.btnReadBCI2000.Name = "btnReadBCI2000";
+            this.btnReadBCI2000.Size = new System.Drawing.Size(137, 37);
+            this.btnReadBCI2000.TabIndex = 4;
+            this.btnReadBCI2000.Text = "Read BCI2000";
+            this.btnReadBCI2000.UseVisualStyleBackColor = true;
+            this.btnReadBCI2000.Click += new System.EventHandler(this.btnReadBCI2000_Click);
+            // 
+            // btnConvertBCIToUNP
+            // 
+            this.btnConvertBCIToUNP.Location = new System.Drawing.Point(308, 95);
+            this.btnConvertBCIToUNP.Name = "btnConvertBCIToUNP";
+            this.btnConvertBCIToUNP.Size = new System.Drawing.Size(192, 37);
+            this.btnConvertBCIToUNP.TabIndex = 5;
+            this.btnConvertBCIToUNP.Text = "Convert BCI2000 -> UNP";
+            this.btnConvertBCIToUNP.UseVisualStyleBackColor = true;
+            this.btnConvertBCIToUNP.Click += new System.EventHandler(this.btnConvertBCIToUNP_Click);
             // 
             // frmMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(695, 571);
+            this.Controls.Add(this.btnConvertBCIToUNP);
+            this.Controls.Add(this.btnReadBCI2000);
             this.Controls.Add(this.btnRead);
             this.Controls.Add(this.txtOutput);
             this.Controls.Add(this.grpInput);
@@ -107,6 +131,8 @@
         private System.Windows.Forms.TextBox txtInputFile;
         private System.Windows.Forms.TextBox txtOutput;
         private System.Windows.Forms.Button btnRead;
+        private System.Windows.Forms.Button btnReadBCI2000;
+        private System.Windows.Forms.Button btnConvertBCIToUNP;
     }
 }
 

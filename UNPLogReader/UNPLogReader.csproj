@@ -46,6 +46,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Data_BCI2000.cs" />
     <Compile Include="frmMain.cs">
       <SubType>Form</SubType>
     </Compile>

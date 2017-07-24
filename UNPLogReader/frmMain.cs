@@ -13,9 +13,12 @@ namespace UNPLogReader {
         public frmMain() {
             InitializeComponent();
 
-            txtInputFile.Text = "D:\\UNP\\other\\testrun\\test_20170720_Run_0.dat";
+            txtInputFile.Text = "D:\\UNP\\other\\testrun\\test_20170724_Run_0.dat";
+            txtInputFile.Text = "C:\\Users\\abcdef\\Desktop\\UNP001_multiclicks_motor_power_20170621001\\UNP001_multiclicks_motor_power_20170621S001R01.dat";
 
             
+
+
         }
 
         private void btnBrowse_Click(object sender, EventArgs e) {
@@ -206,5 +209,199 @@ namespace UNPLogReader {
             reader.close();
 
         }
+
+        private bool readBCI2000dat(string filename, out Data_BCI2000 info, out double[][] samples) {
+
+            FileStream dataStream = null;
+            StreamReader dataReader = null;
+
+            // check if the file exists
+            if (!File.Exists(filename)) {
+                MessageBox.Show("Could not find input file", "File error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                info = null;
+                samples = null;
+                return false;
+            }
+
+            try {
+
+                // open file stream
+                dataStream = new FileStream(filename, FileMode.Open);
+
+                // open reader
+                //dataReader = new System.IO.StreamReader(filestream, System.Text.Encoding.UTF8, true, 128);
+                dataReader = new System.IO.StreamReader(dataStream);
+
+            } catch (Exception) {
+
+                // message
+                MessageBox.Show("Could not create filestream to data file '" + filename + "' for reading");
+                info = null;
+                samples = null;
+                return false;
+
+            }
+
+            // create a new bci2000 data object
+            info = new Data_BCI2000();
+
+            // retrieve the first line
+            info.firstLine = dataReader.ReadLine();
+
+            // retrieve HeaderLen
+            string fieldName = "HeaderLen=";
+            int fieldValueLength = 6;
+            int pos = info.firstLine.IndexOf(fieldName);
+            if (pos == -1 || info.firstLine.Length < pos + fieldName.Length) {
+                MessageBox.Show("Could not retrieve " + fieldName + ", aborting");
+                info = null;
+                samples = null;
+                return false;
+            }
+            bool result = Int32.TryParse(info.firstLine.Substring(pos + fieldName.Length, fieldValueLength), out info.headerLen);
+            if (!result) {
+                MessageBox.Show("Could not retrieve " + fieldName + ", aborting");
+                info = null;
+                samples = null;
+                return false;
+            }
+            
+            // retrieve SourceCh
+            fieldName = "SourceCh=";
+            fieldValueLength = 2;
+            pos = info.firstLine.IndexOf(fieldName);
+            if (pos == -1 || info.firstLine.Length < pos + fieldName.Length) {
+                MessageBox.Show("Could not retrieve " + fieldName + ", aborting");
+                info = null;
+                samples = null;
+                return false;
+            }
+            result = Int32.TryParse(info.firstLine.Substring(pos + fieldName.Length, fieldValueLength), out info.sourceCh);
+            if (!result) {
+                MessageBox.Show("Could not retrieve " + fieldName + ", aborting");
+                info = null;
+                samples = null;
+                return false;
+            }
+            
+            // retrieve StatevectorLen
+            fieldName = "StatevectorLen=";
+            fieldValueLength = 3;
+            pos = info.firstLine.IndexOf(fieldName);
+            if (pos == -1 || info.firstLine.Length < pos + fieldName.Length) {
+                MessageBox.Show("Could not retrieve " + fieldName + ", aborting");
+                info = null;
+                samples = null;
+                return false;
+            }
+            result = Int32.TryParse(info.firstLine.Substring(pos + fieldName.Length, fieldValueLength), out info.stateVectorLen);
+            if (!result) {
+                MessageBox.Show("Could not retrieve " + fieldName + ", aborting");
+                info = null;
+                samples = null;
+                return false;
+            }
+            
+            // retrieve entire header
+            char[] buffer = new char[info.headerLen];
+            dataStream.Position = 0;
+            dataReader.DiscardBufferedData();
+            dataReader.ReadBlock(buffer, 0, info.headerLen);
+            info.header = new string(buffer);
+            
+            // set the dataStream position to the start of the data (needed, readblock before messed it up)
+            dataStream.Position = info.headerLen;
+
+            // set 
+            int mDataSize = 2;      // each sample in BCI2000 is stored as an int16 (2 bytes)
+
+            // calculate the number of samples
+            info.numSamples = (int)(dataStream.Length - info.headerLen) / (mDataSize * info.sourceCh + info.stateVectorLen);
+            
+            // init matrix for all samples values
+            samples = new double[info.numSamples][];
+
+            // retrieve the data
+            for (int i = 0; i < info.numSamples; i++) {
+
+                // init the row of samples
+                samples[i] = new double[info.sourceCh];
+
+                // read the samples
+                byte[] channels = new byte[mDataSize * info.sourceCh];
+                dataStream.Read(channels, 0, mDataSize * info.sourceCh);
+
+                // convert each channel
+                for (int j = 0; j < info.sourceCh; j++) {
+                    samples[i][j] = BitConverter.ToInt16(channels, j * mDataSize);
+                }
+
+                // read the state vector data
+                byte[] stateVector = new byte[info.stateVectorLen];
+                dataStream.Read(stateVector, 0, info.stateVectorLen);
+
+                // TODO: interpret state vector
+
+            }
+
+            // close the datastream
+            if (dataStream != null) dataStream.Close();
+            dataReader = null;
+            dataStream = null;
+
+            // return success
+            return true;
+
+        }
+
+        private void btnReadBCI2000_Click(object sender, EventArgs e) {
+
+            // clear the output
+            txtOutput.Text = "";
+
+            // try to read the file
+            Data_BCI2000 info = new Data_BCI2000();
+            double[][] samples = null;
+            bool result = readBCI2000dat(txtInputFile.Text, out info, out samples);
+
+            // output
+            txtOutput.Text = info.firstLine + Environment.NewLine + Environment.NewLine;
+            txtOutput.Text += "Header length: " + info.headerLen + Environment.NewLine;
+            txtOutput.Text += "Source channels: " + info.sourceCh + Environment.NewLine;
+            txtOutput.Text += "Source channels: " + info.stateVectorLen + Environment.NewLine;
+            txtOutput.Text += Environment.NewLine;
+            //txtOutput.Text += "Header: " + Environment.NewLine + data.header;
+            txtOutput.Text += "Number of samples: " + info.numSamples + Environment.NewLine + Environment.NewLine;
+
+
+            string strOutput = "";
+            for (int i = 0; i < info.numSamples; i++) {
+                for (int j = 0; j < info.sourceCh; j++) {
+                    if (j != 0)
+                        strOutput += "\t";
+                    strOutput += samples[i][j];
+                }
+                strOutput += Environment.NewLine;
+            }
+            
+            txtOutput.Text += strOutput;
+
+            
+
+        }
+
+        private void btnConvertBCIToUNP_Click(object sender, EventArgs e) {
+
+            // clear the output
+            txtOutput.Text = "";
+
+            // try to read the file
+            Data_BCI2000 info = new Data_BCI2000();
+            double[][] samples = null;
+            bool result = readBCI2000dat(txtInputFile.Text, out info, out samples);
+
+
+        }
     }
+
 }
