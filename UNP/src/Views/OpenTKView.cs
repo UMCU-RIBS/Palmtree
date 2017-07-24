@@ -21,6 +21,7 @@ namespace UNP.Views {
         //private const bool showFPS = true;
         private const bool vsync = true;
 
+        private bool started = false;               // flag whether the view is starting or started
         private bool formShown = false;             // flag whether the view form is shown
         private bool glLoaded = false;              // flag to track whether opengl is done initializing
         private bool glControlLoaded = false;       // flag to track whether opengl form is done initializing
@@ -168,6 +169,9 @@ namespace UNP.Views {
 
         public void start() {
 
+            // flag as starting
+            started = true;
+
             // flag form shown as false
             formShown = false;
 
@@ -224,7 +228,7 @@ namespace UNP.Views {
 	        // wait till the form is no longer starting and the glprocess started or a maximum amount of 4 seconds (4.000 / 10 = 400)
             // (resourcesLoaded also includes whether GL is loaded)
 	        int waitCounter = 400;
-	        while ((!formShown && !isStarted()) && waitCounter > 0) {
+	        while ((started && (!formShown && !isStarted())) && waitCounter > 0) {
 		        Thread.Sleep(10);
 		        waitCounter--;
 	        }
@@ -250,14 +254,23 @@ namespace UNP.Views {
                 }
 
             }
-            
-            // close the form on the forms thread
-            this.Invoke((MethodInvoker)delegate {
+
+            if (this.IsHandleCreated && !this.IsDisposed) {
                 try {
-                    this.Close();
-                    this.Dispose(true);
+                    // close the form on the forms thread
+                    this.Invoke((MethodInvoker)delegate {
+                        try {
+                            glControl.Dispose();
+                            this.Close();
+                            this.Dispose(true);
+                            Application.ExitThread();
+                        } catch (Exception) { }
+                    });
                 } catch (Exception) { }
-            });
+            }
+
+            // flag as not longer started
+            started = false;
 
         }
 

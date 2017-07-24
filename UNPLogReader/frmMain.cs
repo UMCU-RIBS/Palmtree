@@ -1,18 +1,14 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using UNP.Core.DataIO;
+using UNP.Core.Helpers;
 
 namespace UNPLogReader {
 
     public partial class frmMain : Form {
+
+        private long readStep = 100;
 
         public frmMain() {
             InitializeComponent();
@@ -114,14 +110,37 @@ namespace UNPLogReader {
             // make sure the data pointer is at the start of the data
             reader.resetDataPointer();
 
+            // variable to hold how many rows to read (0 = all)
+            int rowsToRead = 0;
+
+            // check if it is a big file
+            if (header.numRows > 1000) {
+
+                DialogResult result = MessageBox.Show("The file holds a large number of samples, would you like to read only the first 1000 rows ('Yes') instead of the whole file('No')?", "Large file", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+
+                // check cancel
+                if (result == DialogResult.Cancel) {
+                    reader.close();
+                    return;
+                }
+
+                // check yes
+                if (result == DialogResult.Yes) {
+                    rowsToRead = 1000;
+                }
+
+            }
+
             // loop until the end of the data
-            while(!reader.reachedEnd()) {
+            bool readMore = true;
+            long rowsReadCounter = 0;
+            while(readMore) {
                 
                 uint[] samples = null;
                 double[][] values = null;
 
                 // read the next rows
-                long rows = reader.readNextRows(4, out samples, out values);
+                long rows = reader.readNextRows(readStep, out samples, out values);
 
                 // check for error while reading, return if so
                 if (rows == -1)     return;
@@ -129,20 +148,26 @@ namespace UNPLogReader {
                 // loop through the rows in set
                 strOutput += Environment.NewLine;
                 for (long i = 0; i < rows; i++) {
-
                     string text = samples[i] + "\t";
-                    text += string.Join("\t", values[i]);
+                    for (int j = 0; j < values[i].Length; j++) {
+                        if (j == 0) {
+                            text += DoubleConverter.ToExactString(values[i][j]);
+                        } else {
+                            text += "\t";
+                            text += values[i][j];
+                        }
+                    }
                     text += Environment.NewLine;
                     strOutput += text;
                 }
-                
+
 
 
                 /*
                 byte[] rowData = null;
 
                 // read the next rows
-                long rows = reader.readNextRows(4, out rowData);
+                long rows = reader.readNextRows(readStep, out rowData);
                 
                 // check for error while reading, return if so
                 if (rows == -1) return;
@@ -166,12 +191,19 @@ namespace UNPLogReader {
                 }
                 */
 
+                // highten the rows read counter with the amount of rows read
+                rowsReadCounter += rows;
 
-
+                // check if more should be read after this
+                readMore = ((rowsToRead == 0 && !reader.reachedEnd()) || (rowsToRead > 0 && rowsReadCounter < rowsToRead));
+                
             }
 
             // update the output textbox
             txtOutput.Text = strOutput;
+
+            // close the reader
+            reader.close();
 
         }
     }

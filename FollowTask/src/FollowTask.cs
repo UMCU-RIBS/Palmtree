@@ -132,7 +132,7 @@ namespace FollowTask {
                 parameters.addParameter<int>(
                     "WindowRedrawFreqMax",
                     "Maximum display redraw interval in FPS (0 for as fast as possible)",
-                    "0", "", "60");
+                    "0", "", "50");
 
                 parameters.addParameter<RGBColorFloat>(
                     "WindowBackgroundColor",

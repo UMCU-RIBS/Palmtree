@@ -319,7 +319,7 @@ namespace UNP.Core.DataIO {
             if (mEnableDataVisualization) {
 
                 // register the streams to visualize
-                for (int channel = 0; channel < numPipelineInputStreams; channel++) {
+                for (int channel = 0; channel < output.getNumberOfChannels(); channel++) {
                     Data.registerVisualizationStream(("Pipeline_Input_Ch" + (channel + 1)), output);
 
                 }
@@ -455,162 +455,164 @@ namespace UNP.Core.DataIO {
 
         public static void start() {
 
-            // check to see if there are already log files in session directory
-            string[] files = Directory.GetFiles(sessionDir, "*" + RUN_SUFFIX + "*");
+            // if there is data to store, create data (sub-)directory
+            if (mLogSourceInput || mLogPipelineInputStreams || mLogFiltersAndApplicationStreams || mLogEvents || mLogPluginInput) {
 
-            // if there are already log files
-            if (files.Length != 0) {
+                // check to see if there are already log files in session directory
+                string[] files = Directory.GetFiles(sessionDir, "*" + RUN_SUFFIX + "*");
 
-                // init runs array to hold run numbers
-                int[] runs = new int[files.Length];
+                // if there are already log files
+                if (files.Length != 0) {
 
-                // cycle through files in sessionDir
-                for (int f = 0; f < files.Length; f++) {
+                    // init runs array to hold run numbers
+                    int[] runs = new int[files.Length];
 
-                    // get run numbers by removing part before runsuffix and then removing extension for each log file
-                    files[f] = files[f].Substring(files[f].LastIndexOf(RUN_SUFFIX) + RUN_SUFFIX.Length);
-                    files[f] = files[f].Substring(0, files[f].IndexOf('.'));
+                    // cycle through files in sessionDir
+                    for (int f = 0; f < files.Length; f++) {
 
-                    // convert to ints for reliable sorting
-                    runs[f] = Int32.Parse(files[f]);
+                        // get run numbers by removing part before runsuffix and then removing extension for each log file
+                        files[f] = files[f].Substring(files[f].LastIndexOf(RUN_SUFFIX) + RUN_SUFFIX.Length);
+                        files[f] = files[f].Substring(0, files[f].IndexOf('.'));
+
+                        // convert to ints for reliable sorting
+                        runs[f] = Int32.Parse(files[f]);
+                    }
+
+                    // sort runs array and take last item (= highest), and increase by one
+                    Array.Sort(runs);
+                    run = runs[runs.Length - 1] + 1;
+
+                } else {
+                    run = 0;
                 }
 
-                // sort runs array and take last item (= highest), and increase by one
-                Array.Sort(runs);
-                run = runs[runs.Length - 1] + 1;
-
-            } else {
-                run = 0;
-            }
-
-            // get identifier and current time to use as filenames
-            string fileName = identifier + "_" + DateTime.Now.ToString("yyyyMMdd") + "_" + RUN_SUFFIX + run;
-
-            // create parameter file and save current parameters
-            Dictionary<string, Parameters> localParamSets = ParameterManager.getParameterSetsClone();
-            ParameterManager.saveParameterFile(Path.Combine(sessionDir, fileName + ".prm"), localParamSets);
-
-            // check if we want to log events
-            if (mLogEvents) {
-
-                // construct filepath of event file, with current time as filename 
-                string fileNameEvt = fileName + ".evt";
-                string path = Path.Combine(sessionDir, fileNameEvt);
-
-                // create filestream: create file if it does not exists, allow to write, do not share with other processes and use buffer of 8192 bytes
-                try {
-                    eventStream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 8192);
-                    eventStreamWriter = new StreamWriter(eventStream);
-                    eventStreamWriter.AutoFlush = true;                                         // ensures that after every write operation content of stream is flushed to file
-                    logger.Info("Created event file at " + path);
-                } catch (Exception e) {
-                    logger.Error("Unable to create event file at " + path + " (" + e.ToString() + ")");
-                }
-
-                // build event header string
-                string eventHeader = "Time " + "ID source sample " + "ID data sample " + "Event code " + "Event value";
-
-                // write header to event file
-                try {
-                    eventStreamWriter.WriteLine(eventHeader);
-                } catch (IOException e) {
-                    logger.Error("Can't write to event file: " + e.Message);
-                }
-
-            }
-
-            // check if we want to log the source input
-            if (mLogSourceInput && numSourceInputStreams > 0) {
-
-                // (re)start the stopwatch here, so the elapsed timestamp of the first sample will be the time from start till the first sample coming in
-                sourceStopWatch.Restart();
-
-                // log the source start event
-                logEvent(1, "SourceStart", "");
+                // get identifier and current time to use as filenames
+                string fileName = identifier + "_" + DateTime.Now.ToString("yyyyMMdd") + "_" + RUN_SUFFIX + run;
 
                 // (re)set sample counter
                 sourceSampleCounter = 0;
 
-                // construct filepath of source file, with current time as filename 
-                string fileNameSrc = fileName + ".src";
-                string path = Path.Combine(sessionDir, fileNameSrc);
-
-                // create filestream: create file if it does not exists, allow to write, do not share with other processes and use buffer of 8192 bytes (roughly 1000 samples)
-                try {
-                    sourceStream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 8192);
-                    sourceStreamWriter = new BinaryWriter(sourceStream);
-                    logger.Info("Created source file at " + path);
-                } catch (Exception e) {
-                    logger.Error("Unable to create source file at " + path + " (" + e.ToString() + ")");
-                }
-
-                // write header
-                writeHeader("src", registeredSourceInputStreamNames, sourceStreamWriter);
-            }
-
-            // check if there are any samples streams to be logged
-            if ((mLogPipelineInputStreams || mLogFiltersAndApplicationStreams) && numDataStreams > 0) {
-
-                // (re)start the stopwatch here, so the elapsed timestamp of the first sample will be the time from start till the first sample coming in
-                dataStopWatch.Restart();
-
-                // log the data start event
-                logEvent(1, "DataStart", "");
-
                 // (re)set sample counter
                 dataSampleCounter = 0;
 
-                // resize dataStreamValues array in order to hold all values from all data streams
-                dataStreamValues = new double[numDataStreams];
+                // create parameter file and save current parameters
+                Dictionary<string, Parameters> localParamSets = ParameterManager.getParameterSetsClone();
+                ParameterManager.saveParameterFile(Path.Combine(sessionDir, fileName + ".prm"), localParamSets);
 
-                // construct filepath of data file, with current time as filename 
-                string fileNameDat = fileName + ".dat";
-                string path = Path.Combine(sessionDir, fileNameDat);
-                
-                try {
+                // check if we want to log events
+                if (mLogEvents) {
 
-                    // create filestream: create file if it does not exists, allow to write, do not share with other processes and use buffer of 8192 bytes (roughly 1000 samples)
-                    dataStream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 8192);
-                    dataStreamWriter = new BinaryWriter(dataStream);
+                    // construct filepath of event file, with current time as filename 
+                    string fileNameEvt = fileName + ".evt";
+                    string path = Path.Combine(sessionDir, fileNameEvt);
 
-                    // message
-                    logger.Info("Created data file at " + path);
+                    // create filestream: create file if it does not exists, allow to write, do not share with other processes and use buffer of 8192 bytes
+                    try {
+                        eventStream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 8192);
+                        eventStreamWriter = new StreamWriter(eventStream);
+                        eventStreamWriter.AutoFlush = true;                                         // ensures that after every write operation content of stream is flushed to file
+                        logger.Info("Created event file at " + path);
+                    } catch (Exception e) {
+                        logger.Error("Unable to create event file at " + path + " (" + e.ToString() + ")");
+                    }
 
-                } catch (Exception e) {
+                    // build event header string
+                    string eventHeader = "Time " + "ID source sample " + "ID data sample " + "Event code " + "Event value";
 
-                    logger.Error("Unable to create data file at " + path + " (" + e.ToString() + ")");
+                    // write header to event file
+                    try {
+                        eventStreamWriter.WriteLine(eventHeader);
+                    } catch (IOException e) {
+                        logger.Error("Can't write to event file: " + e.Message);
+                    }
 
                 }
 
-                // write header
-                writeHeader("dat", registeredDataStreamNames, dataStreamWriter);
+                // check if we want to log the source input
+                if (mLogSourceInput && numSourceInputStreams > 0) {
 
-            }
-
-            // check if we want to log the plugin input
-            if (mLogPluginInput && numPlugins > 0) {
-
-                // for each plugin, create stream, writer and file
-                for (int i = 0; i < numPlugins; i++) {
+                    // (re)start the stopwatch here, so the elapsed timestamp of the first sample will be the time from start till the first sample coming in
+                    sourceStopWatch.Restart();
 
                     // log the source start event
-                    logEvent(1, "PluginLogStart", "plugin id: " + i);
-                    
-                    // construct filepath of plugin data file, with current time and name of plugin as filename 
-                    string fileNamePlugin = fileName + "." + registeredPluginExtensions[i];
-                    string path = Path.Combine(sessionDir, fileNamePlugin);
+                    logEvent(1, "SourceStart", "");
+
+                    // construct filepath of source file, with current time as filename 
+                    string fileNameSrc = fileName + ".src";
+                    string path = Path.Combine(sessionDir, fileNameSrc);
 
                     // create filestream: create file if it does not exists, allow to write, do not share with other processes and use buffer of 8192 bytes (roughly 1000 samples)
                     try {
-                        pluginStreams.Add(new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 8192));
-                        pluginStreamWriters.Add(new BinaryWriter(pluginStreams[i]));
-                        logger.Info("Created plugin data log file for plugin " + registeredPluginNames[i] + " at " + path);
+                        sourceStream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 8192);
+                        sourceStreamWriter = new BinaryWriter(sourceStream);
+                        logger.Info("Created source file at " + path);
                     } catch (Exception e) {
-                        logger.Error("Unable to create plugin data log file for plugin " + registeredPluginNames[i] + " at " + path + " (" + e.ToString() + ")");
+                        logger.Error("Unable to create source file at " + path + " (" + e.ToString() + ")");
                     }
-                    
+
                     // write header
-                    writeHeader(registeredPluginExtensions[i], registeredPluginInputStreamNames[i], pluginStreamWriters[i]);
+                    writeHeader("src", registeredSourceInputStreamNames, sourceStreamWriter);
+                }
+
+                // check if there are any samples streams to be logged
+                if ((mLogPipelineInputStreams || mLogFiltersAndApplicationStreams) && numDataStreams > 0) {
+
+                    // log the data start event
+                    logEvent(1, "DataStart", "");
+
+                    // resize dataStreamValues array in order to hold all values from all data streams
+                    dataStreamValues = new double[numDataStreams];
+
+                    // construct filepath of data file, with current time as filename 
+                    string fileNameDat = fileName + ".dat";
+                    string path = Path.Combine(sessionDir, fileNameDat);
+                
+                    try {
+
+                        // create filestream: create file if it does not exists, allow to write, do not share with other processes and use buffer of 8192 bytes (roughly 1000 samples)
+                        dataStream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 8192);
+                        dataStreamWriter = new BinaryWriter(dataStream);
+
+                        // message
+                        logger.Info("Created data file at " + path);
+
+                    } catch (Exception e) {
+
+                        logger.Error("Unable to create data file at " + path + " (" + e.ToString() + ")");
+
+                    }
+
+                    // write header
+                    writeHeader("dat", registeredDataStreamNames, dataStreamWriter);
+
+                }
+
+                // check if we want to log the plugin input
+                if (mLogPluginInput && numPlugins > 0) {
+
+                    // for each plugin, create stream, writer and file
+                    for (int i = 0; i < numPlugins; i++) {
+
+                        // log the source start event
+                        logEvent(1, "PluginLogStart", "plugin id: " + i);
+                    
+                        // construct filepath of plugin data file, with current time and name of plugin as filename 
+                        string fileNamePlugin = fileName + "." + registeredPluginExtensions[i];
+                        string path = Path.Combine(sessionDir, fileNamePlugin);
+
+                        // create filestream: create file if it does not exists, allow to write, do not share with other processes and use buffer of 8192 bytes (roughly 1000 samples)
+                        try {
+                            pluginStreams.Add(new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 8192));
+                            pluginStreamWriters.Add(new BinaryWriter(pluginStreams[i]));
+                            logger.Info("Created plugin data log file for plugin " + registeredPluginNames[i] + " at " + path);
+                        } catch (Exception e) {
+                            logger.Error("Unable to create plugin data log file for plugin " + registeredPluginNames[i] + " at " + path + " (" + e.ToString() + ")");
+                        }
+                    
+                        // write header
+                        writeHeader(registeredPluginExtensions[i], registeredPluginInputStreamNames[i], pluginStreamWriters[i]);
+                    }
+
                 }
 
             }
@@ -622,6 +624,10 @@ namespace UNP.Core.DataIO {
                 visualizationStreamValues = new double[numVisualizationStreams];
 
             }
+
+            // (re)start the stopwatch here, so the elapsed timestamp of the first sample will be the time from start till the first sample coming in
+            if ((mLogPipelineInputStreams || mLogFiltersAndApplicationStreams) && numDataStreams > 0)   dataStopWatch.Restart();
+            
 
         }
 
@@ -713,15 +719,16 @@ namespace UNP.Core.DataIO {
          * Called when a sample is at the beginning of the pipeline (from before the first filter module till after the application module)
          **/
         public static void sampleProcessingStart() {
-
-            // check if data logging is allowed
+            
+            // check if data logging is enabled
             if (mLogPipelineInputStreams || mLogFiltersAndApplicationStreams) {
 
                 // reset the array pointers for samples in data stream
                 dataValuePointer = 0;
 
                 // store the milliseconds past since the last sample and reset the data stopwatch timer
-                dataElapsedTime = dataStopWatch.ElapsedMilliseconds;
+                dataElapsedTime = dataStopWatch.ElapsedTicks / (Stopwatch.Frequency / 1000.0);
+                //logger.Error(dataElapsedTime);
                 dataStopWatch.Restart();
 
             }
@@ -742,17 +749,17 @@ namespace UNP.Core.DataIO {
             // TODO: cutting up files based on the maximum size limit
             // TODO? create function that stores data that can be used for both src and dat?
 
-            // integrity check of collected data stream values: if the pointer is not exactly at end of array, not all values have been
-            // delivered or stored, else transform to bytes and write to file
-            if (dataValuePointer != numDataStreams) {
-                
-                // message
-                logger.Error("Less data values have been logged (" + dataValuePointer + ") than expected/registered (" + numDataStreams + ") for logging, unreliable .dat file, check code");
+            // check if data logging is enabled
+            if (mLogPipelineInputStreams || mLogFiltersAndApplicationStreams) {
 
-            } else {
+                // integrity check of collected data stream values: if the pointer is not exactly at end of array, not all values have been
+                // delivered or stored, else transform to bytes and write to file
+                if (dataValuePointer != numDataStreams) {
 
-                // check if data logging is allowed
-                if (mLogPipelineInputStreams || mLogFiltersAndApplicationStreams) {
+                    // message
+                    logger.Error("Less data values have been logged (" + dataValuePointer + ") than expected/registered (" + numDataStreams + ") for logging, unreliable .dat file, check code");
+
+                } else {
 
                     // transform variables that will be stored in .dat to binary arrays (except for dataStreamValues array which is copied directly)
                     byte[] dataSampleCounterBinary = BitConverter.GetBytes(dataSampleCounter);
@@ -779,7 +786,9 @@ namespace UNP.Core.DataIO {
             // advance sample counter, if gets to max value, reset to 0
             if (++dataSampleCounter == uint.MaxValue) dataSampleCounter = 0;
 
-            // check if data visualization is allowed
+        
+
+            // check if data visualization is enabled
             if (mEnableDataVisualization) {
 
                 // check if the number of values that came in is the same as the number of streams we expected to come in (registered)
@@ -828,7 +837,7 @@ namespace UNP.Core.DataIO {
 
             } else {
 
-                // check if source logging is allowed
+                // check if source logging is enabled
                 if (mLogSourceInput) {
 
                     // if censorship should be applied, then zero out the array of measured source samples
@@ -858,7 +867,7 @@ namespace UNP.Core.DataIO {
             // advance sample counter, if gets to max value, reset to 0
             if (++sourceSampleCounter == uint.MaxValue) sourceSampleCounter = 0;
 
-            // check if data visualization is allowed
+            // check if data visualization is enabled
             if (mEnableDataVisualization) {
 
                 // trigger a new source input values event for visualization
@@ -901,7 +910,7 @@ namespace UNP.Core.DataIO {
         public static void logStreamValue(double value) {
             //Console.WriteLine("LogStreamValue");
 
-            // check if data logging is allowed
+            // check if data logging is enabled
             if (mLogPipelineInputStreams || mLogFiltersAndApplicationStreams) {
 
                 // check if the counter is within the size of the value array
@@ -961,7 +970,7 @@ namespace UNP.Core.DataIO {
        **/
         public static void logPluginDataValue(double[] values, int pluginId) {
 
-            // check if data logging is allowed
+            // check if data logging is enabled
             if (mLogPluginInput) {
 
                 // if censorship should be applied, then log 0's

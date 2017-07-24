@@ -23,6 +23,7 @@ namespace UNP.Views {
 
         
         protected OpenGL gl = null;                 // reference to the gl object instance (acquired through the glControl object)
+        private bool started = false;               // flag whether the view is starting or started
         private bool formShown = false;             // flag whether the view form is shown
         private bool glLoaded = false;              // flag to track whether opengl is done initializing
         private bool running = false;               // flag to indicate whether the view should be drawing
@@ -165,6 +166,9 @@ namespace UNP.Views {
 
         public void start() {
 
+            // flag as starting
+            started = true;
+
             // flag form shown as false
             formShown = false;
 
@@ -214,29 +218,34 @@ namespace UNP.Views {
         }
 
         public void stop() {
-
-	        // wait till the form is no longer starting and the glprocess started or a maximum amount of 4 seconds (4.000 / 10 = 400)
+            
+            // wait till the form is no longer starting and the glprocess started or a maximum amount of 4 seconds (4.000 / 10 = 400)
             // (resourcesLoaded also includes whether GL is loaded)
-	        int waitCounter = 400;
-            while ((!formShown || !isStarted()) && waitCounter > 0) {
+            int waitCounter = 400;
+            while ((started && (!formShown || !isStarted())) && waitCounter > 0) {
 		        Thread.Sleep(10);
 		        waitCounter--;
 	        }
-            
-            // close the form on the forms thread
-            this.Invoke((MethodInvoker)delegate {
 
-                // flag running to false (stop GL from drawing)
-                running = false;
+            if (this.IsHandleCreated && !this.IsDisposed) {
+                // close the form on the forms thread
+                this.Invoke((MethodInvoker)delegate {
 
-                // call unload in the deriving class	
-                unload();
+                    // flag running to false (stop GL from drawing)
+                    running = false;
 
-                try {
-                    this.Close();
-                    this.Dispose(true);
-                } catch (Exception) { }
-            });
+                    // call unload in the deriving class	
+                    unload();
+
+                    try {
+                        this.Close();
+                        this.Dispose(true);
+                    } catch (Exception) { }
+                });
+            }
+
+            // flag as not longer started
+            started = false;
 
         }
 

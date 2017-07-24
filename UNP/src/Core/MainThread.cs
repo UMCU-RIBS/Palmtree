@@ -1,5 +1,5 @@
-﻿//#define DEBUG_SAMPLES                   // causes the thread not to remove the sample after processing causing infinite samples to process, used to test performance
-//#define DEBUG_SAMPLES_LOG_PERFORMANCE   // log the performance
+﻿//#define DEBUG_SAMPLES                   // causes the thread not to remove the sample after processing causing infinite samples to process, used to test performance of the pipeline (filters + application)
+//#define DEBUG_SAMPLES_LOG_PERFORMANCE   // log the performance (display the amount of samples processed)
 
 using NLog;
 using System;
@@ -20,27 +20,33 @@ namespace UNP.Core {
         
         private static Logger logger = LogManager.GetLogger("MainThread");
 
-        public const int threadLoopDelayNoProc = 30;                        // thread loop delay when not processing (1000ms / 5 run times per second = rest 200ms)
-        public const int threadLoopDelayProc = -1;		                    // thread loop delay while processing (1000ms / 5 run times per second = rest 200ms)
-        private bool running = true;				                        // flag to define if the UNP thread is still running (setting to false will stop the experiment thread) 
-        private bool process = false;                                       // flag to define if the thread is allowed to process samples
+        private const int threadLoopDelayNoProc = 200;                              // thread loop delay when not processing (1000ms / 5 run times per second = rest 200ms)
+        private const int threadLoopDelayProc = 100;	                            // thread loop delay while processing (1000ms / 5 run times per second = rest 200ms); Sleep will be interrupted when a sample comes in; And no sleep when there are more samples waiting for processing
+        private const int sampleBufferSize = 10000;                                 // the size (and maximum samples) of the sample buffer/que 
 
-        private bool systemConfigured = false;                              // 
-        private bool systemInitialized = false;                             // 
-        private bool started = false;                                       // flag to hold whether the system is in a started or stopped state
-        private Object lockStarted = new Object();                          // threadsafety lock for starting/stopping the system and processing
+        private static ManualResetEvent loopManualResetEvent = new ManualResetEvent(false);    // Manual reset event to call the WaitOne event on (this allows - in contrast to the sleep wait - to cancel the wait period at any point when a new sample comes in) 
 
+        private static bool running = true;				                            // flag to define if the UNP thread is still running (setting to false will stop the experiment thread) 
+        private static bool process = false;                                        // flag to define if the thread is allowed to process samples
 
-        private static ISource source = null;                               //
-        private static List<IFilter> filters = new List<IFilter>();         //
-        private static IApplication application = null;                     // reference to the view, used to pull information from and push commands to
-        private static List<IPlugin> plugins = new List<IPlugin>();         //
+        private static bool systemConfigured = false;                               // 
+        private static bool systemInitialized = false;                              // 
+        private static bool started = false;                                        // flag to hold whether the system is in a started or stopped state
+        private static Object lockStarted = new Object();                           // threadsafety lock for starting/stopping the system and processing
 
-        const int sampleBufferSize = 10000;                                 // the size (and maximum samples) of the sample buffer/que 
-        private double[][] sampleBuffer = new double[sampleBufferSize][];   // the sample buffer in which samples are queud
-        private int sampleBufferAddIndex = 0;                               // the index where in the (ring) sample buffer the next sample will be added
-        private int sampleBufferReadIndex = 0;                              // the index where in the (ring) sample buffer the next sample that should be read is
-        private int numberOfSamples = 0;                                    // the number of added but unread samples in the (ring) sample buffer
+        private long nextOutputTime = Stopwatch.GetTimestamp() + Stopwatch.Frequency;       // the next timestamp to ouput message in the mainloop (done only once per second because logger holds up the main thread)
+
+        private static ISource source = null;                                       //
+        private static List<IFilter> filters = new List<IFilter>();                 //
+        private static IApplication application = null;                             // reference to the application
+        private static List<IPlugin> plugins = new List<IPlugin>();                 //
+
+        private static double[][] sampleBuffer = new double[sampleBufferSize][];    // the sample buffer in which samples are queud
+        private static int sampleBufferAddIndex = 0;                                // the index where in the (ring) sample buffer the next sample will be added
+        private static int sampleBufferReadIndex = 0;                               // the index where in the (ring) sample buffer the next sample that should be read is
+        private static int numSamplesInBuffer = 0;                                  // the number of added but unread samples in the (ring) sample buffer
+        private static int numSamplesDiscarded = 0;                                 // count the number of discarded samples
+
 
         /**
          * UNPThread constructor
@@ -53,7 +59,7 @@ namespace UNP.Core {
             // initialially set as not configured
             systemConfigured = false;
             systemInitialized = false;
-
+            
 	    }
 
         public void initPipeline(Type sourceType, Type applicationType) {
@@ -66,7 +72,7 @@ namespace UNP.Core {
 
             // create a source
             try {
-                source = (ISource)Activator.CreateInstance(sourceType, this);
+                source = (ISource)Activator.CreateInstance(sourceType);
                 Console.WriteLine("Created source instance of " + sourceType.Name);
             } catch (Exception) {
                 logger.Error("Unable to create a source instance of '" + sourceType.Name + "'");
@@ -101,7 +107,7 @@ namespace UNP.Core {
             //sourceParameters.setValue("SampleRate", 5.0);
             //sourceParameters.setValue("Keys", "F,G;1,2;1,1;-1,-1");
 
-            sourceParameters.setValue("Input", "D:\\UNP\\other\\testrun\\test_20170720_Run_0.dat");
+            sourceParameters.setValue("Input", "D:\\UNP\\other\\testrun\\test_20170724_Run_0.dat");
 
             Parameters timeSmoothingParameters = getFilterParameters("TimeSmoothing");
             timeSmoothingParameters.setValue("EnableFilter", true);
@@ -198,7 +204,7 @@ namespace UNP.Core {
         /**
          * Configures the system (the source, pipeline filters and application)
          **/
-        public bool configureSystem() {
+        public static bool configureSystem() {
 
             // configure the data object
             if (!Data.configure()) {
@@ -306,7 +312,7 @@ namespace UNP.Core {
          * 
          * @return Whether the system was configured
          */
-        public bool isSystemConfigured() {
+        public static bool isSystemConfigured() {
             return systemConfigured;
 	    }
 
@@ -315,7 +321,7 @@ namespace UNP.Core {
          * 
          * 
          **/
-        public void initializeSystem() {
+        public static void initializeSystem() {
 
             // check if the system was configured and initialized
             if (!systemConfigured) {
@@ -345,7 +351,7 @@ namespace UNP.Core {
 	     * 
 	     * @return Whether the system was initialized
 	     */
-	    public bool isSystemInitialized() {
+	    public static bool isSystemInitialized() {
             return systemInitialized;
 	    }
 
@@ -353,7 +359,7 @@ namespace UNP.Core {
 	    /**
 	     * Start the system (source, filters and application)
 	     */
-        public void start() {
+        public static void start() {
 
             // if the system is stopping, then do not try to start anything anymore
             // (not locked for performance/deadlock reasons, as it concerns the main loop)
@@ -398,16 +404,21 @@ namespace UNP.Core {
                 process = true;
 
                 // clear the samplesbuffer counter
-                lock(sampleBuffer.SyncRoot) {
+                lock (sampleBuffer.SyncRoot) {
                     sampleBufferAddIndex = 0;
                     sampleBufferReadIndex = 0;
-                    numberOfSamples = 0;
+                    numSamplesInBuffer = 0;
+                    numSamplesDiscarded = 0;
                 }
-                
+
+                // interrupt the 'noproc' waitloop , making the loop to continue (in case it was waiting the sample interval)
+                // casing it to fall into the 'proc' loop
+                loopManualResetEvent.Set();
+
                 // start the source
                 // (start last so everything set to receive and process samples)
                 if (source != null)     source.start();
-                
+
                 // flag the system as started
                 started = true;
 
@@ -418,7 +429,7 @@ namespace UNP.Core {
         /**
          * Stop the system (source, filters and application)
          */
-        public void stop() {
+        public static void stop() {
 
             // lock for thread safety
             lock(lockStarted) {
@@ -459,7 +470,7 @@ namespace UNP.Core {
          * 
          * @return Whether the system is started
          */
-        public bool isStarted() {
+        public static bool isStarted() {
             return started;
 	    }
 
@@ -482,46 +493,61 @@ namespace UNP.Core {
 
             #if(DEBUG_SAMPLES_LOG_PERFORMANCE)
 
-                long time = Stopwatch.GetTimestamp() + Stopwatch.Frequency;
-                long counter = 0;
                 long samplesProcessed = 0;
-            
+
             #endif
-            
+
             // loop while running
             while (running) {
                 
-                #if(DEBUG_SAMPLES_LOG_PERFORMANCE)
-
-                    // performance watch
-                    if (Stopwatch.GetTimestamp() > time) {
-
-                            logger.Info("----------");
-                            logger.Info("samplesProcessed: " + samplesProcessed);
-                            logger.Info("numberOfSamples: " + numberOfSamples);
-                            logger.Info("tick counter: " + counter);
-                            //logger.Info("sample[0]: " + sample[0]);
-
-                        counter = 0;
-                        time = Stopwatch.GetTimestamp() + Stopwatch.Frequency;
-                        samplesProcessed = 0;
-
-                    }
-                    counter++;
-
-                #endif
-
+                
                 // lock for thread safety
+                // (very much needed, else it will make calls to other modules and indirectly the data module, which already might have stopped at that point)
                 lock(lockStarted) {
 
-                    // check if the system should process samples
-			        if (process) {
-                        
+                    // check if we are processing samples
+                    if (process) {
+                        // processing
+
                         // see if there samples in the que, pick the sample for processing
                         sample = null;
                         lock(sampleBuffer.SyncRoot) {
 
-                            if (numberOfSamples > 0) {
+                            // performance watch
+                            if (Stopwatch.GetTimestamp() > nextOutputTime) {
+
+                                // check if there were sample discarded the last second
+                                if (numSamplesDiscarded > 0) {
+
+                                    // message missed
+                                    logger.Error("Missed " + numSamplesDiscarded + " samples, because the sample buffer was full, the roundtrip of a sample through the filter and application takes longer than the sample frequency of the source");
+
+                                    // reset counter
+                                    numSamplesDiscarded = 0;
+
+                                }
+
+
+                                #if (DEBUG_SAMPLES_LOG_PERFORMANCE)
+
+                                    // print
+                                    logger.Info("----------");
+                                    logger.Info("samplesProcessed: " + samplesProcessed);
+                                    logger.Info("numberOfSamples: " + numSamplesInBuffer);
+
+                                    // reset counter
+                                    samplesProcessed = 0;
+
+                                #endif
+
+                                // set the next time to output messages
+                                nextOutputTime = Stopwatch.GetTimestamp() + Stopwatch.Frequency;
+
+                            }
+
+
+                            // check if there are samples in the buffer to process
+                            if (numSamplesInBuffer > 0) {
 
                                 // retrieve the sample to process (pointer to from array)
                                 sample = sampleBuffer[sampleBufferReadIndex];
@@ -533,10 +559,10 @@ namespace UNP.Core {
                                     if (sampleBufferReadIndex == sampleBufferSize) sampleBufferReadIndex = 0;
 
                                     // decrease the itemcounter as it will be processed (to make space for another item in the samples buffer)
-                                    numberOfSamples--;
+                                    numSamplesInBuffer--;
 
                                 #endif
-
+                                
                             }
 
                         }
@@ -582,39 +608,42 @@ namespace UNP.Core {
 
                             // Announce the sample at the end of the pipeline
                             Data.sampleProcessingEnd();
-
-                            #if(DEBUG_SAMPLES_LOG_PERFORMANCE)
-
-                                // add one to the number of samples 
+                            
+                            #if (DEBUG_SAMPLES_LOG_PERFORMANCE)
                                 samplesProcessed++;
-
                             #endif
 
                         }
 
-                    }
+                        // sleep (when there are no samples) to allow for other processes
+                        if (threadLoopDelayProc != -1 && numSamplesInBuffer == 0) {
 
-                    // check if the thread is still running
-                    if (running) {
+                            // reset the manual reset event, so it is sure to block on the next call to WaitOne
+                            // 
+                            // Note: not using AutoResetEvent because it could happen that .Set is called while not in WaitOne yet, when
+                            // using AutoResetEvent this will cause it to skip the next WaitOne call
+                            loopManualResetEvent.Reset();
 
-                        // check if we are processing samples
-                        if (process) {
-                            // processing
+                            // Sleep wait
+                            loopManualResetEvent.WaitOne(threadLoopDelayProc);      // using WaitOne because this wait is interruptable (in contrast to sleep)
 
-			                // sleep (when there are no samples) to allow for other processes
-			                if (threadLoopDelayProc != -1 && numberOfSamples == 0)
-                                Thread.Sleep(threadLoopDelayProc);
-
-                        } else {
-                            // not processing
-
-                            // sleep to allow for other processes
-                            Thread.Sleep(threadLoopDelayNoProc);
 
                         }
 
-                    }
+                    } else {
+                        // not processing
 
+                        // reset the manual reset event, so it is sure to block on the next call to WaitOne
+                        // 
+                        // Note: not using AutoResetEvent because it could happen that .Set is called while not in WaitOne yet, when
+                        // using AutoResetEvent this will cause it to skip the next WaitOne call
+                        loopManualResetEvent.Reset();
+
+                        // Sleep wait
+                        loopManualResetEvent.WaitOne(threadLoopDelayNoProc);      // using WaitOne because this wait is interruptable (in contrast to sleep)
+
+                    }
+                    
                 }
 
             }
@@ -650,28 +679,33 @@ namespace UNP.Core {
         // 
         // Not using delegate (or interface) events since there would be only one receiver, being this function called.
         // A direct method call will suffice and is probably even faster.
-        public void eventNewSample(double[] sample) {
+        public static void eventNewSample(double[] sample) {
             
             lock(sampleBuffer.SyncRoot) {
                 
                 // check if the buffer is full
-                if (numberOfSamples == sampleBufferSize) {
+                if (numSamplesInBuffer == sampleBufferSize) {
 
-                    // message
-                    logger.Error("Sample buffer full, the roundtrip of a sample through the filter and application takes longer than the sample frequency of the source");
-
+                    // count the number of discarded samples
+                    // (warning, do not message here about discarded samples, this will take to much time and this function should return as quickly as possible)
+                    numSamplesDiscarded++;
+                    
                     // immediately return, discard sample
                     return;
 
                 }
-
+                
                 // add the sample at the pointer location, and increase the pointer (or loop the pointer around)
                 sampleBuffer[sampleBufferAddIndex] = sample;
                 sampleBufferAddIndex++;
                 if (sampleBufferAddIndex == sampleBufferSize) sampleBufferAddIndex = 0;
 
-                // increase the counter that holds the number of elements of the array
-                numberOfSamples++;
+                // increase the counter that tracks the number of samples in the array
+                numSamplesInBuffer++;
+
+                // interrupt the loop wait. The loop will reset the wait lock (so it will wait again upon the next WaitOne call)
+                // this will make sure the newly set sample rate interval is applied in the loop
+                loopManualResetEvent.Set();
 
             }
 
@@ -683,7 +717,7 @@ namespace UNP.Core {
          * 
          * Not using delegate (or interface) events since there would be only one receiver, being this function called.
          */
-        public void eventGUIClosed() {
+        public static void eventGUIClosed() {
 
             // stop the program from running
             running = false;
@@ -806,7 +840,7 @@ namespace UNP.Core {
         public static void configureRunningFilter(Parameters[] newParameters, bool[] resetFilter) {
             for (int i = 0; i < newParameters.Length; i++)      configureRunningFilter(newParameters[i], (i < resetFilter.Length ? resetFilter[i] : false));
         }
-        
+
     }
 
 }

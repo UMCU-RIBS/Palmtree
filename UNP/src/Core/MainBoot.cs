@@ -107,10 +107,10 @@ namespace UNP.Core {
             }
 
             // debug
-            source = "UNP.Sources.GenerateSignal";
+            //source = "UNP.Sources.GenerateSignal";
             //source = "UNP.Sources.KeypressSignal";
             //source = "UNP.Sources.NexusSignal";
-            //source = "UNP.Sources.PlaybackSignal";
+            source = "UNP.Sources.PlaybackSignal";
 
             // check if no (valid) source was given
             if (string.IsNullOrEmpty(source)) {
@@ -135,7 +135,7 @@ namespace UNP.Core {
             if (!nogui) {
 
                 // create the GUI interface object
-                GUIMain gui = new GUIMain(mainThread);
+                GUIMain gui = new GUIMain();
 
                 // create a GUI (as a separate process)
                 // and pass a reference to the experiment for the GUI to pull information from and push commands to the experiment object

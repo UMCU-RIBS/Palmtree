@@ -57,7 +57,7 @@ namespace EmptyTask {
                 destroyScene();
 
                 //
-                mSceneThread = new EmptyView(60, 0, 0, 800, 600, false);
+                mSceneThread = new EmptyView(50, 0, 0, 800, 600, false);
 
 
                 // start the scene thread

@@ -835,7 +835,6 @@ namespace UNP.GUI {
                 updateFields(true);
 
 			}
-			
             
         }
 

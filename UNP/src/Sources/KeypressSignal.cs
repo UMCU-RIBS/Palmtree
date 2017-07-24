@@ -21,50 +21,55 @@ namespace UNP.Sources {
         private const string CLASS_NAME = "KeypressSignal";
         private const int CLASS_VERSION = 0;
 
+        private const int threadLoopDelayNoProc = 200;                                  // thread loop delay when not processing (1000ms / 5 run times per second = rest 200ms)
+
         [DllImport("user32.dll")]
         public static extern short GetAsyncKeyState(int vKey);
 
         private static Logger logger = LogManager.GetLogger(CLASS_NAME);
         private static Parameters parameters = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Source);
-
-        private MainThread main = null;
-
+        
         private Thread signalThread = null;                                             // the source thread
-        private bool running = true;					                                // flag to define if the source thread should be running (setting to false will stop the source thread)
-
+        private bool running = true;                                                    // flag to define if the source thread should be running (setting to false will stop the source thread)
         private ManualResetEvent loopManualResetEvent = new ManualResetEvent(false);    // Manual reset event to call the WaitOne event on (this allows - in contrast to the sleep wait - to cancel the wait period at any point when closing the source) 
         private Stopwatch swTimePassed = new Stopwatch();                               // stopwatch object to give an exact amount to time passed inbetween loops
-        private int sampleInterval = 1000;                                              // interval between the samples in milliseconds
+        private int sampleIntervalMs = 0;                                               // interval between the samples in milliseconds
+        private long sampleIntervalTicks = 0;                                           // interval between the samples in ticks (for high precision timing)
         private int threadLoopDelay = 0;
+        private long highPrecisionWaitTillTime = 0;                                     // stores the time until which the high precision timing waits before continueing
+
 
         private bool configured = false;
         private bool initialized = false;
-        private bool started = false;				                        // flag to define if the source is started or stopped
+        private bool started = false;				                                    // flag to define if the source is started or stopped
         private Object lockStarted = new Object();
 
         Random rand = new Random(Guid.NewGuid().GetHashCode());
         private int outputChannels = 0;
-        private double sampleRate = 0;                                      // hold the amount of samples per second that the source outputs (used by the mainthead to convert seconds to number of samples)
+        private double sampleRate = 0;                                                  // hold the amount of samples per second that the source outputs (used by the mainthead to convert seconds to number of samples)
+        private bool highPrecision = false;                                             // hold whether the generator should have high precision intervals
 
         private Keys[] mConfigKeys = null;
         private int[] mConfigOutputChannels = null;
         private double[] mConfigPressed = null;
         private double[] mConfigNotPressed = null;
 
-	    public KeypressSignal(MainThread main) {
-
-            // set the reference to the main
-            this.main = main;
-
+	    public KeypressSignal() {
+            
             parameters.addParameter<int> (
                 "Channels",
                 "Number of source channels to generate",
                 "1", "", "1");
 
-            parameters.addParameter<double> (
+            parameters.addParameter<double>(
                 "SampleRate",
-                "Rate with which samples are generated, in samples per second (hz)",
+                "Rate with which samples are generated, in samples per second (hz).\nNote: High precision will be enabled automatically when a sample rate is set to more than 1000 hz.",
                 "0", "", "5");
+
+            parameters.addParameter<bool>(
+                "HighPrecision",
+                "Use high precision intervals when generating sample.\nNote 1: Enabling this option will claim one processor core entirely, possibly causing your system to slow down or hang.\nNote 2: High precision will be enabled automatically when a sample rate is set to more than 1000 hz.",
+                "", "", "1");
 
             parameters.addParameter<string[][]>(
                 "Keys",
@@ -131,11 +136,37 @@ namespace UNP.Sources {
                 return false;
             }
 
+
+            // retrieve the high precision setting
+            highPrecision = parameters.getValue<bool>("HighPrecision");
+
             // create a sampleformat
             output = new SampleFormat(outputChannels, sampleRate);
 
             // calculate the sample interval
-            sampleInterval = (int)Math.Floor(1000.0 / sampleRate);
+            sampleIntervalMs = (int)Math.Floor(1000.0 / sampleRate);
+
+            // check if the samplerate is above 1000hz
+            if (sampleRate > 1000) {
+
+                // enable the high precision timing
+                highPrecision = true;
+
+                // message
+                logger.Warn("Because the sample rate is larger than 1000hz, the high precision timer is used");
+
+            }
+
+            // check if high precision timing is enabled
+            if (highPrecision) {
+
+                // calculate the sample interval for the high precision timing
+                sampleIntervalTicks = (long)Math.Round(Stopwatch.Frequency * (1.0 / sampleRate));
+
+                // message
+                logger.Warn("High precision timer enabled, as one core will be claimed entirely this might have consequences for your system performance");
+
+            }
 
             // retrieve key settings
             string[][] keys = parameters.getValue<string[][]>("Keys");
@@ -308,9 +339,6 @@ namespace UNP.Sources {
             // clear the thread reference
             signalThread = null;
 
-            // clear the reference to the mainthread
-            main = null;
-
 	    }
 	
 	    /**
@@ -340,10 +368,10 @@ namespace UNP.Sources {
             swTimePassed.Start();
 
 		    // loop while running
-		    while(running) {
+		    while (running) {
 
                 // lock for thread safety
-                lock(lockStarted) {
+                lock (lockStarted) {
 
 			        // check if we are generating
 			        if (started) {
@@ -363,22 +391,51 @@ namespace UNP.Sources {
                         }
 
                         // pass the sample
-                        main.eventNewSample(sample);
+                        MainThread.eventNewSample(sample);
                         
 			        }
 
                 }
+            
+			    // if still running then wait to allow other processes
+			    if (running) {
+                    
+                    // check if we are generating
+                    // (note: we deliberately do not lock the started variable here, the locking will delay/lock out 'start()' during the wait here
+                    //  and if these are not in sync, the worst thing that can happen is that it does waits one loop extra, which is no problem)
+                    if (started) {
 
-                // if still running then wait to allow other processes
-			    if (running && sampleInterval != -1) {
+                        if (highPrecision) {
+                            // high precision timing
 
-                    // use the exact time that has passed since the last run to calculate the time to wait to get the exact sample interval
-                    swTimePassed.Stop();
-                    threadLoopDelay = sampleInterval - (int)swTimePassed.ElapsedMilliseconds;
+                            // spin for the required amount of ticks
+                            highPrecisionWaitTillTime = Stopwatch.GetTimestamp() + sampleIntervalTicks;     // choose not to correct for elapsed ticks. This result in a slightly higher wait time, which at lower Hz comes closer to the expected samplecount per second
+                            //highPrecisionWaitTillTime = Stopwatch.GetTimestamp() + sampleIntervalTicks - swTimePassed.ElapsedTicks;
 
-                    // wait for the remainder of the sample interval to get as close to the sample rate as possible (if there is a remainder)
-                    if (threadLoopDelay >= 0) {
+                        } else {
+                            // low precision timing
 
+                            threadLoopDelay = sampleIntervalMs;     // choose not to correct for elapsed ms. This result in a slightly higher wait time, which at lower Hz comes closer to the expected samplecount per second
+                            //threadLoopDelay = sampleIntervalMs - (int)swTimePassed.ElapsedMilliseconds;
+
+                            // wait for the remainder of the sample interval to get as close to the sample rate as possible (if there is a remainder)
+                            if (threadLoopDelay >= 0) {
+                                
+                                // reset the manual reset event, so it is sure to block on the next call to WaitOne
+                                // 
+                                // Note: not using AutoResetEvent because it could happen that .Set is called while not in WaitOne yet, when
+                                // using AutoResetEvent this will cause it to skip the next WaitOne call
+                                loopManualResetEvent.Reset();
+
+                                // Sleep wait
+                                loopManualResetEvent.WaitOne(threadLoopDelay);      // using WaitOne because this wait is interruptable (in contrast to sleep)
+                                
+                            }
+
+                        }
+
+                    } else {
+                            
                         // reset the manual reset event, so it is sure to block on the next call to WaitOne
                         // 
                         // Note: not using AutoResetEvent because it could happen that .Set is called while not in WaitOne yet, when
@@ -386,16 +443,15 @@ namespace UNP.Sources {
                         loopManualResetEvent.Reset();
 
                         // Sleep wait
-                        loopManualResetEvent.WaitOne(threadLoopDelay);      // using WaitOne because this wait is interruptable (in contrast to sleep)
+                        loopManualResetEvent.WaitOne(threadLoopDelayNoProc);      // using WaitOne because this wait is interruptable (in contrast to sleep)
 
                     }
 
-                    // start the timer to measure the loop time
-                    swTimePassed.Reset();
-                    swTimePassed.Start();
+                    // restart the timer to measure the loop time
+                    swTimePassed.Restart();
 
-			    }
-			
+                }
+
 		    }
 
             // log message

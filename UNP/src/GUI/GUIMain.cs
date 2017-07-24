@@ -24,7 +24,6 @@ namespace UNP.GUI {
 
         private static Logger logger;
 
-        private MainThread mainThread = null;           // reference to the main thread, used to pull information from and push commands to
         private IView view = null;                      // reference to the view, used to pull information from and push commands to
         private bool loaded = false;                    // flag to hold whether the form is loaded
         private System.Timers.Timer tmrUpdate = null;   // timer to update the GUI
@@ -40,8 +39,7 @@ namespace UNP.GUI {
          * 
          * @param experiment	Reference to experiment, is used to pull information from and push commands to
          */
-        public GUIMain(MainThread mainThread) {
-            this.mainThread = mainThread;
+        public GUIMain() {
 
             // initialize form components
             InitializeComponent();
@@ -104,68 +102,63 @@ namespace UNP.GUI {
 
                 // remove references and tell the experiment that the GUI is closed
                 if (view != null)   view = null;
-                if (mainThread != null) {
-                    mainThread.eventGUIClosed();
-                    mainThread = null;
-                }
+                MainThread.eventGUIClosed();
 
             }
 
         }
 
         void tmrUpdate_Tick(object sender, ElapsedEventArgs e) {
-            
-            // retrieve the console information
-            updateMainInformation();
+
+            if (this.IsHandleCreated && !this.IsDisposed) {
+                this.Invoke((MethodInvoker)delegate {
+
+                    // retrieve the console information
+                    updateMainInformation();
+
+                });
+            }
 
         }
 
 
         private void updateMainInformation() {
 
-            // check the main thread reference
-            if (mainThread != null) {
-                //Console.WriteLine(mainThread);
+            //logger.Info("MainThread.isSystemConfigured() " + MainThread.isSystemConfigured());
+            //logger.Info("MainThread.isSystemInitialized() " + MainThread.isSystemInitialized());
+            //logger.Info("MainThread.isStarted() " + MainThread.isStarted());
 
-                //logger.Info("mainThread.isSystemConfigured() " + mainThread.isSystemConfigured());
-                //logger.Info("mainThread.isSystemInitialized() " + mainThread.isSystemInitialized());
-                //logger.Info("mainThread.isStarted() " + mainThread.isStarted());
+            // check if the mainthread is configured and initialized
+            if (MainThread.isSystemConfigured() && MainThread.isSystemInitialized()) {
+                // configured and initialized
 
+                // check if the main thread is started
+                if (MainThread.isStarted()) {
+                    // started
 
-                // check if the mainthread is configured and initialized
-                if (mainThread.isSystemConfigured() && mainThread.isSystemInitialized()) {
-                    // configured and initialized
-
-                    // check if the main thread is started
-                    if (mainThread.isStarted()) {
-                        // started
-
-                        btnEditConfig.Enabled = false;
-                        btnSetConfig.Enabled = false;
-                        btnStart.Enabled = false;
-                        btnStop.Enabled = true;
-
-                    } else {
-                        // stopped
-
-                        btnEditConfig.Enabled = true;
-                        btnSetConfig.Enabled = true;
-                        btnStart.Enabled = configApplied;
-                        btnStop.Enabled = false;
-                    }
+                    btnEditConfig.Enabled = false;
+                    btnSetConfig.Enabled = false;
+                    btnStart.Enabled = false;
+                    btnStop.Enabled = true;
 
                 } else {
-                    // not configured and/or not initialized
+                    // stopped
 
                     btnEditConfig.Enabled = true;
                     btnSetConfig.Enabled = true;
-                    btnStart.Enabled = false;
+                    btnStart.Enabled = configApplied;
                     btnStop.Enabled = false;
-
                 }
 
-            }
+            } else {
+                // not configured and/or not initialized
 
+                btnEditConfig.Enabled = true;
+                btnSetConfig.Enabled = true;
+                btnStart.Enabled = false;
+                btnStop.Enabled = false;
+
+            }
             
         }
 
@@ -229,27 +222,22 @@ namespace UNP.GUI {
                 frmVisualization.destroyGraphs();
 
             } 
+            
+            // configure the system
+            if (MainThread.configureSystem()) {
+                // configured correctly
 
-            // check if there is a main thread
-            if (mainThread != null) {
+                // initialize the system
+                MainThread.initializeSystem();
 
-                // configure the system
-                if (mainThread.configureSystem()) {
-                    // configured correctly
+                // set configuration as applied
+                configApplied = true;
 
-                    // initialize the system
-                    mainThread.initializeSystem();
+                // check if a visualization form is created (and not closed)
+                if (frmVisualization != null && !frmVisualization.IsDisposed) {
 
-                    // set configuration as applied
-                    configApplied = true;
-
-                    // check if a visualization form is created (and not closed)
-                    if (frmVisualization != null && !frmVisualization.IsDisposed) {
-
-                        // initialize all graphs
-                        frmVisualization.initGraphs();
-                    }
-
+                    // initialize all graphs
+                    frmVisualization.initGraphs();
                 }
 
                 // update the main information
@@ -262,29 +250,27 @@ namespace UNP.GUI {
         private void btnStart_Click(object sender, EventArgs e) {
 
             // check if there is a main thread
-            if (mainThread != null && configApplied) {
+            if (configApplied) {
 
                 // start the system
-                mainThread.start();
+                //mainThread.start();
+                MainThread.start();
 
                 // update the main information
                 updateMainInformation();
 
             }
+
         }
 
         private void btnStop_Click(object sender, EventArgs e) {
             
-            // check if there is a main thread
-            if (mainThread != null) {
+            // stop the system
+            MainThread.stop();
 
-                // stop the system
-                mainThread.stop();
+            // update the main information
+            updateMainInformation();
 
-                // update the main information
-                updateMainInformation();
-
-            }
         }
 
         private void btnVisualization_Click(object sender, EventArgs e) {

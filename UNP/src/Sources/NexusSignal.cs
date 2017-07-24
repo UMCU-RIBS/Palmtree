@@ -34,9 +34,7 @@ namespace UNP.Sources {
 
         private static Logger logger = LogManager.GetLogger(CLASS_NAME);
         private static Parameters parameters = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Source);
-
-        private MainThread main = null;
-
+        
         private Thread signalThread = null;                                             // the source thread
         private bool running = true;					                                // flag to define if the source thread should be running (setting to false will stop the source thread)
 
@@ -83,11 +81,8 @@ namespace UNP.Sources {
 
 
 
-        public NexusSignal(MainThread main) {
-
-            // set the reference to the main
-            this.main = main;
-
+        public NexusSignal() {
+            
             parameters.addParameter<int>(
                 "ComPort",
                 "Com-port to use for communication",
@@ -363,9 +358,6 @@ namespace UNP.Sources {
             // clear the thread reference
             signalThread = null;
 
-            // clear the reference to the mainthread
-            main = null;
-
 	    }
 	
 	    /**
@@ -431,7 +423,7 @@ namespace UNP.Sources {
                                 }
 
                                 // pass the sample
-                                main.eventNewSample(retSample);
+                                MainThread.eventNewSample(retSample);
 
                             }
 
@@ -463,7 +455,7 @@ namespace UNP.Sources {
                                 }
 
                                 // pass the sample
-                                main.eventNewSample(retSample);
+                                MainThread.eventNewSample(retSample);
 
                             }
 

@@ -107,6 +107,7 @@
     <Compile Include="src\Core\Events\VisualizationEventArgs.cs" />
     <Compile Include="src\Core\Events\VisualizationValuesArgs.cs" />
     <Compile Include="src\Core\Helpers\Communicator.cs" />
+    <Compile Include="src\Core\Helpers\DoubleConverter.cs" />
     <Compile Include="src\Core\Helpers\ExecWrapper.cs" />
     <Compile Include="src\GUI\GUIVisualization.cs">
       <SubType>Form</SubType>
