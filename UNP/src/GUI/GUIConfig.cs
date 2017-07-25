@@ -95,7 +95,7 @@ namespace UNP.GUI {
                 newTab.Size = new Size(884, 640);
                 newTab.TabIndex = counter;
                 newTab.Text = entry.Key;
-                
+
                 // add a panel to the tab (this will allow scrolling)
                 Panel newPanel = new Panel();
                 newPanel.SuspendLayout();
@@ -173,7 +173,7 @@ namespace UNP.GUI {
             newLbl.Location = new Point(10, y + itemTopPadding);
             newLbl.Size = new System.Drawing.Size(labelWidth, 20);
             newLbl.Text = param.Name;
-            newLbl.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            newLbl.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
             newLbl.Parent = panel;
             newLbl.TextAlign = ContentAlignment.TopRight;
             ToolTip tt = new ToolTip();
@@ -190,7 +190,7 @@ namespace UNP.GUI {
                 newChk.Name = "chk" + panel.Name + param.Name;
                 newChk.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
                 newChk.Text = "";
-                newChk.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+                newChk.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
                 panel.Controls.Add(newChk);
                 paramControl.control = newChk;
                 itemHeight = 20;
@@ -206,7 +206,7 @@ namespace UNP.GUI {
                     newTxt.Name = "txt" + panel.Name + param.Name;
                     newTxt.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
                     newTxt.Size = new System.Drawing.Size(260, 20);
-                    newTxt.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+                    newTxt.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
                     panel.Controls.Add(newTxt);
                     paramControl.control = newTxt;
                     itemHeight = 20;
@@ -219,7 +219,7 @@ namespace UNP.GUI {
                     newCmb.Name = "txt" + panel.Name + param.Name;
                     newCmb.Location = new Point(labelWidth + 20, y + itemTopPadding - 3);
                     newCmb.Size = new System.Drawing.Size(320, 20);
-                    newCmb.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+                    newCmb.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
                     for (int i = 0; i < param.Options.Length; i++)  newCmb.Items.Add(param.Options[i]);
                     panel.Controls.Add(newCmb);
                     paramControl.control = newCmb;
@@ -255,7 +255,7 @@ namespace UNP.GUI {
                 newTxt.Name = "txt" + panel.Name + param.Name;
                 newTxt.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
                 newTxt.Size = new System.Drawing.Size(340, 20);
-                newTxt.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+                newTxt.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
                 panel.Controls.Add(newTxt);
                 paramControl.control = newTxt;
                 itemHeight = 20;
@@ -288,13 +288,13 @@ namespace UNP.GUI {
                 newLblRows.Location = new Point(labelWidth + 20, newGrid.Location.Y + newGrid.Size.Height + 7);
                 newLblRows.Size = new System.Drawing.Size(50, 20);
                 newLblRows.Text = "Rows:";
-                newLblRows.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+                newLblRows.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
                 newLblRows.Parent = panel;
                 newLblRows.TextAlign = ContentAlignment.TopRight;
                 newRows.Name = "num" + panel.Name + param.Name + "Rows";
                 newRows.Location = new Point(labelWidth + 75, newGrid.Location.Y + newGrid.Size.Height + 5);
                 newRows.Size = new System.Drawing.Size(50, 20);
-                newRows.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+                newRows.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
                 newRows.ReadOnly = true;
                 newRows.GotFocus += (sender, e) => { newRows.Enabled = false; newRows.Enabled = true; };
                 newRows.MouseWheel += (sender, e) => { ((HandledMouseEventArgs)e).Handled = true; };
@@ -310,14 +310,14 @@ namespace UNP.GUI {
                 newLblColumns.Location = new Point(labelWidth + 140, newGrid.Location.Y + newGrid.Size.Height + 7);
                 newLblColumns.Size = new System.Drawing.Size(80, 20);
                 newLblColumns.Text = "Columns:";
-                newLblColumns.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+                newLblColumns.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
                 newLblColumns.Parent = panel;
                 newLblColumns.TextAlign = ContentAlignment.TopRight;
                 newLblColumns.Visible = (param.Options.Length == 0);
                 newColumns.Name = "num" + panel.Name + param.Name + "Columns";
                 newColumns.Location = new Point(labelWidth + 225, newGrid.Location.Y + newGrid.Size.Height + 5);
                 newColumns.Size = new System.Drawing.Size(50, 20);
-                newColumns.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+                newColumns.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
                 newColumns.ReadOnly = true;
                 newColumns.GotFocus += (sender, e) => { newColumns.Enabled = false; newColumns.Enabled = true; };
                 newColumns.MouseWheel += (sender, e) => { ((HandledMouseEventArgs)e).Handled = true; };

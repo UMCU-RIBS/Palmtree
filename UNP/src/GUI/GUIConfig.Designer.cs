@@ -27,41 +27,31 @@
         /// </summary>
         private void InitializeComponent() {
             this.btnCancel = new System.Windows.Forms.Button();
-            this.tabControl = new UNP.GUI.NoBorderTabControl();
             this.btnSave = new System.Windows.Forms.Button();
             this.btnLoadPrmFile = new System.Windows.Forms.Button();
             this.btnSavePrmFile = new System.Windows.Forms.Button();
+            this.tabControl = new UNP.GUI.NoBorderTabControl();
             this.SuspendLayout();
             // 
             // btnCancel
             // 
-            this.btnCancel.Location = new System.Drawing.Point(536, 487);
-            this.btnCancel.Margin = new System.Windows.Forms.Padding(2);
+            this.btnCancel.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(0)));
+            this.btnCancel.Location = new System.Drawing.Point(715, 599);
+            this.btnCancel.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.btnCancel.Name = "btnCancel";
-            this.btnCancel.Size = new System.Drawing.Size(131, 30);
+            this.btnCancel.Size = new System.Drawing.Size(175, 37);
             this.btnCancel.TabIndex = 1;
             this.btnCancel.Text = "Cancel";
             this.btnCancel.UseVisualStyleBackColor = true;
             this.btnCancel.Click += new System.EventHandler(this.btnCancel_Click);
             // 
-            // tabControl
-            // 
-            this.tabControl.Font = new System.Drawing.Font("Microsoft Sans Serif", 8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.tabControl.Location = new System.Drawing.Point(-2, 4);
-            this.tabControl.Margin = new System.Windows.Forms.Padding(2);
-            this.tabControl.Multiline = true;
-            this.tabControl.Name = "tabControl";
-            this.tabControl.SelectedIndex = 0;
-            this.tabControl.Size = new System.Drawing.Size(679, 477);
-            this.tabControl.TabIndex = 0;
-            this.tabControl.TabStop = false;
-            // 
             // btnSave
             // 
-            this.btnSave.Location = new System.Drawing.Point(400, 487);
-            this.btnSave.Margin = new System.Windows.Forms.Padding(2);
+            this.btnSave.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(0)));
+            this.btnSave.Location = new System.Drawing.Point(533, 599);
+            this.btnSave.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.btnSave.Name = "btnSave";
-            this.btnSave.Size = new System.Drawing.Size(131, 30);
+            this.btnSave.Size = new System.Drawing.Size(175, 37);
             this.btnSave.TabIndex = 2;
             this.btnSave.Text = "Save";
             this.btnSave.UseVisualStyleBackColor = true;
@@ -69,10 +59,11 @@
             // 
             // btnLoadPrmFile
             // 
-            this.btnLoadPrmFile.Location = new System.Drawing.Point(11, 487);
-            this.btnLoadPrmFile.Margin = new System.Windows.Forms.Padding(2);
+            this.btnLoadPrmFile.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(0)));
+            this.btnLoadPrmFile.Location = new System.Drawing.Point(15, 599);
+            this.btnLoadPrmFile.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.btnLoadPrmFile.Name = "btnLoadPrmFile";
-            this.btnLoadPrmFile.Size = new System.Drawing.Size(131, 30);
+            this.btnLoadPrmFile.Size = new System.Drawing.Size(175, 37);
             this.btnLoadPrmFile.TabIndex = 3;
             this.btnLoadPrmFile.Text = "Load .prm file";
             this.btnLoadPrmFile.UseVisualStyleBackColor = true;
@@ -80,27 +71,40 @@
             // 
             // btnSavePrmFile
             // 
-            this.btnSavePrmFile.Location = new System.Drawing.Point(146, 487);
-            this.btnSavePrmFile.Margin = new System.Windows.Forms.Padding(2);
+            this.btnSavePrmFile.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(0)));
+            this.btnSavePrmFile.Location = new System.Drawing.Point(195, 599);
+            this.btnSavePrmFile.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.btnSavePrmFile.Name = "btnSavePrmFile";
-            this.btnSavePrmFile.Size = new System.Drawing.Size(131, 30);
+            this.btnSavePrmFile.Size = new System.Drawing.Size(175, 37);
             this.btnSavePrmFile.TabIndex = 4;
             this.btnSavePrmFile.Text = "Save .prm file";
             this.btnSavePrmFile.UseVisualStyleBackColor = true;
             this.btnSavePrmFile.Click += new System.EventHandler(this.btnSavePrmFile_Click);
             // 
+            // tabControl
+            // 
+            this.tabControl.Font = new System.Drawing.Font("Microsoft Sans Serif", 13F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
+            this.tabControl.Location = new System.Drawing.Point(-3, 5);
+            this.tabControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.tabControl.Multiline = true;
+            this.tabControl.Name = "tabControl";
+            this.tabControl.SelectedIndex = 0;
+            this.tabControl.Size = new System.Drawing.Size(905, 587);
+            this.tabControl.TabIndex = 0;
+            this.tabControl.TabStop = false;
+            // 
             // GUIConfig
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(675, 524);
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None;
+            this.ClientSize = new System.Drawing.Size(900, 645);
             this.Controls.Add(this.btnSavePrmFile);
             this.Controls.Add(this.btnLoadPrmFile);
             this.Controls.Add(this.btnSave);
             this.Controls.Add(this.btnCancel);
             this.Controls.Add(this.tabControl);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
-            this.Margin = new System.Windows.Forms.Padding(2);
+            this.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Name = "GUIConfig";

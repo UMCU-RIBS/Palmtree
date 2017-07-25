@@ -111,12 +111,14 @@ namespace UNP.GUI {
         void tmrUpdate_Tick(object sender, ElapsedEventArgs e) {
 
             if (this.IsHandleCreated && !this.IsDisposed) {
-                this.Invoke((MethodInvoker)delegate {
-
-                    // retrieve the console information
-                    updateMainInformation();
-
-                });
+                try { 
+                    this.Invoke((MethodInvoker)delegate {
+                        try {
+                            // retrieve the console information
+                            updateMainInformation();
+                        } catch (Exception) { }
+                    });
+                } catch (Exception) { }
             }
 
         }

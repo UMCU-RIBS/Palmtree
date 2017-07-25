@@ -46,7 +46,7 @@ namespace UNP.GUI {
             // btnStop
             // 
             this.btnStop.Enabled = false;
-            this.btnStop.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.btnStop.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
             this.btnStop.Location = new System.Drawing.Point(524, 18);
             this.btnStop.Margin = new System.Windows.Forms.Padding(4);
             this.btnStop.Name = "btnStop";
@@ -59,7 +59,7 @@ namespace UNP.GUI {
             // btnStart
             // 
             this.btnStart.Enabled = false;
-            this.btnStart.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.btnStart.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
             this.btnStart.Location = new System.Drawing.Point(365, 18);
             this.btnStart.Margin = new System.Windows.Forms.Padding(4);
             this.btnStart.Name = "btnStart";
@@ -71,7 +71,7 @@ namespace UNP.GUI {
             // 
             // btnSetConfig
             // 
-            this.btnSetConfig.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.btnSetConfig.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
             this.btnSetConfig.Location = new System.Drawing.Point(175, 18);
             this.btnSetConfig.Margin = new System.Windows.Forms.Padding(4);
             this.btnSetConfig.Name = "btnSetConfig";
@@ -84,7 +84,7 @@ namespace UNP.GUI {
             // grpConsole
             // 
             this.grpConsole.Controls.Add(this.txtConsole);
-            this.grpConsole.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.grpConsole.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
             this.grpConsole.Location = new System.Drawing.Point(16, 79);
             this.grpConsole.Margin = new System.Windows.Forms.Padding(4);
             this.grpConsole.Name = "grpConsole";
@@ -97,18 +97,19 @@ namespace UNP.GUI {
             // txtConsole
             // 
             this.txtConsole.BackColor = System.Drawing.Color.White;
-            this.txtConsole.Location = new System.Drawing.Point(17, 35);
+            this.txtConsole.Font = new System.Drawing.Font("Microsoft Sans Serif", 13F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
+            this.txtConsole.Location = new System.Drawing.Point(17, 32);
             this.txtConsole.Margin = new System.Windows.Forms.Padding(4);
             this.txtConsole.Name = "txtConsole";
             this.txtConsole.ReadOnly = true;
-            this.txtConsole.Size = new System.Drawing.Size(817, 443);
+            this.txtConsole.Size = new System.Drawing.Size(817, 447);
             this.txtConsole.TabIndex = 0;
             this.txtConsole.Text = "";
             this.txtConsole.WordWrap = false;
             // 
             // btnEditConfig
             // 
-            this.btnEditConfig.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.btnEditConfig.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
             this.btnEditConfig.Location = new System.Drawing.Point(16, 18);
             this.btnEditConfig.Margin = new System.Windows.Forms.Padding(4);
             this.btnEditConfig.Name = "btnEditConfig";
@@ -120,7 +121,7 @@ namespace UNP.GUI {
             // 
             // btnVisualization
             // 
-            this.btnVisualization.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.btnVisualization.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
             this.btnVisualization.Location = new System.Drawing.Point(709, 18);
             this.btnVisualization.Margin = new System.Windows.Forms.Padding(4);
             this.btnVisualization.Name = "btnVisualization";
@@ -132,8 +133,7 @@ namespace UNP.GUI {
             // 
             // GUIMain
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None;
             this.ClientSize = new System.Drawing.Size(888, 588);
             this.Controls.Add(this.btnSetConfig);
             this.Controls.Add(this.btnVisualization);
@@ -143,6 +143,7 @@ namespace UNP.GUI {
             this.Controls.Add(this.grpConsole);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.Margin = new System.Windows.Forms.Padding(4);
+            this.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Name = "GUIMain";
