@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using System.Windows.Forms;
 using UNP.Core.DataIO;
 using UNP.Core.Helpers;
@@ -14,7 +16,7 @@ namespace UNPLogReader {
             InitializeComponent();
 
             txtInputFile.Text = "D:\\UNP\\other\\testrun\\test_20170724_Run_0.dat";
-            txtInputFile.Text = "C:\\Users\\abcdef\\Desktop\\UNP001_multiclicks_motor_power_20170621001\\UNP001_multiclicks_motor_power_20170621S001R01.dat";
+            txtInputFile.Text = "D:\\UNP\\other\\testrun\\UNP001_multiclicks_motor_power_20170621001\\UNP001_multiclicks_motor_power_20170621S001R01.dat";
 
             
 
@@ -97,9 +99,9 @@ namespace UNPLogReader {
 
             // print header information
             strOutput = "Data file: " + txtInputFile.Text + Environment.NewLine;
-            strOutput += "Internal extension: " + header.extension + Environment.NewLine;
-            strOutput += "Pipeline sample rate: " + header.pipelineSampleRate + Environment.NewLine;
-            strOutput += "Number of pipeline input streams: " + header.pipelineInputStreams + Environment.NewLine;
+            strOutput += "Internal code: " + header.code + Environment.NewLine;
+            strOutput += "Sample rate: " + header.sampleRate + Environment.NewLine;
+            strOutput += "Number of playback input streams: " + header.numPlaybackStreams + Environment.NewLine;
             strOutput += "Number of columns: " + header.numColumns + Environment.NewLine;
             strOutput += "Column names size (in bytes): " + header.columnNamesSize + Environment.NewLine;
             strOutput += "Column names: " + string.Join(", ", header.columnNames) + Environment.NewLine;
@@ -135,7 +137,7 @@ namespace UNPLogReader {
             }
 
             // loop until the end of the data
-            bool readMore = true;
+            bool readMore = header.numRows > 0;
             long rowsReadCounter = 0;
             while(readMore) {
                 
@@ -145,8 +147,11 @@ namespace UNPLogReader {
                 // read the next rows
                 long rows = reader.readNextRows(readStep, out samples, out values);
 
-                // check for error while reading, return if so
-                if (rows == -1)     return;
+                // check for error while reading
+                if (rows == -1) {
+                    MessageBox.Show("Error while reading rows");
+                    return;
+                }
 
                 // loop through the rows in set
                 strOutput += Environment.NewLine;
@@ -210,6 +215,142 @@ namespace UNPLogReader {
 
         }
 
+        private void btnReadBCI2000_Click(object sender, EventArgs e) {
+
+            // clear the output
+            txtOutput.Text = "";
+
+            // try to read the file
+            Data_BCI2000 info = new Data_BCI2000();
+            double[][] samples = null;
+            bool result = readBCI2000dat(txtInputFile.Text, out info, out samples);
+            if (!result) return;
+
+            // output
+            txtOutput.Text = info.firstLine + Environment.NewLine + Environment.NewLine;
+            txtOutput.Text += "Header length: " + info.headerLen + Environment.NewLine;
+            txtOutput.Text += "Source channels: " + info.sourceCh + Environment.NewLine;
+            txtOutput.Text += "State vector length: " + info.stateVectorLen + Environment.NewLine;
+            txtOutput.Text += Environment.NewLine;
+            //txtOutput.Text += "Header: " + Environment.NewLine + data.header;
+            txtOutput.Text += "Sample rate: " + info.samplingRate + Environment.NewLine;
+            txtOutput.Text += Environment.NewLine;
+            txtOutput.Text += "Number of samples: " + info.numSamples + Environment.NewLine + Environment.NewLine;
+
+
+            string strOutput = "";
+            for (int i = 0; i < info.numSamples; i++) {
+                for (int j = 0; j < info.sourceCh; j++) {
+                    if (j != 0)
+                        strOutput += "\t";
+                    strOutput += samples[i][j];
+                }
+                strOutput += Environment.NewLine;
+            }
+            
+            txtOutput.Text += strOutput;
+
+            
+
+        }
+
+        private void btnConvertBCIToUNP_Click(object sender, EventArgs e) {
+
+            // clear the output
+            txtOutput.Text = "";
+
+            // try to read the file
+            Data_BCI2000 info = new Data_BCI2000();
+            double[][] samples = null;
+            bool result = readBCI2000dat(txtInputFile.Text, out info, out samples);
+
+
+
+
+            // open file dialog to open dat file
+            SaveFileDialog dlgSaveDatFile = new SaveFileDialog();
+            dlgSaveDatFile.Filter = "Data files (*.dat)|*.dat|Data files (*.src)|*.src|All files (*.*)|*.*";
+            dlgSaveDatFile.RestoreDirectory = true;            // restores current directory to the previously selected directory, potentially beneficial if other code relies on the currently set directory
+
+            // check if ok has been clicked on the dialog
+            if (dlgSaveDatFile.ShowDialog() != DialogResult.OK)     return;
+            
+            FileStream dataStream = null;
+            BinaryWriter dataStreamWriter = null;
+
+            try {
+
+                // create filestream: create file if it does not exists, allow to write, do not share with other processes and use buffer of 8192 bytes (roughly 1000 samples)
+                dataStream = new FileStream(dlgSaveDatFile.FileName, FileMode.Create, FileAccess.Write, FileShare.None, 8192);
+                dataStreamWriter = new BinaryWriter(dataStream);
+                
+            } catch (Exception exc) {
+
+                MessageBox.Show("Unable to create data file at " + dlgSaveDatFile.FileName + " (" + exc.ToString() + ")");
+                return;
+
+            }
+
+            // generate stream names for the header (bci2000 does not have these)
+            string[] streamNames = new string[info.sourceCh];
+            for (int i = 0; i < streamNames.Length; i++) streamNames[i] = "Ch" + (i + 1);
+
+            // create header
+            DataHeader header = new DataHeader();
+            header.version = 1;
+            header.code = "dat";
+            header.columnNames = streamNames;
+            header.numPlaybackStreams = streamNames.Length;
+            header.sampleRate = info.samplingRate;
+
+            // write header
+            DataWriter.writeBinaryHeader(dataStreamWriter, header);
+
+
+            // write data
+            uint dataSampleCounter = 0;
+            byte[] dataElapsedTimeBinary = BitConverter.GetBytes((1000.0 / header.sampleRate));
+            for (int i = 0; i < info.numSamples; i++) {
+
+                // transform variables that will be stored in .dat to binary arrays (except for dataStreamValues array which is copied directly)
+                byte[] dataSampleCounterBinary = BitConverter.GetBytes(dataSampleCounter);
+
+                // transfer the values for output
+                double[] dataStreamValues = new double[info.sourceCh];
+                for (int j = 0; j < info.sourceCh; j++) {
+                    dataStreamValues[j] = samples[i][j];
+                }
+
+                // create new array to hold all bytes
+                int l1 = dataSampleCounterBinary.Length;
+                int l2 = dataElapsedTimeBinary.Length;
+                int l3 = dataStreamValues.Length * sizeof(double);
+                byte[] streamOut = new byte[l1 + l2 + l3];
+
+                // blockcopy all bytes to this array
+                Buffer.BlockCopy(dataSampleCounterBinary, 0, streamOut, 0, l1);
+                Buffer.BlockCopy(dataElapsedTimeBinary, 0, streamOut, l1, l2);
+                Buffer.BlockCopy(dataStreamValues, 0, streamOut, l1 + l2, l3);
+
+                // write data to file
+                dataStreamWriter.Write(streamOut);
+
+                // increase sample counter
+                dataSampleCounter++;
+                
+            }
+
+            // set output text
+            txtOutput.Text = "Done";
+
+            // clear
+            dataStreamWriter.Close();
+            dataStreamWriter = null;
+            dataStream = null;
+
+        }
+
+
         private bool readBCI2000dat(string filename, out Data_BCI2000 info, out double[][] samples) {
 
             FileStream dataStream = null;
@@ -252,7 +393,7 @@ namespace UNPLogReader {
             string fieldName = "HeaderLen=";
             int fieldValueLength = 6;
             int pos = info.firstLine.IndexOf(fieldName);
-            if (pos == -1 || info.firstLine.Length < pos + fieldName.Length) {
+            if (pos == -1 || info.firstLine.Length < pos + fieldName.Length + fieldValueLength) {
                 MessageBox.Show("Could not retrieve " + fieldName + ", aborting");
                 info = null;
                 samples = null;
@@ -270,7 +411,7 @@ namespace UNPLogReader {
             fieldName = "SourceCh=";
             fieldValueLength = 2;
             pos = info.firstLine.IndexOf(fieldName);
-            if (pos == -1 || info.firstLine.Length < pos + fieldName.Length) {
+            if (pos == -1 || info.firstLine.Length < pos + fieldName.Length + fieldValueLength) {
                 MessageBox.Show("Could not retrieve " + fieldName + ", aborting");
                 info = null;
                 samples = null;
@@ -288,7 +429,7 @@ namespace UNPLogReader {
             fieldName = "StatevectorLen=";
             fieldValueLength = 3;
             pos = info.firstLine.IndexOf(fieldName);
-            if (pos == -1 || info.firstLine.Length < pos + fieldName.Length) {
+            if (pos == -1 || info.firstLine.Length < pos + fieldName.Length + fieldValueLength) {
                 MessageBox.Show("Could not retrieve " + fieldName + ", aborting");
                 info = null;
                 samples = null;
@@ -308,7 +449,15 @@ namespace UNPLogReader {
             dataReader.DiscardBufferedData();
             dataReader.ReadBlock(buffer, 0, info.headerLen);
             info.header = new string(buffer);
-            
+
+            // retrieve the sample rate from the header
+            if (!getDoubleParameterFromHeader(info.header, "SamplingRate", out info.samplingRate)) {
+                MessageBox.Show("Could not retrieve sample rate from header, aborting");
+                info = null;
+                samples = null;
+                return false;
+            }
+
             // set the dataStream position to the start of the data (needed, readblock before messed it up)
             dataStream.Position = info.headerLen;
 
@@ -354,54 +503,51 @@ namespace UNPLogReader {
 
         }
 
-        private void btnReadBCI2000_Click(object sender, EventArgs e) {
+        private bool getDoubleParameterFromHeader(string header, string searchText, out double value) {
+            
+            // try to find the field
+            int pos = header.IndexOf(searchText);
+            if (pos == -1 || header.Length < pos + searchText.Length + 1) {
+                value = -1;
+                return false;
+            }
+            pos += searchText.Length;
 
-            // clear the output
-            txtOutput.Text = "";
+            // till the start of the value
+            string strValue = header.Substring(pos);
+            while (strValue.Length > 0 && (strValue.StartsWith(" ") || strValue.StartsWith("="))) {
+                strValue = strValue.Substring(1);
+            }
 
-            // try to read the file
-            Data_BCI2000 info = new Data_BCI2000();
-            double[][] samples = null;
-            bool result = readBCI2000dat(txtInputFile.Text, out info, out samples);
+            // find the end of the value (space)
+            int endPos = strValue.IndexOf(" ");
+            if (pos == -1 || pos == 0) {
+                value = -1;
+                return false;
+            }
 
-            // output
-            txtOutput.Text = info.firstLine + Environment.NewLine + Environment.NewLine;
-            txtOutput.Text += "Header length: " + info.headerLen + Environment.NewLine;
-            txtOutput.Text += "Source channels: " + info.sourceCh + Environment.NewLine;
-            txtOutput.Text += "Source channels: " + info.stateVectorLen + Environment.NewLine;
-            txtOutput.Text += Environment.NewLine;
-            //txtOutput.Text += "Header: " + Environment.NewLine + data.header;
-            txtOutput.Text += "Number of samples: " + info.numSamples + Environment.NewLine + Environment.NewLine;
+            // extract the value
+            strValue = strValue.Substring(0, endPos);
 
+            // check if Hz is at the end
+            if (strValue.EndsWith("hz", true, null)) {
+                strValue = strValue.Substring(0, strValue.Length - 2);
+            }
 
-            string strOutput = "";
-            for (int i = 0; i < info.numSamples; i++) {
-                for (int j = 0; j < info.sourceCh; j++) {
-                    if (j != 0)
-                        strOutput += "\t";
-                    strOutput += samples[i][j];
-                }
-                strOutput += Environment.NewLine;
+            // parse the value
+            bool result = Double.TryParse(strValue, out value);
+            if (!result) {
+                MessageBox.Show("Could not retrieve parse value '" + strValue + "'");
+                value = -1;
+                return false;
             }
             
-            txtOutput.Text += strOutput;
-
-            
-
-        }
-
-        private void btnConvertBCIToUNP_Click(object sender, EventArgs e) {
-
-            // clear the output
-            txtOutput.Text = "";
-
-            // try to read the file
-            Data_BCI2000 info = new Data_BCI2000();
-            double[][] samples = null;
-            bool result = readBCI2000dat(txtInputFile.Text, out info, out samples);
-
+            // return success
+            return true;
 
         }
+
+
     }
 
 }

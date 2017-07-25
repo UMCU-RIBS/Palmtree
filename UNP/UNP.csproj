@@ -104,6 +104,7 @@
     <Compile Include="src\Core\DataIO\Data.cs" />
     <Compile Include="src\Core\DataIO\DataHeader.cs" />
     <Compile Include="src\Core\DataIO\DataReader.cs" />
+    <Compile Include="src\Core\DataIO\DataWriter.cs" />
     <Compile Include="src\Core\Events\VisualizationEventArgs.cs" />
     <Compile Include="src\Core\Events\VisualizationValuesArgs.cs" />
     <Compile Include="src\Core\Helpers\Communicator.cs" />

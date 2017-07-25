@@ -1,11 +1,7 @@
 ﻿using NLog;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace UNP.Core.DataIO {
 
@@ -53,7 +49,7 @@ namespace UNP.Core.DataIO {
 
                 // make sure the header is read
                 // return false if the header could not be read
-                if (getHeader() == null || string.IsNullOrEmpty(getHeader().extension)) {
+                if (getHeader() == null || string.IsNullOrEmpty(getHeader().code)) {
                     return false;
                 }
 
@@ -282,15 +278,15 @@ namespace UNP.Core.DataIO {
 
                 if (header.version == 1) {
 
-                    // retrieve the extension from the header
-                    byte[] bExtension = new byte[3];
-                    dataStream.Read(bExtension, 0, 3);
-                    header.extension = Encoding.ASCII.GetString(bExtension);
+                    // retrieve the code from the header
+                    byte[] bCode = new byte[3];
+                    dataStream.Read(bCode, 0, 3);
+                    header.code = Encoding.ASCII.GetString(bCode);
 
                     // retrieve the fixed fields from the header    (note that the pointer has already been moved till after the version bytes)
                     int fixedBytesInHeader = 0;
-                    fixedBytesInHeader += sizeof(double);   // pipeline sample rate
-                    fixedBytesInHeader += sizeof(int);      // number of pipeline input streams
+                    fixedBytesInHeader += sizeof(double);   // sample rate
+                    fixedBytesInHeader += sizeof(int);      // number of playback input streams
                     fixedBytesInHeader += sizeof(int);      // number of columns
                     fixedBytesInHeader += sizeof(int);      // size of the column names
                     byte[] bFixedHeader = new byte[fixedBytesInHeader];
@@ -299,12 +295,12 @@ namespace UNP.Core.DataIO {
                     // pointer to a variable in the fixed header
                     int ptrFixedHeader = 0;
 
-                    // retrieve the pipeline sample rate
-                    header.pipelineSampleRate = BitConverter.ToDouble(bFixedHeader, ptrFixedHeader);
+                    // retrieve the sample rate
+                    header.sampleRate = BitConverter.ToDouble(bFixedHeader, ptrFixedHeader);
                     ptrFixedHeader += sizeof(double);
 
-                    // retrieve the number of pipeline input streams
-                    header.pipelineInputStreams = BitConverter.ToInt32(bFixedHeader, ptrFixedHeader);
+                    // retrieve the number of playback input streams
+                    header.numPlaybackStreams = BitConverter.ToInt32(bFixedHeader, ptrFixedHeader);
                     ptrFixedHeader += sizeof(int);
 
                     // retrieve the number of columns

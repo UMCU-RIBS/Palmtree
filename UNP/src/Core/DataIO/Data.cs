@@ -550,8 +550,17 @@ namespace UNP.Core.DataIO {
                         logger.Error("Unable to create source file at " + path + " (" + e.ToString() + ")");
                     }
 
+                    // create header
+                    DataHeader header = new DataHeader();
+                    header.version = DATAFORMAT_VERSION;
+                    header.code = "src";
+                    header.columnNames = registeredSourceInputStreamNames.ToArray();
+                    header.sampleRate = MainThread.getSource().getSamplesPerSecond();
+                    header.numPlaybackStreams = registeredDataStreamNames.Count;
+
                     // write header
-                    writeHeader("src", registeredSourceInputStreamNames, sourceStreamWriter);
+                    DataWriter.writeBinaryHeader(sourceStreamWriter, header);
+
                 }
 
                 // check if there are any samples streams to be logged
@@ -582,8 +591,16 @@ namespace UNP.Core.DataIO {
 
                     }
 
+                    // create header
+                    DataHeader header = new DataHeader();
+                    header.version = DATAFORMAT_VERSION;
+                    header.code = "dat";
+                    header.columnNames = registeredDataStreamNames.ToArray();
+                    header.sampleRate = pipelineSampleRate;
+                    header.numPlaybackStreams = numPipelineInputStreams;
+
                     // write header
-                    writeHeader("dat", registeredDataStreamNames, dataStreamWriter);
+                    DataWriter.writeBinaryHeader(dataStreamWriter, header);
 
                 }
 
@@ -608,9 +625,18 @@ namespace UNP.Core.DataIO {
                         } catch (Exception e) {
                             logger.Error("Unable to create plugin data log file for plugin " + registeredPluginNames[i] + " at " + path + " (" + e.ToString() + ")");
                         }
-                    
+
+                        // create header
+                        DataHeader header = new DataHeader();
+                        header.version = DATAFORMAT_VERSION;
+                        header.code = registeredPluginExtensions[i];
+                        header.columnNames = registeredPluginInputStreamNames[i].ToArray();
+                        header.sampleRate = 0;               // TODO: pass sample rate plugin
+                        header.numPlaybackStreams = registeredPluginInputStreamNames[i].Count;
+
                         // write header
-                        writeHeader(registeredPluginExtensions[i], registeredPluginInputStreamNames[i], pluginStreamWriters[i]);
+                        DataWriter.writeBinaryHeader(pluginStreamWriters[i], header);
+                        
                     }
 
                 }
@@ -1084,106 +1110,6 @@ namespace UNP.Core.DataIO {
 
         }
 
-        /**
-         * Create header of .dat (plugin or filter) or .src file
-         * 
-         * boolean timing either includes (true) or excludes (false) extra column in header file for storing elapsed time 
-         **/
-        private static void writeHeader(string headerExtension, List<string> streamNames, BinaryWriter writer) {
-
-            // make sure the header extension is always 3 characters long
-            if (headerExtension.Length != 3)    headerExtension = "xxx";
-
-            // determine whether the header is a plugin
-            bool isPlugin = !(string.Compare(headerExtension, "src") == 0 || string.Compare(headerExtension, "dat") == 0);
-
-
-
-            //
-            //
-            //
-
-            // variable holding the column names and columncount
-            string columnNames = "";
-            int numColumns = 0;
-
-            // add sample id column
-            columnNames += "Sample\t";
-            numColumns++;
-
-            // add timing column if desired
-            if (!isPlugin) {
-                columnNames += "Elapsed_ms\t";
-                numColumns++;
-            }
-
-            // add streams as columns
-            columnNames += string.Join("\t", streamNames.ToArray());
-            numColumns += streamNames.Count;
-            
-            // convert column names to binary and store the length (in bytes)
-            byte[] columnNamesBinary = Encoding.ASCII.GetBytes(columnNames);
-
-
-
-            //
-            //
-            //
-
-            // store number of columns and of source channels [bytes] 
-            byte[] versionBinary = BitConverter.GetBytes(DATAFORMAT_VERSION);
-            byte[] headerExtensionBinary = Encoding.ASCII.GetBytes(headerExtension);
-            byte[] pipelineSampleRateBinary = BitConverter.GetBytes(pipelineSampleRate);
-            byte[] pipelineInputStreamsBinary = BitConverter.GetBytes(numPipelineInputStreams);
-            byte[] ncolBinary = BitConverter.GetBytes(numColumns);
-            byte[] columnNamesLengthBinary = BitConverter.GetBytes(columnNamesBinary.Length);
-
-            // determine the length of the header
-            int headerLength = 0;
-            headerLength += versionBinary.Length;               // sizeof(int)
-            headerLength += headerExtensionBinary.Length;       // sizeof(int)
-            headerLength += pipelineSampleRateBinary.Length;    // sizeof(double)
-            headerLength += pipelineInputStreamsBinary.Length;  // sizeof(int)
-            headerLength += ncolBinary.Length;                  // sizeof(int)
-            headerLength += columnNamesLengthBinary.Length;     // sizeof(int)
-            headerLength += columnNamesBinary.Length;           // chars * sizeof(char)
-
-            // create an output header
-            byte[] headerOut = new byte[headerLength];
-            int filePointer = 0;
-
-            // version
-            Buffer.BlockCopy(versionBinary, 0, headerOut, filePointer, versionBinary.Length);
-            filePointer += versionBinary.Length;
-
-            // header extension
-            Buffer.BlockCopy(headerExtensionBinary, 0, headerOut, filePointer, headerExtensionBinary.Length);
-            filePointer += headerExtensionBinary.Length;
-
-            // pipeline sample rate
-            Buffer.BlockCopy(pipelineSampleRateBinary, 0, headerOut, filePointer, pipelineSampleRateBinary.Length);
-            filePointer += pipelineSampleRateBinary.Length;
-
-            // pipeline input streams
-            Buffer.BlockCopy(pipelineInputStreamsBinary, 0, headerOut, filePointer, pipelineInputStreamsBinary.Length);
-            filePointer += pipelineInputStreamsBinary.Length;
-
-            // number of streams/columns
-            Buffer.BlockCopy(ncolBinary, 0, headerOut, filePointer, ncolBinary.Length);
-            filePointer += ncolBinary.Length;
-
-            // total length of the header names
-            Buffer.BlockCopy(columnNamesLengthBinary, 0, headerOut, filePointer, columnNamesLengthBinary.Length);
-            filePointer += columnNamesLengthBinary.Length;
-
-            // column names
-            Buffer.BlockCopy(columnNamesBinary, 0, headerOut, filePointer, columnNamesBinary.Length);
-
-            // write header to file
-            writer.Write(headerOut);
-
-        }
-        
     }
 
 }

@@ -181,11 +181,11 @@ namespace UNP.Sources {
 
                     }
 
-                    // check if the internal data type is dat
-                    if (string.Compare(header.extension, "dat") != 0) {
+                    // check if the internal code is 'dat'
+                    if (string.Compare(header.code, "dat") != 0) {
 
                         // message
-                        logger.Error("The input .dat file is internally marked as '" + header.extension + "', while a data stream file is required");
+                        logger.Error("The input .dat file is internally marked as '" + header.code + "', while a data stream ('dat') file is required");
 
                         // return
                         output = null;
@@ -193,11 +193,11 @@ namespace UNP.Sources {
 
                     }
 
-                    // check if the number of pipeline input streams in the .dat is higher than 0
-                    if (header.pipelineInputStreams <= 0) {
+                    // check if the number of playback input streams in the .dat is higher than 0
+                    if (header.numPlaybackStreams <= 0) {
 
                         // message
-                        logger.Error("The input .dat file has no pipeline input streams, these are required for playback, make sure the LogPipelineInputStream setting (data tab) is switched on while recording data for replay");
+                        logger.Error("The input .dat file has no playback input streams, these are required for playback, make sure the LogPipelineInputStream setting (data tab) is switched on while recording data for replay");
 
                         // return
                         output = null;
@@ -206,10 +206,10 @@ namespace UNP.Sources {
                     }
 
                     // set the number of output channels for this source based on the .dat file
-                    outputChannels = header.pipelineInputStreams;
+                    outputChannels = header.numPlaybackStreams;
 
                     // set the sample rate for this source based on the .dat file
-                    sampleRate = header.pipelineSampleRate;
+                    sampleRate = header.sampleRate;
 
                     // check the sample rate
                     if (sampleRate <= 0) {
@@ -233,16 +233,16 @@ namespace UNP.Sources {
                     }
 
                     // calculate the input buffer size (the size of the inputbuffer is defined as number of seconds of data to hold)
-                    inputBufferSize = (long)Math.Floor(INPUT_BUFFER_SIZE_SECONDS * header.pipelineSampleRate);
+                    inputBufferSize = (long)Math.Floor(INPUT_BUFFER_SIZE_SECONDS * header.sampleRate);
                     if (inputBufferSize == 0) {
-                        logger.Error("The buffer size is too small when combined with the pipeline sample rate, provide a larger value for INPUT_BUFFER_SIZE_SECONDS");
+                        logger.Error("The buffer size is too small when combined with the sample rate, provide a larger value for INPUT_BUFFER_SIZE_SECONDS");
                         return false;
                     }
 
                     // calculate the minimum amount of rows until additional read
-                    inputBufferMinTillRead = (long)Math.Floor(INPUT_BUFFER_MIN_READ_SECONDS * header.pipelineSampleRate);
+                    inputBufferMinTillRead = (long)Math.Floor(INPUT_BUFFER_MIN_READ_SECONDS * header.sampleRate);
                     if (inputBufferMinTillRead == 0) {
-                        logger.Error("The buffer minimum-till-read is too small when combined with the pipeline sample rate, provide a larger value for INPUT_BUFFER_MIN_READ_SECONDS");
+                        logger.Error("The buffer minimum-till-read is too small when combined with the sample rate, provide a larger value for INPUT_BUFFER_MIN_READ_SECONDS");
                         return false;
                     }
                     if (inputBufferMinTillRead >= inputBufferSize) {
