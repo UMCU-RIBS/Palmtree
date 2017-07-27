@@ -714,13 +714,13 @@ namespace FollowTask {
 
                                     // only in non UNP-menu tasks
                                     if (!mUNPMenuTask) {
+                                        
 
-                                        /*
 						                // check if a keysequence input comes in or a click input comes in
-						                if (State("KeySequenceActive") == 1) {
+						                if (Globals.getValue<bool>("KeySequenceActive")) {
 
-							                // set the color
-							                mSceneThread->setCursorColorSetting(2);
+                                            // set the color
+                                            mSceneThread.setCursorColorSetting(2);
 
 							                // set the timer
 							                if (mCursorColorEscapeTime == 0)	mCursorColorTimer = 1;
@@ -730,9 +730,9 @@ namespace FollowTask {
 
 							                // check if a click was made
 							                if (input == 1) {
-						
-								                // set the color
-								                mSceneThread->setCursorColorSetting(1);
+
+                                                // set the color
+                                                mSceneThread.setCursorColorSetting(1);
 
 								                // set the timer
 								                if (mCursorColorHitTime == 0)	mCursorColorTimer = 1;
@@ -741,8 +741,7 @@ namespace FollowTask {
 							                }
 
 						                }
-                                        */
-
+                                        
                                     }
 
 					            } else {
@@ -781,18 +780,20 @@ namespace FollowTask {
 			            // end text
 
 			            if(mWaitCounter == 0) {
-                            /*
-				            #ifdef UNPMENU
-						
-					            if (mUNPMenuTask)	UNP_stop();
 
-				            #else
+                            // check if we are running from the UNPMenu
+                            if (mUNPMenuTask) {
 
-					            // suspend BCI2000, this will also call stopTask()
-					            if (!mUNPMenuTask)	State( "Running" ) = false;
+                                // stop the task (UNP)
+                                UNP_stop();
 
-				            #endif
-                            */
+                            } else {
+
+                                // stop the run, this will also call stopTask()
+                                MainThread.stop();
+
+                            }
+
 			            } else
 				            mWaitCounter--;
 

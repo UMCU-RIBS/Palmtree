@@ -17,7 +17,7 @@ namespace UNP.Core.Params {
         }
 
         public string getValue() {
-            return value.getBlueAsByte() + ";" + value.getGreenAsByte() + ";" + value.getRedAsByte();
+            return value.getRedAsByte() + ";" + value.getGreenAsByte() + ";" + value.getBlueAsByte();
         }
 
         public T getValue<T>() {

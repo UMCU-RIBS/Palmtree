@@ -725,21 +725,21 @@ namespace MoleTask {
 			            // end text
 
 			            if (mWaitCounter == 0) {
-				            
-                            /*
-				            #ifdef UNPMENU
-						
-					            if (mUNPMenuTask)	UNP_stop();
 
-				            #else
+                            // check if we are running from the UNPMenu
+                            if (mUNPMenuTask) {
 
-					            // suspend BCI2000, this will also call stopTask()
-					            if (!mUNPMenuTask)	State( "Running" ) = false;
+                                // stop the task (UNP)
+                                UNP_stop();
 
-				            #endif
-                            */
+                            } else {
 
-			            } else
+                                // stop the run, this will also call stopTask()
+                                MainThread.stop();
+
+                            }
+
+                        } else
 				            mWaitCounter--;
 
 			            break;
