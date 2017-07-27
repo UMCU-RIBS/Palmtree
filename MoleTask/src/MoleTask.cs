@@ -203,7 +203,7 @@ namespace MoleTask {
 
                 parameters.addParameter<int[]>(
                     "TargetSequence",
-                    "Fixed sequence in which targets should be presented (leave empty for random)",
+                    "Fixed sequence in which targets should be presented (leave empty for random). \nNote. the 'NumberTargets' parameter will be overwritten with the amount of values entered here",
                     "0", "", "");
 
             }
@@ -298,8 +298,8 @@ namespace MoleTask {
             mRowSelectedDelay = parameters.getValueInSamples("RowSelectedDelay");
             mColumnSelectDelay = parameters.getValueInSamples("ColumnSelectDelay");
             mColumnSelectedDelay = parameters.getValueInSamples("ColumnSelectedDelay");
-            if (mRowSelectDelay < 0 || mRowSelectedDelay < 0 || mColumnSelectDelay < 0 || mColumnSelectedDelay < 0) {
-                logger.Error("The 'RowSelectDelay', 'RowSelectedDelay', 'ColumnSelectDelay', 'ColumnSelectedDelay' parameters should not be less than 0");
+            if (mRowSelectDelay < 1 || mRowSelectedDelay < 1 || mColumnSelectDelay < 1 || mColumnSelectedDelay < 1) {
+                logger.Error("The 'RowSelectDelay', 'RowSelectedDelay', 'ColumnSelectDelay', 'ColumnSelectedDelay' parameters should not be less than 1");
                 return false;
             }
 

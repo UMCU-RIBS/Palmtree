@@ -88,9 +88,9 @@ namespace MoleTask {
                 connectionLostTexture = (int)loadImage("images\\nosignal.png");
 
                 // Load textures
-                holeTexture = (int)loadImage("images\\hole.bmp");
-                moleTexture = (int)loadImage("images\\mole.bmp");
-                exitTexture = (int)loadImage("images\\exit.bmp");
+                holeTexture = (int)loadImage("images\\hole.png");
+                moleTexture = (int)loadImage("images\\mole.png");
+                exitTexture = (int)loadImage("images\\exit.png");
                 //hammerTexture = (int)loadImage("images\\hammer.bmp");
 
             }
