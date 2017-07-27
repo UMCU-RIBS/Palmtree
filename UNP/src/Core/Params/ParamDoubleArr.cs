@@ -25,11 +25,17 @@ namespace UNP.Core.Params {
         public T getValue<T>() {
 
             Type paramType = typeof(T);
-            if(paramType == typeof(double[])) {     
+            if(paramType == typeof(double[])) {
                 // request to return as double[]
 
-                // return vlaue
-                return (T)Convert.ChangeType(Value, typeof(double[]));
+                // create a copy (since an array is passed by reference, and we don't want values being changed this way)
+                double[] cValues = new double[values.Length];
+                for (int i = 0; i < values.Length; i++) {
+                    cValues[i] = values[i];
+                }
+
+                // return value
+                return (T)Convert.ChangeType(cValues, typeof(double[]));
 
             } else {
                 // request to return as other
@@ -48,8 +54,14 @@ namespace UNP.Core.Params {
             if(paramType == typeof(Parameters.Units[])) {
                 // request to return as Parameters.Units[]
 
+                // create a copy (since an array is passed by reference)
+                Parameters.Units[] cUnits = new Parameters.Units[units.Length];
+                for (int i = 0; i < units.Length; i++) {
+                    cUnits[i] = units[i];
+                }
+
                 // return value
-                return (T)Convert.ChangeType(Unit, typeof(Parameters.Units[]));
+                return (T)Convert.ChangeType(cUnits, typeof(Parameters.Units[]));
 
             } else {
                 // request to return as other

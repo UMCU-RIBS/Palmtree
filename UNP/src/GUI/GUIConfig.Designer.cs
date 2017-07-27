@@ -36,7 +36,7 @@
             // btnCancel
             // 
             this.btnCancel.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(0)));
-            this.btnCancel.Location = new System.Drawing.Point(715, 599);
+            this.btnCancel.Location = new System.Drawing.Point(775, 599);
             this.btnCancel.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.btnCancel.Name = "btnCancel";
             this.btnCancel.Size = new System.Drawing.Size(175, 37);
@@ -48,7 +48,7 @@
             // btnSave
             // 
             this.btnSave.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(0)));
-            this.btnSave.Location = new System.Drawing.Point(533, 599);
+            this.btnSave.Location = new System.Drawing.Point(593, 599);
             this.btnSave.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.btnSave.Name = "btnSave";
             this.btnSave.Size = new System.Drawing.Size(175, 37);
@@ -86,28 +86,29 @@
             this.tabControl.Font = new System.Drawing.Font("Microsoft Sans Serif", 13F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
             this.tabControl.Location = new System.Drawing.Point(-3, 5);
             this.tabControl.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.tabControl.Multiline = true;
             this.tabControl.Name = "tabControl";
             this.tabControl.SelectedIndex = 0;
-            this.tabControl.Size = new System.Drawing.Size(905, 587);
+            this.tabControl.Size = new System.Drawing.Size(965, 587);
             this.tabControl.TabIndex = 0;
             this.tabControl.TabStop = false;
             // 
             // GUIConfig
             // 
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None;
-            this.ClientSize = new System.Drawing.Size(900, 645);
+            this.ClientSize = new System.Drawing.Size(960, 645);
             this.Controls.Add(this.btnSavePrmFile);
             this.Controls.Add(this.btnLoadPrmFile);
             this.Controls.Add(this.btnSave);
             this.Controls.Add(this.btnCancel);
             this.Controls.Add(this.tabControl);
+            this.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Name = "GUIConfig";
+            this.ShowIcon = false;
+            this.ShowInTaskbar = false;
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Edit configuration";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.GUIConfig_FormClosing);

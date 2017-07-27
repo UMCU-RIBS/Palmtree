@@ -59,6 +59,7 @@ namespace UNP.Sources {
 
             // start a new thread
             signalThread = new Thread(this.run);
+            signalThread.Name = "GenerateSignal Run Thread";
             signalThread.Start();
 
         }
@@ -163,10 +164,6 @@ namespace UNP.Sources {
         }
 
         public void initialize() {
-
-            // interrupt the loop wait. The loop will reset the wait lock (so it will wait again upon the next WaitOne call)
-            // this will make sure the newly set sample rate interval is applied in the loop
-            loopManualResetEvent.Set();
             
             // flag the initialization as complete
             initialized = true;
@@ -192,12 +189,12 @@ namespace UNP.Sources {
                 // start generating
                 started = true;
 
-                // interrupt the loop wait, making the loop to continue (in case it was waiting the sample interval)
-                // causing an immediate start, this makes it feel more responsive
-                loopManualResetEvent.Set();
-
             }
-            
+
+            // interrupt the loop wait, allowing the loop to continue (in case it was waiting the noproc interval)
+            // causing an immediate start and switching to the processing waittime
+            loopManualResetEvent.Set();
+
         }
 
 	    /**
@@ -218,7 +215,11 @@ namespace UNP.Sources {
 
             }
 
-	    }
+            // interrupt the loop wait, allowing the loop to continue (in case it was waiting the proc interval)
+            // switching to the no-processing waittime
+            loopManualResetEvent.Set();
+
+        }
 
 	    /**
 	     * Returns whether the signalgenerator is generating signal

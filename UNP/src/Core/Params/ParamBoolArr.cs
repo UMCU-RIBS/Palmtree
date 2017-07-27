@@ -26,11 +26,17 @@ namespace UNP.Core.Params {
         public T getValue<T>() {
 
             Type paramType = typeof(T);
-            if(paramType == typeof(bool[])) {     
+            if(paramType == typeof(bool[])) {
                 // request to return as bool[]
 
+                // create a copy (since an array is passed by reference, and we don't want values being changed this way)
+                bool[] cValues = new bool[values.Length];
+                for (int i = 0; i < values.Length; i++) {
+                    cValues[i] = values[i];
+                }
+
                 // return value
-                return (T)Convert.ChangeType(Value, typeof(bool[]));
+                return (T)Convert.ChangeType(cValues, typeof(bool[]));
 
             } else {
                 // request to return as other

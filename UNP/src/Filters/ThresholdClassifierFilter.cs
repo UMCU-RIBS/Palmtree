@@ -1,9 +1,4 @@
 ﻿using NLog;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using UNP.Core;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
 
@@ -33,7 +28,7 @@ namespace UNP.Filters {
             // define the parameters
             parameters.addParameter<bool>(
                 "EnableFilter",
-                "Enable AdaptationFilter",
+                "Enable threshold classifier filter",
                 "1");
 
             parameters.addParameter<bool>(
@@ -81,7 +76,7 @@ namespace UNP.Filters {
                 // determine the highest output channel from the
                 // configuration and set this as the number of output channels
                 int highestOutputChannel = 0;
-                for (int row = 0; row < mConfigOutputChannels.Count(); ++row) {
+                for (int row = 0; row < mConfigOutputChannels.Length; ++row) {
                     if (mConfigOutputChannels[row] > highestOutputChannel)
                         highestOutputChannel = mConfigOutputChannels[row];
                 }
@@ -230,7 +225,7 @@ namespace UNP.Filters {
 
                 // check thresholds
                 double[][] newThresholds = newParameters.getValue<double[][]>("Thresholds");
-		        if (newThresholds.Length != 4 && newThresholds[0].Length > 0) {
+		        if (newThresholds.Length != 4 || newThresholds[0].Length <= 0) {
                     logger.Error("Threshold parameter must have 4 columns (Input channel, Output channel, Threshold, Direction) and at least one row");
                     return false;
                 }
@@ -239,7 +234,7 @@ namespace UNP.Filters {
                 for (int row = 0; row < newThresholds[0].Length; ++row ) {
 
                     if (newThresholds[0][row] < 1) {
-                        logger.Error("Input channels must be positive integers");
+                        logger.Error("Input channels must be positive integers (note that the channel numbering is 1-based)");
                         return false;
                     }
                     if (newThresholds[0][row] > inputChannels) {
@@ -247,7 +242,7 @@ namespace UNP.Filters {
                         return false;
                     }
                     if (newThresholds[1][row] < 1) {
-                        logger.Error("Output channels must be positive integers");
+                        logger.Error("Output channels must be positive integers (note that the channel numbering is 1-based)");
                         return false;
                     }
 
@@ -320,7 +315,7 @@ namespace UNP.Filters {
                 for (uint channel = 0; channel < outputChannels; ++channel)     output[channel] = 0.0;
 
                 // loop through the config rows and accumilate the input channels into the output channels
-                for (uint row = 0; row < mConfigThresholds.Count(); ++row)      output[mConfigOutputChannels[row] - 1] += input[mConfigInputChannels[row] - 1];
+                for (uint row = 0; row < mConfigThresholds.Length; ++row)      output[mConfigOutputChannels[row] - 1] += input[mConfigInputChannels[row] - 1];
 
 		        // Thresholding
 		        for (uint channel = 0; channel < outputChannels; ++channel) {

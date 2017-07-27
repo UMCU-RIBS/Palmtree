@@ -28,11 +28,20 @@ namespace UNP.Core.Params {
         public T getValue<T>() {
 
             Type paramType = typeof(T);
-            if(paramType == typeof(int[][])) {     
+            if(paramType == typeof(int[][])) {
                 // request to return as int[][]
 
-                // return vlaue
-                return (T)Convert.ChangeType(Value, typeof(int[][]));
+                // create a copy (since an array is passed by reference, and we don't want values being changed this way)
+                int[][] cValues = new int[values.Length][];
+                for (int c = 0; c < values.Length; c++) {
+                    cValues[c] = new int[values[c].Length];
+                    for (int r = 0; r < values[c].Length; r++) {
+                        cValues[c][r] = values[c][r];
+                    }
+                }
+
+                // return value
+                return (T)Convert.ChangeType(cValues, typeof(int[][]));
 
             } else {
                 // request to return as other
@@ -51,8 +60,17 @@ namespace UNP.Core.Params {
             if(paramType == typeof(Parameters.Units[][])) {
                 // request to return as Parameters.Units[][]
 
+                // create a copy (since an array is passed by reference, and we don't want values being changed this way)
+                Parameters.Units[][] cUnits = new Parameters.Units[units.Length][];
+                for (int c = 0; c < units.Length; c++) {
+                    cUnits[c] = new Parameters.Units[units[c].Length];
+                    for (int r = 0; r < units[c].Length; r++) {
+                        cUnits[c][r] = units[c][r];
+                    }
+                }
+
                 // return value
-                return (T)Convert.ChangeType(Unit, typeof(Parameters.Units[][]));
+                return (T)Convert.ChangeType(cUnits, typeof(Parameters.Units[][]));
 
             } else {
                 // request to return as other

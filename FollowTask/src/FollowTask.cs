@@ -250,9 +250,8 @@ namespace FollowTask {
 
                 parameters.addParameter<int[]>(
                     "TargetSequence",
-                    "Fixed sequence in which targets should be presented (leave empty for random)",
+                    "Fixed sequence in which targets should be presented (leave empty for random)\nNote. indexing is 0 based (so a value of 0 will be the first row from the 'Targets' parameter",
                     "0", "", "");
-
 
             }
 
@@ -413,16 +412,14 @@ namespace FollowTask {
                 }
 
             }
-            
 
-            
             /*
                 // other parameters
                 State("Running");
                 State("ConnectionLost");
                 State("KeySequenceActive");
-            */          
-            
+            */
+
             return true;
         }
 

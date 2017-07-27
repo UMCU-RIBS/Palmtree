@@ -105,6 +105,7 @@ namespace UNP.Sources {
 
             // start a new thread
             signalThread = new Thread(this.run);
+            signalThread.Name = "NexusSignal Run Thread";
             signalThread.Start();
 
         }

@@ -87,7 +87,7 @@ namespace UNP.Filters {
                 "Time window of past data per buffer that enters into statistic (in samples or seconds)",
                 "0", "", "9s");
 
-            parameters.addParameter <int>       (
+            parameters.addParameter <double>       (
                 "BufferDiscardFirst",
                 "The amount of time at the start where samples should not be put in the buffer (in samples or seconds). 0 is off.",
                 "0", "", "1s");

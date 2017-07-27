@@ -1,22 +1,12 @@
 ﻿using NLog;
 using NLog.Config;
 using NLog.Windows.Forms;
-using UNP.Views;
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Drawing.Drawing2D;
-using System.Drawing.Imaging;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading;
 using System.Windows.Forms;
 using System.Timers;
 using UNP.Core;
+using UNP.Views;
 
 namespace UNP.GUI {
     

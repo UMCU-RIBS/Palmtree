@@ -26,11 +26,20 @@ namespace UNP.Core.Params {
         public T getValue<T>() {
 
             Type paramType = typeof(T);
-            if(paramType == typeof(string[][])) {     
+            if(paramType == typeof(string[][])) {
                 // request to return as string[][]
 
-                // return vlaue
-                return (T)Convert.ChangeType(Value, typeof(string[][]));
+                // create a copy (since an array is passed by reference, and we don't want values being changed this way)
+                string[][] cValues = new string[values.Length][];
+                for (int c = 0; c < values.Length; c++) {
+                    cValues[c] = new string[values[c].Length];
+                    for (int r = 0; r < values[c].Length; r++) {
+                        cValues[c][r] = values[c][r];
+                    }
+                }
+
+                // return value
+                return (T)Convert.ChangeType(cValues, typeof(string[][]));
 
             } else {
                 // request to return as other

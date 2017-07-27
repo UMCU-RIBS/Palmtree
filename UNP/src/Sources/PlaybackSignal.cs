@@ -27,45 +27,49 @@ namespace UNP.Sources {
         private static Logger logger = LogManager.GetLogger(CLASS_NAME);
         private static Parameters parameters = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Source);
         
-        private Thread signalThread = null;                                             // the source thread
-        private bool running = true;                                                    // flag to define if the source thread should be running (setting to false will stop the source thread)
-        private ManualResetEvent loopManualResetEvent = new ManualResetEvent(false);    // Manual reset event to call the WaitOne event on (this allows - in contrast to the sleep wait - to cancel the wait period at any point when closing the source) 
-        private Stopwatch swTimePassed = new Stopwatch();                               // stopwatch object to give an exact amount to time passed inbetween loops
-        private int sampleIntervalMs = 0;                                               // interval between the samples in milliseconds
-        private long sampleIntervalTicks = 0;                                           // interval between the samples in ticks (for high precision timing)
+        private Thread signalThread = null;                                                     // the source thread
+        private bool running = true;                                                            // flag to define if the source thread should be running (setting to false will stop the source thread)
+        private ManualResetEvent playbackLoopManualResetEvent = new ManualResetEvent(false);    // Manual reset event to call the WaitOne event on (this allows - in contrast to the sleep wait - to cancel the wait period at any point when closing the source) 
+        private Stopwatch swTimePassed = new Stopwatch();                                       // stopwatch object to give an exact amount to time passed inbetween loops
+        private int sampleIntervalMs = 0;                                                       // interval between the samples in milliseconds
+        private long sampleIntervalTicks = 0;                                                   // interval between the samples in ticks (for high precision timing)
         private int threadLoopDelay = 0;
-        private long highPrecisionWaitTillTime = 0;                                     // stores the time until which the high precision timing waits before continueing
+        private long highPrecisionWaitTillTime = 0;                                             // stores the time until which the high precision timing waits before continueing
 
         private bool configured = false;
         private bool initialized = false;
-        private bool started = false;				                                    // flag to define if the source is started or stopped
+        private bool started = false;				                                            // flag to define if the source is started or stopped
         private Object lockStarted = new Object();
 
-        private Random rand = new Random(Guid.NewGuid().GetHashCode());
         private int outputChannels = 0;
-        private double sampleRate = 0;                                                  // hold the amount of samples per second that the source outputs (used by the mainthead to convert seconds to number of samples)
-        private bool timingByFile = false;                                              // hold whether the timing of the samples is based on the elapsed time in the data file
-        private bool highPrecision = false;                                             // hold whether the generator should have high precision intervals
+        private double sampleRate = 0;                                                          // hold the amount of samples per second that the source outputs (used by the mainthead to convert seconds to number of samples)
+        private bool timingByFile = false;                                                      // hold whether the timing of the samples is based on the elapsed time in the data file
+        private bool highPrecision = false;                                                     // hold whether the generator should have high precision intervals
+        private bool redistributeEnabled = false;                                               // hold whether redistribution of input to output channels is enabled
+        private int[] redistributeChannels = null;                                              // holds how the channels should be redistributed
+        
 
-        private string inputFile = "";                                                  // filepath to the file(s) to use for playback
-        private bool readEntireFileInMemory = false;                                    // whether the entire file should be read into memory (on initialization)
+        private string inputFile = "";                                                          // filepath to the file(s) to use for playback
+        private bool readEntireFileInMemory = false;                                            // whether the entire file should be read into memory (on initialization)
 
-        private long inputBufferSize = 0;                                               // the total size of the input buffer in number of rows 
-        private long inputBufferMinTillRead = 0;                                        // the minimum amount of rows until additional read
-        private long inputBufferRowsPerRead = 0;                                        // the number of rows per read call
+        private Thread bufferThread = null;                                                     // input buffer thread (checks the buffer fill, and read new data from the file
+        private ManualResetEvent bufferLoopManualResetEvent = new ManualResetEvent(false);      //The input buffer's manual reset event to call the WaitOne event on (this allows - in contrast to the sleep wait - to cancel the wait period at any point when closing the source) 
+        private long inputBufferSize = 0;                                                       // the total size of the input buffer in number of rows 
+        private long inputBufferMinTillRead = 0;                                                // the minimum amount of rows until additional read
+        private long inputBufferRowsPerRead = 0;                                                // the number of rows per read call
 
-        private Object lockInputReader = new Object();                                  // threadsafety lock for input reader
+        private Object lockInputReader = new Object();                                          // threadsafety lock for input reader
         private DataReader inputReader = null;
         private DataHeader inputHeader = null;
 
-        private Object lockInputBuffer = new Object();                                  // threadsafety lock for input buffer
-        private byte[] inputBuffer = null;                                              // input (byte) ringbuffer
-        private int inputBufferRowSize = 0;                                             // rowsize (in bytes). A copy of the value from the header. A copy because this way we do not have to (thread)lock the reader/header objects when we just want to read the data
-        private long inputBufferAddIndex = 0;                                           // the index where in the (ring) input buffer the next row will be added
-        private long inputBufferReadIndex = 0;                                          // the index where in the (ring) input buffer the next row is that should be read
-        private long numberOfRowsInBuffer = 0;                                          // the number of added but unread rows in the (ring) input buffer
+        private Object lockInputBuffer = new Object();                                          // threadsafety lock for input buffer
+        private byte[] inputBuffer = null;                                                      // input (byte) ringbuffer
+        private int inputBufferRowSize = 0;                                                     // rowsize (in bytes). A copy of the value from the header. A copy because this way we do not have to (thread)lock the reader/header objects when we just want to read the data
+        private long inputBufferAddIndex = 0;                                                   // the index where in the (ring) input buffer the next row will be added
+        private long inputBufferReadIndex = 0;                                                  // the index where in the (ring) input buffer the next row is that should be read
+        private long numberOfRowsInBuffer = 0;                                                  // the number of added but unread rows in the (ring) input buffer
 
-        private double[] nextSample = null;                                             // next sample to send into the pipeline
+        private double[] nextSample = null;                                                     // next sample to send into the pipeline
 
 
         public PlaybackSignal() {
@@ -73,6 +77,11 @@ namespace UNP.Sources {
             parameters.addParameter<string>(
                 "Input",
                 "The data input file(s) that should be used for playback.\nWhich file of a set is irrelevant as long as the set has the same filename (the file extension is ignored as multiple files might be used).",
+                "", "", "");
+
+            parameters.addParameter<int[]>(
+                "RedistributeChannels",
+                "Redistributes the channels.\nIf this field is set, then the number of values here determines the number of output channels of the source, where every value becomes one output channel.\nThe value given represents the input channel from the data file to take as output.\nFor example when a source has two input channels, entering '1 2' in this field would playback as recorded, however, entering '2 1' would switch the input channels for output.\n\nNote: if left empty it will playback the channels as specified in the data file",
                 "", "", "");
 
             parameters.addParameter<bool>(
@@ -92,6 +101,7 @@ namespace UNP.Sources {
 
             // start a new thread
             signalThread = new Thread(this.run);
+            signalThread.Name = "PlaybackSignal Playback Run Thread";
             signalThread.Start();
 
         }
@@ -134,7 +144,7 @@ namespace UNP.Sources {
 
         public bool configure(out SampleFormat output) {
             #pragma warning disable 0162            // for constant checks, conscious ignore
-
+            
             // retrieve whether the file should be read into memory
             readEntireFileInMemory = parameters.getValue<bool>("ReadEntireFileInMemory");
 
@@ -205,8 +215,39 @@ namespace UNP.Sources {
 
                     }
 
-                    // set the number of output channels for this source based on the .dat file
-                    outputChannels = header.numPlaybackStreams;
+                    // retrieve the redistribution of channels
+                    redistributeChannels = parameters.getValue<int[]>("RedistributeChannels");
+                    redistributeEnabled = redistributeChannels.Length > 0;
+                    for (int i = 0; i < redistributeChannels.Length; i++) {
+
+                        if (redistributeChannels[i] < 1) {
+                            logger.Error("The values in the RedistributeChannels parameter should be positive integers (note that the channel numbering is 1-based)");
+                            output = null;
+                            return false;
+                        }
+                        if (redistributeChannels[i] > header.numPlaybackStreams) {
+                            logger.Error("One of the values in the RedistributeChannels parameter exceeds the number of playback (input) streams in the data file (#playbackStreams: " + header.numPlaybackStreams + ")");
+                            output = null;
+                            return false;
+                        }
+
+                        // lower each channel value (1-based), so it can be used immediately to point to the right value in the input stream array (0-based)
+                        redistributeChannels[i]--;
+
+                    }
+
+                    // check if the channels are redistributed
+                    if (redistributeEnabled) {
+
+                        // set the number of output channels to the number of redistributed channels
+                        outputChannels = redistributeChannels.Length;
+
+                    } else {
+
+                        // set the number of output channels for this source based on the playback streams in the .dat file
+                        outputChannels = header.numPlaybackStreams;
+
+                    }
 
                     // set the sample rate for this source based on the .dat file
                     sampleRate = header.sampleRate;
@@ -278,7 +319,8 @@ namespace UNP.Sources {
                     logger.Info("Playback data file: " + inputDatFile);
                     logger.Info("Data file version: " + header.version);
                     logger.Info("Pipeline sample rate: " + sampleRate);
-                    logger.Info("Number of pipeline input streams / output channels: " + outputChannels);
+                    logger.Info("Number of input streams in file: " + header.numPlaybackStreams);
+                    logger.Info("Number of output channels: " + outputChannels);
                     logger.Info("Number of rows: " + header.numRows);
 
                 } // end lock
@@ -328,10 +370,6 @@ namespace UNP.Sources {
 
         public void initialize() {
 
-            // interrupt the loop wait. The loop will reset the wait lock (so it will wait again upon the next WaitOne call)
-            // this will make sure the newly set sample rate interval is applied in the loop
-            loopManualResetEvent.Set();
-
             // thread safety
             lock (lockInputReader) {
 
@@ -380,10 +418,10 @@ namespace UNP.Sources {
             lock(lockStarted) {
 
                 // check if the generator was not already started
-                if (started)     return;
-                
+                if (started) return;
+
                 if (inputBuffer == null) {
-                    
+
                     // initialize the input buffer and already fill it with the rows
                     initInputBuffer();
 
@@ -395,9 +433,19 @@ namespace UNP.Sources {
                 // start playback
                 started = true;
 
-                // interrupt the loop wait, making the loop to continue (in case it was waiting the sample interval)
-                // causing an immediate start, this makes it feel more responsive
-                loopManualResetEvent.Set();
+                // interrupt the loop wait, allowing the loop to continue (in case it was waiting the noproc interval)
+                // causing an immediate start and switching to the processing waittime
+                playbackLoopManualResetEvent.Set();
+
+                // check if the entire file was not already read
+                if (!readEntireFileInMemory) {
+
+                    // start a new thread to keep the input buffer updated
+                    bufferThread = new Thread(this.runUpdateInputBuffer);
+                    bufferThread.Name = "PlaybackSignal Update Inputbuffer Run Thread";
+                    bufferThread.Start();
+
+                }
 
             }
 		
@@ -418,22 +466,45 @@ namespace UNP.Sources {
                     // stop playback
                     started = false;
 
-                    // thread safety
-                    lock (lockInputBuffer) {
-
-                        // clear the input buffer and input buffer variables
-                        inputBuffer = null;
-                        numberOfRowsInBuffer = 0;
-                        inputBufferReadIndex = 0;
-                        inputBufferAddIndex = 0;
-
-                    }
-
                 }
 
             }
 
-	    }
+            // interrupt the playback loop wait, allowing the loop to continue (in case it was waiting the proc interval)
+            // switching to the no-processing waittime
+            playbackLoopManualResetEvent.Set();
+
+            // check if there is a update input buffer thread
+            if (bufferThread != null) {
+
+                // interrupt the loop wait, allowing the loop to continue and exit
+                bufferLoopManualResetEvent.Set();
+
+                // wait until the buffer input thread stopped
+                // try to stop the main loop using running
+                int waitCounter = 5000;
+                while (bufferThread.IsAlive && waitCounter > 0) {
+                    Thread.Sleep(1);
+                    waitCounter--;
+                }
+
+                // clear the buffer thread reference
+                bufferThread = null;
+
+            }
+
+            // thread safety
+            lock (lockInputBuffer) {
+
+                // clear the input buffer and input buffer variables
+                inputBuffer = null;
+                numberOfRowsInBuffer = 0;
+                inputBufferReadIndex = 0;
+                inputBufferAddIndex = 0;
+
+            }
+
+        }
 
 	    /**
 	     * Returns whether the signalgenerator is generating signal
@@ -469,7 +540,7 @@ namespace UNP.Sources {
 
             // interrupt the wait in the loop
             // (this is done because if the sample rate is low, we might have to wait for a long time for the thread to end)
-            loopManualResetEvent.Set();
+            playbackLoopManualResetEvent.Set();
 
             // wait until the thread stopped
             // try to stop the main loop using running
@@ -494,8 +565,33 @@ namespace UNP.Sources {
 		    return running;
 	    }
 
-	    /**
-	     * Source running thread
+
+        /**
+	     * Source read data file thread
+	     */
+        private void runUpdateInputBuffer() {
+            
+            // check if we are running and playback has been started
+            while (running && started) {
+
+                // check the input buffer and (if needed) read
+                updateInputBuffer();
+
+                // reset the manual reset event, so it is sure to block on the next call to WaitOne
+                // 
+                // Note: not using AutoResetEvent because it could happen that .Set is called while not in WaitOne yet, when
+                // using AutoResetEvent this will cause it to skip the next WaitOne call
+                bufferLoopManualResetEvent.Reset();
+
+                // Sleep wait
+                bufferLoopManualResetEvent.WaitOne(threadLoopDelayNoProc);      // using WaitOne because this wait is interruptable (in contrast to sleep)
+
+            }
+
+        }
+
+        /**
+	     * Source playback thread
 	     */
         private void run() {
 
@@ -524,7 +620,7 @@ namespace UNP.Sources {
                             // no next sample
 
                             // message
-                            logger.Error("Playback of the file is finished");
+                            logger.Error("Playback of the file is finished, calling stop.");
 
                             // send a stop signal to the mainThread
                             MainThread.stop();
@@ -533,11 +629,27 @@ namespace UNP.Sources {
                         } else {
                             // there is a next sample (previously retrieved)
 
-                            // set values for the generated sample
+                            
+                            // create sample to return
                             double[] sample = new double[outputChannels];
-                            for (int i = 0; i < outputChannels; i++) {
-                                sample[i] = nextSample[i + 1];      // skip the elapsed time column
+
+                            // check if redistribution of channels is enabled
+                            if (redistributeEnabled) {
+
+                                // redistribute
+                                for (int i = 0; i < outputChannels; i++) {
+                                    sample[i] = nextSample[redistributeChannels[i] + 1];        // '+ 1' = skip the elapsed time column
+                                }
+
+                            } else {
+                                // set values for the generated sample
+                                
+                                for (int i = 0; i < outputChannels; i++) {
+                                    sample[i] = nextSample[i + 1];                              // '+ 1' = skip the elapsed time column
+                                }
+
                             }
+
 
                             // pass the sample
                             MainThread.eventNewSample(sample);
@@ -578,30 +690,30 @@ namespace UNP.Sources {
 
                             // wait for the remainder of the sample interval to get as close to the sample rate as possible (if there is a remainder)
                             if (threadLoopDelay >= 0) {
-                                
+
                                 // reset the manual reset event, so it is sure to block on the next call to WaitOne
                                 // 
                                 // Note: not using AutoResetEvent because it could happen that .Set is called while not in WaitOne yet, when
                                 // using AutoResetEvent this will cause it to skip the next WaitOne call
-                                loopManualResetEvent.Reset();
+                                playbackLoopManualResetEvent.Reset();
 
                                 // Sleep wait
-                                loopManualResetEvent.WaitOne(threadLoopDelay);      // using WaitOne because this wait is interruptable (in contrast to sleep)
+                                playbackLoopManualResetEvent.WaitOne(threadLoopDelay);      // using WaitOne because this wait is interruptable (in contrast to sleep)
                                 
                             }
 
                         }
 
                     } else {
-                            
+
                         // reset the manual reset event, so it is sure to block on the next call to WaitOne
                         // 
                         // Note: not using AutoResetEvent because it could happen that .Set is called while not in WaitOne yet, when
                         // using AutoResetEvent this will cause it to skip the next WaitOne call
-                        loopManualResetEvent.Reset();
+                        playbackLoopManualResetEvent.Reset();
 
                         // Sleep wait
-                        loopManualResetEvent.WaitOne(threadLoopDelayNoProc);      // using WaitOne because this wait is interruptable (in contrast to sleep)
+                        playbackLoopManualResetEvent.WaitOne(threadLoopDelayNoProc);      // using WaitOne because this wait is interruptable (in contrast to sleep)
 
                     }
 
