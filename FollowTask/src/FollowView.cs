@@ -41,7 +41,7 @@ namespace FollowTask {
         private RGBColorFloat cursorEscapeColor = new RGBColorFloat(0.8f, 0f, 0.8f);    // cursor color when escape sequence
 		private int cursorColorSetting = 0;							                    // determine the cursor color if (not) hitting (0 = manual false, 1 = manual true, 2 = automatic by mCursorInCurrentBlock)
 
-		private int showCountDown = 0;									                // whether the countdown should be shown (0 = off, 1..3 = count)
+		private int showCountDown = -1;									                // whether the countdown should be shown (-1 = off, 1..3 = count)
 		private bool showFixation = false;								                // whether the fixation should be shown
 		private long score = -1;									                        // the score that is being shown (-1 = do not show score)
 
@@ -82,7 +82,7 @@ namespace FollowTask {
             textFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 20), "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ. ");
 
 	        // initialize the countdown, text and fixation fonts
-            countdownFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 7), "123");
+            countdownFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 7), "1234567890");
             fixationFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 10), "+");
 
 	        // initialize the score font
@@ -186,7 +186,7 @@ namespace FollowTask {
                 
 	        }
 
-	        if (showCountDown != 0) {
+	        if (showCountDown >= 0) {
                 
 		        // set the countdown to white
 		        glColor3(1f, 1f, 1f);

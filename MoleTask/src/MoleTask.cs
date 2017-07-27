@@ -60,6 +60,8 @@ namespace MoleTask {
         private int mTaskInputChannel = 1;											// input channel
         private int mTaskFirstRunStartDelay = 0;                                    // the first run start delay in sample blocks
         private int mTaskStartDelay = 0;                                            // the run start delay in sample blocks
+        private int mCountdownTime = 0;                                             // the time the countdown takes in sample blocks
+
         private int mWaitCounter = 0;
         private int mRowSelectDelay = 0;
         private int mRowSelectedDelay = 0;
@@ -153,6 +155,11 @@ namespace MoleTask {
                     "TaskStartDelay",
                     "Amount of time before the task starts (after the first run of the task)",
                     "0", "", "10s");
+
+                parameters.addParameter<int>(
+                    "CountdownTime",
+                    "Amount of time the countdown before the task takes",
+                    "0", "", "3s");
 
                 parameters.addParameter<int>(
                     "TaskInputChannel",
@@ -271,6 +278,13 @@ namespace MoleTask {
                 return false;
             }
 
+            // retrieve the countdown time
+            mCountdownTime = parameters.getValueInSamples("CountdownTime");
+            if (mCountdownTime < 0) {
+                logger.Error("Countdown time cannot be less than 0");
+                return false;
+            }
+
             // retrieve the number of rows and columns in the grid
             configHoleRows = parameters.getValue<int>("HoleRows");
             configHoleColumns = parameters.getValue<int>("HoleColumns");
@@ -332,6 +346,10 @@ namespace MoleTask {
                 // create the view
                 mSceneThread = new MoleView(mWindowRedrawFreqMax, mWindowLeft, mWindowTop, mWindowWidth, mWindowHeight, false);
                 mSceneThread.setBackgroundColor(mWindowBackgroundColor.getRed(), mWindowBackgroundColor.getGreen(), mWindowBackgroundColor.getBlue());
+
+                // set task specific display attributes 
+                mSceneThread.setFixation(false);											// hide the fixation
+                mSceneThread.setCountDown(-1);												// hide the countdown
 
                 // extra empty first column and row
                 holeColumns = configHoleColumns + 1;
@@ -397,8 +415,8 @@ namespace MoleTask {
 	            // reset the score
 	            score = 0;
 
-	            // reset countdown
-	            mCountdownCounter = 15;
+	            // reset countdown to the countdown time
+	            mCountdownCounter = mCountdownTime;
 
 	            if(mTaskStartDelay != 0 || mTaskFirstRunStartDelay != 0) {
 		            // wait
@@ -533,20 +551,19 @@ namespace MoleTask {
 			
 			            // check if the task is counting down
 			            if (mCountdownCounter > 0) {
-				            // still counting down
+                            // still counting down
 
-				            // reduce the countdown timer
-				            mCountdownCounter--;
-				
-					        if (mCountdownCounter >10)			mSceneThread.setCountDown(3);
-					        else if (mCountdownCounter > 5)		mSceneThread.setCountDown(2);
-					        else if (mCountdownCounter > 0)		mSceneThread.setCountDown(1);
+                            // display the countdown
+                            mSceneThread.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.SamplesPerSecond()) + 1);
 
-			            } else {
+                            // reduce the countdown timer
+                            mCountdownCounter--;
+
+                        } else {
 				            // done counting down
 
 				            // hide the countdown counter
-				            mSceneThread.setCountDown(0);
+				            mSceneThread.setCountDown(-1);
 
 				            // Begin at first target and set the mole at the right position
 				            mTargetIndex = 0;
@@ -853,7 +870,7 @@ namespace MoleTask {
 
 			        // hide the fixation and countdown
 			        mSceneThread.setFixation(false);
-                    mSceneThread.setCountDown(0);
+                    mSceneThread.setCountDown(-1);
 
 			        // Hide countdown, selection, mole and score
                     mSceneThread.selectRow(-1, false);
@@ -872,17 +889,17 @@ namespace MoleTask {
 
                 case TaskStates.CountDown:
 			        // countdown when task starts
-			
+			        
 			        // hide fixation
 			        mSceneThread.setFixation(false);
 
-			        // set countdown
-			        if (mCountdownCounter > 10)			mSceneThread.setCountDown(3);
-			        else if (mCountdownCounter > 5)		mSceneThread.setCountDown(2);
-			        else if (mCountdownCounter > 0)		mSceneThread.setCountDown(1);
-			        else								mSceneThread.setCountDown(0);
+                    // set countdown
+                    if (mCountdownCounter > 0)
+                        mSceneThread.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.SamplesPerSecond()) + 1);
+                    else
+                        mSceneThread.setCountDown(-1);
 
-			        break;
+                    break;
 
                 case TaskStates.RowSelect:
 			        // selecting a row
@@ -910,7 +927,6 @@ namespace MoleTask {
 			        mWaitCounter = mRowSelectedDelay;
 
 			        break;
-
 
                 case TaskStates.ColumnSelect:
 			        // selecting a column

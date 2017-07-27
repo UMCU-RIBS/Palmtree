@@ -34,7 +34,7 @@ namespace MoleTask {
 		private bool mSelected = false;
 		private bool mShowGrid = false;
 		private bool showFixation = false;								    // whether the fixation should be shown
-		private int showCountDown = 0;									    // whether the countdown should be shown (0 = off, 1..3 = count)
+		private int showCountDown = -1;									    // whether the countdown should be shown (-1 = off, 1..3 = count)
 
 		private glFreeTypeFont scoreFont = new glFreeTypeFont();
 		private glFreeTypeFont fixationFont = new glFreeTypeFont();
@@ -75,7 +75,7 @@ namespace MoleTask {
             textFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 20), "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ. ");
 
             // initialize the countdown, text and fixation fonts
-            countdownFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 7), "123");
+            countdownFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 7), "1234567890");
             fixationFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 10), "+");
 
             // initialize the score font
@@ -147,7 +147,7 @@ namespace MoleTask {
                 
 	        }
 
-	        if (showCountDown != 0) {
+	        if (showCountDown >= 0) {
                 
 		        // set the countdown to white
 		        glColor3(1f, 1f, 1f);

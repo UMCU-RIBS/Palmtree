@@ -620,7 +620,7 @@ namespace UNP.Sources {
                             // no next sample
 
                             // message
-                            logger.Error("Playback of the file is finished, calling stop.");
+                            logger.Info("Playback of the file is finished, calling stop.");
 
                             // send a stop signal to the mainThread
                             MainThread.stop();

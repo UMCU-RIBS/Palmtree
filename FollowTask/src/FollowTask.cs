@@ -80,6 +80,7 @@ namespace FollowTask {
         private int mTaskInputSignalType = 0;										// input signal type (0 = 0 to 1, 1 = -1 to 1)
         private int mTaskFirstRunStartDelay = 0;                                    // the first run start delay in sample blocks
         private int mTaskStartDelay = 0;									        // the run start delay in sample blocks
+        private int mCountdownTime = 0;                                             // the time the countdown takes in sample blocks
 
 
         // task (active) variables
@@ -160,6 +161,11 @@ namespace FollowTask {
                     "TaskStartDelay",
                     "Amount of time before the task starts (after the first run of the task)",
                     "0", "", "10s");
+
+                parameters.addParameter<int>(
+                    "CountdownTime",
+                    "Amount of time the countdown before the task takes",
+                    "0", "", "3s");
 
                 parameters.addParameter<int>(
                     "TaskInputChannel",
@@ -324,7 +330,14 @@ namespace FollowTask {
                 logger.Error("Start delays cannot be less than 0");
                 return false;
             }
-            
+
+            // retrieve the countdown time
+            mCountdownTime = parameters.getValueInSamples("CountdownTime");
+            if (mCountdownTime < 0) {
+                logger.Error("Countdown time cannot be less than 0");
+                return false;
+            }
+
             // retrieve the score parameter
             mShowScore = parameters.getValue<bool>("TaskShowScore");
 
@@ -443,7 +456,7 @@ namespace FollowTask {
                 mSceneThread.initBlockTextures(mTargetTextures);							// initialize target textures (do this before the thread start)
                 mSceneThread.centerCursor();												// set the cursor to the middle of the screen
                 mSceneThread.setFixation(false);											// hide the fixation
-                mSceneThread.setCountDown(0);												// hide the countdown
+                mSceneThread.setCountDown(-1);												// hide the countdown
 
                 // check if the cursor rule is set to hitcolor on hit, if so
                 // then make the color automatically determined in the Scenethread by it's variable 'mCursorInCurrentBlock',
@@ -498,10 +511,10 @@ namespace FollowTask {
 	            // reset the score
 	            mHitScore = 0;
 
-	            // reset countdown
-	            mCountdownCounter = 15;
+                // reset countdown to the countdown time
+                mCountdownCounter = mCountdownTime;
 
-	            if(mTaskStartDelay != 0 || mTaskFirstRunStartDelay != 0) {
+                if (mTaskStartDelay != 0 || mTaskFirstRunStartDelay != 0) {
 		            // wait
 
 		            // set state to wait
@@ -616,9 +629,6 @@ namespace FollowTask {
 			
 			            if(mWaitCounter == 0) {
 
-				            // start countdown
-				            mSceneThread.setCountDown(3);
-
 				            // set the state to countdown
 				            setState(TaskStates.CountDown);
 
@@ -634,19 +644,20 @@ namespace FollowTask {
 			            if (mCountdownCounter > 0) {
 				            // still counting down
 
-				            // reduce the countdown timer
-				            mCountdownCounter--;
-				
-				            // show a certain countdown number
-					        if (mCountdownCounter > 10)			mSceneThread.setCountDown(3);
-					        else if (mCountdownCounter > 5)		mSceneThread.setCountDown(2);
-					        else if (mCountdownCounter > 0)		mSceneThread.setCountDown(1);
+                            // display the countdown
+                            mSceneThread.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.SamplesPerSecond()) + 1);
 
-			            } else {
-				            // done counting down
+                            // reduce the countdown timer
+                            mCountdownCounter--;
 
-				            // set the current block to no block
-				            mCurrentBlock = FollowView.noBlock;
+                        } else {
+                            // done counting down
+
+                            // hide the countdown counter
+                            mSceneThread.setCountDown(-1);
+
+                            // set the current block to no block
+                            mCurrentBlock = FollowView.noBlock;
 
 				            // reset the score
 				            mHitScore = 0;
@@ -886,7 +897,7 @@ namespace FollowTask {
 
 		    // hide everything
 		    mSceneThread.setFixation(false);
-		    mSceneThread.setCountDown(0);
+		    mSceneThread.setCountDown(-1);
 		    mSceneThread.setBlocksVisible(false);
 		    mSceneThread.setCursorVisible(false);
 		    mSceneThread.setBlocksMove(false);
@@ -926,7 +937,7 @@ namespace FollowTask {
 
 				    // hide the fixation and countdown
 				    mSceneThread.setFixation(false);
-                    mSceneThread.setCountDown(0);
+                    mSceneThread.setCountDown(-1);
 
 				    // stop the blocks from moving
 				    mSceneThread.setBlocksMove(false);
@@ -955,10 +966,10 @@ namespace FollowTask {
 				    mSceneThread.setFixation(false);
 
 				    // set countdown
-				    if (mCountdownCounter > 10)			mSceneThread.setCountDown(3);
-				    else if (mCountdownCounter > 5)		mSceneThread.setCountDown(2);
-				    else if (mCountdownCounter > 0)		mSceneThread.setCountDown(1);
-				    else								mSceneThread.setCountDown(0);
+                    if (mCountdownCounter > 0)
+                        mSceneThread.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.SamplesPerSecond()) + 1);
+                    else
+                        mSceneThread.setCountDown(-1);
 
 			        break;
 
@@ -972,7 +983,7 @@ namespace FollowTask {
                     */
 
 				    // hide the countdown counter
-				    mSceneThread.setCountDown(0);
+				    mSceneThread.setCountDown(-1);
 
 				    // set the score for display
 				    if (mShowScore)		mSceneThread.setScore(mHitScore);
