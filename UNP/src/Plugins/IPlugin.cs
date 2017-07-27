@@ -12,6 +12,7 @@ namespace UNP.Plugins {
         int getClassVersion();
         string getName();
         Parameters getParameters();
+        double getSamplesPerSecond();
 
         bool configure();
         void initialize();

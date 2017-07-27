@@ -69,7 +69,7 @@ namespace UNP.Sources {
             parameters.addParameter<bool>(
                 "HighPrecision",
                 "Use high precision intervals when generating sample.\nNote 1: Enabling this option will claim one processor core entirely, possibly causing your system to slow down or hang.\nNote 2: High precision will be enabled automatically when a sample rate is set to more than 1000 hz.",
-                "", "", "1");
+                "", "", "0");
 
             parameters.addParameter<string[][]>(
                 "Keys",

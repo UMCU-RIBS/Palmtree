@@ -254,13 +254,10 @@ namespace UNP.Core.DataIO {
 
                 // create the session data directory 
                 try {
-                    if (Directory.Exists(sessionDir)) {
-                        logger.Info("Session data directory already exists.");
-                    } else {
+                    if (!Directory.Exists(sessionDir)) {
                         Directory.CreateDirectory(sessionDir);
                         logger.Info("Created session data directory at " + sessionDir);
                     }
-
                 } catch (Exception e) {
                     logger.Error("Unable to create sesion data directory at " + sessionDir + " (" + e.ToString() + ")");
                 }

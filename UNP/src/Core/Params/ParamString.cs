@@ -8,7 +8,7 @@ namespace UNP.Core.Params {
 
     public class ParamString : Param, iParam {
 
-        private string value = "";
+        protected string value = "";
 
         public ParamString(string name, string group, Parameters parentSet, string desc, string stdValue, string[] options) : base(name, group, parentSet, desc, stdValue, options) {
             minValue = "";

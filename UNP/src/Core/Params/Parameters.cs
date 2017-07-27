@@ -131,6 +131,10 @@ namespace UNP.Core.Params {
 
                     param = new ParamString(name, group, this, desc, stdValue, options);
 
+                } else if (paramType == typeof(ParamFileString)) {
+
+                    param = new ParamFileString(name, group, this, desc, stdValue, options);
+
                 } else if (paramType == typeof(ParamStringMat) || paramType == typeof(string[][]) || paramType == typeof(String[][])) {
 
                     param = new ParamStringMat(name, group, this, desc, stdValue, options);

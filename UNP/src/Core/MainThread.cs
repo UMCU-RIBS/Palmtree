@@ -108,7 +108,7 @@ namespace UNP.Core {
             //sourceParameters.setValue("SampleRate", 5.0);
             //sourceParameters.setValue("Keys", "F,G;1,2;1,1;-1,-1");
 
-            sourceParameters.setValue("Input", "D:\\UNP\\other\\testrun\\test.dat");
+            //sourceParameters.setValue("Input", "D:\\UNP\\other\\testrun\\test.dat");
             //sourceParameters.setValue("Input", "D:\\UNP\\other\\testrun\\test_20170724_Run_0.dat");
 
             Parameters timeSmoothingParameters = getFilterParameters("TimeSmoothing");

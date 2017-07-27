@@ -233,7 +233,7 @@ namespace UNP.Filters {
                 // loop through the rows
                 for (int row = 0; row < newThresholds[0].Length; ++row ) {
 
-                    if (newThresholds[0][row] < 1) {
+                    if (newThresholds[0][row] < 1 || newThresholds[0][row] % 1 != 0) {
                         logger.Error("Input channels must be positive integers (note that the channel numbering is 1-based)");
                         return false;
                     }
@@ -241,7 +241,7 @@ namespace UNP.Filters {
                         logger.Error("One of the input channel values exceeds the number of channels coming into the filter (#inputChannels: " + inputChannels + ")");
                         return false;
                     }
-                    if (newThresholds[1][row] < 1) {
+                    if (newThresholds[1][row] < 1 || newThresholds[0][row] % 1 != 0) {
                         logger.Error("Output channels must be positive integers (note that the channel numbering is 1-based)");
                         return false;
                     }

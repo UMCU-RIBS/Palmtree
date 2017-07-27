@@ -205,7 +205,7 @@ namespace UNP.GUI {
                     TextBox newTxt = new TextBox();
                     newTxt.Name = "txt" + panel.Name + param.Name;
                     newTxt.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
-                    newTxt.Size = new System.Drawing.Size(260, 20);
+                    newTxt.Size = new System.Drawing.Size(200, 20);
                     newTxt.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
                     panel.Controls.Add(newTxt);
                     paramControl.control = newTxt;
@@ -254,11 +254,72 @@ namespace UNP.GUI {
                 TextBox newTxt = new TextBox();
                 newTxt.Name = "txt" + panel.Name + param.Name;
                 newTxt.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
-                newTxt.Size = new System.Drawing.Size(340, 20);
+                newTxt.Size = new System.Drawing.Size((param is ParamFileString ? 480 : 340), 20);
                 newTxt.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
                 panel.Controls.Add(newTxt);
                 paramControl.control = newTxt;
                 itemHeight = 20;
+
+                if (param is ParamFileString) {
+                    
+                    // create and add a button
+                    Button newBtn = new Button();
+                    newBtn.Name = "btn" + panel.Name + param.Name;
+                    newBtn.Location = new Point(labelWidth + newTxt.Size.Width + 20, y + itemTopPadding - 2);
+                    newBtn.Size = new System.Drawing.Size(40, 23);
+                    newBtn.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
+                    newBtn.Text = "...";
+                    newBtn.Click += (sender, e) => {
+
+                        // open file dialog to open dat file
+                        OpenFileDialog dlgLoadDatFile = new OpenFileDialog();
+
+                        // set initial directory (or the closest we can get)
+                        string folder = newTxt.Text;
+                        bool tryFolder = true;
+                        while (tryFolder) {
+                            try {
+                                FileAttributes attr = File.GetAttributes(folder);
+                                if ((attr & FileAttributes.Directory) == FileAttributes.Directory)
+                                    tryFolder = false;
+                                else {
+                                    int lastIndex = folder.LastIndexOf('\\');
+                                    if (lastIndex == -1) {
+                                        tryFolder = false;
+                                        folder = "";
+                                    } else
+                                        folder = folder.Substring(0, lastIndex);
+                                }
+                            } catch (Exception) {
+                                if (folder.Length > 0) folder = folder.Substring(0, folder.Length - 1);
+                                int lastIndex = folder.LastIndexOf('\\');
+                                if (lastIndex == -1) {
+                                    tryFolder = false;
+                                    folder = "";
+                                } else
+                                    folder = folder.Substring(0, lastIndex);
+                            }
+
+                        }
+                        if (string.IsNullOrEmpty(folder)) dlgLoadDatFile.InitialDirectory = Directory.GetCurrentDirectory();
+                        else dlgLoadDatFile.InitialDirectory = folder;
+
+                        // 
+                        dlgLoadDatFile.Filter = "All files (*.*)|*.*";
+                        dlgLoadDatFile.RestoreDirectory = true;            // restores current directory to the previously selected directory, potentially beneficial if other code relies on the currently set directory
+
+                        // check if ok has been clicked on the dialog
+                        if (dlgLoadDatFile.ShowDialog() == DialogResult.OK) {
+
+                            newTxt.Text = dlgLoadDatFile.FileName;
+
+                        }
+
+                    };
+                    panel.Controls.Add(newBtn);
+                    paramControl.additionalControl1 = newBtn;
+
+                }
 
             } else if (param is ParamBoolMat || param is ParamIntMat || param is ParamDoubleMat || param is ParamStringMat) {
 
@@ -328,6 +389,85 @@ namespace UNP.GUI {
                 newColumns.Visible = (param.Options.Length == 0);
                 panel.Controls.Add(newLblColumns);
                 panel.Controls.Add(newColumns);
+
+
+                // create and add a save button
+                Button newBtnSave = new Button();
+                newBtnSave.Name = "btn" + panel.Name + param.Name + "Save";
+                newBtnSave.Size = new System.Drawing.Size(40, 23);
+                newBtnSave.Location = new Point(newGrid.Location.X + newGrid.Size.Width - newBtnSave.Size.Width, newGrid.Location.Y + newGrid.Size.Height + 7);
+                newBtnSave.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
+                newBtnSave.Text = "Save";
+                newBtnSave.Click += (sender, e) => {
+
+                    // retrieve the values as string
+                    string strMat = gridToString(newGrid);
+
+                    // open file dialog to save file
+                    SaveFileDialog dlgSaveDatFile = new SaveFileDialog();
+                    dlgSaveDatFile.Filter = "Matrix files (*.mat)|*.mat|All files (*.*)|*.*";
+                    dlgSaveDatFile.RestoreDirectory = true;            // restores current directory to the previously selected directory, potentially beneficial if other code relies on the currently set directory
+
+                    // check if ok has been clicked on the dialog
+                    if (dlgSaveDatFile.ShowDialog() == DialogResult.OK) {
+                        
+                        // write the values as text to a file
+                        try { 
+                            File.WriteAllText(dlgSaveDatFile.FileName, strMat);
+                        } catch (Exception) {
+                            logger.Error("Could not write matrix values to file '" + dlgSaveDatFile.FileName +  "'");
+                            return;
+                        }
+
+                    }
+
+                };
+                panel.Controls.Add(newBtnSave);
+
+                // create and add a load button
+                Button newBtnLoad = new Button();
+                newBtnLoad.Name = "btn" + panel.Name + param.Name + "Load";
+                newBtnLoad.Size = new System.Drawing.Size(40, 23);
+                newBtnLoad.Location = new Point(newBtnSave.Location.X - newBtnLoad.Size.Width - 4, newGrid.Location.Y + newGrid.Size.Height + 7);
+                newBtnLoad.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
+                newBtnLoad.Text = "Load";
+                newBtnLoad.Click += (sender, e) => {
+
+                    // open file dialog to open file
+                    OpenFileDialog dlgOpenDatFile = new OpenFileDialog();
+                    dlgOpenDatFile.Filter = "Matrix files (*.mat)|*.mat|All files (*.*)|*.*";
+                    dlgOpenDatFile.RestoreDirectory = true;            // restores current directory to the previously selected directory, potentially beneficial if other code relies on the currently set directory
+
+                    // check if ok has been clicked on the dialog
+                    if (dlgOpenDatFile.ShowDialog() == DialogResult.OK) {
+
+                        string strMat = "";
+
+                        // read the values from the file
+                        try {
+                            strMat = File.ReadAllText(dlgOpenDatFile.FileName);
+                        } catch (Exception) {
+                            logger.Error("Could not read matrix values from file '" + dlgOpenDatFile.FileName + "'");
+                            return;
+                        }
+
+                        // try to interpret the value
+                        iParam interpret = null;
+                        if (param is ParamBoolMat)      interpret = new ParamBoolMat("", "", null, "", "", null);
+                        if (param is ParamIntMat)       interpret = new ParamIntMat("", "", null, "", "", null);
+                        if (param is ParamDoubleMat)    interpret = new ParamDoubleMat("", "", null, "", "", null);
+                        if (param is ParamStringMat)    interpret = new ParamStringMat("", "", null, "", "", null);
+                        if (!interpret.tryValue(strMat)) {
+                            logger.Error("Could not interpret matrix values from file '" + dlgOpenDatFile.FileName + "'");
+                        }
+                        interpret.setValue(strMat);
+
+                        // apply the values to the grid
+                        paramValuesToGrid(newGrid, newColumns, newRows, interpret);
+
+                    }
+                };
+                panel.Controls.Add(newBtnLoad);
 
                 paramControl.control = newGrid;
                 paramControl.additionalControl1 = newRows;
@@ -400,78 +540,9 @@ namespace UNP.GUI {
                     DataGridView grd = (DataGridView)paramControls[i].control;
                     NumericUpDown grdRows = (NumericUpDown)paramControls[i].additionalControl1;
                     NumericUpDown grdColumns = (NumericUpDown)paramControls[i].additionalControl2;
-                    
-                    bool[][]boolValues = null;
-                    int[][]intValues = null;
-                    double[][]dblValues = null;
-                    string[][]strValues = null;
-                    Parameters.Units[][] units = null;
-                    int columns = 0;
-                    int maxRows = 0;
-                    if (param is ParamBoolMat) {
-                        boolValues = ((ParamBoolMat)param).Value;
-                        columns = boolValues.Length;
-                        for (int c = 0; c < columns; c++)   if (boolValues[c].Length > maxRows)    maxRows = boolValues[c].Length;
-                    }
-                    if (param is ParamIntMat) {
-                        intValues = ((ParamIntMat)param).Value;
-                        units = ((ParamIntMat)param).Unit;
-                        columns = intValues.Length;
-                        for (int c = 0; c < columns; c++)   if (intValues[c].Length > maxRows)    maxRows = intValues[c].Length;
-                    }
-                    if (param is ParamDoubleMat) {
-                        dblValues = ((ParamDoubleMat)param).Value;
-                        units = ((ParamDoubleMat)param).Unit;
-                        columns = dblValues.Length;
-                        for (int c = 0; c < columns; c++)   if (dblValues[c].Length > maxRows)    maxRows = dblValues[c].Length;
-                    }
-                    if (param is ParamStringMat) {
-                        strValues = ((ParamStringMat)param).Value;
-                        columns = strValues.Length;
-                        for (int c = 0; c < columns; c++)   if (strValues[c].Length > maxRows)    maxRows = strValues[c].Length;
-                    }
 
-                    // set the columns (the changevalue property of the of the NumericUpDown control will do the actual resizing of the grid)
-                    if (param.Options.Length == 0) {
-                        grdColumns.Value = columns;
-                    } else {
-                        grdColumns.Value = param.Options.Length;
-                        for (int c = 0; c < param.Options.Length; c++) {
-                            grd.Columns[c].HeaderText = param.Options[c];
-                        }
-                    }
-
-
-                    // set the rows (the changevalue property of the of the NumericUpDown control will do the actual resizing of the grid)
-                    if (maxRows > 0)        grdRows.Value = maxRows;
-                    else                    grdRows.Value = 0;
-
-                    // set the values
-                    for (int c = 0; c < columns; c++) {
-
-                        if (param is ParamBoolMat) {
-                            for (int r = 0; r < boolValues[c].Length; r++) {
-                                grd[c, r].Value = (boolValues[c][r] ? "1" : "0");
-                            }
-                        }
-                        if (param is ParamIntMat) {
-                            for (int r = 0; r < intValues[c].Length; r++) {
-                                grd[c, r].Value = (intValues[c][r].ToString(NumberCulture) + (units[c][r] == Parameters.Units.Seconds ? "s" : ""));
-                                
-                            }
-                        }
-                        if (param is ParamDoubleMat) {
-                            for (int r = 0; r < dblValues[c].Length; r++) {
-                                grd[c, r].Value = (dblValues[c][r].ToString(NumberCulture) + (units[c][r] == Parameters.Units.Seconds ? "s" : ""));
-                            }
-                        }
-                        if (param is ParamStringMat) {
-                            for (int r = 0; r < strValues[c].Length; r++) {
-                                grd[c, r].Value = strValues[c][r];
-                            }
-                        }
-
-                    }
+                    // apply the values to the grid
+                    paramValuesToGrid(grd, grdColumns, grdRows, param);
 
                 } else if (param is ParamColor) {
 
@@ -611,31 +682,16 @@ namespace UNP.GUI {
 
                     // retrieve references to the control and parameter value(s)
                     DataGridView grd = (DataGridView)paramControls[i].control;
-                    NumericUpDown grdRows = (NumericUpDown)paramControls[i].additionalControl1;
-                    NumericUpDown grdColumns = (NumericUpDown)paramControls[i].additionalControl2;
-                    int columns = (int)grdColumns.Value;
-                    int rows = (int)grdRows.Value;
-                    
-                    // create input string
-                    string matstring = "";
-                    if (columns > 0 && rows > 0) {
-                        for (int c = 0; c < columns; c++) {
-                            for (int r = 0; r < rows; r++) {
-                                Object cell = grd[c, r].Value;
-                                if (cell==null)     matstring += " ";
-                                else                matstring += cell.ToString().Trim().Replace(',','.');
-                                if (r != rows - 1) matstring += Parameters.MatRowDelimiters[0]; 
-                            }
-                            if (c != columns - 1) matstring += Parameters.MatColumnDelimiters[0]; 
-                        }
-                    }
+
+                    // get the grid values as string
+                    string strMat = gridToString(grd);
                     
                     // testing or saving
                     if (!saveFields) {
                         // testing
 
                         // try to parse the value
-                        if (!param.tryValue(matstring)) {
+                        if (!param.tryValue(strMat)) {
                             
                             // flag
                             hasError = true;
@@ -665,7 +721,7 @@ namespace UNP.GUI {
                     } else {
                         // saving
 
-                        if (!param.setValue(matstring)) {
+                        if (!param.setValue(strMat)) {
 
                             // flag
                             hasError = true;
@@ -740,6 +796,107 @@ namespace UNP.GUI {
 
             // return success (if no error and not checking input but actually saving)
             return true;
+
+        }
+
+        private string gridToString(DataGridView grd) {
+
+            int columns = grd.ColumnCount;
+            int rows = grd.RowCount;
+
+            // create input string
+            string matstring = "";
+            if (columns > 0 && rows > 0) {
+                for (int c = 0; c < columns; c++) {
+                    for (int r = 0; r < rows; r++) {
+                        Object cell = grd[c, r].Value;
+                        if (cell == null) matstring += " ";
+                        else matstring += cell.ToString().Trim().Replace(',', '.');
+                        if (r != rows - 1) matstring += Parameters.MatRowDelimiters[0];
+                    }
+                    if (c != columns - 1) matstring += Parameters.MatColumnDelimiters[0];
+                }
+            }
+
+            // return the string
+            return matstring;
+
+        }
+
+        private void paramValuesToGrid(DataGridView grd, NumericUpDown grdColumns, NumericUpDown grdRows, iParam param) {
+
+            bool[][] boolValues = null;
+            int[][] intValues = null;
+            double[][] dblValues = null;
+            string[][] strValues = null;
+            Parameters.Units[][] units = null;
+            int columns = 0;
+            int maxRows = 0;
+            if (param is ParamBoolMat) {
+                boolValues = ((ParamBoolMat)param).Value;
+                columns = boolValues.Length;
+                for (int c = 0; c < columns; c++) if (boolValues[c].Length > maxRows) maxRows = boolValues[c].Length;
+            }
+            if (param is ParamIntMat) {
+                intValues = ((ParamIntMat)param).Value;
+                units = ((ParamIntMat)param).Unit;
+                columns = intValues.Length;
+                for (int c = 0; c < columns; c++) if (intValues[c].Length > maxRows) maxRows = intValues[c].Length;
+            }
+            if (param is ParamDoubleMat) {
+                dblValues = ((ParamDoubleMat)param).Value;
+                units = ((ParamDoubleMat)param).Unit;
+                columns = dblValues.Length;
+                for (int c = 0; c < columns; c++) if (dblValues[c].Length > maxRows) maxRows = dblValues[c].Length;
+            }
+            if (param is ParamStringMat) {
+                strValues = ((ParamStringMat)param).Value;
+                columns = strValues.Length;
+                for (int c = 0; c < columns; c++) if (strValues[c].Length > maxRows) maxRows = strValues[c].Length;
+            }
+
+            // set the columns (the changevalue property of the of the NumericUpDown control will do the actual resizing of the grid)
+            if (param.Options.Length == 0) {
+                grdColumns.Value = columns;
+            } else {
+                grdColumns.Value = param.Options.Length;
+                for (int c = 0; c < param.Options.Length; c++) {
+                    grd.Columns[c].HeaderText = param.Options[c];
+                }
+            }
+
+
+            // set the rows (the changevalue property of the of the NumericUpDown control will do the actual resizing of the grid)
+            if (maxRows > 0) grdRows.Value = maxRows;
+            else grdRows.Value = 0;
+
+            // set the values
+            for (int c = 0; c < columns; c++) {
+
+                if (param is ParamBoolMat) {
+                    for (int r = 0; r < boolValues[c].Length; r++) {
+                        grd[c, r].Value = (boolValues[c][r] ? "1" : "0");
+                    }
+                }
+                if (param is ParamIntMat) {
+                    for (int r = 0; r < intValues[c].Length; r++) {
+                        grd[c, r].Value = (intValues[c][r].ToString(NumberCulture) + (units[c][r] == Parameters.Units.Seconds ? "s" : ""));
+
+                    }
+                }
+                if (param is ParamDoubleMat) {
+                    for (int r = 0; r < dblValues[c].Length; r++) {
+                        grd[c, r].Value = (dblValues[c][r].ToString(NumberCulture) + (units[c][r] == Parameters.Units.Seconds ? "s" : ""));
+                    }
+                }
+                if (param is ParamStringMat) {
+                    for (int r = 0; r < strValues[c].Length; r++) {
+                        grd[c, r].Value = strValues[c][r];
+                    }
+                }
+
+            }
+
 
         }
 

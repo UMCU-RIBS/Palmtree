@@ -74,7 +74,7 @@ namespace UNP.Sources {
 
         public PlaybackSignal() {
             
-            parameters.addParameter<string>(
+            parameters.addParameter<ParamFileString>(
                 "Input",
                 "The data input file(s) that should be used for playback.\nWhich file of a set is irrelevant as long as the set has the same filename (the file extension is ignored as multiple files might be used).",
                 "", "", "");
@@ -97,7 +97,7 @@ namespace UNP.Sources {
             parameters.addParameter<bool>(
                 "HighPrecision",
                 "Use high precision intervals when generating sample.\nNote 1: Enabling this option will claim one processor core entirely, possibly causing your system to slow down or hang.\nNote 2: High precision will be enabled automatically when a sample rate is set to more than 1000 hz.",
-                "", "", "1");
+                "", "", "0");
 
             // start a new thread
             signalThread = new Thread(this.run);
@@ -220,7 +220,7 @@ namespace UNP.Sources {
                     redistributeEnabled = redistributeChannels.Length > 0;
                     for (int i = 0; i < redistributeChannels.Length; i++) {
 
-                        if (redistributeChannels[i] < 1) {
+                        if (redistributeChannels[i] < 1 || redistributeChannels[i] % 1 != 0) {
                             logger.Error("The values in the RedistributeChannels parameter should be positive integers (note that the channel numbering is 1-based)");
                             output = null;
                             return false;

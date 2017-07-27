@@ -110,7 +110,7 @@ namespace UNP.Core {
             //source = "UNP.Sources.GenerateSignal";
             //source = "UNP.Sources.KeypressSignal";
             //source = "UNP.Sources.NexusSignal";
-            source = "UNP.Sources.PlaybackSignal";
+            //source = "UNP.Sources.PlaybackSignal";
 
             // check if no (valid) source was given
             if (string.IsNullOrEmpty(source)) {
@@ -241,9 +241,14 @@ namespace UNP.Core {
             this.lstSources.Name = "listBox1";
             this.lstSources.Size = new System.Drawing.Size(287, 212);
             this.lstSources.TabIndex = 0;
+            this.lstSources.DoubleClick += new System.EventHandler(delegate (object sender, EventArgs e) {
+                btnOK.PerformClick();
+            });
             for (int i = 0; i < sources.Length; i++) {
                 this.lstSources.Items.Add(sources[i][0]);
             }
+
+            
 
             this.btnOK.Location = new System.Drawing.Point(12, 228);
             this.btnOK.Name = "btnOK";

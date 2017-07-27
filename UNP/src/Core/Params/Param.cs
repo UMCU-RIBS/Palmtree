@@ -27,6 +27,7 @@ namespace UNP.Core.Params {
             this.desc = desc;
             this.stdValue = stdValue;
             this.options = options;
+            if (this.options == null) this.options = new string[0];
         }
 
         protected string getParentSetName() {

@@ -264,10 +264,7 @@ namespace UNPLogReader {
             double[][] samples = null;
             bool result = readBCI2000dat(txtInputFile.Text, out info, out samples);
 
-
-
-
-            // open file dialog to open dat file
+            // open file dialog to save dat file
             SaveFileDialog dlgSaveDatFile = new SaveFileDialog();
             dlgSaveDatFile.Filter = "Data files (*.dat)|*.dat|Data files (*.src)|*.src|All files (*.*)|*.*";
             dlgSaveDatFile.RestoreDirectory = true;            // restores current directory to the previously selected directory, potentially beneficial if other code relies on the currently set directory
