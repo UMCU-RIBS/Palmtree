@@ -30,8 +30,12 @@ namespace UNP.Core {
 
             // startup argument variables
             bool nogui = false;
+            bool startupConfigAndInit = false;
+            bool startupStart = false;
             string parameterFile = "";
             string source = "";
+
+            args = new string[] { "-parameterfile", "C:\\Users\\abcdef\\Desktop\\test_UNPMENU.prm", "-source", "KeypressSignal", "-startupConfigAndInit", "-startupStart" };
 
             // process startup arguments
             for (int i = 0; i < args.Length; i++) {
@@ -43,7 +47,13 @@ namespace UNP.Core {
                 string argument = args[i].ToLower();
 
                 // check if no gui should be shown
-                if (argument == "-nogui") nogui = true;
+                if (argument == "-nogui")                   nogui = true;
+
+                // check if no gui should be shown
+                if (argument == "-startupconfigandinit")    startupConfigAndInit = true;
+                
+                // check if no gui should be shown
+                if (argument == "-startupstart")            startupStart = true;
 
                 // check if the source is given
                 if (argument == "-source") {
@@ -188,21 +198,30 @@ namespace UNP.Core {
                 ParameterManager.loadParameterFile(parameterFile, ParameterManager.getParameterSets());
 
             }
-
-
-
             /*
-            // TODO:
-            // debug - auto configure
-            if (mainThread.configureSystem()) {
-                // successfully configured
+            // check if the sytem should be configured and initialized at statup
+            if (startupConfigAndInit) {
 
-                // initialize
-                mainThread.initializeSystem();
+                // TODO: max, quick and dirty
+                // start a thread that fires after
+                Thread thread = new Thread(() => {
 
+                    Thread.Sleep(1000);
+
+                    if (MainThread.configureSystem()) {
+                        // successfully configured
+
+                        // initialize
+                        MainThread.initializeSystem();
+
+                        if (startupStart) MainThread.start();
+
+                }
+                });
+                thread.Start();
+                
             }
             */
-
             // start the main thread
             // (do it here, so the UNPThead uses main to run on)
             mainThread.run();

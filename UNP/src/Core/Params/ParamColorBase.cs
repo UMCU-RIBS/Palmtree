@@ -19,7 +19,7 @@ namespace UNP.Core.Params {
 
             // check if value is numeric and can be converted to an int
             // return false if unsucessful
-            if (!int.TryParse(value, NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign, Parameters.NumberCulture, out intValue)) return false;
+            if (!int.TryParse(value, NumberStyles.None, Parameters.NumberCulture, out intValue)) return false;
 
             // check if the number is between 0 and 16777216
             if (intValue < 0 || intValue > 16777216)    return false;
@@ -38,15 +38,15 @@ namespace UNP.Core.Params {
             if (value == null || value.Length != 3)         return false;
 
             // check red
-            if (!int.TryParse(value[0], NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign, Parameters.NumberCulture, out intValueRed))     return false;
+            if (!int.TryParse(value[0], NumberStyles.None, Parameters.NumberCulture, out intValueRed))     return false;
             if (intValueRed < 0 || intValueRed > 255)       return false;
 
             // check green
-            if (!int.TryParse(value[1], NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign, Parameters.NumberCulture, out intValueGreen))   return false;
+            if (!int.TryParse(value[1], NumberStyles.None, Parameters.NumberCulture, out intValueGreen))   return false;
             if (intValueGreen < 0 || intValueGreen > 255)   return false;
 
             // check blue
-            if (!int.TryParse(value[2], NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign, Parameters.NumberCulture, out intValueBlue))    return false;
+            if (!int.TryParse(value[2], NumberStyles.None, Parameters.NumberCulture, out intValueBlue))    return false;
             if (intValueBlue < 0 || intValueBlue > 255)     return false;
 
             // successfull parsing, return true

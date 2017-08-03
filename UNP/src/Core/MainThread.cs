@@ -70,7 +70,7 @@ namespace UNP.Core {
             // create a source
             try {
                 source = (ISource)Activator.CreateInstance(sourceType);
-                Console.WriteLine("Created source instance of " + sourceType.Name);
+                //Console.WriteLine("Created source instance of " + sourceType.Name);
             } catch (Exception) {
                 logger.Error("Unable to create a source instance of '" + sourceType.Name + "'");
             }
@@ -87,7 +87,7 @@ namespace UNP.Core {
             // create the application
             try {
                 application = (IApplication)Activator.CreateInstance(applicationType);
-                Console.WriteLine("Created application instance of " + applicationType.Name);
+                //Console.WriteLine("Created application instance of " + applicationType.Name);
             } catch (Exception) {
                 logger.Error("Unable to create an application instance of '" + applicationType.Name + "'");
             }
@@ -336,11 +336,11 @@ namespace UNP.Core {
             }
 
             // initialize the plugins
-            for (int i = 0; i < plugins.Count; i++)   plugins[i].initialize();
+            for (int i = 0; i < plugins.Count; i++)     plugins[i].initialize();
 
             // initialize source, filter and view
             if (source != null)                         source.initialize();
-            for (int i = 0; i < filters.Count; i++)   filters[i].initialize();
+            for (int i = 0; i < filters.Count; i++)     filters[i].initialize();
             if (application != null)                    application.initialize();
 
             // flag as initialized

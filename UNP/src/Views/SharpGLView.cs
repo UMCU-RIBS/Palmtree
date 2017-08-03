@@ -408,6 +408,15 @@ namespace UNP.Views {
 
         }
 
+        public bool isLeftMouseDown() {
+            // TODO: implement
+            return false;
+        }
+
+        public bool isRightMouseDown() {
+            // TODO: implement
+            return false;
+        }
 
         public void drawRectangle(float x1, float y1, float x2, float y2, float lineWidth, float colorR, float colorG, float colorB) {
 	

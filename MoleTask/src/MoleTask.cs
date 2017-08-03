@@ -176,22 +176,22 @@ namespace MoleTask {
                     "Number of columns in the whack a mole grid",
                     "1", "30", "8");
 
-                parameters.addParameter<int>(
+                parameters.addParameter<double>(
                     "RowSelectDelay",
                     "Amount of time before continuing to next row",
                     "0", "", "3s");
 
-                parameters.addParameter<int>(
+                parameters.addParameter<double>(
                     "RowSelectedDelay",
                     "Amount of time to wait after selecting a row",
                     "0", "", "3s");
 
-                parameters.addParameter<int>(
+                parameters.addParameter<double>(
                     "ColumnSelectDelay",
                     "Amount of time before continuing to next column",
                     "0", "", "3s");
 
-                parameters.addParameter<int>(
+                parameters.addParameter<double>(
                     "ColumnSelectedDelay",
                     "Amount of time after selecting a column to wait",
                     "0", "", "1s");
@@ -1077,9 +1077,9 @@ namespace MoleTask {
             mTaskFirstRunStartDelay = 4;
             mTaskStartDelay = 4;
             mRowSelectDelay = 12;
-            mRowSelectedDelay = 4;
+            mRowSelectedDelay = 5;
             mColumnSelectDelay = 12;
-            mColumnSelectedDelay = 4;
+            mColumnSelectedDelay = 5;
             configHoleRows = 4;
             configHoleColumns = 4;
             numTargets = 10;

@@ -11,6 +11,7 @@ using System.Threading;
 using System.Windows.Forms;
 using System.Drawing;
 using NLog;
+using OpenTK.Input;
 
 namespace UNP.Views {
 
@@ -49,6 +50,8 @@ namespace UNP.Views {
         private float windowBackgroundColorB = 0f;
         private bool windowBackgroundColorChanged = false;
 
+        private MouseState mouseState = new MouseState();
+
         // pure abstract functions that are required to be implemented by the deriving class
         protected abstract void load();
         protected abstract void unload();
@@ -64,6 +67,10 @@ namespace UNP.Views {
             this.glControlWidth = width;
             this.glControlHeight = height;
             this.windowBorder = border;
+
+            // required for OpenTK 2.0
+            OpenTK.Toolkit.Init();
+
         }
 
         public int getWindowX()                             {   return this.windowX;    }
@@ -393,6 +400,9 @@ namespace UNP.Views {
                 // update animations using mTimePassed (call to the deriving class)
                 update(timePassed / 1000f);
 
+                // Get current mouse state
+                mouseState = OpenTK.Input.Mouse.GetState();
+
                 // redraw/render
                 try {
                     glControl.Invalidate();
@@ -446,6 +456,13 @@ namespace UNP.Views {
             
         }
 
+        public bool isLeftMouseDown() {
+            return mouseState.IsButtonDown(MouseButton.Left);
+        }
+
+        public bool isRightMouseDown() {
+            return mouseState.IsButtonDown(MouseButton.Right);
+        }
 
         public void drawRectangle(float x1, float y1, float x2, float y2, float lineWidth, float colorR, float colorG, float colorB) {
 	
@@ -459,7 +476,7 @@ namespace UNP.Views {
             GL.LineWidth(lineWidth);
 
 	        // draw the rectangle
-            GL.Begin(BeginMode.LineLoop);
+            GL.Begin(PrimitiveType.LineLoop);
                 GL.Vertex2(x1, y1);
                 GL.Vertex2(x2, y1);
                 GL.Vertex2(x2, y2);
@@ -558,11 +575,11 @@ namespace UNP.Views {
         public void glTranslate(float x, float y, float z)      {   GL.Translate(x, y, z);  }
         public void glTranslate(double x, double y, double z)   {   GL.Translate(x, y, z);  }
 
-        public void glBeginQuads()       {   GL.Begin(BeginMode.Quads);      }
-        public void glBeginTriangles()   {   GL.Begin(BeginMode.Triangles);  }
-        public void glBeginPolygon()     {   GL.Begin(BeginMode.Polygon);    }
-        public void glBeginLineLoop()    {   GL.Begin(BeginMode.LineLoop);   }
-        public void glEnd()              {   GL.End();                       }
+        public void glBeginQuads()       {   GL.Begin(PrimitiveType.Quads);     }
+        public void glBeginTriangles()   {   GL.Begin(PrimitiveType.Triangles); }
+        public void glBeginPolygon()     {   GL.Begin(PrimitiveType.Polygon);   }
+        public void glBeginLineLoop()    {   GL.Begin(PrimitiveType.LineLoop);  }
+        public void glEnd()              {   GL.End();                          }
 
 
         public uint loadImage(string file) {

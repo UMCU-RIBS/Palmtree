@@ -106,7 +106,7 @@ namespace UNP.Filters {
 
             //
             // no pre-check on the number of output channels is needed here, the number of output
-            // channels will remain the some regardsless to the filter being enabled or disabled
+            // channels will remain the some regardless to the filter being enabled or disabled
             // 
 
             // check the values and application logic of the parameters

@@ -30,6 +30,10 @@ namespace UNP.Views {
 
         bool isStarted();
 
+        bool isLeftMouseDown();
+        bool isRightMouseDown();
+
+
         // task functions
 
 
