@@ -96,6 +96,7 @@ namespace FollowTask {
         private TaskStates previousTaskState = TaskStates.Wait;
         private int mCurrentBlock = FollowView.noBlock;	                            // the current block which is in line with X of the cursor (so the middle)
 
+        private float[] storedBlockPositions = null;                                // to store the previous block positions while suspended
 
         public FollowTask() : this(false) { }
         public FollowTask(bool UNPMenuTask) {
@@ -444,40 +445,11 @@ namespace FollowTask {
                 // check the scene (thread) already exists, stop and clear the old one.
                 destroyScene();
 
-                // create the view
-                mSceneThread = new FollowView(mWindowRedrawFreqMax, mWindowLeft, mWindowTop, mWindowWidth, mWindowHeight, false);
-                mSceneThread.setBackgroundColor(mWindowBackgroundColor.getRed(), mWindowBackgroundColor.getGreen(), mWindowBackgroundColor.getBlue());
-            
-                // set task specific display attributes 
-                mSceneThread.setBlockSpeed(mTargetSpeed);									// target speed
-                mSceneThread.setCursorSizePerc(mCursorSize);								// cursor size radius in percentage of the screen height
-                mSceneThread.setCursorHitColor(mCursorColorHit);				            // cursor hit color
-                mSceneThread.setCursorMissColor(mCursorColorMiss);              			// cursor out color            
-                mSceneThread.initBlockTextures(mTargetTextures);							// initialize target textures (do this before the thread start)
-                mSceneThread.centerCursor();												// set the cursor to the middle of the screen
-                mSceneThread.setFixation(false);											// hide the fixation
-                mSceneThread.setCountDown(-1);												// hide the countdown
+                // initialize the view
+                initializeView();
 
-                // check if the cursor rule is set to hitcolor on hit, if so
-                // then make the color automatically determined in the Scenethread by it's variable 'mCursorInCurrentBlock',
-                // this makes the color update quickly, since the scenethread is executed at a higher frequency
-                if (mCursorColorRule == 0) {
-                    mSceneThread.setCursorColorSetting(3);
-                }
-
-                // start the scene thread
-                mSceneThread.start();
-            
-	            // wait till the resources are loaded or a maximum amount of 30 seconds (30.000 / 50 = 600)
-                // (resourcesLoaded also includes whether GL is loaded)
-	            int waitCounter = 600;
-	            while (!mSceneThread.resourcesLoaded() && waitCounter > 0) {
-		            Thread.Sleep(50);
-		            waitCounter--;
-	            }
-            
-	            // check if a target sequence is set
-	            if (fixedTargetSequence.Count() == 0) {
+                // check if a target sequence is set
+                if (fixedTargetSequence.Count() == 0) {
 		            // targetsequence not set in parameters, generate
 		
 		            // Generate targetlist
@@ -497,6 +469,42 @@ namespace FollowTask {
 	            // initialize the target sequence
 	            mSceneThread.initBlockSequence(mTargetSequence, mTargets);
 
+            }
+
+        }
+
+        private void initializeView() {
+
+            // create the view
+            mSceneThread = new FollowView(mWindowRedrawFreqMax, mWindowLeft, mWindowTop, mWindowWidth, mWindowHeight, false);
+            mSceneThread.setBackgroundColor(mWindowBackgroundColor.getRed(), mWindowBackgroundColor.getGreen(), mWindowBackgroundColor.getBlue());
+
+            // set task specific display attributes 
+            mSceneThread.setBlockSpeed(mTargetSpeed);                                   // target speed
+            mSceneThread.setCursorSizePerc(mCursorSize);                                // cursor size radius in percentage of the screen height
+            mSceneThread.setCursorHitColor(mCursorColorHit);                            // cursor hit color
+            mSceneThread.setCursorMissColor(mCursorColorMiss);                          // cursor out color            
+            mSceneThread.initBlockTextures(mTargetTextures);                            // initialize target textures (do this before the thread start)
+            mSceneThread.centerCursor();                                                // set the cursor to the middle of the screen
+            mSceneThread.setFixation(false);                                            // hide the fixation
+            mSceneThread.setCountDown(-1);                                              // hide the countdown
+
+            // check if the cursor rule is set to hitcolor on hit, if so
+            // then make the color automatically determined in the Scenethread by it's variable 'mCursorInCurrentBlock',
+            // this makes the color update quickly, since the scenethread is executed at a higher frequency
+            if (mCursorColorRule == 0) {
+                mSceneThread.setCursorColorSetting(3);
+            }
+
+            // start the scene thread
+            mSceneThread.start();
+
+            // wait till the resources are loaded or a maximum amount of 30 seconds (30.000 / 50 = 600)
+            // (resourcesLoaded also includes whether GL is loaded)
+            int waitCounter = 600;
+            while (!mSceneThread.resourcesLoaded() && waitCounter > 0) {
+                Thread.Sleep(50);
+                waitCounter--;
             }
 
         }
@@ -892,7 +900,7 @@ namespace FollowTask {
 	
 	        // store the block positions
 	        if (previousTaskState == TaskStates.Task) {
-		        mSceneThread.storeBlockPositions();
+                storedBlockPositions = mSceneThread.getBlockPositions();
 	        }
 
 		    // hide everything
@@ -911,7 +919,7 @@ namespace FollowTask {
 
 	        // re-instate the block positions
 	        if (previousTaskState == TaskStates.Task) {
-		        mSceneThread.loadBlockPositions();
+                mSceneThread.setBlockPositions(storedBlockPositions);
 	        }
 
             // set the previous gamestate
@@ -1315,9 +1323,7 @@ namespace FollowTask {
         ////////////////////////////////////////////////
         //  UNP entry points (start, process, stop)
         ////////////////////////////////////////////////
-        /*
-        //#ifdef UNPMENU
-        */
+
         public void UNP_start(Parameters parentParameters) {
 
             // UNP entry point can only be used if initialized as UNPMenu
@@ -1431,27 +1437,11 @@ namespace FollowTask {
             // lock for thread safety
             lock(lockView) {
 
-	            // restart the view thread
-	            if (mSceneThread != null) {
-
-		            // continue followtask
-		            mSceneThread.initBlockTextures(mTargetTextures);
-		            mSceneThread.centerCursor();
-                    
-	                // restart the view thread
-		            mSceneThread.start();
-
-	                // wait till the resources are loaded or a maximum amount of 5 seconds (5.000 / 10 = 500)
-                    // (resourcesLoaded also includes whether GL is loaded)
-	                int waitCounter = 500;
-	                while (!mSceneThread.resourcesLoaded() && waitCounter > 0) {
-		                Thread.Sleep(10);
-		                waitCounter--;
-	                }
-
-		            mSceneThread.initBlockSequence(mTargetSequence, mTargets);
-
-	            }
+                // initialize the view
+                initializeView();
+                
+                // (re-) initialize the block sequence
+		        mSceneThread.initBlockSequence(mTargetSequence, mTargets);
                 
             }
 
@@ -1471,18 +1461,12 @@ namespace FollowTask {
             // pauze the task
             pauzeTask();
 
-            // lock for thread safety
-            lock(lockView) {
-
-                // stop the view thread
-                if (mSceneThread != null)   mSceneThread.stop();
-
+            // lock for thread safety and destroy the scene
+            lock (lockView) {
+                destroyScene();
             }
 
         }
-        /*
-        #endif
-        */
 
     }
 

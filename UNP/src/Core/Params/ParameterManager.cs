@@ -281,7 +281,16 @@ namespace UNP.Core.Params {
                 string parameterSetName = xmlParameterSets[s].Attributes["name"].Value;
 
                 // load the local parameterset
-                Parameters parameterSet = parameterSets[parameterSetName];
+                Parameters parameterSet = null;
+                if (!parameterSets.TryGetValue(parameterSetName, out parameterSet)) {
+                    // set not found
+
+                    logger.Warn("The parameter set '" + parameterSetName + "' from the configuration file does not exist locally, skipping parameter set");
+
+                    // skip this set
+                    continue;
+
+                }
 
                 // set current parameters in set to values in xml
                 if (xmlParameterSets[s].HasChildNodes) {

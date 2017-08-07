@@ -12,7 +12,7 @@ using UNP.Core.Params;
 
 namespace MoleTask {
 
-    public class MoleTask : IApplication {
+    public class MoleTask : IApplication, IApplicationUNP {
 
 		private enum TaskStates:int {
 			Wait,
@@ -340,48 +340,29 @@ namespace MoleTask {
             // lock for thread safety
             lock(lockView) {
 
-                // check the scene (thread) already exists, stop and clear the old one.
-                destroyScene();
-
-                // create the view
-                mSceneThread = new MoleView(mWindowRedrawFreqMax, mWindowLeft, mWindowTop, mWindowWidth, mWindowHeight, false);
-                mSceneThread.setBackgroundColor(mWindowBackgroundColor.getRed(), mWindowBackgroundColor.getGreen(), mWindowBackgroundColor.getBlue());
-
-                // set task specific display attributes 
-                mSceneThread.setFixation(false);											// hide the fixation
-                mSceneThread.setCountDown(-1);												// hide the countdown
-
                 // extra empty first column and row
                 holeColumns = configHoleColumns + 1;
                 holeRows = configHoleRows + 1;
 
-	            // calculate the cell holes for the task
-	            int numHoles = holeRows * holeColumns;
+                // calculate the cell holes for the task
+                int numHoles = holeRows * holeColumns;
 
                 // create the array of cells for the task
                 holes = new List<MoleCell>(0);
-	            for (int i = 0; i < numHoles; i++) {
+                for (int i = 0; i < numHoles; i++) {
                     if ((i % holeColumns == 0 || i <= holeColumns) && (i != 2 || !mAllowExit))
                         holes.Add(new MoleCell(0, 0, 0, 0, MoleCell.CellType.Empty));
                     else if (i == 2 && mAllowExit)
                         holes.Add(new MoleCell(0, 0, 0, 0, MoleCell.CellType.Exit));
                     else
                         holes.Add(new MoleCell(0, 0, 0, 0, MoleCell.CellType.Hole));
-	            }
+                }
 
-                // initialize the holes for the scene
-                mSceneThread.initGridPositions(holes, holeRows, holeColumns, 10);	
+                // check the scene (thread) already exists, stop and clear the old one.
+                destroyScene();
 
-	            // start the scene thread
-	            mSceneThread.start();
-
-	            // wait till the resources are loaded or a maximum amount of 30 seconds (30.000 / 50 = 600)
-                // (resourcesLoaded also includes whether GL is loaded)
-	            int waitCounter = 600;
-	            while (!mSceneThread.resourcesLoaded() && waitCounter > 0) {
-		            Thread.Sleep(50);
-		            waitCounter--;
-	            }
+                // initialize the view
+                initializeView();
 
                 // check if a target sequence is set
 	            if (fixedTargetSequence.Length == 0) {
@@ -403,6 +384,32 @@ namespace MoleTask {
 	            
 
             }
+        }
+
+        private void initializeView() {
+
+            // create the view
+            mSceneThread = new MoleView(mWindowRedrawFreqMax, mWindowLeft, mWindowTop, mWindowWidth, mWindowHeight, false);
+            mSceneThread.setBackgroundColor(mWindowBackgroundColor.getRed(), mWindowBackgroundColor.getGreen(), mWindowBackgroundColor.getBlue());
+
+            // set task specific display attributes 
+            mSceneThread.setFixation(false);                                            // hide the fixation
+            mSceneThread.setCountDown(-1);                                              // hide the countdown
+
+            // initialize the holes for the scene
+            mSceneThread.initGridPositions(holes, holeRows, holeColumns, 10);
+
+            // start the scene thread
+            mSceneThread.start();
+
+            // wait till the resources are loaded or a maximum amount of 30 seconds (30.000 / 50 = 600)
+            // (resourcesLoaded also includes whether GL is loaded)
+            int waitCounter = 600;
+            while (!mSceneThread.resourcesLoaded() && waitCounter > 0) {
+                Thread.Sleep(50);
+                waitCounter--;
+            }
+
         }
 
         public void start() {
@@ -678,60 +685,62 @@ namespace MoleTask {
 
 			            if(mWaitCounter == 0) {
 
-				            // check if exit was selected
-				            if (mRowID == 0 && mColumnID == 2 && mAllowExit) {
-					            // check if the task is run from the UNPMenu
+                            // check if exit was selected
+                            if (mAllowExit && mRowID == 0 && mColumnID == 2) {
+                                // exit was allowed and selected
 
-                                /*
-					            #ifdef UNPMENU
-						
-						            if (mUNPMenuTask)	UNP_stop();
+                                // check if we are running from the UNPMenu
+                                if (mUNPMenuTask) {
 
-					            #else
+                                    // stop the task (UNP)
+                                    UNP_stop();
 
-						            // suspend BCI2000, this will also call stopTask()
-						            if (!mUNPMenuTask)	State( "Running" ) = false;
+                                } else {
 
-					            #endif
-                                */
+                                    // stop the run, this will also call stopTask()
+                                    MainThread.stop();
 
-				            }
+                                }
 
+                            } else {
+                                // exit was not allowed nor selected
 
-				            // Check if mole is selected
-				            if ( mMoleIndex == holeColumns * mRowID + mColumnID) {
-					            // hit
+                                // Check if mole is selected
+                                if (mMoleIndex == holeColumns * mRowID + mColumnID) {
+                                    // hit
 
-					            // add one to the score and display
-					            score++;
-					            mSceneThread.setScore(score);
+                                    // add one to the score and display
+                                    score++;
+                                    mSceneThread.setScore(score);
 
-					            // go to next target in the sequence and set mole
-					            mTargetIndex++;
+                                    // go to next target in the sequence and set mole
+                                    mTargetIndex++;
 
-					            // check whether at the end of targetsequence
-					            if(mTargetIndex == mTargetSequence.Count()) {
+                                    // check whether at the end of targetsequence
+                                    if (mTargetIndex == mTargetSequence.Count()) {
 
-						            // show end text
-						            setState(TaskStates.EndText);
+                                        // show end text
+                                        setState(TaskStates.EndText);
 
-					            } else {
+                                    } else {
 
-						            // set mole at next location
-						            setMole(mTargetSequence[mTargetIndex]);
+                                        // set mole at next location
+                                        setMole(mTargetSequence[mTargetIndex]);
 
-						            // Start again selecting rows from the top
-						            setState(TaskStates.RowSelect);
+                                        // Start again selecting rows from the top
+                                        setState(TaskStates.RowSelect);
 
-					            }
+                                    }
 
-				            } else {
-					            // no hit
+                                } else {
+                                    // no hit
 
-					            // Start again selecting rows from the top
-					            setState(TaskStates.RowSelect);
+                                    // Start again selecting rows from the top
+                                    setState(TaskStates.RowSelect);
 
-				            }
+                                }
+
+                            }
 
 			            } else
 				            mWaitCounter--;
@@ -1052,9 +1061,7 @@ namespace MoleTask {
         ////////////////////////////////////////////////
         //  UNP entry points (start, process, stop)
         ////////////////////////////////////////////////
-        /*
-        //#ifdef UNPMENU
-        */
+
         public void UNP_start(Parameters parentParameters) {
             
             // UNP entry point can only be used if initialized as UNPMenu
@@ -1125,7 +1132,7 @@ namespace MoleTask {
         public void UNP_process(double[] input, bool connectionLost) {
 
 	        // check if the task is running
-            if (!mUNPMenuTaskRunning) {
+            if (mUNPMenuTaskRunning) {
 
 		        // transfer connection lost
 		        mConnectionLost = connectionLost;
@@ -1140,23 +1147,10 @@ namespace MoleTask {
         public void UNP_resume() {
 
             // lock for thread safety
-            lock(lockView) {
+            lock (lockView) {
 
-                // restart the view thread
-                if (mSceneThread != null) {
-
-	                // restart the view thread
-		            mSceneThread.start();
-
-	                // wait till the resources are loaded or a maximum amount of 5 seconds (5.000 / 10 = 500)
-                    // (resourcesLoaded also includes whether GL is loaded)
-	                int waitCounter = 500;
-	                while (!mSceneThread.resourcesLoaded() && waitCounter > 0) {
-		                Thread.Sleep(10);
-		                waitCounter--;
-	                }
-
-	            }
+                // initialize the view
+                initializeView();
 
             }
 	
@@ -1176,17 +1170,13 @@ namespace MoleTask {
             // pauze the task
             pauzeTask();
 
-            // lock for thread safety
-            lock(lockView) {
-
-                // stop the view thread
-                if (mSceneThread != null)   mSceneThread.stop();
-
+            // lock for thread safety and destroy the scene
+            lock (lockView) {
+                destroyScene();
             }
 
         }
-        /*
-        #endif
-        */
+
     }
+
 }

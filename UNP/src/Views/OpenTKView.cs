@@ -320,6 +320,9 @@ namespace UNP.Views {
             // start the main loop for animations and rendering
             mainLoopThread = new Thread(this.mainLoop);
             mainLoopThread.Start();
+
+            // set the focus to the view
+            this.Focus();
             
         }
 

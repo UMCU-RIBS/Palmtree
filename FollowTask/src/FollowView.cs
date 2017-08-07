@@ -30,7 +30,6 @@ namespace FollowTask {
 		private bool showBlocks = false;								                // show the blocks
 		private int mCurrentBlock = noBlock;							                // the current block which is in line with X of the cursor (so the middle)
 		private bool mCursorInCurrentBlock = false;						                // hold whether the cursor is inside of the current block
-		private List<float> storedBlockPositions = new List<float>(0);	                // variable to temporarily store the block positions in (needed to re-instate the game after suspension)
 		
 		private int cursorRadius = 40;									                // the cursor radius
 		private bool showCursor = false;								                // show the cursor
@@ -577,22 +576,18 @@ namespace FollowTask {
             return (isStarted() && doLoadTextures == 0);
         }
 
-        public void storeBlockPositions() {
+        public float[] getBlockPositions() {
 
-	        storedBlockPositions.Clear();
-            storedBlockPositions = new List<float>(new float[mBlocks.Count()]);
-
-	        // store the current blockpositions
-	        for (int i = 0; i < (int)mBlocks.Count(); ++i)
-		        storedBlockPositions[i] = mBlocks[i].mX;
+            float[] blockPositions = new float[mBlocks.Count];
+	        for (int i = 0; i < mBlocks.Count; ++i)     blockPositions[i] = mBlocks[i].mX;
+            return blockPositions;
 
         }
 
-        public void loadBlockPositions() {
+        public void setBlockPositions(float[] blockPositions) {
 	
 	        // set stored block positions
-	        for (int i = 0; i < (int)mBlocks.Count(); ++i)
-		        mBlocks[i].mX = storedBlockPositions[i];
+	        for (int i = 0; i < mBlocks.Count; ++i)     mBlocks[i].mX = blockPositions[i];
 
         }
 
