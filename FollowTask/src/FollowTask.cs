@@ -10,6 +10,7 @@ using UNP.Applications;
 using UNP.Core;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
+using UNP.Core.DataIO;
 
 namespace FollowTask {
 
@@ -95,6 +96,7 @@ namespace FollowTask {
         private TaskStates taskState = TaskStates.Wait;
         private TaskStates previousTaskState = TaskStates.Wait;
         private int mCurrentBlock = FollowView.noBlock;	                            // the current block which is in line with X of the cursor (so the middle)
+        private bool mWasCursorInCurrentBlock = false;                              // whether the cursor was inside the current block
 
         private float[] storedBlockPositions = null;                                // to store the previous block positions while suspended
 
@@ -784,9 +786,20 @@ namespace FollowTask {
 				            // retrieve the current block, whether the cursor is in the block, and (if there is a block) the target index of the block
 				            mCurrentBlock = mSceneThread.getCurrentBlock();
                             //logger.Debug("mCurrentBlock " + mCurrentBlock);
+                    
+                            // TODO Benny: log change blok midden
 
-				            // add to score if cursor hits the block
-				            if (mSceneThread.getCursorInCurrentBlock()) mHitScore++;
+                            // see if cursor entered or left the current block
+                            if(mSceneThread.getCursorInCurrentBlock() != mWasCursorInCurrentBlock) {
+                                if (mSceneThread.getCursorInCurrentBlock()) { Data.logEvent(2, "BlockEnter", mCurrentBlock.ToString()); }
+                                else { Data.logEvent(2, "BlockExit", mCurrentBlock.ToString()); }
+                            }
+
+                            // update whether cursor is in current block 
+                            mWasCursorInCurrentBlock = mSceneThread.getCursorInCurrentBlock();
+
+                            // add to score if cursor hits the block
+                            if (mSceneThread.getCursorInCurrentBlock()) mHitScore++;
 
 				            // update the score for display
 				            if (mShowScore)		mSceneThread.setScore(mHitScore);
@@ -820,33 +833,13 @@ namespace FollowTask {
 	            }
 
                 /*
-	            #ifndef UNPMENU
 
-	            uint16 currentTargetIndex = 9999;
-	            uint16 currentTargetY = 9999;
-	            float currentTargetWidth = (float)0;
-	            uint16 currentTargetHeight = 0;
-	            if (mCurrentBlock != FollowSceneThread::noBlock) {
-		            currentTargetIndex = mTargetSequence[mCurrentBlock];
-		            currentTargetY = (uint16)mTargets[0][mTargetSequence[mCurrentBlock]];
-		            currentTargetWidth = mTargets[2][mTargetSequence[mCurrentBlock]];
-		            currentTargetHeight = (uint16)mTargets[1][mTargetSequence[mCurrentBlock]];
-	            }
-	
-	            // log
-	            State("Log_FirstRunStartDelay").AsUnsigned() = (mTaskStartDelay > 0);									// delay running
-	            State("Log_Countdown").AsUnsigned() = (taskState == CountDown);													// countdown running
-	            State("Log_Task").AsUnsigned() = (taskState == Task);															// task running
-	            State("Log_CurrentBlock").AsUnsigned() = mCurrentBlock;															// the current block (index in sequence)
-	            State("Log_CursorInCurrentBlock").AsUnsigned() = (mSceneThread->getCursorInCurrentBlock());						// is the cursor in the block
-	            State("Log_CurrentTargetIndex").AsUnsigned() = currentTargetIndex;												// the current block's (row)index in the target matrix
-	            State("Log_CurrentTargetY").AsUnsigned() = currentTargetY;														// save the current block's Y
-	            State("Log_CurrentTargetHeight").AsUnsigned() = currentTargetHeight;											// save the current block's height
-	            State("Log_CurrentTargetWidth_f").AsFloat() = currentTargetWidth;												// save the current block's width
-	            State("Log_HitScore").AsUnsigned() = mHitScore;																	// save the hitscore
-	            State("Log_CursorY").AsSigned() = mSceneThread->getCursorY();													// save the cursor y
+	            log taak start + einde
+                log taak start countdown/calibratie
+                log start feitelijke taak 
+                log change blok midden: zie todo benny
+                loggen of balletje in of uti blok gaat: zie todo benny
 
-	            #endif
                 */
 
             }
