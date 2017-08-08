@@ -21,23 +21,23 @@ namespace UNP.Views {
         private const bool showFPS = true;
         //private const bool vsync = false;
 
-        
-        protected OpenGL gl = null;                 // reference to the gl object instance (acquired through the glControl object)
-        private bool started = false;               // flag whether the view is starting or started
-        private bool formShown = false;             // flag whether the view form is shown
-        private bool glLoaded = false;              // flag to track whether opengl is done initializing
-        private bool running = false;               // flag to indicate whether the view should be drawing
+        protected IntPtr windowHandle = IntPtr.Zero;    // handle to the window
+        protected OpenGL gl = null;                     // reference to the gl object instance (acquired through the glControl object)
+        private bool started = false;                   // flag whether the view is starting or started
+        private bool formShown = false;                 // flag whether the view form is shown
+        private bool glLoaded = false;                  // flag to track whether opengl is done initializing
+        private bool running = false;                   // flag to indicate whether the view should be drawing
 
-        protected int glControlWidth = 0;           // variable to hold the OpenGL control width (before initialization hold the startup width of the control, after startup holds the actual width)
-        protected int glControlHeight = 0;          // variable to hold the OpenGL control height (before initialization hold the startup height of the control, after startup holds the actual height)
-        private int updateFrequency = 0;            // the update frequency of the main loop (in maximum fps)
+        protected int glControlWidth = 0;               // variable to hold the OpenGL control width (before initialization hold the startup width of the control, after startup holds the actual width)
+        protected int glControlHeight = 0;              // variable to hold the OpenGL control height (before initialization hold the startup height of the control, after startup holds the actual height)
+        private int updateFrequency = 0;                // the update frequency of the main loop (in maximum fps)
 
-        Stopwatch swTimePassed = new Stopwatch();   // stopwatch opbject to give an exact amount to time passed inbetween loops/frames
+        Stopwatch swTimePassed = new Stopwatch();       // stopwatch opbject to give an exact amount to time passed inbetween loops/frames
         private long timeFPS = 0;
-        private int fpsCounter = 0;                 // counter for the frames drawn
-        protected int fps = 0;                      // the number of fps per second
+        private int fpsCounter = 0;                     // counter for the frames drawn
+        protected int fps = 0;                          // the number of fps per second
 
-        bool afterInitialFormResize = false;        // flag to track whether the form has been resized to it's initial dimensions (before starting)
+        bool afterInitialFormResize = false;            // flag to track whether the form has been resized to it's initial dimensions (before starting)
         private int windowX = 0, windowY = 0;
         protected int windowWidth = 0;
         protected int windowHeight = 0;
@@ -204,6 +204,9 @@ namespace UNP.Views {
 
                 // message
                 logger.Debug("Starting View (thread)");
+
+                // store the window handle
+                windowHandle = this.Handle;
 
                 // start the GUI
                 Application.Run(this);

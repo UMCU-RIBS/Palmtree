@@ -975,10 +975,10 @@ namespace MoleTask {
 			        // show text
 				    mSceneThread.setText("Done");
 
-                    // 
-			        mWaitCounter = 15;
+                    // set duration for text to be shown at the end (3s)
+                    mWaitCounter = (int)(MainThread.SamplesPerSecond() * 3.0);
 
-			        break;
+                    break;
 
 	        }
 

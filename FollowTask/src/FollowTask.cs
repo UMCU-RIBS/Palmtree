@@ -1020,11 +1020,11 @@ namespace FollowTask {
                     
 				    // show text
 				    mSceneThread.setText("Done");
-			        
-			        // set duration for text to be shown at the end
-			        mWaitCounter = 15;
 
-			        break;
+                    // set duration for text to be shown at the end (3s)
+                    mWaitCounter = (int)(MainThread.SamplesPerSecond() * 3.0);
+
+                    break;
 
 	        }
 
