@@ -202,8 +202,11 @@ namespace UNP.Sources {
 	     */
 	    public void stop() {
 
+            // if not initialized than nothing needs to be stopped
+            if (!initialized) return;
+
             // lock for thread safety
-            lock(lockStarted) {
+            lock (lockStarted) {
 
                 // check if the source is generating signals
                 if (started) {
