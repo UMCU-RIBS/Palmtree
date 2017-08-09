@@ -95,8 +95,11 @@ namespace FollowTask {
 
         private TaskStates taskState = TaskStates.Wait;
         private TaskStates previousTaskState = TaskStates.Wait;
-        private int mCurrentBlock = FollowView.noBlock;	                            // the current block which is in line with X of the cursor (so the middle)
-        private bool mWasCursorInCurrentBlock = false;                              // whether the cursor was inside the current block
+        private int mCurrentBlock = FollowView.noBlock;                             // the current block which is in line with X of the cursor (so the middle)
+        private int mPreviousBlock = FollowView.noBlock;                            // the previous block that was in line with X of the cursor
+        private bool mIsCursorInCurrentBlock = false;                              // whether the cursor is inside the current block
+        private bool mWasCursorInCurrentBlock = false;                              // whether the cursor was inside the current blockprivate bool mWasCursorInCurrentBlock = false;                              // whether the cursor was inside the current block
+
 
         private float[] storedBlockPositions = null;                                // to store the previous block positions while suspended
 
@@ -518,8 +521,11 @@ namespace FollowTask {
 
                 if (mSceneThread == null)   return;
 
-	            // reset the score
-	            mHitScore = 0;
+                // log event task is started
+                Data.logEvent(2, "TaskStart", CLASS_NAME);
+
+                // reset the score
+                mHitScore = 0;
 
                 // reset countdown to the countdown time
                 mCountdownCounter = mCountdownTime;
@@ -539,7 +545,6 @@ namespace FollowTask {
                     setState(TaskStates.CountDown);
 
 	            }
-
             }
 
         }
@@ -652,6 +657,7 @@ namespace FollowTask {
 			
 			            // check if the task is counting down
 			            if (mCountdownCounter > 0) {
+
 				            // still counting down
 
                             // display the countdown
@@ -775,7 +781,7 @@ namespace FollowTask {
 							            mSceneThread.setCursorColorSetting(1);
 
 							            // set the timer
-							            if (mCursorColorHitTime == 0)	mCursorColorTimer = 1;
+							            if (mCursorColorHitTime == 0)   mCursorColorTimer = 1;
 							            else							mCursorColorTimer = mCursorColorHitTime;
 
 						            }
@@ -783,26 +789,28 @@ namespace FollowTask {
 
 				            }
 
-				            // retrieve the current block, whether the cursor is in the block, and (if there is a block) the target index of the block
+				            // retrieve the current block and if cursor is in this block
 				            mCurrentBlock = mSceneThread.getCurrentBlock();
-                            //logger.Debug("mCurrentBlock " + mCurrentBlock);
-                    
-                            // TODO Benny: log change blok midden
+                            mIsCursorInCurrentBlock = mSceneThread.getCursorInCurrentBlock();
 
-                            // see if cursor entered or left the current block
-                            if(mSceneThread.getCursorInCurrentBlock() != mWasCursorInCurrentBlock) {
-                                if (mSceneThread.getCursorInCurrentBlock()) { Data.logEvent(2, "BlockEnter", mCurrentBlock.ToString()); }
-                                else { Data.logEvent(2, "BlockExit", mCurrentBlock.ToString()); }
+                            // log event if the current block has changed and update the previous block placeholder
+                            if (mCurrentBlock != mPreviousBlock)     Data.logEvent(2, "CurrentBlockChange", mCurrentBlock.ToString());
+                            mPreviousBlock = mCurrentBlock;
+
+                            // log event if cursor entered or left the current block
+                            if (mIsCursorInCurrentBlock != mWasCursorInCurrentBlock) {
+                                if (mIsCursorInCurrentBlock) { Data.logEvent(2, "CursorEnter", mCurrentBlock.ToString()); }
+                                else { Data.logEvent(2, "CursorExit", mCurrentBlock.ToString()); }
                             }
 
-                            // update whether cursor is in current block 
-                            mWasCursorInCurrentBlock = mSceneThread.getCursorInCurrentBlock();
+                            // update whether cursor was in current block 
+                            mWasCursorInCurrentBlock = mIsCursorInCurrentBlock;
 
                             // add to score if cursor hits the block
-                            if (mSceneThread.getCursorInCurrentBlock()) mHitScore++;
+                            if (mIsCursorInCurrentBlock) mHitScore++;
 
 				            // update the score for display
-				            if (mShowScore)		mSceneThread.setScore(mHitScore);
+				            if (mShowScore)     mSceneThread.setScore(mHitScore);
 
 			            }
 
@@ -812,6 +820,9 @@ namespace FollowTask {
 			            // end text
 
 			            if(mWaitCounter == 0) {
+
+                            // log event task is stopped
+                            Data.logEvent(2, "TaskStop", CLASS_NAME);
 
                             // check if we are running from the UNPMenu
                             if (mUNPMenuTask) {
@@ -823,7 +834,6 @@ namespace FollowTask {
 
                                 // stop the run, this will also call stopTask()
                                 MainThread.stop();
-
                             }
 
 			            } else
@@ -831,16 +841,6 @@ namespace FollowTask {
 
 			            break;
 	            }
-
-                /*
-
-	            log taak start + einde
-                log taak start countdown/calibratie
-                log start feitelijke taak 
-                log change blok midden: zie todo benny
-                loggen of balletje in of uti blok gaat: zie todo benny
-
-                */
 
             }
 
@@ -929,7 +929,7 @@ namespace FollowTask {
 	        // Set state
 	        taskState = state;
 
-	        switch (state) {
+            switch (state) {
 		        case TaskStates.Wait:
 			        // starting, pauzed or waiting
 
@@ -958,10 +958,13 @@ namespace FollowTask {
 			        break;
 
 		        case TaskStates.CountDown:
-			        // countdown when task starts
+                    // countdown when task starts
 
-				    // hide text if present
-				    mSceneThread.setText("");
+                    // log event countdown is started
+                    Data.logEvent(2, "CountdownStarted ", CLASS_NAME);
+
+                    // hide text if present
+                    mSceneThread.setText("");
 
 				    // hide fixation
 				    mSceneThread.setFixation(false);
@@ -976,15 +979,18 @@ namespace FollowTask {
 
 
 		        case TaskStates.Task:
-			        // perform the task
+                    // perform the task
+
+                    // log event countdown is started
+                    Data.logEvent(2, "TrialStart ", CLASS_NAME);
 
                     /*
 				    // hide text if present
 				    mSceneThread->setText("");
                     */
 
-				    // hide the countdown counter
-				    mSceneThread.setCountDown(-1);
+                    // hide the countdown counter
+                    mSceneThread.setCountDown(-1);
 
 				    // set the score for display
 				    if (mShowScore)		mSceneThread.setScore(mHitScore);

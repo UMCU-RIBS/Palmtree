@@ -556,8 +556,9 @@ namespace UNP.Core.DataIO {
                     header.numPlaybackStreams = registeredDataStreamNames.Count;
 
                     // write header
-                    DataWriter.writeBinaryHeader(sourceStreamWriter, header);
-
+                    if (sourceStreamWriter != null) {
+                        DataWriter.writeBinaryHeader(sourceStreamWriter, header);
+                    }
                 }
 
                 // check if there are any samples streams to be logged
@@ -597,8 +598,9 @@ namespace UNP.Core.DataIO {
                     header.numPlaybackStreams = numPipelineInputStreams;
 
                     // write header
-                    DataWriter.writeBinaryHeader(dataStreamWriter, header);
-
+                    if (dataStreamWriter != null) {
+                        DataWriter.writeBinaryHeader(dataStreamWriter, header);
+                    }
                 }
 
                 // check if we want to log the plugin input
@@ -632,8 +634,9 @@ namespace UNP.Core.DataIO {
                         header.numPlaybackStreams = registeredPluginInputStreamNames[i].Count;
 
                         // write header
-                        DataWriter.writeBinaryHeader(pluginStreamWriters[i], header);
-                        
+                        if (pluginStreamWriters[i] != null) {
+                            DataWriter.writeBinaryHeader(pluginStreamWriters[i], header);
+                        }
                     }
 
                 }
@@ -712,7 +715,7 @@ namespace UNP.Core.DataIO {
             if (eventStreamWriter != null) {
 
                 // log the data stop event
-                logEvent(1, "Eventstop", "");
+                //logEvent(1, "Eventstop", "");
 
                 // close the writer and stream
                 eventStreamWriter.Close();
@@ -774,7 +777,7 @@ namespace UNP.Core.DataIO {
 
             // check if data logging is enabled
             if (mLogPipelineInputStreams || mLogFiltersAndApplicationStreams) {
-
+                
                 // integrity check of collected data stream values: if the pointer is not exactly at end of array, not all values have been
                 // delivered or stored, else transform to bytes and write to file
                 if (dataValuePointer != numDataStreams) {
@@ -800,7 +803,9 @@ namespace UNP.Core.DataIO {
                     Buffer.BlockCopy(dataStreamValues, 0, streamOut, l1 + l2, l3);
 
                     // write data to file
-                    dataStreamWriter.Write(streamOut);
+                    if (dataStreamWriter != null) {
+                        dataStreamWriter.Write(streamOut);
+                    }
 
                 }
 
@@ -882,7 +887,9 @@ namespace UNP.Core.DataIO {
                     Buffer.BlockCopy(sourceStreamValues, 0, streamOut, l1 + l2, l3);
 
                     // write source to file
-                    sourceStreamWriter.Write(streamOut);
+                    if (sourceStreamWriter != null) {
+                        sourceStreamWriter.Write(streamOut);
+                    }
                 }
 
             }
@@ -974,10 +981,12 @@ namespace UNP.Core.DataIO {
                 string eventOut = eventTime.ToString("yyyyMMdd_HHmmss_fff") + " " + sourceSampleCounter.ToString() + " " + dataSampleCounter.ToString() + " " + text + " " + value;
 
                 // write event to event file
-                try {
-                    eventStreamWriter.WriteLine(eventOut);
-                } catch (IOException e) {
-                    logger.Error("Can't write to event file: " + e.Message);
+                if (eventStreamWriter != null) {
+                    try {
+                        eventStreamWriter.WriteLine(eventOut);
+                    } catch (IOException e) {
+                        logger.Error("Can't write to event file: " + e.Message);
+                    }
                 }
 
                 // debug
@@ -1055,7 +1064,9 @@ namespace UNP.Core.DataIO {
                         Buffer.BlockCopy(pluginDataValues[plugin], 0, streamOut, 0, bufferPointers[plugin] * sizeof(double));
 
                         // write to file
-                        pluginStreamWriters[plugin].Write(streamOut);
+                        if (pluginStreamWriters[plugin] != null) {
+                            pluginStreamWriters[plugin].Write(streamOut);
+                        }
 
                         // clear buffer and reset buffer pointer
                         Array.Clear(pluginDataValues[plugin], 0, bufferSize);

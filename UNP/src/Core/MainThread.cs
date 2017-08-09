@@ -452,7 +452,7 @@ namespace UNP.Core {
                     // stop the application
                     if (application != null)                    application.stop();
 
-                    // start the plugins
+                    // stop the plugins
                     for (int i = 0; i < plugins.Count; i++)     plugins[i].stop();
 
                     // stop the data
@@ -475,7 +475,6 @@ namespace UNP.Core {
         public static bool isStarted() {
             return started;
 	    }
-
 
         public void run() {
 
@@ -659,7 +658,7 @@ namespace UNP.Core {
                 source = null;
             }
 
-            // destoy the filters
+            // destroy the filters
             for (int i = 0; i < filters.Count; i++)     filters[i].destroy();
 
             // destroy the view
