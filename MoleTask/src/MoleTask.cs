@@ -9,6 +9,7 @@ using UNP.Applications;
 using UNP.Core;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
+using UNP.Core.DataIO;
 
 namespace MoleTask {
 
@@ -419,8 +420,11 @@ namespace MoleTask {
 
                 if (mSceneThread == null)   return;
 
-	            // reset the score
-	            score = 0;
+                // log event task is started
+                Data.logEvent(2, "TaskStart", CLASS_NAME);
+
+                // reset the score
+                score = 0;
 
 	            // reset countdown to the countdown time
 	            mCountdownCounter = mCountdownTime;
@@ -525,6 +529,8 @@ namespace MoleTask {
 
                 }
 
+
+
                 ////////////////////////
                 // END CONNECTION FILTER ACTIONS//
                 ////////////////////////
@@ -554,10 +560,12 @@ namespace MoleTask {
 			            break;
 
 		            case TaskStates.CountDown:
-			            // Countdown before start of task
-			
-			            // check if the task is counting down
-			            if (mCountdownCounter > 0) {
+                        // Countdown before start of task
+
+                  
+
+                        // check if the task is counting down
+                        if (mCountdownCounter > 0) {
                             // still counting down
 
                             // display the countdown
@@ -579,9 +587,12 @@ namespace MoleTask {
 				            // Show hole grid
 				            mSceneThread.showGrid(true);
                             mSceneThread.setScore(score);
-			
-				            // begin task
-				            setState(TaskStates.RowSelect);
+
+                            // log event countdown is started
+                            Data.logEvent(2, "TrialStart ", CLASS_NAME);
+
+                            // begin task
+                            setState(TaskStates.RowSelect);
 			            }
 
 			            break;
@@ -592,9 +603,9 @@ namespace MoleTask {
 			            // if (click && mRowID != 0) {	// Click is not at the blank row
 
 			            if (click) {
-				            // click
-			
-				            setState(TaskStates.RowSelected);
+                            // click
+
+                            setState(TaskStates.RowSelected);
 
 			            } else {
 				            // no click
@@ -709,6 +720,9 @@ namespace MoleTask {
                                 if (mMoleIndex == holeColumns * mRowID + mColumnID) {
                                     // hit
 
+                                    // log event Mole was hit
+                                    Data.logEvent(2, "MoleHit", (holeColumns * mRowID + mColumnID).ToString());
+
                                     // add one to the score and display
                                     score++;
                                     mSceneThread.setScore(score);
@@ -734,6 +748,8 @@ namespace MoleTask {
 
                                 } else {
                                     // no hit
+                                    // log event Mole was missed
+                                    Data.logEvent(2, "MoleMiss", (holeColumns * mRowID + mColumnID).ToString());
 
                                     // Start again selecting rows from the top
                                     setState(TaskStates.RowSelect);
@@ -751,6 +767,9 @@ namespace MoleTask {
 			            // end text
 
 			            if (mWaitCounter == 0) {
+
+                            // log event task is stopped
+                            Data.logEvent(2, "TaskStop", CLASS_NAME);
 
                             // check if we are running from the UNPMenu
                             if (mUNPMenuTask) {
@@ -812,8 +831,11 @@ namespace MoleTask {
         private void pauzeTask() {
 	        if (mSceneThread == null)   return;
 
-	        // set task as pauzed
-	        mTaskPauzed = true;
+            // log event task is paused
+            Data.logEvent(2, "TaskPause", CLASS_NAME);
+
+            // set task as pauzed
+            mTaskPauzed = true;
 
 	        // store the previous state
 	        previousTaskState = taskState;
@@ -827,9 +849,12 @@ namespace MoleTask {
         // resumes the task
         private void resumeTask() {
             if (mSceneThread == null)   return;
-	        
-		    // show the grid and set the mole
-		    if (previousTaskState == TaskStates.RowSelect || previousTaskState == TaskStates.RowSelected || previousTaskState == TaskStates.ColumnSelect || previousTaskState == TaskStates.ColumnSelected) {
+
+            // log event task is paused
+            Data.logEvent(2, "TaskResume", CLASS_NAME);
+
+            // show the grid and set the mole
+            if (previousTaskState == TaskStates.RowSelect || previousTaskState == TaskStates.RowSelected || previousTaskState == TaskStates.ColumnSelect || previousTaskState == TaskStates.ColumnSelected) {
 			
 			    // show the grid and set the mole
 			    mSceneThread.showGrid(true);
@@ -897,10 +922,13 @@ namespace MoleTask {
 			        break;
 
                 case TaskStates.CountDown:
-			        // countdown when task starts
-			        
-			        // hide fixation
-			        mSceneThread.setFixation(false);
+                    // countdown when task starts
+
+                    // log event countdown is started
+                    Data.logEvent(2, "CountdownStarted ", CLASS_NAME);
+
+                    // hide fixation
+                    mSceneThread.setFixation(false);
 
                     // set countdown
                     if (mCountdownCounter > 0)
@@ -927,10 +955,13 @@ namespace MoleTask {
 
 
                 case TaskStates.RowSelected:
-			        // row was selected (highlighted)
+                    // row was selected (highlighted)
 
-			        // select row and highlight
-			        mSceneThread.selectRow(mRowID, true);
+                    // log event countdown is started
+                    Data.logEvent(2, "RowSelected ", mRowID.ToString());
+
+                    // select row and highlight
+                    mSceneThread.selectRow(mRowID, true);
 
                     // 
 			        mWaitCounter = mRowSelectedDelay;

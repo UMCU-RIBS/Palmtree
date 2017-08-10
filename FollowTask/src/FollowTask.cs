@@ -885,8 +885,11 @@ namespace FollowTask {
         private void pauzeTask() {
             if (mSceneThread == null)   return;
 
-	        // set task as pauzed
-	        mTaskPauzed = true;
+            // log event task is paused
+            Data.logEvent(2, "TaskPause", CLASS_NAME);
+
+            // set task as pauzed
+            mTaskPauzed = true;
 
 	        // store the previous state
 	        previousTaskState = taskState;
@@ -910,8 +913,11 @@ namespace FollowTask {
         private void resumeTask() {
             if (mSceneThread == null)   return;
 
-	        // re-instate the block positions
-	        if (previousTaskState == TaskStates.Task) {
+            // log event task is paused
+            Data.logEvent(2, "TaskResume", CLASS_NAME);
+
+            // re-instate the block positions
+            if (previousTaskState == TaskStates.Task) {
                 mSceneThread.setBlockPositions(storedBlockPositions);
 	        }
 
