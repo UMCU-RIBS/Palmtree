@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Xml;
 using UNP.Core.Events;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
@@ -30,6 +31,7 @@ namespace UNP.Core.DataIO {
         private static string dataDir = "";                                                     // location of data directory
         private static string sessionDir = null;                                                // contains full path of directory all files of one sesison are written to
         private static string identifier = "";                                                  // file identifier, prefix in filename
+        private static string fileName = "";                                                    // file name base, used as basis for all files created during life cycle of program    
         private static bool subDirPerRun = false;                                               // whether or not a sub-directory must be made in the session directory to hold the generated files per run
         private static int run = 0;                                                            // contains number of current run
         
@@ -446,6 +448,51 @@ namespace UNP.Core.DataIO {
             return registeredPluginInputStreamNames[pluginId].Count;
         }
 
+        // TODO: use parameterobject instead of paramterset (and name?)
+        public static bool adjustXML(string parameterSet, string parameterName, string value) {
+
+            // check if required input is given
+            if (string.IsNullOrEmpty(parameterSet) || string.IsNullOrEmpty(parameterSet)) {
+                logger.Error("Parameterset or parameter name for adjusting XML not given.");
+                return false;
+            } else {
+
+                // initialize stream and XmlDocument object
+                XmlDocument paramFile = new XmlDocument();
+                string xmlFile = Path.Combine(sessionDir, fileName + ".prm");
+
+                // load the param file
+                try {
+                    paramFile.Load(xmlFile);
+                } catch (Exception e) {
+                    logger.Error("Error: Could not read parameter file " + xmlFile + " (" + e.Message + ")");
+                    return false;
+                }
+
+                // retrieve node (attribute) that needs to be adjusted
+                string xpathString = "/root/parameterSet[@name='" + parameterSet + "']/param[@name='" + parameterName + "']/@value";
+                XmlNode result = paramFile.SelectSingleNode(xpathString);
+
+                // if result is not empty 
+                if (result != null) {
+
+                    // update node and save back to XML
+                    result.Value = value;
+                    try {
+                        paramFile.Save(xmlFile);
+                    } catch (Exception e) {
+                        logger.Error("Error: Could not save adjusted parameter file " + xmlFile + " (" + e.Message + ")");
+                        return false;
+                    }
+                    logger.Info("Saved new value: " + result.Value + " to node " + parameterName + " in parameter set " + parameterSet);
+                    return true;
+                } else {
+                    logger.Info("Node for updating can not be found in parameter file.");
+                    return false;
+                }
+            }
+        }
+
         public static string[] getPluginInputStreamNames(int pluginId) {
             return registeredPluginInputStreamNames[pluginId].ToArray();
         }
@@ -484,7 +531,7 @@ namespace UNP.Core.DataIO {
                 }
 
                 // get identifier and current time to use as filenames
-                string fileName = identifier + "_" + DateTime.Now.ToString("yyyyMMdd") + "_" + RUN_SUFFIX + run;
+                fileName = identifier + "_" + DateTime.Now.ToString("yyyyMMdd") + "_" + RUN_SUFFIX + run;
 
                 // (re)set sample counter
                 sourceSampleCounter = 0;

@@ -113,7 +113,7 @@ namespace FollowTask {
             if (!mUNPMenuTask) {
             
                 // create a parameter set for the task
-                parameters = ParameterManager.GetParameters("FollowTask", Parameters.ParamSetTypes.Application);
+                parameters = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Application);
 
                 // define the parameters
                 parameters.addParameter<int>(
