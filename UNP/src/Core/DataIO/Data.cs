@@ -1016,7 +1016,7 @@ namespace UNP.Core.DataIO {
         public static void logEvent(int level, string text, string value) {
 
             // check if event logging of this level is allowed
-            if (mLogEvents && Array.IndexOf(mEventLoggingLevels, level) > -1) {
+            if (mLogEvents && (mEventLoggingLevels.Length == 0 || Array.IndexOf(mEventLoggingLevels, level) > -1)) {
 
                 // get time of event
                 DateTime eventTime = DateTime.Now;
