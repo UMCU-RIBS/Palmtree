@@ -421,6 +421,36 @@ namespace UNP.Views {
             return false;
         }
 
+        public void drawLine(float x1, float y1, float x2, float y2, float lineWidth, bool dashed, float colorR, float colorG, float colorB) {
+
+            // set the color
+            gl.Color(colorR, colorG, colorB);
+
+            // set no texture
+            gl.BindTexture(OpenGL.GL_TEXTURE_2D, 0);
+
+            // set the line with
+            gl.LineWidth(lineWidth);
+
+            // dashed
+            if (dashed) {
+                gl.LineStipple(1, 0x00FF);      /*  dashed  */
+                //gl.LineStipple(1, 0x0101);      /*  dotted  */
+                //gl.LineStipple(1, 0x1C47);      /*  dash/dot/dash  */
+                gl.Enable(OpenGL.GL_LINE_STIPPLE);
+            }
+
+            // draw the line
+            gl.Begin(OpenGL.GL_LINES);
+                gl.Vertex(x1, y1);
+                gl.Vertex(x2, y2);
+            gl.End();
+
+            // disable stipple (in case it was enabled)
+            gl.Disable(OpenGL.GL_LINE_STIPPLE);
+
+        }
+
         public void drawRectangle(float x1, float y1, float x2, float y2, float lineWidth, float colorR, float colorG, float colorB) {
 	
 	        // set the color

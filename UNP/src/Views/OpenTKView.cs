@@ -471,6 +471,36 @@ namespace UNP.Views {
             return mouseState.IsButtonDown(MouseButton.Right);
         }
 
+        public void drawLine(float x1, float y1, float x2, float y2, float lineWidth, bool dashed, float colorR, float colorG, float colorB) {
+
+            // set the color
+            GL.Color3(colorR, colorG, colorB);
+
+            // set no texture
+            GL.BindTexture(TextureTarget.Texture2D, 0);
+
+            // set the line with
+            GL.LineWidth(lineWidth);
+
+            // dashed
+            if (dashed) {
+                GL.LineStipple(1, 0x00FF);      /*  dashed  */
+                //GL.LineStipple(1, 0x0101);      /*  dotted  */
+                //GL.LineStipple(1, 0x1C47);      /*  dash/dot/dash  */
+                GL.Enable(EnableCap.LineStipple);
+            }
+
+            // draw the line
+            GL.Begin(PrimitiveType.Lines);
+                GL.Vertex2(x1, y1);
+                GL.Vertex2(x2, y2);
+            GL.End();
+
+            // disable stipple (in case it was enabled)
+            GL.Disable(EnableCap.LineStipple);
+
+        }
+
         public void drawRectangle(float x1, float y1, float x2, float y2, float lineWidth, float colorR, float colorG, float colorB) {
 	
 	        // set the color
