@@ -103,6 +103,9 @@ namespace UNP.Sources {
                 "Communication protocol to use",
                 "0", "5", "4", new string[] { "Nexus protocol 1 (legacy)", "Nexus protocol 2 (legacy)", "Nexus protocol 3 (legacy)", "Nexus protocol 4 (legacy)", "Nexus protocol 5 power", "Nexus protocol 6 time" });
 
+            // message
+            logger.Info("Source created (version " + CLASS_VERSION + ")");
+
             // start a new thread
             signalThread = new Thread(this.run);
             signalThread.Name = "NexusSignal Run Thread";

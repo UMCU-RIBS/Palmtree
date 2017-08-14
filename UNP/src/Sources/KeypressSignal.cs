@@ -76,6 +76,9 @@ namespace UNP.Sources {
                 "Specifies which key influence which output channels and what values they give\n\nKey: Key to check for (takes a single character a-z or 0-9)\nOutput: output channel (1...n)\nPressed: value to output on the channel when the given key is pressed\nNot-pressed: value to output on the channel when the given key is not pressed",
                 "", "", "F;1;1;-1", new string[] { "Key", "Output", "Pressed", "Not-pressed" });
 
+            // message
+            logger.Info("Source created (version " + CLASS_VERSION + ")");
+
             // start a new thread
             signalThread = new Thread(this.run);
             signalThread.Name = "KeypressSignal Run Thread";

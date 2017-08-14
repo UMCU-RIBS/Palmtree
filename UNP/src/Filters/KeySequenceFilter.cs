@@ -64,6 +64,9 @@ namespace UNP.Filters {
                 "Sequence activation pattern and amount of samples needed",
                 "", "", "1 1 1 1");
 
+            // message
+            logger.Info("Filter created (version " + CLASS_VERSION + ")");
+
         }
         
         /**

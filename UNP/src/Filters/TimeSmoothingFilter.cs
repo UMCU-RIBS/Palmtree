@@ -44,6 +44,9 @@ namespace UNP.Filters {
                 "Weights corresponding to data buffers (columns correspond to output channels, multiple rows correspond to samples)",
                 "", "", "0.7,0.5,0.2,0");
 
+            // message
+            logger.Info("Filter created (version " + CLASS_VERSION + ")");
+
         }
         
         /**

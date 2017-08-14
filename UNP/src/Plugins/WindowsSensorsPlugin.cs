@@ -78,6 +78,9 @@ namespace UNP.Plugins {
 
             }
 
+            // message
+            logger.Info("Plugin created (version " + CLASS_VERSION + ")");
+
             // start a new thread
             pluginThread = new Thread(this.run);
             pluginThread.Name = "WindowsSensorsPlugin Run Thread";

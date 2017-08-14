@@ -40,7 +40,8 @@ namespace UNP.Filters {
                 "Specifies which input channels are added together to one or more output channels.\nAlso specifies what Linear values are applied to the output values, after addition, to binarize the output values\n\nInput: Input channel (1...n)\nOutput: output channel (1...n)\nLinear: (channel output) Linear above or under which the channel output will become 1 or 0\nDirection: the direction of the Linearing.\nIf direction < 0 (negative) then smaller than the Linear will result in true; if >= 0 (positive) then larger than the Linear will result in true",
                 "", "", "1;1;1", new string[] { "Input", "Output", "Weight" });
 
-            
+            // message
+            logger.Info("Filter created (version " + CLASS_VERSION + ")");
 
         }
 

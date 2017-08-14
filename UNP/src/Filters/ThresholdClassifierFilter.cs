@@ -41,7 +41,8 @@ namespace UNP.Filters {
                 "Specifies which input channels are added together to one or more output channels.\nAlso specifies what threshold values are applied to the output values, after addition, to binarize the output values\n\nInput: Input channel (1...n)\nOutput: output channel (1...n)\nThreshold: (channel output) threshold above or under which the channel output will become 1 or 0\nDirection: the direction of the thresholding.\nIf direction < 0 (negative) then smaller than the threshold will result in true; if >= 0 (positive) then larger than the threshold will result in true",
                 "", "", "1;1;0.45;1", new string[] { "Input", "Output", "Threshold", "Direction" });
 
-            
+            // message
+            logger.Info("Filter created (version " + CLASS_VERSION + ")");
 
         }
 

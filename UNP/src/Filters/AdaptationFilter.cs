@@ -102,6 +102,9 @@ namespace UNP.Filters {
                 "The threshold (on a standard normal distribution) above which a sample will be excluded from buffering",
                 "", "", "2.7");
 
+            // message
+            logger.Info("Filter created (version " + CLASS_VERSION + ")");
+
         }
 
         /**

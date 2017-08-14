@@ -14,14 +14,15 @@ namespace UNP.GUI {
 
         private static Logger logger;
 
-        private IView view = null;                      // reference to the view, used to pull information from and push commands to
-        private bool loaded = false;                    // flag to hold whether the form is loaded
-        private System.Timers.Timer tmrUpdate = null;   // timer to update the GUI
+        private IView view = null;                              // reference to the view, used to pull information from and push commands to
+        private bool loaded = false;                            // flag to hold whether the form is loaded
+        private System.Timers.Timer tmrUpdate = null;           // timer to update the GUI
 
-        private GUIConfig frmConfig = null;             // coniguration form
-        private bool configApplied = false;             // the configuration was applied (and needs to be before starting)
+        private GUIConfig frmConfig = null;                     // coniguration form
+        private bool configApplied = false;                     // the configuration was applied (and needs to be before starting)
 
         private GUIVisualization frmVisualization = null;       // visualization form
+        private GUIMore frmMore = null;                         // more form
 
 
         /**
@@ -74,16 +75,21 @@ namespace UNP.GUI {
                         // destroy/unload all graphs
                         frmVisualization.destroyGraphs();
 
-                        // close the form
+                        // close and dispose the form
                         frmVisualization.Close();
-
-                        // dispose of the form
                         frmVisualization.Dispose();
 
                     } catch (Exception) { }
-
                 }
-                
+
+                // stop/close the More form
+                if (frmMore != null && !frmMore.IsDisposed) {
+                    try {
+                        frmMore.Close();
+                        frmMore.Dispose();
+                    } catch (Exception) { }
+                }
+
                 // stop the update timer
                 if (tmrUpdate != null) {
                     tmrUpdate.Enabled = false;
@@ -170,8 +176,8 @@ namespace UNP.GUI {
             rtbTarget.UseDefaultRowColoringRules = true;
             rtbTarget.AutoScroll = true;
             logConfig.AddTarget("richTextBox", rtbTarget);
-            LoggingRule rule = new LoggingRule("*", LogLevel.Trace, rtbTarget);
-            //LoggingRule rule = new LoggingRule("*", LogLevel.Info, rtbTarget);
+            //LoggingRule rule = new LoggingRule("*", LogLevel.Trace, rtbTarget);
+            LoggingRule rule = new LoggingRule("*", LogLevel.Info, rtbTarget);
             logConfig.LoggingRules.Add(rule);
             LogManager.Configuration = logConfig;
 
@@ -179,7 +185,7 @@ namespace UNP.GUI {
             logger.Debug("Logger connected to textbox");
 
             // message
-            logger.Info("GUI (thread) started");
+            logger.Debug("GUI (thread) started");
 
             // update the console information
             updateMainInformation();
@@ -276,6 +282,14 @@ namespace UNP.GUI {
             
         }
 
+        private void btnMore_Click(object sender, EventArgs e) {
+
+            if (frmMore != null && frmMore.IsDisposed)  frmMore = null;
+            if (frmMore == null)                        frmMore = new GUIMore();
+
+            frmMore.Show();
+
+        }
     }
 
 }

@@ -209,6 +209,9 @@ namespace MoleTask {
 
             }
 
+            // message
+            logger.Info("Application created (version " + CLASS_VERSION + ")");
+
         }
 
         public Parameters getParameters() {

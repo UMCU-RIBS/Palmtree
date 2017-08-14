@@ -61,6 +61,9 @@ namespace UNP.Filters {
                 "Time window after click in which no click will be translated (in samples or seconds)",
                 "1s", "", "3.6s");
 
+            // message
+            logger.Info("Filter created (version " + CLASS_VERSION + ")");
+
         }
         
         /**

@@ -49,6 +49,8 @@ namespace UNP.Filters {
                 "Normalizer gain values",
                 "", "", "1");
 
+            // message
+            logger.Info("Filter created (version " + CLASS_VERSION + ")");
 
         }
 
