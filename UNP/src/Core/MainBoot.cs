@@ -12,6 +12,8 @@ namespace UNP.Core {
 
     public static class MainBoot {
 
+        private const int CLASS_VERSION = 0;
+
         private static Logger logger = LogManager.GetLogger("MainBoot");
 
         // the available sources
@@ -22,6 +24,9 @@ namespace UNP.Core {
                                                 new string[] { "PlaybackSignal",    "UNP.Sources.PlaybackSignal" }
                                             };
 
+        public static int getClassVersion() {
+            return CLASS_VERSION;
+        }
 
         public static void Run(string[] args, Type applicationType) {
 
@@ -35,8 +40,7 @@ namespace UNP.Core {
             string parameterFile = "";
             string source = "";
 
-            args = new string[] { "-parameterfile", "test_UNPMENU.prm", "-source", "KeypressSignal", "-startupConfigAndInit", "-startupStart" };
-            //args = new string[] { "-parameterfile", "test_UNPMENU.prm"};
+            //args = new string[] { "-parameterfile", "test_UNPMENU.prm", "-source", "KeypressSignal", "-startupConfigAndInit", "-startupStart" };
 
             // process startup arguments
             for (int i = 0; i < args.Length; i++) {
@@ -138,7 +142,7 @@ namespace UNP.Core {
             // name this thread
             if (Thread.CurrentThread.Name == null)
                 Thread.CurrentThread.Name = "Main Thread";
-
+            
             // create the main (control) object
             MainThread mainThread = new MainThread();
 
@@ -164,7 +168,7 @@ namespace UNP.Core {
                     Application.Run(gui);
 
                     // message
-                    logger.Info("GUI (thread) stopped");
+                    logger.Debug("GUI (thread) stopped");
 
                 });
                 thread.SetApartmentState(ApartmentState.STA);
@@ -179,11 +183,16 @@ namespace UNP.Core {
 
             }
 
+            // message versions
+            logger.Info("MainBoot version " + MainBoot.getClassVersion());
+            logger.Info("MainThread version " + MainThread.getClassVersion());
+
+
             // message
             if (Environment.Is64BitProcess)
-                logger.Info("Processes are run in a 64 bit environment");
+                logger.Debug("Processes are run in a 64 bit environment");
             else
-                logger.Info("Processes are run in a 32 bit environment");
+                logger.Debug("Processes are run in a 32 bit environment");
 
 
             // setup and initialize the pipeline

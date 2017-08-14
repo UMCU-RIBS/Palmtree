@@ -17,7 +17,9 @@ using UNP.Core.DataIO;
 namespace UNP.Core {
     
     public class MainThread {
-        
+
+        private const int CLASS_VERSION = 0;
+
         private static Logger logger = LogManager.GetLogger("MainThread");
 
         private const int threadLoopDelayNoProc = 200;                              // thread loop delay when not processing (1000ms / 5 run times per second = rest 200ms)
@@ -59,8 +61,12 @@ namespace UNP.Core {
             // initialially set as not configured
             systemConfigured = false;
             systemInitialized = false;
-            
-	    }
+
+        }
+
+        public static int getClassVersion() {
+            return CLASS_VERSION;
+        }
 
         public void initPipeline(Type sourceType, Type applicationType) {
             
