@@ -14,7 +14,6 @@ namespace UNP.GUI {
 
         private static Logger logger;
 
-        private IView view = null;                              // reference to the view, used to pull information from and push commands to
         private bool loaded = false;                            // flag to hold whether the form is loaded
         private System.Timers.Timer tmrUpdate = null;           // timer to update the GUI
 
@@ -97,7 +96,6 @@ namespace UNP.GUI {
                 }
 
                 // remove references and tell the experiment that the GUI is closed
-                if (view != null)   view = null;
                 MainThread.eventGUIClosed();
 
             }
