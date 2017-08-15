@@ -95,7 +95,7 @@ namespace UNP.Filters {
             output = new SampleFormat(outputChannels, input.getRate());
 
             // configure output logging for this filter
-            configureOutputLogging("ThresholdClassifier_", output);
+            configureOutputLogging(filterName + "_", output);
 
             // debug output
             logger.Debug("--- Filter configuration: " + filterName + " ---");

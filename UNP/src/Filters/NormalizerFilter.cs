@@ -83,7 +83,7 @@ namespace UNP.Filters {
             transferParameters(parameters);
 
             // configure output logging for this filter
-            configureOutputLogging("Normalize_", output);
+            configureOutputLogging(filterName + "_", output);
 
             // debug output
             logger.Debug("--- Filter configuration: " + filterName + " ---");

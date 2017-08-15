@@ -4,7 +4,7 @@ using UNP.Core.Params;
 
 namespace UNP.Filters {
 
-    public class LinearClassifierFilter : FilterBase, IFilter {
+    public class RedistributionFilter : FilterBase, IFilter {
 
         private new const int CLASS_VERSION = 0;
 
@@ -12,7 +12,7 @@ namespace UNP.Filters {
         private int[] mConfigOutputChannels = null;
         private double[] mConfigWeights = null;
 
-        public LinearClassifierFilter(string filterName) {
+        public RedistributionFilter(string filterName) {
 
             // set class version
             base.CLASS_VERSION = CLASS_VERSION;
@@ -27,7 +27,7 @@ namespace UNP.Filters {
             // define the parameters
             parameters.addParameter<bool>(
                 "EnableFilter",
-                "Enable linear classifier filter",
+                "Enable filter",
                 "1");
 
             parameters.addParameter<bool>(
@@ -36,7 +36,7 @@ namespace UNP.Filters {
                 "0");
 
             parameters.addParameter <double[][]>  (
-                "Classifiers",
+                "Redistribution",
                 "Specifies which input channels are added together to one or more output channels.\nAlso specifies what Linear values are applied to the output values, after addition, to binarize the output values\n\nInput: Input channel (1...n)\nOutput: output channel (1...n)\nLinear: (channel output) Linear above or under which the channel output will become 1 or 0\nDirection: the direction of the Linearing.\nIf direction < 0 (negative) then smaller than the Linear will result in true; if >= 0 (positive) then larger than the Linear will result in true",
                 "", "", "1;1;1", new string[] { "Input", "Output", "Weight" });
 
@@ -94,7 +94,7 @@ namespace UNP.Filters {
             output = new SampleFormat(outputChannels, input.getRate());
 
             // configure output logging for this filter
-            configureOutputLogging("LinearClassifier_", output);
+            configureOutputLogging(filterName + "_", output);
 
             // debug output
             logger.Debug("--- Filter configuration: " + filterName + " ---");
@@ -123,11 +123,11 @@ namespace UNP.Filters {
                 // filter was off, and should be switched on
 
                 // determine the highest output channel from the configuration
-                double[][] newClassifiers = parameters.getValue<double[][]>("Classifiers");
+                double[][] newRedistribution = parameters.getValue<double[][]>("Redistribution");
                 int highestOutputChannel = 0;
-                for (int row = 0; row < newClassifiers[0].Length; ++row) {
-                    if (newClassifiers[1][row] > highestOutputChannel)
-                        highestOutputChannel = (int)newClassifiers[1][row];
+                for (int row = 0; row < newRedistribution[0].Length; ++row) {
+                    if (newRedistribution[1][row] > highestOutputChannel)
+                        highestOutputChannel = (int)newRedistribution[1][row];
                 }
 
                 // check if the number of output channels would remain the same (if the change would be applied)
@@ -223,25 +223,25 @@ namespace UNP.Filters {
             // check if the filter is enabled
             if (newEnableFilter) {
 
-                // check classifiers
-                double[][] newClassifiers = newParameters.getValue<double[][]>("Classifiers");
-		        if (newClassifiers.Length != 3 || newClassifiers[0].Length <= 0) {
-                    logger.Error("Classifiers parameter must have 3 columns (Input channel, Output channel, Weight) and at least one row");
+                // check redistribution parameters
+                double[][] newRedistribution = newParameters.getValue<double[][]>("Redistribution");
+		        if (newRedistribution.Length != 3 || newRedistribution[0].Length <= 0) {
+                    logger.Error("Redistribution parameter must have 3 columns (Input channel, Output channel, Weight) and at least one row");
                     return false;
                 }
 
                 // loop through the rows
-                for (int row = 0; row < newClassifiers[0].Length; ++row ) {
+                for (int row = 0; row < newRedistribution[0].Length; ++row ) {
 
-                    if (newClassifiers[0][row] < 1 || newClassifiers[0][row] % 1 != 0) {
+                    if (newRedistribution[0][row] < 1 || newRedistribution[0][row] % 1 != 0) {
                         logger.Error("Input channels must be positive integers (note that the channel numbering is 1-based)");
                         return false;
                     }
-                    if (newClassifiers[0][row] > inputChannels) {
+                    if (newRedistribution[0][row] > inputChannels) {
                         logger.Error("One of the input channel values exceeds the number of channels coming into the filter (#inputChannels: " + inputChannels + ")");
                         return false;
                     }
-                    if (newClassifiers[1][row] < 1 || newClassifiers[1][row] % 1 != 0) {
+                    if (newRedistribution[1][row] < 1 || newRedistribution[1][row] % 1 != 0) {
                         logger.Error("Output channels must be positive integers (note that the channel numbering is 1-based)");
                         return false;
                     }
@@ -266,17 +266,17 @@ namespace UNP.Filters {
             // check if the filter is enabled
             if (mEnableFilter) {
 
-                // retrieve newClassifiers
-                double[][] newClassifiers = newParameters.getValue<double[][]>("Classifiers");
+                // retrieve newRedistribution
+                double[][] newRedistribution = newParameters.getValue<double[][]>("Redistribution");
 
                 // transfer the settings
-                mConfigInputChannels = new int[newClassifiers[0].Length];        // 0 = channel 1
-                mConfigOutputChannels = new int[newClassifiers[0].Length];        // 0 = channel 1
-                mConfigWeights = new double[newClassifiers[0].Length];
-                for (int row = 0; row < newClassifiers[0].Length; ++row ) {
-                    mConfigInputChannels[row] = (int)newClassifiers[0][row];
-                    mConfigOutputChannels[row] = (int)newClassifiers[1][row];
-                    mConfigWeights[row] = newClassifiers[2][row];
+                mConfigInputChannels = new int[newRedistribution[0].Length];        // 0 = channel 1
+                mConfigOutputChannels = new int[newRedistribution[0].Length];        // 0 = channel 1
+                mConfigWeights = new double[newRedistribution[0].Length];
+                for (int row = 0; row < newRedistribution[0].Length; ++row ) {
+                    mConfigInputChannels[row] = (int)newRedistribution[0][row];
+                    mConfigOutputChannels[row] = (int)newRedistribution[1][row];
+                    mConfigWeights[row] = newRedistribution[2][row];
                 }
 
             }

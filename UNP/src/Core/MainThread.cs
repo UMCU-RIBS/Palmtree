@@ -82,9 +82,10 @@ namespace UNP.Core {
             }
 
             // create filters
+            filters.Add(new RedistributionFilter("FeatureSelector"));
             filters.Add(new TimeSmoothingFilter("TimeSmoothing"));
             filters.Add(new AdaptationFilter("Adaptation"));
-            filters.Add(new LinearClassifierFilter("LinearClassifier"));
+            filters.Add(new RedistributionFilter("LinearClassifier"));
             filters.Add(new KeySequenceFilter("KeySequence"));
             filters.Add(new ThresholdClassifierFilter("ThresholdClassifier"));
             filters.Add(new ClickTranslatorFilter("ClickTranslator"));

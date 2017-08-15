@@ -109,7 +109,7 @@
     <Compile Include="src\Core\Events\VisualizationValuesArgs.cs" />
     <Compile Include="src\Core\Helpers\DoubleConverter.cs" />
     <Compile Include="src\Core\Params\ParamFileString.cs" />
-    <Compile Include="src\Filters\LinearClassifierFilter.cs" />
+    <Compile Include="src\Filters\RedistributionFilter.cs" />
     <Compile Include="src\GUI\GUIMore.cs">
       <SubType>Form</SubType>
     </Compile>
