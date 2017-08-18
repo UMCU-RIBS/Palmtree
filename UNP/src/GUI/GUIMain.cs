@@ -168,7 +168,7 @@ namespace UNP.GUI {
             logger = LogManager.GetLogger("GUI");
             LoggingConfiguration logConfig = LogManager.Configuration;
             RichTextBoxTarget rtbTarget = new RichTextBoxTarget();
-            rtbTarget.FormName = "GUIMain";
+            rtbTarget.FormName = this.Name;
             rtbTarget.ControlName = "txtConsole";
             rtbTarget.Layout = "[${time}] ${logger}: ${message}";
             rtbTarget.UseDefaultRowColoringRules = true;

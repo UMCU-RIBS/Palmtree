@@ -28,6 +28,7 @@
             // 
             // btnPrintParamInfo
             // 
+            this.btnPrintParamInfo.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(0)));
             this.btnPrintParamInfo.Location = new System.Drawing.Point(27, 22);
             this.btnPrintParamInfo.Name = "btnPrintParamInfo";
             this.btnPrintParamInfo.Size = new System.Drawing.Size(305, 36);
