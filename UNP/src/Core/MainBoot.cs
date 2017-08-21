@@ -63,7 +63,7 @@ namespace UNP.Core {
                 // check if the source is given
                 if (argument == "-source") {
 
-                    // the next element should be the parameter file, try to retrieve
+                    // the next element should be the source, try to retrieve
                     if (args.Length >= i + 1 && !string.IsNullOrEmpty(args[i + 1])) {
                         source = args[i + 1];
                     }
@@ -168,7 +168,7 @@ namespace UNP.Core {
                     Application.Run(gui);
 
                     // message
-                    logger.Debug("GUI (thread) stopped");
+                    logger.Info("GUI (thread) started");
 
                 });
                 thread.SetApartmentState(ApartmentState.STA);

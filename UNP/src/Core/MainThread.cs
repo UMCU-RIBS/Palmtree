@@ -517,7 +517,7 @@ namespace UNP.Core {
                     if (process) {
                         // processing
 
-                        // see if there samples in the que, pick the sample for processing
+                        // see if there samples in the queue, pick the sample for processing
                         sample = null;
                         lock(sampleBuffer.SyncRoot) {
 
@@ -773,7 +773,7 @@ namespace UNP.Core {
          **/
         private static Parameters getFilterParameters(string filterName) {
 
-            // find the filter, and return a reference to its paremeters
+            // find the filter, and return a reference to its parameters
             for (int i = 0; i < filters.Count; i++) {
                 if (filters[i].getName().Equals(filterName)) {
                     return filters[i].getParameters();
@@ -793,7 +793,7 @@ namespace UNP.Core {
          **/
         public static Parameters getFilterParametersClone(string filterName) {
 
-            // find the filter, and return a clone of its paremeters
+            // find the filter, and return a clone of its parameters
             for (int i = 0; i < filters.Count; i++) {
                 if (filters[i].getName().Equals(filterName)) {
                     return filters[i].getParameters().clone();

@@ -236,7 +236,7 @@ namespace UNP.Sources {
         }
 
         public void initialize() {
-            Console.WriteLine("init dingen");
+            //Console.WriteLine("init dingen");
             
             // lock for thread safety
             lock (lockSerialPort) {

@@ -14,7 +14,7 @@ namespace UNP.Filters {
         private new const int CLASS_VERSION = 0;
 
         private RingBuffer[] mDataBuffers = null;                   // an array of ringbuffers, a ringbuffer for every channel
-        private double[][] mBufferWeights = null;                   // matrix with the buffer weights for each channel (1ste dimention are the channels; 2nd dimension are the sample weights per channel)
+        private double[][] mBufferWeights = null;                   // matrix with the buffer weights for each channel (1st dimention are the channels; 2nd dimension are the sample weights per channel)
 
         public TimeSmoothingFilter(string filterName) {
 
@@ -43,9 +43,6 @@ namespace UNP.Filters {
                 "BufferWeights",
                 "Weights corresponding to data buffers (columns correspond to output channels, multiple rows correspond to samples)",
                 "", "", "0.7,0.5,0.2,0");
-
-            // message
-            logger.Info("Filter created (version " + CLASS_VERSION + ")");
 
         }
         
