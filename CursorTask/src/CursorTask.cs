@@ -863,9 +863,13 @@ namespace CursorTask {
         
         // pauzes the task
         private void pauzeTask() {
+            if (mSceneThread == null) return;
 
-	        // set task as pauzed
-	        mTaskPauzed = true;
+            // log event task is paused
+            Data.logEvent(2, "TaskPause", CLASS_NAME);
+
+            // set task as pauzed
+            mTaskPauzed = true;
 
 	        // store the previous state
 	        previousTaskState = taskState;
@@ -881,9 +885,13 @@ namespace CursorTask {
 
         // resumes the task
         private void resumeTask() {
+            if (mSceneThread == null) return;
 
-	        // set the previous gamestate
-	        setState((TaskStates) previousTaskState);
+            // log event task is paused
+            Data.logEvent(2, "TaskResume", CLASS_NAME);
+
+            // set the previous gamestate
+            setState(previousTaskState);
 
 	        // set task as not longer pauzed
 	        mTaskPauzed = false;
