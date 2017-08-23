@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-
+using UNP.Core.Helpers;
 using UNP.Views;
 
 namespace CursorTask {
@@ -12,36 +12,60 @@ namespace CursorTask {
     class CursorView : OpenTKView, IView {
     //class CursorView : SharpGLView, IView {
         
+        private const double PI = 3.1415926535897932384626433832795;
         private const int taskBoundaryLineWidth = 2;
         private const int targetWidth = 20;
 
         private static Logger logger = LogManager.GetLogger("CursorView");                        // the logger object for the view
-
         public enum ColorStates {
             Neutral,
             Hit,
             Miss
         };
 
+        private Object textureLock = new Object();                                      // threadsafety lock for texture events
+
         private bool showBoundary = false;
         private int boundarySize = 0;
-        private float boundaryX = 0;
-        private float boundaryY = 0;
+        private int boundaryX = 0;
+        private int boundaryY = 0;
 
 
-        private int cursorRadius = 40;                                   // the cursor radius
+        private int cursorRadius = 40;                                      // the cursor radius
         private bool showCursor = false;                                    // show the cursor
         private bool moveCursor = false;                                    // move the cursor
-        private int cursorX = 0;                                        // the x position of the middle of the cursor
-        private int cursorY = 0;                                        // the y position of the middle of the cursor
-        private double cursorSpeedTotalTrialTime = 0;                    // cursorspeed in total time per trial
-        private double cursorSpeed = 0;									// cursorspeed in pixels per second
+        private double cursorX = 0;                                         // the x position of the middle of the cursor
+        private int cursorY = 0;                                            // the y position of the middle of the cursor
+        private double cursorSpeedTotalTrialTime = 0;                       // cursorspeed in total time per trial
+        private double cursorSpeed = 0;                                     // cursorspeed in pixels per second
+        private ColorStates cursorColorState = ColorStates.Neutral;
+        private float cursorNeutralColorR = 0;                            // cursor color when moving
+        private float cursorNeutralColorG = 0;                            // 
+        private float cursorNeutralColorB = 0;                            // 
+        private float cursorHitColorR = 0;                                // cursor color when target is hit
+        private float cursorHitColorG = 0;                                // 
+        private float cursorHitColorB = 0;                                //
+        private float cursorMissColorR = 0;                               // cursor color when target is missed
+        private float cursorMissColorG = 0;                               // 
+        private float cursorMissColorB = 0;                               //
 
-
+        private bool showTarget = false;
+        private float targetY = 0;
+        private float targetHeight = 0;
+        private ColorStates targetColorState = ColorStates.Neutral;
+        private float targetNeutralColorR = 0;                            // target color when cursor is moving
+        private float targetNeutralColorG = 0;                            // 
+        private float targetNeutralColorB = 0;                            //
+        private float targetHitColorR = 0;                                // target color when target is hit
+        private float targetHitColorG = 0;                                // 
+        private float targetHitColorB = 0;                                //
+        private float targetMissColorR = 0;                               // cursor color when target is missed
+        private float targetMissColorG = 0;                               // 
+        private float targetMissColorB = 0;								//
 
         private int showCountDown = -1;                                                 // whether the countdown should be shown (-1 = off, 1..3 = count)
         private bool showFixation = false;                                              // whether the fixation should be shown
-        private long score = -1;									                        // the score that is being shown (-1 = do not show score)
+        private int score = -1;									                        // the score that is being shown (-1 = do not show score)
 
         private glFreeTypeFont scoreFont = new glFreeTypeFont();
         private glFreeTypeFont countdownFont = new glFreeTypeFont();
@@ -50,7 +74,9 @@ namespace CursorTask {
         // general UNP variables
         private bool showConnectionLost = false;
         private int connectionLostTexture = 0;
-        
+        private glFreeTypeFont textFont = new glFreeTypeFont();
+        private string showText = "";
+        private int showTextWidth = 0;
 
 
         public CursorView() : base(120, 0, 0, 640, 480, true) {
@@ -74,6 +100,8 @@ namespace CursorTask {
 
         protected override void load() {
 
+            // initialize the text font
+            textFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 20), "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ. ");
 
             // initialize the countdown and fixation fonts
             countdownFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 7), "1234567890");
@@ -81,6 +109,14 @@ namespace CursorTask {
 
             // initialize the score font
             scoreFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 30), "Score: 0123456789");
+
+            // lock for textures events (thread safety)
+            lock (textureLock) {
+
+                // load the connection lost texture
+                connectionLostTexture = (int)loadImage("images\\nosignal.png");
+
+            }
 
             // TODO: 
             /*
@@ -96,7 +132,7 @@ namespace CursorTask {
 
             }
             */
-            
+
 
             // the dimensions and locations for a square task area in the middle of the window
             if (getContentWidth() > getContentHeight()) {
@@ -110,19 +146,26 @@ namespace CursorTask {
             // check and/or set the cursorspeed
             if (boundarySize == 0 || cursorSpeedTotalTrialTime == 0)    cursorSpeed = 0;
             else                                                        cursorSpeed = ((float)boundarySize - taskBoundaryLineWidth - targetWidth - (cursorRadius * 2)) / cursorSpeedTotalTrialTime;
-            
-
 
         }
 
         protected override void unload() {
 
-            /*
+            // clear the text font
+            textFont.clean();
+
             // clear the fonts
             scoreFont.clean();
             fixationFont.clean();
             countdownFont.clean();
-            */
+
+            // lock for textures events (thread safety)
+            lock (textureLock) {
+
+                // clear the no signal texture
+                glDeleteTexture(connectionLostTexture);
+
+            }
 
         }
 
@@ -132,10 +175,10 @@ namespace CursorTask {
         }
 
         protected override void update(double secondsElapsed) {
-            /*
+            
 	        if (moveCursor) {
 		
-		        cursorX += cursorSpeed * secondsElapsed;
+		        cursorX += (cursorSpeed * secondsElapsed);
 
 
 		        // check if the cursor is at Y with the target
@@ -144,58 +187,56 @@ namespace CursorTask {
 
 			        // stop before target
 			        if (cursorX + cursorRadius >= boundaryX + boundarySize - (taskBoundaryLineWidth / 2) - targetWidth)
-				        cursorX = boundaryX + boundarySize - (taskBoundaryLineWidth / 2) - targetWidth - cursorRadius;
+				        cursorX = boundaryX + boundarySize - (taskBoundaryLineWidth / 2.0) - targetWidth - cursorRadius;
 
 		        } else {
 			        // cursor is above or below target
 
 			        // stop before boundary
 			        if (cursorX + cursorRadius >= boundaryX + boundarySize - (taskBoundaryLineWidth / 2))
-				        cursorX = boundaryX + boundarySize - (taskBoundaryLineWidth / 2) - cursorRadius;
+				        cursorX = boundaryX + boundarySize - (taskBoundaryLineWidth / 2.0) - cursorRadius;
 
 		        }
 			
 	        }
-            */
+            
 
         }
 
         protected override void render() {
 
-            /*
-	        // check if fixation should be shown
-	        if (showFixation) {
+            // check if fixation should be shown
+            if (showFixation) {
 
-		        // set the fixation to white
-		        glColor3f(1, 1, 1);
+                // set the fixation to white
+                glColor3(1f, 1f, 1f);
 
-		        // set the text count
-		        int fixationTextWidth = glfwFreeType::getLineWidth(fixationFont, "+");
-		        glfwFreeType::printLine(fixationFont, (int)((mWindowWidth - fixationTextWidth) / 2), (int)((mWindowHeight - fixationFont.h) / 2), "+");
+                // set the text count
+                int fixationTextWidth = fixationFont.getTextWidth("+");
+                fixationFont.printLine((int)((getContentWidth() - fixationTextWidth) / 2), (int)((getContentHeight() - fixationFont.height) / 2), "+");
 
-	        }
+            }
 
-	        if (showCountDown != 0) {
+            if (showCountDown >= 0) {
 
-		        // set the countdown to white
-		        glColor3f(1, 1, 1);
+                // set the countdown to white
+                glColor3(1f, 1f, 1f);
 
-		        // set the text count
-		        int countTextWidth = glfwFreeType::getLineWidth(countdownFont, "%i", showCountDown);
-		        glfwFreeType::printLine(countdownFont, (int)((mWindowWidth - countTextWidth) / 2), (int)((mWindowHeight - countdownFont.h) / 2), "%i", showCountDown);
+                // set the text count
+                int countTextWidth = countdownFont.getTextWidth(showCountDown.ToString());
+                countdownFont.printLine((int)((getContentWidth() - countTextWidth) / 2), (int)((getContentHeight() - countdownFont.height) / 2), showCountDown.ToString());
 
+            }
 
-	        }
+            // show task boundary as rectangle
+            if (taskBoundaryLineWidth > 0 && showBoundary) {
 
-	        // show task boundary as rectangle
-	        if (taskBoundaryLineWidth > 0 && showBoundary) {
-
-		        this->drawRectangle(boundaryX, 
-							        boundaryY, 
-							        boundaryX + boundarySize,
-							        boundaryY + boundarySize, 
-							        taskBoundaryLineWidth, 
-							        0.0, 1.0, 1.0);
+                drawRectangle(  boundaryX, 
+							    boundaryY, 
+							    boundaryX + boundarySize,
+							    boundaryY + boundarySize, 
+							    taskBoundaryLineWidth,
+							    0f, 1f, 1f);
 
 	        }
 
@@ -203,42 +244,42 @@ namespace CursorTask {
 	        if (showTarget) {
 
 		        // set the target color
-		        if (targetColorState == Hit)
-			        glColor3f(targetHitColorR, targetHitColorG, targetHitColorB);
-		        else if (targetColorState == Miss)
-			        glColor3f(targetMissColorR, targetMissColorG, targetMissColorB);
+		        if (targetColorState == ColorStates.Hit)
+			        glColor3(targetHitColorR, targetHitColorG, targetHitColorB);
+		        else if (targetColorState == ColorStates.Miss)
+			        glColor3(targetMissColorR, targetMissColorG, targetMissColorB);
 		        else
-			        glColor3f(targetNeutralColorR, targetNeutralColorG, targetNeutralColorB);
+			        glColor3(targetNeutralColorR, targetNeutralColorG, targetNeutralColorB);
 
-		        // set no texture
-		        glBindTexture(GL_TEXTURE_2D, NULL);
+                // set no texture
+                glBindTexture2D(0);
 
-		        // draw the block
-		        glBegin(GL_TRIANGLES);
+                // draw the block
+                glBeginTriangles();
 
 			        // vertex 0
-			        glVertex3f( boundaryX + boundarySize - (taskBoundaryLineWidth / 2),				
+			        glVertex3(  boundaryX + boundarySize - (taskBoundaryLineWidth / 2),				
 						        targetY + targetHeight,
 						        0.0f);
 
-			        glVertex3f( boundaryX + boundarySize - (taskBoundaryLineWidth / 2),				
+			        glVertex3(  boundaryX + boundarySize - (taskBoundaryLineWidth / 2),				
 						        targetY,				
 						        0.0f);
 			
-			        glVertex3f( boundaryX + boundarySize - targetWidth - (taskBoundaryLineWidth / 2),	
+			        glVertex3(  boundaryX + boundarySize - targetWidth - (taskBoundaryLineWidth / 2),	
 						        targetY,				
 						        0.0f);
 
 			        //vertex 1
-			        glVertex3f( boundaryX + boundarySize - targetWidth - (taskBoundaryLineWidth / 2),	
+			        glVertex3(  boundaryX + boundarySize - targetWidth - (taskBoundaryLineWidth / 2),	
 						        targetY + targetHeight,	
 						        0.0f);
 
-			        glVertex3f( boundaryX + boundarySize - (taskBoundaryLineWidth / 2),				
+			        glVertex3(  boundaryX + boundarySize - (taskBoundaryLineWidth / 2),				
 						        targetY + targetHeight,
 						        0.0f);
 
-			        glVertex3f( boundaryX + boundarySize - targetWidth - (taskBoundaryLineWidth / 2),	
+			        glVertex3(  boundaryX + boundarySize - targetWidth - (taskBoundaryLineWidth / 2),	
 						        targetY,				
 						        0.0f);
 
@@ -259,47 +300,111 @@ namespace CursorTask {
 	        if (showCursor) {
 
 		        // set the cursor color
-		        if (cursorColorState == Hit)
-			        glColor3f(cursorHitColorR, cursorHitColorG, cursorHitColorB);
-		        else if (targetColorState == Miss)
-			        glColor3f(cursorMissColorR, cursorMissColorG, cursorMissColorB);
+		        if (cursorColorState == ColorStates.Hit)
+			        glColor3(cursorHitColorR, cursorHitColorG, cursorHitColorB);
+		        else if (targetColorState == ColorStates.Miss)
+			        glColor3(cursorMissColorR, cursorMissColorG, cursorMissColorB);
 		        else
-			        glColor3f(cursorNeutralColorR, cursorNeutralColorG, cursorNeutralColorB);
+			        glColor3(cursorNeutralColorR, cursorNeutralColorG, cursorNeutralColorB);
 
-		        // set no texture
-		        glBindTexture(GL_TEXTURE_2D, NULL);
+                // set no texture
+                glBindTexture2D(0);
 
-		        // cursor polyfgon
-		        glBegin(GL_POLYGON);
+                // cursor polyfgon
+                glBeginPolygon();
 			        for(double i = 0; i < 2 * PI; i += PI / 24)
- 				        glVertex3f(cos(i) * cursorRadius + cursorX, sin(i) * cursorRadius + cursorY, 0.0);
+ 				        glVertex3(Math.Cos(i) * cursorRadius + cursorX, Math.Sin(i) * cursorRadius + cursorY, 0.0);
+                glEnd();
+
+	        }
+
+            // write the score text
+            if (score > -1) {
+                glColor3(1f, 1f, 1f);
+                scoreFont.printLine(getContentWidth() - scoreFont.height * 9, 5, ("Score: " + score));
+            }
+
+	        // check if text should be shown
+	        if (showText.Length != 0) {
+
+		        // set the text to white
+		        glColor3(1f, 1f, 1f);
+		
+		        // print the text
+                textFont.printLine((getContentWidth() - showTextWidth) / 2, getContentHeight() / 2, showText);
+
+	        }
+            
+	        // check if there is no signal
+	        if (showConnectionLost) {
+
+		        // print text
+		        int textWidth = textFont.getTextWidth("Lost connection with device");
+		        textFont.printLine((int)((getContentWidth() - textWidth) / 2), (int)((getContentHeight()) / 4), "Lost connection with device");
+
+		        // set texture
+                glBindTexture2D(connectionLostTexture);
+
+		        // set white color for drawing
+                glColor3(1f, 1f, 1f);
+
+		        // draw texture
+                glBeginTriangles();
+
+			        // vertex 0
+			        glTexCoord2(1.0f, 0.0f);
+			        glVertex3( (getContentWidth() - 200) / 2 + 200,				(getContentHeight() - 200) / 2 + 200,	    0.0f);
+
+			        glTexCoord2(1.0f, 1.0f);
+			        glVertex3( (getContentWidth() - 200) / 2 + 200,				(getContentHeight()-200) / 2,				0.0f);
+			
+			        glTexCoord2(0.0f, 1.0f);
+			        glVertex3( (getContentWidth() - 200) / 2,					(getContentHeight()-200) / 2,				0.0f);
+
+			        //vertex 1
+			        glTexCoord2(0.0f, 0.0f);
+			        glVertex3( (getContentWidth() - 200) / 2,					(getContentHeight()-200) / 2 + 200,		    0.0f);
+
+			        glTexCoord2(1.0f, 0.0f);
+			        glVertex3( (getContentWidth() - 200) / 2 + 200,				(getContentHeight()-200) / 2 + 200,		    0.0f);
+
+			        glTexCoord2(0.0f, 1.0f);
+			        glVertex3( (getContentWidth() - 200) / 2,					(getContentHeight()-200) / 2,				0.0f);
+
 		        glEnd();
 
 	        }
 
-	        // write the score text
-	        if (score > -1) {
-		        glColor3f(1, 1, 1);
-		        glfwFreeType::printLine(scoreFont, mWindowWidth - scoreFont.h * 9, 0, "Score: %i", score);
-	        }
-            */
-            
+        }
+
+        public void setText(string text) {
+	
+	        // set the text
+	        showText = text;
+
+	        // if not empty, determine the width once
+            if (!String.IsNullOrEmpty(showText))
+                showTextWidth = textFont.getTextWidth(showText);
+
+        }
+
+        public void setConnectionLost(bool connectionLost) {
+	        showConnectionLost = connectionLost;
         }
 
 
 
 
-        /*
-        int PongSceneThread::getCursorX() {
+        public double getCursorX() {
 	        return cursorX;
         }
 
-        int PongSceneThread::getCursorY() {
+        public int getCursorY() {
 	        return cursorY;
         }
 
         // set the cursor's x position to a normalized valued (0 = left, 1 = right, also takes cursor radius into account)
-        void PongSceneThread::setCursorNormX(float x, bool accountForTarget) {
+        public void setCursorNormX(double x, bool accountForTarget) {
 	        if (x < 0) x = 0;
 	        if (x > 1) x = 1;
 
@@ -311,63 +416,78 @@ namespace CursorTask {
         }
 
         // set the cursor's y position to a normalized valued (0 = bottom, 1 = top, also takes cursor radius into account)
-        void PongSceneThread::setCursorNormY(float y) {
+        public void setCursorNormY(double y) {
 	        if (y < 0) y = 0;
 	        if (y > 1) y = 1;
 	        cursorY = boundaryY + boundarySize - (taskBoundaryLineWidth / 2) - cursorRadius - (int)((boundarySize - taskBoundaryLineWidth - (cursorRadius * 2)) * y);
         }
 
-        void PongSceneThread::centerCursorY() {
-	        cursorY = (mWindowHeight - cursorRadius) / 2;
+        public void centerCursorY() {
+	        cursorY = (getContentHeight() - cursorRadius) / 2;
         }
 
-        void PongSceneThread::setCursorVisible(bool show) {
+        public void setCursorVisible(bool show) {
 	        showCursor = show;
         }
 
-        void PongSceneThread::setCursorSpeed(float TotalTrialTime) {
+        public void setCursorSpeed(float TotalTrialTime) {
 	        cursorSpeedTotalTrialTime = TotalTrialTime;
 	        if (boundarySize == 0 || cursorSpeedTotalTrialTime == 0)	cursorSpeed = 0;
-	        else														cursorSpeed = ((float)boundarySize - taskBoundaryLineWidth - targetWidth - (cursorRadius * 2)) / cursorSpeedTotalTrialTime;
+	        else														cursorSpeed = ((double)boundarySize - taskBoundaryLineWidth - targetWidth - (cursorRadius * 2)) / cursorSpeedTotalTrialTime;
         }
 
-        void PongSceneThread::setCursorMoving(bool move) {
+        public void setCursorMoving(bool move) {
 	        moveCursor = move;
         }
 
-        // set the cursor size radius as a percentage of the screen height
-        void PongSceneThread::setCursorSizePerc(float perc) {
-	        setCursorSize((int)(mWindowHeight / 100.0 * perc));
+        // set the cursor size radius as a percentage of the bounding box size
+        public void setCursorSizePerc(double perc) {
+	        setCursorSize((int)(getContentHeight() / 100.0 * perc));
         }
 
-        void PongSceneThread::setCursorSize(int radius) {
-	        if (radius * 2 > mWindowHeight)		radius = mWindowHeight / 2;
+        public void setCursorSize(int radius) {
+	        if (radius * 2 > getContentHeight())		radius = getContentHeight() / 2;
 	        cursorRadius = radius;
         }
 
-        void PongSceneThread::setCursorColor(ColorStates state) {
+        public void setCursorColor(ColorStates state) {
 	        cursorColorState = state;
         }
 
-        void PongSceneThread::setCursorNeutralColor(GLfloat red, GLfloat green, GLfloat blue) {
+        public void setCursorNeutralColor(float red, float green, float blue) {
 	        cursorNeutralColorR = red;
 	        cursorNeutralColorG = green;
 	        cursorNeutralColorB = blue;
         }
+        public void setCursorNeutralColor(RGBColorFloat color) {
+            cursorNeutralColorR = color.getRed();
+            cursorNeutralColorG = color.getGreen();
+            cursorNeutralColorB = color.getBlue();
+        }
 
-        void PongSceneThread::setCursorHitColor(GLfloat red, GLfloat green, GLfloat blue) {
+        public void setCursorHitColor(float red, float green, float blue) {
 	        cursorHitColorR = red;
 	        cursorHitColorG = green;
 	        cursorHitColorB = blue;
         }
+        public void setCursorHitColor(RGBColorFloat color) {
+            cursorHitColorR = color.getRed();
+            cursorHitColorG = color.getGreen();
+            cursorHitColorB = color.getBlue();
+        }
 
-        void PongSceneThread::setCursorMissColor(GLfloat red, GLfloat green, GLfloat blue) {
+        public void setCursorMissColor(float red, float green, float blue) {
 	        cursorMissColorR = red;
 	        cursorMissColorG = green;
 	        cursorMissColorB = blue;
         }
+        public void setCursorMissColor(RGBColorFloat color) {
+            cursorMissColorR = color.getRed();
+            cursorMissColorG = color.getGreen();
+            cursorMissColorB = color.getBlue();
+        }
 
-        bool PongSceneThread::isCursorAtEnd(bool accountForTarget) {
+        public bool isCursorAtEnd(bool accountForTarget) {
 
 	        if (accountForTarget)
 		        return (cursorX + cursorRadius >= boundaryX + boundarySize - (taskBoundaryLineWidth / 2) - targetWidth);
@@ -376,63 +496,76 @@ namespace CursorTask {
 	
         }
 
-        void PongSceneThread::setCountDown(int count) {
+        public void setCountDown(int count) {
 	        showCountDown = count;
         }
 
-        void PongSceneThread::setFixation(bool fix) {
+        public void setFixation(bool fix) {
 	        showFixation = fix;
         }
 
-        void PongSceneThread::setScore(signed long newScore) {
+        public void setScore(int newScore) {
 	        score = newScore;
         }
 
-        void PongSceneThread::setBoundaryVisible(bool show) {
+        public void setBoundaryVisible(bool show) {
 	        showBoundary = show;
         }
 
-        void PongSceneThread::setTargetVisible(bool show) {
+        public void setTargetVisible(bool show) {
 	        showTarget = show;
         }
 
-        void PongSceneThread::setTarget(int posYInPerc, int heightInPerc) {
-	        // calculate the target height and y position (based on percentages)
-	        targetHeight = (boundarySize - taskBoundaryLineWidth) * (heightInPerc / 100.0);
-	        targetY = boundaryY + (taskBoundaryLineWidth / 2) + (boundarySize - taskBoundaryLineWidth) * (posYInPerc / 100.0) - targetHeight / 2.0;
+        public void setTarget(int posYInPerc, int heightInPerc) {
+            // calculate the target height and y position (based on percentages)
+            targetHeight = (float)((boundarySize - taskBoundaryLineWidth) * (heightInPerc / 100.0));
+	        targetY = (float)(boundaryY + (taskBoundaryLineWidth / 2) + (boundarySize - taskBoundaryLineWidth) * (posYInPerc / 100.0) - targetHeight / 2.0);
         }
 
-        void PongSceneThread::setTargetColor(ColorStates state) {
+        public void setTargetColor(ColorStates state) {
 	        targetColorState = state;
         }
 
-        void PongSceneThread::setTargetNeutralColor(GLfloat red, GLfloat green, GLfloat blue) {
+        public void setTargetNeutralColor(float red, float green, float blue) {
 	        targetNeutralColorR = red;
 	        targetNeutralColorG = green;
 	        targetNeutralColorB = blue;
         }
+        public void setTargetNeutralColor(RGBColorFloat color) {
+            targetNeutralColorR = color.getRed();
+            targetNeutralColorG = color.getGreen();
+            targetNeutralColorB = color.getBlue();
+        }
 
-        void PongSceneThread::setTargetHitColor(GLfloat red, GLfloat green, GLfloat blue) {
+        public void setTargetHitColor(float red, float green, float blue) {
 	        targetHitColorR = red;
 	        targetHitColorG = green;
 	        targetHitColorB = blue;
         }
+        public void setTargetHitColor(RGBColorFloat color) {
+            targetHitColorR = color.getRed();
+            targetHitColorG = color.getGreen();
+            targetHitColorB = color.getBlue();
+        }
 
-        void PongSceneThread::setTargetMissColor(GLfloat red, GLfloat green, GLfloat blue) {
+        public void setTargetMissColor(float red, float green, float blue) {
 	        targetMissColorR = red;
 	        targetMissColorG = green;
 	        targetMissColorB = blue;
         }
+        public void setTargetMissColor(RGBColorFloat color) {
+            targetMissColorR = color.getRed();
+            targetMissColorG = color.getGreen();
+            targetMissColorB = color.getBlue();
+        }
 
-
-        bool PongSceneThread::isTargetHit() {
+        public bool isTargetHit() {
 	        return (cursorY > targetY && cursorY < targetY + targetHeight);
         }
 
-        bool PongSceneThread::resourcesLoaded() {
-	        return (sceneInitialized);
+        public bool resourcesLoaded() {
+            return (isStarted());
         }
-        */
 
 
     }

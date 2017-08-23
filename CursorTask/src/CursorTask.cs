@@ -1,101 +1,273 @@
 ﻿using NLog;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
+using System.Threading;
 using UNP.Applications;
+using UNP.Core;
+using UNP.Core.DataIO;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
 
 namespace CursorTask {
 
-    public class CursorTask : IApplication {
+    public class CursorTask : IApplication, IApplicationUNP {
+
+        enum TaskStates : int {
+            Wait,
+            CountDown,
+            Task,
+            EndText
+        };
+
+        enum TrialStates : int {
+            TrialBeginning,     // rest before trial (cursor is hidden)
+            Trial,              // trial (cursor is shown and moving)
+            TrialEnd            // trial ending (cursor will stay at the end)
+        };
 
         private const int CLASS_VERSION = 0;
         private const string CLASS_NAME = "CursorTask";
 
         private static Logger logger = LogManager.GetLogger(CLASS_NAME);                        // the logger object for the view
-        private static Parameters parameters = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Application);
+        private static Parameters parameters = null;
 
+        private int inputChannels = 0;
         private CursorView mSceneThread = null;
+
+        Random rand = new Random(Guid.NewGuid().GetHashCode());
         private Object lockView = new Object();                         // threadsafety lock for all event on the view
+        private bool mTaskPauzed = false;								// flag to hold whether the task is pauzed (view will remain active, e.g. connection lost)
 
-        public CursorTask() {
+        private bool mUNPMenuTask = false;								// flag whether the task is created by the UNPMenu
+        private bool mUNPMenuTaskRunning = false;						// flag to hold whether the task should is running (setting this to false is also used to notify the UNPMenu that the task is finished)
+        private bool mUNPMenuTaskSuspended = false;						// flag to hold whether the task is suspended (view will be destroyed/re-initiated)
 
-            // define the parameters
-            parameters.addParameter<bool>(
-                "Test",
-                "test Description",
-                "1");
+        private int mConnectionSoundTimer = 0;							// counter to play a sound when the connection is lost
+        private bool mConnectionLost = false;							// flag to hold whether the connection is lost
+        private bool mConnectionWasLost = false;						// flag to hold whether the connection has been lost (should be reset after being re-connected)
 
 
-            /*
-             
-    
-	"Application:Window int Windowed= 1 0 0 1 "
-		" // Window or Fullscreen - fullscreen is only applied with two monitors - 0: Fullscreen, 1: Window (enumeration)",
+        // task input parameters
+        private int mWindowLeft = 0;
+        private int mWindowTop = 0;
+        private int mWindowWidth = 800;
+        private int mWindowHeight = 600;
+        private int mWindowRedrawFreqMax = 0;
+        private RGBColorFloat mWindowBackgroundColor = new RGBColorFloat(0f, 0f, 0f);
+        //private bool mWindowed = true;
+        //private int mFullscreenMonitor = 0;
 
-	"Application:Window int FullscreenMonitor= 1 0 0 1 "
-		" // Full screen Monitor 0: Monitor_1, 1: Monitor_2 (enumeration)",
+        private int mTaskInputChannel = 1;                                          // input channel
+        private int mTaskInputSignalType = 0;										// input signal type (0 = 0 to 1, 1 = -1 to 1)
+        private int mTaskFirstRunStartDelay = 0;                                    // the first run start delay in sample blocks
+        private int mTaskStartDelay = 0;									        // the run start delay in sample blocks
+        private int mCountdownTime = 0;                                             // the time the countdown takes in sample blocks
+        private bool mShowScore = false;
 
-	"Application:Window int WindowWidth= 640 640 0 % "
-		" // width of application window - fullscreen and 0 will take monitor resolution -",
+        private double mCursorSize = 1f;
+        private RGBColorFloat mCursorColorNeutral = new RGBColorFloat(0.8f, 0.8f, 0f);
+        private RGBColorFloat mCursorColorHit = new RGBColorFloat(0f, 1f, 0f);
+        private RGBColorFloat mCursorColorMiss = new RGBColorFloat(1f, 0f, 0f);
+        private RGBColorFloat mTargetColorNeutral = new RGBColorFloat(1f, 1f, 1f);
+        private RGBColorFloat mTargetColorHit = new RGBColorFloat(0f, 1f, 0f);
+        private RGBColorFloat mTargetColorMiss = new RGBColorFloat(1f, 0f, 0f);
+        private int mCursorSpeedY = 1;                                              // 
 
-	"Application:Window int WindowHeight= 480 480 0 % "
-		" // height of application window  - fullscreen and 0 will take monitor resolution -",
+        private bool mUpdateCursorOnSignal = false;                                 // update the cursor only on signal (or on smooth animation if false)
+        private double mTrialTime = 0;  								            // the total trial time, in seconds if animated, in samples if the cursor is updated by incoming signal
 
-	"Application:Window int WindowLeft= 0 0 % % "
-		" // screen coordinate of application window's left edge",
+        private int[] fixedTargetSequence = new int[0];				                // the target sequence (input parameter)
+        private int numTargets = 0;
+        private int mTargetYMode = 0;
+        private int mTargetHeightMode = 0;
+        private List<List<float>> mTargets = new List<List<float>>() {              // the target definitions (1ste dimention are respectively Ys, Heights; 2nd dimension target options) 
+            new List<float>(0),
+            new List<float>(0)
+        };
 
-	"Application:Window int WindowTop= 0 0 % % "
-		" // screen coordinate of application window's top edge",
+        // task (active) variables
+        private List<int> mTargetSequence = new List<int>(0);					    // the target sequence being used in the task (can either be given by input or generated)
 
-	"Application:Window int WindowBackgroundColor= 0x000000 0 % % "
-		" // window's background color",
+        private int mWaitCounter = 0;
+        private int mCountdownCounter = 0;											// the countdown timer
+        private int mCursorCounter = 0; 								            // cursor movement counter when the cursor is moved by the signal
+        private int mHitScore = 0;                                                  // the score of the cursor hitting a block (in number of samples)
 
-	"Application:Window int WindowRedrawFreqMax= 0 0 % % "
-		" // Maximum display redraw interval in FPS - 0 for as fast as possible -",
+        private TaskStates taskState = TaskStates.Wait;
+        private TaskStates previousTaskState = TaskStates.Wait;
+        private TrialStates mTrialState = TrialStates.TrialBeginning;								// the state of the trial
+        private int mCurrentTarget = 0;                                     // the target/trial in the targetsequence that is currently done
+        
 
-    "Application:Task int TrialTime= 4s 0s 0s 20s "
-      " // Time per trial to hit the target",
 
-    "Application:Task int TaskInputSignalType= 0 0 0 2 "
-      " // Task input signal type: 0: Direct Normalizer%20%280%20to%201%29, 1: Direct Normalizer%20%28%20-1%20to%201%29, 2: Added Normalizer%20%28%20-1%20to%201%29, 3: ..meer_types_meer_beter.. (enumeration)",
+        public CursorTask() : this(false) { }
+        public CursorTask(bool UNPMenuTask) {
+            
+            // transfer the UNP menu task flag
+            mUNPMenuTask = UNPMenuTask;
 
-    "Application:Task int TaskFirstRunStartDelay= 0 0 0 1000 "
-      " // Task start delay on the first run of the task",
+            // check if the task is standalone (not unp menu)
+            if (!mUNPMenuTask) {
+            
+                // create a parameter set for the task
+                parameters = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Application);
 
-    "Application:Task int TaskShowScore= 0 0 0 1 "
-      " // Show the score (boolean)",
+                // define the parameters
+                parameters.addParameter<int>(
+                    "WindowLeft",
+                    "Screen coordinate of application window's left edge",
+                    "", "", "0");
 
-    "Application:Task int CursorSpeedY= 2s 0s 0s 20s "
-      " // Cursorspeed Y multiplication factor",
+                parameters.addParameter<int>(
+                    "WindowTop",
+                    "Screen coordinate of application window's top edge",
+                    "", "", "0");
 
-    "Application:Task int UpdateCursorOnSignal= 0 0 0 1 "
-      " // Only update the cursor on incoming signal (boolean)",
+                parameters.addParameter<int>(
+                    "WindowWidth",
+                    "Width of application window (fullscreen and 0 will take monitor resolution)",
+                    "", "", "800");
 
-	"Application:Targets int NumberTargets= 2 2 0 4000 "
-		" // number of targets/trials",
+                parameters.addParameter<int>(
+                    "WindowHeight",
+                    "Height of application window (fullscreen and 0 will take monitor resolution)",
+                    "", "", "600");
 
-	"Application:Targets intlist TargetSequence= 0 1 % % "
-		" // fixed sequence in which targets should be presented (leave empty for random)",
+                parameters.addParameter<int>(
+                    "WindowRedrawFreqMax",
+                    "Maximum display redraw interval in FPS (0 for as fast as possible)",
+                    "0", "", "50");
 
-    "Application:Targets int TargetYMode= 1 0 0 3 "
-      " // targets y mode 0: Target(matrix) order, 1: random categories, 2:randomize cat without replacement 3:sequential categories with rnd start (enumeration)",
+                parameters.addParameter<RGBColorFloat>(
+                    "WindowBackgroundColor",
+                    "Window background color",
+                    "", "", "0");
 
-    "Application:Targets int TargetHeightMode= 1 0 0 3 "
-      " // targets height mode 0: Target(matrix) order, 1: random categories, 2:random cat without replacement 3:sequential categories with rnd start (enumeration)",
+                /*
+                parameters.addParameter <int>       (
+                    "Windowed",
+                    "Window or Fullscreen - fullscreen is only applied with two monitors",
+                    "0", "1", "1", new string[] {"Fullscreen", "Window"});
 
-    "Application:Targets matrix Targets= "
-		" 3 "						// rows
-		" [Y_perc Height_perc] "	// columns
-		"  25  50 "
-		"  25  50 "
-		"  25  50 "
-		" // target positions in percentage coordinates",
-*/
+                parameters.addParameter <int>       (
+                    "FullscreenMonitor",
+                    "Full screen Monitor",
+                    "0", "1", "1", new string[] {"Monitor 1", "Monitor 2"});
+                */
 
+                parameters.addParameter<int>(
+                    "TaskFirstRunStartDelay",
+                    "Amount of time before the task starts (on the first run of the task)",
+                    "0", "", "5s");
+
+                parameters.addParameter<int>(
+                    "TaskStartDelay",
+                    "Amount of time before the task starts (after the first run of the task)",
+                    "0", "", "10s");
+
+                parameters.addParameter<int>(
+                    "CountdownTime",
+                    "Amount of time the countdown before the task takes",
+                    "0", "", "3s");
+
+                parameters.addParameter<int>(
+                    "TaskInputChannel",
+                    "Channel to base the cursor position on  (1...n)",
+                    "1", "", "1");
+
+                parameters.addParameter<int>(
+                    "TaskInputSignalType",
+                    "Task input signal type",
+                    "0", "2", "0", new string[] { "Normalizer (0 to 1)", "Normalizer (-1 to 1)", "Constant middle" });
+
+                parameters.addParameter<bool>(
+                    "TaskShowScore",
+                    "Show the score",
+                    "0", "1", "1");
+
+                parameters.addParameter<double>(
+                    "TrialTime",
+                    "Time per trial to hit the target",
+                    "0", "", "4s");
+
+                parameters.addParameter<double>(
+                    "CursorSize",
+                    "Cursor size radius in percentage of the bounding box size",
+                    "0.0", "50.0", "4.0");
+
+                parameters.addParameter<double>(
+                    "CursorSpeedY",
+                    "Cursorspeed Y multiplication factor",
+                    "0", "", "2");
+
+                parameters.addParameter<RGBColorFloat>(
+                    "CursorColorNeutral",
+                    "Cursor color when at the start or moving",
+                    "", "", "204;204;0");
+
+                parameters.addParameter<RGBColorFloat>(
+                    "CursorColorHit",
+                    "Cursor color when hitting the target",
+                    "", "", "0;255;0");
+
+                parameters.addParameter<RGBColorFloat>(
+                    "CursorColorMiss",
+                    "Cursor color when missing the target",
+                    "", "", "255;0;0");
+
+                parameters.addParameter<bool>(
+                    "UpdateCursorOnSignal",
+                    "Only update the cursor on incoming signal",
+                    "", "", "1");
+
+                parameters.addParameter<double[][]>(
+                    "Targets",
+                    "Target positions and heights in percentage coordinates\n\nY_perc: The y position of the target on the screen (in percentages of the screen height), note that the value specifies where the middle of the target will be.\nHeight_perc: The height of the block on the screen (in percentages of the screen height)",
+                    "", "", "25,75;50,50", new string[] { "Y_perc", "Height_perc" });
+
+                parameters.addParameter<int>(
+                    "TargetYMode",
+                    "Targets Y mode",
+                    "0", "3", "1", new string[] { "Target(matrix) order", "Randomize categories", "Randomize cat without replacement", "Sequential categories with rnd start" });
+
+                parameters.addParameter<int>(
+                    "TargetHeightMode",
+                    "Targets Height mode",
+                    "0", "3", "1", new string[] { "Target(matrix) order", "Randomize categories", "Randomize cat without replacement", "Sequential categories with rnd start" });
+
+                parameters.addParameter<RGBColorFloat>(
+                    "TargetColorNeutral",
+                    "Target color when the cursor is still at the start or moving",
+                    "", "", "255;255;255");
+
+                parameters.addParameter<RGBColorFloat>(
+                    "TargetColorHit",
+                    "Target color when the cursor hits the target",
+                    "", "", "0;255;0");
+
+                parameters.addParameter<RGBColorFloat>(
+                    "TargetColorMiss",
+                    "Target color when the cursor misses the target",
+                    "", "", "255;0;0");
+
+                parameters.addParameter<int>(
+                    "NumberTargets",
+                    "Number of targets",
+                    "1", "", "70");
+
+                parameters.addParameter<int[]>(
+                    "TargetSequence",
+                    "Fixed sequence in which targets should be presented (leave empty for random)\nNote. indexing is 0 based (so a value of 0 will be the first row from the 'Targets' parameter",
+                    "0", "", "");
+
+
+
+
+
+            }
+
+            // message
+            logger.Info("Application created (version " + CLASS_VERSION + ")");
 
         }
 
@@ -112,6 +284,137 @@ namespace CursorTask {
         }
 
         public bool configure(ref SampleFormat input) {
+
+            // store the number of input channels
+            inputChannels = input.getNumberOfChannels();
+
+            // check if the number of input channels is higher than 0
+            if (inputChannels <= 0) {
+                logger.Error("Number of input channels cannot be 0");
+                return false;
+            }
+
+
+            // 
+            // TODO: parameters.checkminimum, checkmaximum
+
+
+            // retrieve window settings
+            mWindowLeft = parameters.getValue<int>("WindowLeft");
+            mWindowTop = parameters.getValue<int>("WindowTop");
+            mWindowWidth = parameters.getValue<int>("WindowWidth");
+            mWindowHeight = parameters.getValue<int>("WindowHeight");
+            mWindowRedrawFreqMax = parameters.getValue<int>("WindowRedrawFreqMax");
+            mWindowBackgroundColor = parameters.getValue<RGBColorFloat>("WindowBackgroundColor");
+            //mWindowed = true;           // fullscreen not implemented, so always windowed
+            //mFullscreenMonitor = 0;     // fullscreen not implemented, default to 0 (does nothing)
+            if (mWindowRedrawFreqMax < 0) {
+                logger.Error("The maximum window redraw frequency can be no smaller then 0");
+                return false;
+            }
+            if (mWindowWidth < 1) {
+                logger.Error("The window width can be no smaller then 1");
+                return false;
+            }
+            if (mWindowHeight < 1) {
+                logger.Error("The window height can be no smaller then 1");
+                return false;
+            }
+
+            // retrieve the input channel setting
+            mTaskInputChannel = parameters.getValue<int>("TaskInputChannel");
+            if (mTaskInputChannel < 1) {
+                logger.Error("Invalid input channel, should be higher than 0 (1...n)");
+                return false;
+            }
+            if (mTaskInputChannel > inputChannels) {
+                logger.Error("Input should come from channel " + mTaskInputChannel + ", however only " + inputChannels + " channels are coming in");
+                return false;
+            }
+
+            // retrieve the task delays
+            mTaskFirstRunStartDelay = parameters.getValueInSamples("TaskFirstRunStartDelay");
+            mTaskStartDelay = parameters.getValueInSamples("TaskStartDelay");
+            if (mTaskFirstRunStartDelay < 0 || mTaskStartDelay < 0) {
+                logger.Error("Start delays cannot be less than 0");
+                return false;
+            }
+
+            // retrieve the countdown time
+            mCountdownTime = parameters.getValueInSamples("CountdownTime");
+            if (mCountdownTime < 0) {
+                logger.Error("Countdown time cannot be less than 0");
+                return false;
+            }
+
+            // retrieve the score parameter
+            mShowScore = parameters.getValue<bool>("TaskShowScore");
+
+            // retrieve the input signal type
+            mTaskInputSignalType = parameters.getValue<int>("TaskInputSignalType");
+
+            // retrieve and calculate cursor parameters
+            mCursorSize = parameters.getValue<double>("CursorSize");
+            mCursorColorNeutral = parameters.getValue<RGBColorFloat>("CursorColorNeutral");
+            mCursorColorHit = parameters.getValue<RGBColorFloat>("CursorColorHit");
+            mCursorColorMiss = parameters.getValue<RGBColorFloat>("CursorColorMiss");
+            mUpdateCursorOnSignal = parameters.getValue<bool>("UpdateCursorOnSignal");
+            if (mUpdateCursorOnSignal)      mTrialTime = parameters.getValueInSamples("TrialTime");
+            else                            mTrialTime = parameters.getValue<double>("TrialTime");
+            mCursorSpeedY = (int)Math.Floor(1.0 / parameters.getValueInSamples("TrialTime") / 2.0 * parameters.getValue<double>("CursorSpeedY"));
+
+            // retrieve target settings
+            double[][] parTargets = parameters.getValue<double[][]>("Targets");
+            if (parTargets.Length != 2 || parTargets[0].Length < 1) {
+                logger.Error("Targets parameter must have at least 1 row and 2 columns (Y_perc, Height_perc)");
+                return false;
+            }
+
+            // TODO: convert mTargets to 2 seperate arrays instead of jagged list?
+            mTargets[0] = new List<float>(new float[parTargets[0].Length]);
+            mTargets[1] = new List<float>(new float[parTargets[0].Length]);
+            for (int row = 0; row < parTargets[0].Length; ++row) {
+                mTargets[0][row] = (float)parTargets[0][row];
+                mTargets[1][row] = (float)parTargets[1][row];
+            }
+
+            mTargetYMode = parameters.getValue<int>("TargetYMode");
+            mTargetHeightMode = parameters.getValue<int>("TargetHeightMode");
+            mTargetColorNeutral = parameters.getValue<RGBColorFloat>("TargetColorNeutral");
+            mTargetColorHit = parameters.getValue<RGBColorFloat>("TargetColorHit");
+            mTargetColorMiss = parameters.getValue<RGBColorFloat>("TargetColorMiss");
+
+            // retrieve the number of targets and (fixed) target sequence
+            numTargets = parameters.getValue<int>("NumberTargets");
+            fixedTargetSequence = parameters.getValue<int[]>("TargetSequence");
+            if (fixedTargetSequence.Length == 0) {
+                // no fixed sequence
+
+                // check number of targets
+                if (numTargets < 1) {
+                    logger.Error("Minimum of 1 target is required");
+                    return false;
+                }
+
+            } else {
+                // fixed sequence
+
+                numTargets = fixedTargetSequence.Length;
+                for (int i = 0; i < numTargets; ++i) {
+
+                    if (fixedTargetSequence[i] < 0) {
+                        logger.Error("The TargetSequence parameter contains a target index (" + fixedTargetSequence[i] + ") that is below zero, check the TargetSequence");
+                        return false;
+                    }
+                    if (fixedTargetSequence[i] >= mTargets[0].Count) {
+                        logger.Error("The TargetSequence parameter contains a target index (" + fixedTargetSequence[i] + ") that is out of range, check the Targets parameter. (note that the indexing is 0 based)");
+                        return false;
+                    }
+                }
+
+            }
+
+            // return succes
             return true;
         }
 
@@ -123,23 +426,108 @@ namespace CursorTask {
                 // check the scene (thread) already exists, stop and clear the old one.
                 destroyScene();
 
-                //
-                mSceneThread = new CursorView(50, 0, 0, 800, 600, false);
+                // initialize the view
+                initializeView();
+
+                // check if a target sequence is set
+                if (fixedTargetSequence.Length == 0) {
+                    // targetsequence not set in parameters, generate
+
+                    // Generate targetlist
+                    generateTargetSequence();
+
+                } else {
+                    // targetsequence is set in parameters
+
+                    // clear the targets
+                    if (mTargetSequence.Count != 0) mTargetSequence.Clear();
+
+                    // transfer the targetsequence
+                    mTargetSequence = new List<int>(fixedTargetSequence);
+
+                }
+
+            }
+
+        }
 
 
-                // start the scene thread
-                //if (mSceneThread != null) mSceneThread.start();
-                mSceneThread.start();
+        private void initializeView() {
 
+            // create the view
+            mSceneThread = new CursorView(mWindowRedrawFreqMax, mWindowLeft, mWindowTop, mWindowWidth, mWindowHeight, false);
+            mSceneThread.setBackgroundColor(mWindowBackgroundColor.getRed(), mWindowBackgroundColor.getGreen(), mWindowBackgroundColor.getBlue());
+
+            // set task specific display attributes 
+            mSceneThread.setCursorSizePerc(mCursorSize);                         // cursor size radius in percentage of the screen height
+            mSceneThread.setCursorSpeed((float)mTrialTime);                             // set the cursor speed
+            mSceneThread.setCursorNeutralColor(mCursorColorNeutral);                    // 
+            mSceneThread.setCursorHitColor(mCursorColorHit);                            // 
+            mSceneThread.setCursorMissColor(mCursorColorMiss);                          // 
+            mSceneThread.setTargetNeutralColor(mTargetColorNeutral);                    // 
+            mSceneThread.setTargetHitColor(mTargetColorHit);                            // 
+            mSceneThread.setTargetMissColor(mTargetColorMiss);                          // 
+            mSceneThread.centerCursorY();                                               // set the cursor to the middle of the screen
+            mSceneThread.setFixation(false);                                            // hide the fixation
+            mSceneThread.setCountDown(-1);                                              // hide the countdown
+
+            // start the scene thread
+            mSceneThread.start();
+
+            // wait till the resources are loaded or a maximum amount of 30 seconds (30.000 / 50 = 600)
+            // (resourcesLoaded also includes whether GL is loaded)
+            int waitCounter = 600;
+            while (!mSceneThread.resourcesLoaded() && waitCounter > 0) {
+                Thread.Sleep(50);
+                waitCounter--;
             }
 
         }
 
         public void start() {
             
+            // lock for thread safety
+            lock(lockView) {
+
+                if (mSceneThread == null)   return;
+
+                // log event task is started
+                Data.logEvent(2, "TaskStart", CLASS_NAME);
+
+                // reset the score
+                mHitScore = 0;
+
+                // reset countdown to the countdown time
+                mCountdownCounter = mCountdownTime;
+
+                if (mTaskStartDelay != 0 || mTaskFirstRunStartDelay != 0) {
+		            // wait
+
+		            // set state to wait
+		            setState(TaskStates.Wait);
+
+                    // show the fixation
+                    mSceneThread.setFixation(true);
+		
+	            } else {
+		
+		            // countdown
+                    setState(TaskStates.CountDown);
+
+	            }
+            }
+
         }
 
         public void stop() {
+
+            // lock for thread safety
+            lock (lockView) {
+
+                // stop the task
+                stopTask();
+
+            }
 
         }
 
@@ -148,6 +536,294 @@ namespace CursorTask {
         }
 
         public void process(double[] input) {
+
+            // retrieve the connectionlost global
+            mConnectionLost = Globals.getValue<bool>("ConnectionLost");
+
+            // process input
+            process(input[mTaskInputChannel - 1]);
+
+        }
+
+        private void process(double input) {
+
+            // lock for thread safety
+            lock (lockView) {
+                
+                if (mSceneThread == null)   return;
+
+                ////////////////////////
+                // BEGIN CONNECTION FILTER ACTIONS//
+                ////////////////////////
+
+                // check if connection is lost, or was lost
+                if (mConnectionLost) {
+
+                    // check if it was just discovered if the connection was lost
+                    if (!mConnectionWasLost) {
+                        // just discovered it was lost
+
+                        // set the connection as was lost (this also will make sure the lines in this block willl only run once)
+                        mConnectionWasLost = true;
+
+                        // pauze the task
+                        pauzeTask();
+
+			            // show the lost connection warning
+			            mSceneThread.setConnectionLost(true);
+
+                    }
+
+                    // play the caregiver sound every 20 packages
+                    if (mConnectionSoundTimer == 0) {
+                        /*
+			            PlaySound("sounds\\focuson.wav", NULL, SND_FILENAME);
+                        */
+                        mConnectionSoundTimer = 20;
+                    } else
+                        mConnectionSoundTimer--;
+
+
+                } else if (mConnectionWasLost && !mConnectionLost) {
+                    // if the connection was lost and is not lost anymore
+
+		            // hide the lost connection warning
+		            mSceneThread.setConnectionLost(false);
+
+                    // resume task
+                    resumeTask();
+
+                    // reset connection lost variables
+                    mConnectionWasLost = false;
+                    mConnectionSoundTimer = 0;
+
+                }
+
+                ////////////////////////
+                // END CONNECTION FILTER ACTIONS//
+                ////////////////////////
+
+	            // check if the task is pauzed, do not process any further if this is the case
+	            if (mTaskPauzed)		    return;
+
+
+                // use the task state
+                switch (taskState) {
+
+                    case TaskStates.Wait:
+                        // starting, pauzed or waiting
+
+                        if (mWaitCounter == 0) {
+
+                            // set the state to countdown
+                            setState(TaskStates.CountDown);
+
+                        } else
+                            mWaitCounter--;
+
+                        break;
+
+                    case TaskStates.CountDown:
+                        // Countdown before start of task
+
+                        // check if the task is counting down
+                        if (mCountdownCounter > 0) {
+
+                            // still counting down
+
+                            // display the countdown
+                            mSceneThread.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.SamplesPerSecond()) + 1);
+
+                            // reduce the countdown timer
+                            mCountdownCounter--;
+
+                        } else {
+                            // done counting down
+
+                            // hide the countdown counter
+                            mSceneThread.setCountDown(-1);
+
+                            // set the current target/trial to the first target/trial
+                            mCurrentTarget = 0;
+
+                            // reset the score
+                            mHitScore = 0;
+
+                            // set the state to task
+                            setState(TaskStates.Task);
+
+                            // do not wait before starting to move the cursor
+                            mWaitCounter = 0;
+
+                            // apply the current trial state
+                            setTrialState(TrialStates.TrialBeginning);
+
+                        }
+
+                        break;
+
+                    case TaskStates.Task:
+
+                        switch (mTrialState) {
+
+                            case TrialStates.TrialBeginning:
+
+                                if (mWaitCounter == 0) {
+
+                                    // set the cursorcounter to 0 (is only used of the cursor is updated by the signal)
+                                    mCursorCounter = 0;
+
+                                    // center the cursor on the Y axis
+                                    mSceneThread.centerCursorY();
+
+                                    // set the target
+                                    int currentTargetY = (int)mTargets[0][mTargetSequence[mCurrentTarget]];
+                                    int currentTargetHeight = (int)mTargets[1][mTargetSequence[mCurrentTarget]];
+                                    mSceneThread.setTarget(currentTargetY, currentTargetHeight);
+
+                                    // set the trial state to trial
+                                    setTrialState(TrialStates.Trial);
+
+                                } else
+                                    mWaitCounter--;
+
+                                break;
+
+                            case TrialStates.Trial:
+
+                                // check if the cursor should move on each incoming signal
+                                if (mUpdateCursorOnSignal) {
+                                    // movement of the cursor on incoming signal
+
+                                    // package came in, so raise the cursor counter
+                                    mCursorCounter++;
+                                    if (mCursorCounter > mTrialTime) mCursorCounter = (int)mTrialTime;
+
+                                    // set the X position
+                                    mSceneThread.setCursorNormX(mCursorCounter / mTrialTime, true);
+
+                                }
+
+                                // check the input type
+                                if (mTaskInputSignalType == 0) {
+                                    // Direct normalizer (0 to 1)
+
+                                    mSceneThread.setCursorNormY(input); // setCursorNormY will take care of values below 0 or above 1)
+
+                                } else if (mTaskInputSignalType == 1) {
+                                    // Direct normalizer (-1 to 1)
+
+                                    mSceneThread.setCursorNormY((input + 1.0) / 2.0);
+
+                                } else if (mTaskInputSignalType == 2) {
+                                    // Added normalizer (-1 to 1)
+
+                                    int y = mSceneThread.getCursorY();
+
+                                    /*
+						            bciout << "----------" << endl;
+						            bciout << "y: " << y << endl;
+						            bciout << "in: " << input << endl;
+						            bciout << "in2: " << ((input + 1.0) / 2.0) << endl;
+						            bciout << "mCursorSpeedY: " << mCursorSpeedY << endl;
+						            bciout << "value: " << (mCursorSpeedY * ((input + 1.0) / 2.0)) << endl;
+                                    */
+                                    y += (int)Math.Floor(mCursorSpeedY * ((input + 1.0) / 2.0));
+                                    /*bciout << "y: " << y << endl;*/
+
+
+                                    mSceneThread.setCursorNormY(y);
+
+
+                                } else {
+
+
+                                }
+
+                                // check if the end has been reached by the target (the trial has ended)
+                                if (mSceneThread.isCursorAtEnd(true)) {
+
+                                    // check if the target was hit
+                                    if (mSceneThread.isTargetHit()) {
+                                        mSceneThread.setCursorNormX(1, true);
+
+                                        // add to score if cursor hits the block
+                                        mHitScore++;
+
+                                        // update the score for display
+                                        if (mShowScore) mSceneThread.setScore(mHitScore);
+
+                                    } else {
+                                        mSceneThread.setCursorNormX(1, false);
+                                    }
+
+                                    // set the wait after the trial (3s)
+                                    mWaitCounter = (int)(MainThread.SamplesPerSecond() * 3.0);
+
+                                    // set to trial end state
+                                    setTrialState(TrialStates.TrialEnd);
+
+                                }
+
+                                break;
+
+                            case TrialStates.TrialEnd:
+
+                                if (mWaitCounter == 0) {
+
+                                    // check if this was the last target/trial
+                                    if (mCurrentTarget == mTargetSequence.Count - 1) {
+                                        // end of the task
+
+                                        // set the state to end
+                                        setState(TaskStates.EndText);
+
+                                    } else {
+
+                                        // goto the next target/trial
+                                        mCurrentTarget++;
+
+                                        // set the trial state to beginning trial
+                                        setTrialState(TrialStates.TrialBeginning);
+
+                                    }
+
+                                } else
+                                    mWaitCounter--;
+
+                                break;
+
+                        }
+
+                        break;
+
+                    case TaskStates.EndText:
+                        // end text
+
+                        if (mWaitCounter == 0) {
+
+                            // log event task is stopped
+                            Data.logEvent(2, "TaskStop", CLASS_NAME);
+
+                            // check if we are running from the UNPMenu
+                            if (mUNPMenuTask) {
+
+                                // stop the task (UNP)
+                                UNP_stop();
+
+                            } else {
+
+                                // stop the run, this will also call stopTask()
+                                MainThread.stop();
+                            }
+
+                        } else
+                            mWaitCounter--;
+
+                        break;
+                }
+
+            }
 
         }
 
@@ -170,7 +846,7 @@ namespace CursorTask {
         }
 
         private void destroyScene() {
-            
+
             // check if a scene thread still exists
             if (mSceneThread != null) {
 
@@ -184,9 +860,9 @@ namespace CursorTask {
 
         }
 
-        /*
+        
         // pauzes the task
-        void PongFeedbackTask::pauzeTask() {
+        private void pauzeTask() {
 
 	        // set task as pauzed
 	        mTaskPauzed = true;
@@ -194,21 +870,17 @@ namespace CursorTask {
 	        // store the previous state
 	        previousTaskState = taskState;
 
-	        if (mSceneThread != NULL) {
-
-		        // hide everything
-		        mSceneThread->setFixation(false);
-		        mSceneThread->setCountDown(0);
-		        mSceneThread->setCursorVisible(false);
-		        mSceneThread->setTargetVisible(false);
-		        mSceneThread->setScore(-1);
-
-	        }
+		    // hide everything
+		    mSceneThread.setFixation(false);
+		    mSceneThread.setCountDown(-1);
+		    mSceneThread.setCursorVisible(false);
+		    mSceneThread.setTargetVisible(false);
+		    mSceneThread.setScore(-1);
 
         }
 
         // resumes the task
-        void PongFeedbackTask::resumeTask() {
+        private void resumeTask() {
 
 	        // set the previous gamestate
 	        setState((TaskStates) previousTaskState);
@@ -218,124 +890,107 @@ namespace CursorTask {
 
         }
 
-        void PongFeedbackTask::destroyScene() {
-	
-	        // check if a scene thread still exists
-	        if (mSceneThread != NULL) {
-
-		        // stop the animation thread
-		        mSceneThread->Stop();
-
-		        // wait for the thread to finish (or actually the loop inside the thread to finish)
-		        mSceneThread->Wait();
-		
-	        }
-
-	        // delete the thread
-	        delete mSceneThread;
-	        mSceneThread = NULL;
-
-        }
-
-
-        void PongFeedbackTask::setState(TaskStates state) {
+        
+        private void setState(TaskStates state) {
 
 	        // Set state
 	        taskState = state;
 
-	        switch (state) {
-		        case Wait:
-			        // starting, pauzed or waiting
-			
-			        if (mSceneThread != NULL) {
-			
-				        // hide text if present
-				        mSceneThread->setText("");
+            switch (state) {
+                case TaskStates.Wait:
+                    // starting, pauzed or waiting
 
-				        // show the fixation
-				        mSceneThread->setFixation(true);
+				    // hide text if present
+				    mSceneThread.setText("");
 
-				        // hide the countdown, cursor, target and score
-				        mSceneThread->setCountDown(0);
-				        mSceneThread->setCursorVisible(false);
-				        mSceneThread->setCursorMoving(false);		// only moving is animated
-				        mSceneThread->setTargetVisible(false);
-				        mSceneThread->setScore(-1);
+                    // hide the fixation and countdown
+                    mSceneThread.setFixation(false);
+                    mSceneThread.setCountDown(-1);
 
-				        // hide the boundary
-				        mSceneThread->setBoundaryVisible(false);
+                    // hide the cursor, target and score
+				    mSceneThread.setCursorVisible(false);
+				    mSceneThread.setCursorMoving(false);		// only moving is animated
+				    mSceneThread.setTargetVisible(false);
+				    mSceneThread.setScore(-1);
 
-			        }
+				    // hide the boundary
+				    mSceneThread.setBoundaryVisible(false);
 
-			        // Set wait counter to startdelay
-			        mWaitCounter = mTaskFirstRunStartDelay;
+                    // Set wait counter to startdelay
+                    if (mTaskFirstRunStartDelay != 0) {
+                        mWaitCounter = mTaskFirstRunStartDelay;
+                        mTaskFirstRunStartDelay = 0;
+                    } else
+                        mWaitCounter = mTaskStartDelay;
 
-			        break;
+                    break;
 
-		        case CountDown:
-			        // countdown when task starts
+		        case TaskStates.CountDown:
+                    // countdown when task starts
 
-			        if (mSceneThread != NULL) {
-				
-				        // hide fixation
-				        mSceneThread->setFixation(false);
+                    // log event countdown is started
+                    Data.logEvent(2, "CountdownStarted ", CLASS_NAME);
 
-				        // hide the cursor, target and boundary
-				        mSceneThread->setBoundaryVisible(false);
-				        mSceneThread->setCursorVisible(false);
-				        mSceneThread->setCursorMoving(false);		// only moving is animated
-				        mSceneThread->setTargetVisible(false);
+                    // hide text if present
+                    mSceneThread.setText("");
 
-				        // set countdown
-				        if (mCountdownCounter > 10)			mSceneThread->setCountDown(3);
-				        else if (mCountdownCounter > 5)		mSceneThread->setCountDown(2);
-				        else if (mCountdownCounter > 0)		mSceneThread->setCountDown(1);
-				        else								mSceneThread->setCountDown(0);
+                    // hide fixation
+                    mSceneThread.setFixation(false);
 
-			        }
+                    // hide the cursor, target and boundary
+                    mSceneThread.setBoundaryVisible(false);
+                    mSceneThread.setCursorVisible(false);
+                    mSceneThread.setCursorMoving(false);        // only moving is animated
+                    mSceneThread.setTargetVisible(false);
 
-			        break;
+                    // set countdown
+                    if (mCountdownCounter > 0)
+                        mSceneThread.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.SamplesPerSecond()) + 1);
+                    else
+                        mSceneThread.setCountDown(-1);
+
+                    break;
 
 
-		        case Task:
-			        // perform the task
+		        case TaskStates.Task:
+                    // perform the task
 
-			        if (mSceneThread != NULL) {
+                    // log event countdown is started
+                    Data.logEvent(2, "TrialStart ", CLASS_NAME);
 
-				        // hide the countdown counter
-				        mSceneThread->setCountDown(0);
+				    // hide text if present
+				    mSceneThread.setText("");
 
-				        // show the boundary
-				        mSceneThread->setBoundaryVisible(true);
+                    // hide the countdown counter
+                    mSceneThread.setCountDown(-1);
 
-				        // set the score for display
-				        if (mShowScore)		mSceneThread->setScore(mHitScore);
+                    // show the boundary
+                    mSceneThread.setBoundaryVisible(true);
 
-			        }
+                    // set the score for display
+                    if (mShowScore) mSceneThread.setScore(mHitScore);
 
-			        break;
+                    break;
 
-		        case EndText:
+		        case TaskStates.EndText:
 			        // show text
-			
-			        if (mSceneThread != NULL) {
 
-				        // stop the blocks from moving
-				        //mSceneThread->setBlocksMove(false);
+				    // stop the blocks from moving
+				    //mSceneThread.setBlocksMove(false);
 
-				        // hide the boundary, target and cursor
-				        mSceneThread->setBoundaryVisible(false);
-				        mSceneThread->setCursorVisible(false);
-				        mSceneThread->setCursorMoving(false);		// only if moving is animated, do just in case
-				        mSceneThread->setTargetVisible(false);
+				    // hide the boundary, target and cursor
+				    mSceneThread.setBoundaryVisible(false);
+				    mSceneThread.setCursorVisible(false);
+				    mSceneThread.setCursorMoving(false);		// only if moving is animated, do just in case
+				    mSceneThread.setTargetVisible(false);
 
-				        // show text
-				        mSceneThread->setText("Exit task");
-			
-			        }
 
-			        // set duration for text to be shown at the end
-			        mWaitCounter = 15;
+                    // show text
+                    mSceneThread.setText("Done");
+
+                    // set duration for text to be shown at the end (3s)
+                    mWaitCounter = (int)(MainThread.SamplesPerSecond() * 3.0);
+
 
 			        break;
 
@@ -343,183 +998,158 @@ namespace CursorTask {
         }
 
 
-        void PongFeedbackTask::setTrialState(TrialStates state) {
+        private void setTrialState(TrialStates state) {
 
 	        // Set state
 	        mTrialState = state;
-
+            
 	        switch (mTrialState) {
-		        case TrialBeginning:
+		        case TrialStates.TrialBeginning:
 			        // rest before trial (cursor is hidden)
 
-			        if (mSceneThread != NULL) {
+				    // hide the cursor and make the cursor color neutral
+				    mSceneThread.setCursorVisible(false);
+				    mSceneThread.setCursorColor(CursorView.ColorStates.Neutral);
 
-				        // hide the cursor and make the cursor color neutral
-				        mSceneThread->setCursorVisible(false);
-				        mSceneThread->setCursorColor(PongSceneThread::Neutral);
+				    // hide the target and make the target color neutral
+				    mSceneThread.setTargetVisible(false);
+				    mSceneThread.setTargetColor(CursorView.ColorStates.Neutral);
 
-				        // hide the target and make the target color neutral
-				        mSceneThread->setTargetVisible(false);
-				        mSceneThread->setTargetColor(PongSceneThread::Neutral);
-
-				        // set the cursor at the beginning
-				        mSceneThread->setCursorNormX(0, true);
-
-			        }
+				    // set the cursor at the beginning
+				    mSceneThread.setCursorNormX(0, true);
 
 			        break;
 
-		        case Trial:
-			        // trial (cursor is shown and moving)
+		        case TrialStates.Trial:
+			    // trial (cursor is shown and moving)
 
-			        if (mSceneThread != NULL) {
+				    // make the cursor visible and make the cursor color neutral
+				    mSceneThread.setCursorVisible(true);
+				    mSceneThread.setCursorColor(CursorView.ColorStates.Neutral);
+                        
+				    // show the target and make the target color neutral
+				    mSceneThread.setTargetVisible(true);
+				    mSceneThread.setTargetColor(CursorView.ColorStates.Neutral);
 
-				        // make the cursor visible and make the cursor color neutral
-				        mSceneThread->setCursorVisible(true);
-				        mSceneThread->setCursorColor(PongSceneThread::Neutral);
-
-				        // show the target and make the target color neutral
-				        mSceneThread->setTargetVisible(true);
-				        mSceneThread->setTargetColor(PongSceneThread::Neutral);
-
-				        // check if the cursor movement is animated, if so, set the cursor moving
-				        if (!mUpdateCursorOnSignal)
-					        mSceneThread->setCursorMoving(true);
-
-			        }
+				    // check if the cursor movement is animated, if so, set the cursor moving
+				    if (!mUpdateCursorOnSignal)
+					    mSceneThread.setCursorMoving(true);
 
 			        break;
 
-		        case TrialEnd:
+		        case TrialStates.TrialEnd:
 			        // trial ending (cursor will stay at the end)
 
-			        if (mSceneThread != NULL) {
+				    // make the cursor visible
+				    mSceneThread.setCursorVisible(true);
 
-				        // make the cursor visible
-				        mSceneThread->setCursorVisible(true);
+				    // show the target
+				    mSceneThread.setTargetVisible(true);
 
-				        // show the target
-				        mSceneThread->setTargetVisible(true);
+				    // check if it was a hit or a miss
+				    if (mSceneThread.isTargetHit()) {
+					    // hit
+					    mSceneThread.setCursorColor(CursorView.ColorStates.Hit);
+					    mSceneThread.setTargetColor(CursorView.ColorStates.Hit);
+				    } else {
+					    // miss
+					    mSceneThread.setCursorColor(CursorView.ColorStates.Miss);
+					    mSceneThread.setTargetColor(CursorView.ColorStates.Miss);
+				    }
 
-				        // check if it was a hit or a miss
-				        if (mSceneThread->isTargetHit()) {
-					        // hit
-					        mSceneThread->setCursorColor(PongSceneThread::Hit);
-					        mSceneThread->setTargetColor(PongSceneThread::Hit);
-				        } else {
-					        // miss
-					        mSceneThread->setCursorColor(PongSceneThread::Miss);
-					        mSceneThread->setTargetColor(PongSceneThread::Miss);
-				        }
-
-				        // check if the cursor movement is animated, if so, stop the cursor from moving
-				        if (!mUpdateCursorOnSignal)
-					        mSceneThread->setCursorMoving(false);
-			
-			        }
+				    // check if the cursor movement is animated, if so, stop the cursor from moving
+				    if (!mUpdateCursorOnSignal)
+					    mSceneThread.setCursorMoving(false);
 
 			        break;
 
 	        }
 
         }
-
+        
         // Stop the task
-        void PongFeedbackTask::stopTask() {
-	
-	        // stop any countdowns or fixations
-	        if (mSceneThread != NULL) {
+        private void stopTask() {
+            if (mSceneThread == null) return;
 
-		        // hide countdowns or fixations
-		        mSceneThread->setFixation(false);
-		        mSceneThread->setCountDown(0);
+            // set state to wait
+            setState(TaskStates.Wait);
 
-		        // hide the boundary
-		        mSceneThread->setBoundaryVisible(false);
+            // initialize the target sequence already for a possible next run
+            if (fixedTargetSequence.Length == 0) {
 
-		        // hide the target
-		        mSceneThread->setTargetVisible(false);
+                // Generate targetlist
+                generateTargetSequence();
 
-		        // hide the cursor
-		        mSceneThread->setCursorVisible(false);
-
-		        // hide the score
-		        mSceneThread->setScore(-1);
-	
-	        }
-
-	        // initialize the target sequence already for a possible next run
-	        if (fixedTargetSequence.size() == 0) {
-
-		        // Generate targetlist
-		        generateTargetSequence();
-
-	        }
+            }
 
         }
 
-        void PongFeedbackTask::generateTargetSequence() {
-	
+
+        private void generateTargetSequence() {
+	        
 	        // clear the targets
-	        if (mTargetSequence.size() != 0)		mTargetSequence.clear();
+	        if (mTargetSequence.Count != 0)		mTargetSequence.Clear();
 
 	        // create targetsequence array with <NumberTargets>
-	        mTargetSequence.resize(mNumberTargets);
-
-	        // randomize using system time
-	        srand(time(0));
+            mTargetSequence = new List<int>(new int[numTargets]);
 
 	        // put the row indices of each distinct value (from the rows in the matrix) in an array
 	        // (this is used for the modes which are set to randomization)
-	        std::vector<int> catY_unique(0);
-	        std::vector<std::vector<int>> catY(0);
-	        std::vector<int> catHeight_unique(0);
-	        std::vector<std::vector<int>> catHeight (0);
-	        for (unsigned int i = 0; i < mTargets[0].size(); ++i) {
-		
+            List<int> catY_unique = new List<int>(0);
+            List<List<int>> catY = new List<List<int>>(0);
+            List<int> catHeight_unique = new List<int>(0);
+            List<List<int>> catHeight = new List<List<int>>(0);
+
+            // 
+            int i = 0;
+            int j = 0;
+
+            // loop through the target rows
+	        for (i = 0; i < mTargets[0].Count; ++i) {
+
 		        // get the values for the row
-		        int valueY = (int)mTargets[0][i];
+                int valueY = (int)mTargets[0][i];
 		        int valueHeight = (int)mTargets[1][i];
 		
 		        // store the unique values and indices
-		        int j = 0;
-		        for (j = 0; j < (int)catY_unique.size(); ++j)
+		        for (j = 0; j < catY_unique.Count; ++j)
 			        if (catY_unique[j] == valueY)	break;
-		        if (j == (int)catY_unique.size()) {
-			        catY_unique.push_back(valueY);						// store the unique value at index j
-			        catY.push_back(std::vector<int>(0));				// store the targets row index in the vector at index j							
+		        if (j == catY_unique.Count) {
+			        catY_unique.Add(valueY);						// store the unique value at index j
+			        catY.Add(new List<int>(0));				        // store the targets row index in the vector at index j	
+						
 		        }
-		        catY[j].push_back(i);
+		        catY[j].Add(i);
 
-		        for (j = 0; j < (int)catHeight_unique.size(); ++j)
+		        for (j = 0; j < catHeight_unique.Count; ++j)
 			        if (catHeight_unique[j] == valueHeight)	break;
-		        if (j == (int)catHeight_unique.size()) {
-			        catHeight_unique.push_back(valueHeight);			// store the unique value at index j
-			        catHeight.push_back(std::vector<int>(0));			// store the targets row index in the vector at index j							
+		        if (j == catHeight_unique.Count) {
+			        catHeight_unique.Add(valueHeight);			    // store the unique value at index j
+			        catHeight.Add(new List<int>(0));			    // store the targets row index in the vector at index j							
 		        }
-		        catHeight[j].push_back(i);
+		        catHeight[j].Add(i);
 
 	        }
-		
+
 	        // create the arrays to handle the no replace randomization (in case it is needed)
-	        std::vector<int> catY_noReplace(0);
-	        std::vector<int> catHeight_noReplace(0);
+            List<int> catY_noReplace = new List<int>(0);
+            List<int> catHeight_noReplace = new List<int>(0);
 
 	        // create random start for each categories (in case it is needed)
-	        int catY_randStart = rand() % catY.size();
-	        int catHeight_randStart = rand() % catHeight.size();
+	        int catY_randStart = rand.Next(0, catY.Count);
+	        int catHeight_randStart = rand.Next(0, catHeight.Count);
 
 	        bool catY_randStart_Added = false;
 	        bool catHeight_randStart_Added = false;
 
 	        // create a target sequence
-	        std::vector<int> currentY;
-	        std::vector<int> currentHeight;
+            List<int> currentY = new List<int>(0);          // initial value should be overwritten, but just in case
+            List<int> currentHeight = new List<int>(0);
 
 	        // loop <NumberTargets> times to generate each target
-	        unsigned int i = 0;
-	        unsigned int generateSafetyCounter = mNumberTargets + 1000;
-	        while(i < mNumberTargets) {
+	        int generateSafetyCounter = numTargets + 1000;
+            i = 0;
+            while(i < numTargets) {
 			
 		        // none been added at the beginning of the loop
 		        catY_randStart_Added = false;
@@ -527,7 +1157,7 @@ namespace CursorTask {
 
 		        // count the loops and check for generation
 		        if (generateSafetyCounter-- == 0) {
-			        //bcierr << "Error generating random sequence, the generation rules/parameters (TargetYMode, TargetWidthMode, TargetHeightMode and Target) cause a stalemate" << endl;
+                    logger.Error("Error generating random sequence, the generation rules/parameters (TargetYMode, TargetHeightMode and Target) cause a stalemate");
 			        return;
 		        }
 
@@ -537,25 +1167,27 @@ namespace CursorTask {
 			
 			
 		        } else if (mTargetYMode == 1) {	// 1: randomize categories
-			        currentY = catY[rand() % catY.size()];
+			        currentY = catY[rand.Next(0, catY.Count)];
 
 		        } else if (mTargetYMode == 2) {	// 2:random categories without replacement
 				
-			        if (catY_noReplace.size() == 0) {
-				        catY_noReplace.resize(catY.size());
+			        if (catY_noReplace.Count == 0) {
+
+				        catY_noReplace = new List<int>(new int[catY.Count]);
+				        for (j = 0; j < catY_noReplace.Count; ++j)	catY_noReplace[j] = j;
 					
-				        for (int j = 0; j < (int)catY_noReplace.size(); ++j)	catY_noReplace[j] = j;
-					
-				        std::random_shuffle ( catY_noReplace.begin(), catY_noReplace.end() );
+                        catY_noReplace.Shuffle();
 			        }
-			        currentY = catY[catY_noReplace[catY_noReplace.size() - 1]];
-			        catY_noReplace.resize(catY_noReplace.size() - 1);
+
+			        currentY = catY[catY_noReplace[catY_noReplace.Count - 1]];
+
+                    catY_noReplace.RemoveAt(catY_noReplace.Count -1);
 
 		        } else if (mTargetYMode == 3) {	// 3:sequential categories with rnd start
 			
 			        currentY = catY[catY_randStart];
 			        catY_randStart++;
-			        if (catY_randStart == (int)catY.size())		catY_randStart = 0;
+			        if (catY_randStart == catY.Count)		catY_randStart = 0;
 			        catY_randStart_Added = true;
 
 		        }
@@ -565,54 +1197,59 @@ namespace CursorTask {
 			
 			
 		        } else if (mTargetHeightMode == 1) {	// 1: randomize categories
-			        currentHeight = catHeight[rand() % catHeight.size()];
-
+			        currentHeight = catHeight[rand.Next(0, catHeight.Count)];
+                    
 		        } else if (mTargetHeightMode == 2) {	// 2:random categories without replacement
-			        if (catHeight_noReplace.size() == 0) {
-				        catHeight_noReplace.resize(catHeight.size());
-				        for (int j = 0; j < (int)catHeight_noReplace.size(); ++j)	catHeight_noReplace[j] = j;
-				        std::random_shuffle ( catHeight_noReplace.begin(), catHeight_noReplace.end() );
+			        if (catHeight_noReplace.Count == 0) {
+				        
+                        catHeight_noReplace = new List<int>(new int[catHeight.Count]);
+				        for (j = 0; j < catHeight_noReplace.Count; ++j)	catHeight_noReplace[j] = j;
+				        
+                        catHeight_noReplace.Shuffle();
+
 			        }
-			        currentHeight = catHeight[catHeight_noReplace[catHeight_noReplace.size() - 1]];
-			        catHeight_noReplace.resize(catHeight_noReplace.size() - 1);
+			        currentHeight = catHeight[catHeight_noReplace[catHeight_noReplace.Count - 1]];
+                    catHeight_noReplace.RemoveAt(catHeight_noReplace.Count -1);
 
 		        } else if (mTargetHeightMode == 3) {	// 3:sequential categories with rnd start
 			        currentHeight = catHeight[catHeight_randStart];
 			        catHeight_randStart++;
-			        if (catHeight_randStart == (int)catHeight.size())		catHeight_randStart = 0;
+			        if (catHeight_randStart == catHeight.Count)		catHeight_randStart = 0;
 			        catHeight_randStart_Added = true;
 
 		        }
 
 		        // find a target all modes agree on
-		        std::vector<int> currentTarget(mTargets[0].size());
-		        for (int j = 0; j < (int)currentTarget.size(); ++j)	currentTarget[j] = j;
-		        int j = 0;
-		        while(j < (int)currentTarget.size()) {
+		        List<int> currentTarget = new List<int>(new int[mTargets[0].Count]);
+		        for (j = 0; j < currentTarget.Count; ++j)	currentTarget[j] = j;
+                j = 0;
+		        while(j < (int)currentTarget.Count) {
 
 			        // clear out all the target indices which are not in the currentY
 			        bool found = false;
-			        for (int k = 0; k < (int)currentY.size(); ++k) {
+			        for (int k = 0; k < currentY.Count; ++k) {
 				        if (currentTarget[j] == currentY[k]) {
 					        found = true;	break;
 				        }
 			        }
-			        if (!found && j < (int)currentTarget.size() && currentTarget.size() != 0) {
-				        std::swap(currentTarget[j], currentTarget[currentTarget.size() - 1]);
-				        currentTarget.resize(currentTarget.size() - 1);
+			        if (!found && j < currentTarget.Count && currentTarget.Count != 0) {
+                        currentTarget.Swap(j, currentTarget.Count - 1);
+				        //std::swap(currentTarget[j], currentTarget[currentTarget.Count - 1]);
+                        currentTarget.RemoveAt(currentTarget.Count - 1);
 				        continue;
 			        }
 
 			        // clear out all the target indices which are not in the currentHeight
 			        found = false;
-			        for (int k = 0; k < (int)currentHeight.size(); ++k) {
+			        for (int k = 0; k < currentHeight.Count; ++k) {
 				        if (currentTarget[j] == currentHeight[k]) {
 					        found = true;	break;
 				        }
 			        }
-			        if (!found && currentTarget.size() != 0) {
-				        std::swap(currentTarget[j], currentTarget[currentTarget.size() - 1]);
-				        currentTarget.resize(currentTarget.size() - 1);
+			        if (!found && currentTarget.Count != 0) {
+				        currentTarget.Swap(j, currentTarget.Count - 1);
+                        //std::swap(currentTarget[j], currentTarget[currentTarget.size() - 1]);
+                        currentTarget.RemoveAt(currentTarget.Count - 1);
 				        continue;
 			        }
 
@@ -622,7 +1259,7 @@ namespace CursorTask {
 		        }
 
 		        // check if a (agreeable) target has been found
-		        if (currentTarget.size() != 0) {
+		        if (currentTarget.Count != 0) {
 			        // target found, set in sequence
 
 			        // set it in the sequence
@@ -637,143 +1274,150 @@ namespace CursorTask {
 			        // revert randstart counters
 			        if (catY_randStart_Added) {
 				        catY_randStart--;
-				        if (catY_randStart < 0 )		catY_randStart = (int)catY.size() - 1;
+				        if (catY_randStart < 0 )		    catY_randStart = (int)catY.Count - 1;
 			        }
 			        if (catHeight_randStart_Added) {
 				        catHeight_randStart--;
-				        if (catHeight_randStart < 0 )		catHeight_randStart = (int)catHeight.size() - 1;
+				        if (catHeight_randStart < 0 )		catHeight_randStart = (int)catHeight.Count - 1;
 			        }
-
+			
 		        }
 
 	        }
 
         }
+
         ////////////////////////////////////////////////
         //  UNP entry points (start, process, stop)
         ////////////////////////////////////////////////
-        #ifdef UNPMENU
-        void PongFeedbackTask::UNP_Start(UNPWindowSettings* windowSettings) {
 
-	        // set the task as being start from the UNPMenu
-	        mUNPMenuTask = true;
+        public void UNP_start(Parameters parentParameters) {
 
-	        // set the task as not stopped
-	        mUNPMenuTaskStop = false;
+            // UNP entry point can only be used if initialized as UNPMenu
+            if (!mUNPMenuTask) {
+                logger.Error("Using UNP entry point while the task was not initialized as UNPMenu task, check parameters used to call the task constructor");
+                return;
+            }
 
-	        // transfer the window settings
-	        mWindowRedrawFreqMax = windowSettings->mWindowRedrawFreqMax;
-	        mWindowed = windowSettings->mWindowed;
-	        mWindowWidth = windowSettings->mWindowWidth;
-	        mWindowHeight = windowSettings->mWindowHeight;
-	        mWindowLeft = windowSettings->mWindowLeft;
-	        mWindowTop = windowSettings->mWindowTop;
-	        mFullscreenMonitor = windowSettings->mFullscreenMonitor;
+            // set the parameter set as not visible (for GUI configuration)
+            //parameters.ParamSetVisible = false;
+
+            // transfer the window settings
+            mWindowRedrawFreqMax = parentParameters.getValue<int>("WindowRedrawFreqMax");      // the view update frequency (in maximum fps)
+            //mWindowed = true;
+            mWindowWidth = parentParameters.getValue<int>("WindowWidth"); ;
+            mWindowHeight = parentParameters.getValue<int>("WindowHeight"); ;
+            mWindowLeft = parentParameters.getValue<int>("WindowLeft"); ;
+            mWindowTop = parentParameters.getValue<int>("WindowTop"); ;
+            //mFullscreenMonitor = 0;
 
 
-	        // set the UNP task standard settings
-	        mShowScore = 1;
-	        mTaskInputSignalType = 1;
-	        mTaskFirstRunStartDelay = 5;
-	
+            // set the UNP task standard settings
+            mShowScore = true;
+            mTaskInputSignalType = 1;
+            mTaskInputChannel = 1;
+            mTaskFirstRunStartDelay = 5;
+            mTaskStartDelay = 10;
 	        mUpdateCursorOnSignal = true;
-	        mTrialTime = 20;				// dependent on 'mUpdateCursorOnSignal', now set to packages
+	        mTrialTime = (int)(MainThread.SamplesPerSecond() * 4.0); ;              // depends on 'mUpdateCursorOnSignal', now set to packages
 
-	        mNumberTargets = 2;
-	        mTargetYMode = 1;				// random categories
-	        mTargetHeightMode = 1;			// random categories
-	        mTargets[0].clear();	mTargets[0].resize(2);
-	        mTargets[1].clear();	mTargets[1].resize(2);
-	        mTargets[0][0] = 25;	mTargets[1][0] = 50;
-	        mTargets[0][1] = 75;	mTargets[1][1] = 50;
+            mCursorSize = 4f;
 
 
-	        // initialize
-	        Initialize();
 
-	        // start the task
-	        StartRun();
+            numTargets = 10;
+            mTargetYMode = 1;				// random categories
+	        mTargetHeightMode = 1;          // random categories
+            mTargets[0].Clear(); mTargets[0] = new List<float>(new float[2]);
+            mTargets[1].Clear(); mTargets[1] = new List<float>(new float[2]);
+            mTargets[0][0] = 25; mTargets[1][0] = 50;
+            mTargets[0][1] = 75; mTargets[1][1] = 50;
 
-        }
+            // initialize
+            initialize();
 
-        bool PongFeedbackTask::UNP_Process(double input, bool connectionLost) {
+            // start the task
+            start();
 
-	        // check if the task should not stop
-	        if (!mUNPMenuTaskStop) {
-
-		        // transfer connection lost
-		        mConnectionLost = connectionLost;
-
-		        // process the input
-		        if (!mUNPMenuTaskSuspended)		Process(input);
-
-	        }
-
-	        // return whether the task should run or stop
-	        return mUNPMenuTaskStop;
-        }
-
-        void PongFeedbackTask::UNP_Stop() {
-
-	        // stop the task from running
-	        StopRun();
-
-	        // destroy the view
-	        destroyScene();
-
-	        // flag the task to stop running (UNPMenu will pick this up and as parent stop the task)
-	        mUNPMenuTaskStop = true;
+            // set the task as running
+            mUNPMenuTaskRunning = true;
 
         }
 
-        bool PongFeedbackTask::UNP_IsStopped() {
+        public void UNP_stop() {
 
-	        // return whether the task has stopped
-	        return mUNPMenuTaskStop;
+            // UNP entry point can only be used if initialized as UNPMenu
+            if (!mUNPMenuTask) {
+                logger.Error("Using UNP entry point while the task was not initialized as UNPMenu task, check parameters used to call the task constructor");
+                return;
+            }
 
-        }
+            // stop the task from running
+            stop();
 
-        void PongFeedbackTask::UNP_Suspend() {
-	
-	        // flag task as suspended
-	        mUNPMenuTaskSuspended = true;
+            // destroy the task
+            destroy();
 
-	        // pauze the task
-	        pauzeTask();
-
-
-	        // stop the view thread
-	        if (mSceneThread != NULL) {
-		        mSceneThread->Stop();
-		        mSceneThread->Wait();
-	        }
+            // flag the task as no longer running (setting this to false is also used to notify the UNPMenu that the task is finished)
+            mUNPMenuTaskRunning = false;
 
         }
 
-        void PongFeedbackTask::UNP_Resume() {
 
-	        // restart the view thread
-	        if (mSceneThread != NULL) {
-
-		        mSceneThread->Start();
-
-	        }
-
-	        // allow the thread to start
-	        ::Sleep(20);
-	
-	        // resume the task
-	        resumeTask();
-
-	        // flag task as no longer suspended
-	        mUNPMenuTaskSuspended = false;
-
+        public bool UNP_isRunning() {
+            return mUNPMenuTaskRunning;
         }
 
-        #endif
-        */
+
+        public void UNP_process(double[] input, bool connectionLost) {
+            
+            // check if the task is running
+            if (mUNPMenuTaskRunning) {
+
+                // transfer connection lost
+                mConnectionLost = connectionLost;
+
+                // process the input
+                if (!mUNPMenuTaskSuspended) process(input);
+
+            }
+            
+        }
+
+        public void UNP_resume() {
 
 
+            // lock for thread safety
+            lock (lockView) {
+
+                // initialize the view
+                initializeView();
+
+            }
+
+            // resume the task
+            resumeTask();
+
+            // flag task as no longer suspended
+            mUNPMenuTaskSuspended = false;
+            
+        }
+
+        public void UNP_suspend() {
+
+            // flag task as suspended
+            mUNPMenuTaskSuspended = true;
+
+            // pauze the task
+            pauzeTask();
+
+            // lock for thread safety and destroy the scene
+            lock (lockView) {
+                destroyScene();
+            }
+
+        }
 
     }
+
 }

@@ -1,9 +1,6 @@
 ﻿using NLog;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
-using System.Text;
 using System.Threading;
 
 using UNP.Applications;
@@ -82,6 +79,7 @@ namespace FollowTask {
         private int mTaskFirstRunStartDelay = 0;                                    // the first run start delay in sample blocks
         private int mTaskStartDelay = 0;									        // the run start delay in sample blocks
         private int mCountdownTime = 0;                                             // the time the countdown takes in sample blocks
+        private bool mShowScore = false;
 
 
         // task (active) variables
@@ -89,9 +87,7 @@ namespace FollowTask {
 
         private int mWaitCounter = 0;
         private int mCountdownCounter = 0;											// the countdown timer
-
         private int mHitScore = 0;												    // the score of the cursor hitting a block (in number of samples)
-		private bool mShowScore = false;
 
         private TaskStates taskState = TaskStates.Wait;
         private TaskStates previousTaskState = TaskStates.Wait;
@@ -457,7 +453,7 @@ namespace FollowTask {
                 initializeView();
 
                 // check if a target sequence is set
-                if (fixedTargetSequence.Count() == 0) {
+                if (fixedTargetSequence.Length == 0) {
 		            // targetsequence not set in parameters, generate
 		
 		            // Generate targetlist
@@ -467,7 +463,7 @@ namespace FollowTask {
 		            // targetsequence is set in parameters
 
 		            // clear the targets
-		            if (mTargetSequence.Count() != 0)		mTargetSequence.Clear();
+		            if (mTargetSequence.Count != 0)		mTargetSequence.Clear();
                 
 		            // transfer the targetsequence
                     mTargetSequence = new List<int>(fixedTargetSequence);
@@ -712,7 +708,7 @@ namespace FollowTask {
 			            }
 
 			            // check if it is the end of the task
-			            if (mCurrentBlock == mTargetSequence.Count() - 1 && (mSceneThread.getCurrentBlock() == FollowView.noBlock)) {
+			            if (mCurrentBlock == mTargetSequence.Count - 1 && (mSceneThread.getCurrentBlock() == FollowView.noBlock)) {
 				            // end of the task
 
 				            setState(TaskStates.EndText);
@@ -1049,7 +1045,7 @@ namespace FollowTask {
             setState(TaskStates.Wait);
     
             // initialize the target sequence already for a possible next run
-	        if (fixedTargetSequence.Count() == 0) {
+	        if (fixedTargetSequence.Length == 0) {
 
 		        // Generate targetlist
 		        generateTargetSequence();
@@ -1065,7 +1061,7 @@ namespace FollowTask {
         private void generateTargetSequence() {
 	        
 	        // clear the targets
-	        if (mTargetSequence.Count() != 0)		mTargetSequence.Clear();
+	        if (mTargetSequence.Count != 0)		mTargetSequence.Clear();
 
 	        // create targetsequence array with <NumberTargets>
             mTargetSequence = new List<int>(new int[numTargets]);
@@ -1084,7 +1080,7 @@ namespace FollowTask {
             int j = 0;
 
             // loop through the target rows
-	        for (i = 0; i < mTargets[0].Count(); ++i) {
+	        for (i = 0; i < mTargets[0].Count; ++i) {
 
 		        // get the values for the row
                 int valueY = (int)mTargets[0][i];
@@ -1092,26 +1088,26 @@ namespace FollowTask {
 		        int valueHeight = (int)mTargets[1][i];
 		
 		        // store the unique values and indices
-		        for (j = 0; j < catY_unique.Count(); ++j)
+		        for (j = 0; j < catY_unique.Count; ++j)
 			        if (catY_unique[j] == valueY)	break;
-		        if (j == catY_unique.Count()) {
+		        if (j == catY_unique.Count) {
 			        catY_unique.Add(valueY);						// store the unique value at index j
 			        catY.Add(new List<int>(0));				        // store the targets row index in the vector at index j	
 						
 		        }
 		        catY[j].Add(i);
 
-		        for (j = 0; j < catWidth_unique.Count(); ++j)
+		        for (j = 0; j < catWidth_unique.Count; ++j)
 			        if (catWidth_unique[j] == valueWidth)	break;
-		        if (j == (int)catWidth_unique.Count()) {
+		        if (j == (int)catWidth_unique.Count) {
 			        catWidth_unique.Add(valueWidth);				// store the unique value at index j
 			        catWidth.Add(new List<int>(0));			        // store the targets row index in the vector at index j							
 		        }
 		        catWidth[j].Add(i);
 
-		        for (j = 0; j < catHeight_unique.Count(); ++j)
+		        for (j = 0; j < catHeight_unique.Count; ++j)
 			        if (catHeight_unique[j] == valueHeight)	break;
-		        if (j == catHeight_unique.Count()) {
+		        if (j == catHeight_unique.Count) {
 			        catHeight_unique.Add(valueHeight);			    // store the unique value at index j
 			        catHeight.Add(new List<int>(0));			    // store the targets row index in the vector at index j							
 		        }
@@ -1125,9 +1121,9 @@ namespace FollowTask {
             List<int> catHeight_noReplace = new List<int>(0);
 
 	        // create random start for each categories (in case it is needed)
-	        int catY_randStart = rand.Next(0, catY.Count());
-	        int catWidth_randStart = rand.Next(0, catWidth.Count());
-	        int catHeight_randStart = rand.Next(0, catHeight.Count());
+	        int catY_randStart = rand.Next(0, catY.Count);
+	        int catWidth_randStart = rand.Next(0, catWidth.Count);
+	        int catHeight_randStart = rand.Next(0, catHeight.Count);
 
 	        bool catY_randStart_Added = false;
 	        bool catWidth_randStart_Added = false;
@@ -1160,19 +1156,19 @@ namespace FollowTask {
 			
 			
 		        } else if (mTargetYMode == 1) {	// 1: randomize categories
-			        currentY = catY[rand.Next(0, catY.Count())];
+			        currentY = catY[rand.Next(0, catY.Count)];
 
 		        } else if (mTargetYMode == 2) {	// 2:random categories without replacement
 				
-			        if (catY_noReplace.Count() == 0) {
+			        if (catY_noReplace.Count == 0) {
 
-				        catY_noReplace = new List<int>(new int[catY.Count()]);
-				        for (j = 0; j < catY_noReplace.Count(); ++j)	catY_noReplace[j] = j;
+				        catY_noReplace = new List<int>(new int[catY.Count]);
+				        for (j = 0; j < catY_noReplace.Count; ++j)	catY_noReplace[j] = j;
 					
                         catY_noReplace.Shuffle();
 			        }
 
-			        currentY = catY[catY_noReplace[catY_noReplace.Count() - 1]];
+			        currentY = catY[catY_noReplace[catY_noReplace.Count - 1]];
 
                     catY_noReplace.RemoveAt(catY_noReplace.Count -1);
 
@@ -1180,7 +1176,7 @@ namespace FollowTask {
 			
 			        currentY = catY[catY_randStart];
 			        catY_randStart++;
-			        if (catY_randStart == catY.Count())		catY_randStart = 0;
+			        if (catY_randStart == catY.Count)		catY_randStart = 0;
 			        catY_randStart_Added = true;
 
 		        }
@@ -1191,25 +1187,25 @@ namespace FollowTask {
 			
 			
 		        } else if (mTargetWidthMode == 1) {	// 1: randomize categories
-			        currentWidth = catWidth[rand.Next(0, catWidth.Count())];
+			        currentWidth = catWidth[rand.Next(0, catWidth.Count)];
 
 		        } else if (mTargetWidthMode == 2) {	// 2:random categories without replacement
-			        if (catWidth_noReplace.Count() == 0) {
+			        if (catWidth_noReplace.Count == 0) {
 				        
-                        catWidth_noReplace = new List<int>(new int[catWidth.Count()]);
-				        for (j = 0; j < catWidth_noReplace.Count(); ++j)	catWidth_noReplace[j] = j;
+                        catWidth_noReplace = new List<int>(new int[catWidth.Count]);
+				        for (j = 0; j < catWidth_noReplace.Count; ++j)	catWidth_noReplace[j] = j;
 				        
                         catWidth_noReplace.Shuffle();
 
 			        }
 			        
-                    currentWidth = catWidth[catWidth_noReplace[catWidth_noReplace.Count() - 1]];
+                    currentWidth = catWidth[catWidth_noReplace[catWidth_noReplace.Count - 1]];
                     catWidth_noReplace.RemoveAt(catWidth_noReplace.Count -1);
 
 		        } else if (mTargetWidthMode == 3) {	// 3:sequential categories with rnd start
 			        currentWidth = catWidth[catWidth_randStart];
 			        catWidth_randStart++;
-			        if (catWidth_randStart == catWidth.Count())		catWidth_randStart = 0;
+			        if (catWidth_randStart == catWidth.Count)		catWidth_randStart = 0;
 			        catWidth_randStart_Added = true;
 
 		        }
@@ -1219,57 +1215,57 @@ namespace FollowTask {
 			
 			
 		        } else if (mTargetHeightMode == 1) {	// 1: randomize categories
-			        currentHeight = catHeight[rand.Next(0, catHeight.Count())];
+			        currentHeight = catHeight[rand.Next(0, catHeight.Count)];
                     
 		        } else if (mTargetHeightMode == 2) {	// 2:random categories without replacement
-			        if (catHeight_noReplace.Count() == 0) {
+			        if (catHeight_noReplace.Count == 0) {
 				        
-                        catHeight_noReplace = new List<int>(new int[catHeight.Count()]);
-				        for (j = 0; j < catHeight_noReplace.Count(); ++j)	catHeight_noReplace[j] = j;
+                        catHeight_noReplace = new List<int>(new int[catHeight.Count]);
+				        for (j = 0; j < catHeight_noReplace.Count; ++j)	catHeight_noReplace[j] = j;
 				        
                         catHeight_noReplace.Shuffle();
 
 			        }
-			        currentHeight = catHeight[catHeight_noReplace[catHeight_noReplace.Count() - 1]];
+			        currentHeight = catHeight[catHeight_noReplace[catHeight_noReplace.Count - 1]];
                     catHeight_noReplace.RemoveAt(catHeight_noReplace.Count -1);
 
 		        } else if (mTargetHeightMode == 3) {	// 3:sequential categories with rnd start
 			        currentHeight = catHeight[catHeight_randStart];
 			        catHeight_randStart++;
-			        if (catHeight_randStart == catHeight.Count())		catHeight_randStart = 0;
+			        if (catHeight_randStart == catHeight.Count)		catHeight_randStart = 0;
 			        catHeight_randStart_Added = true;
 
 		        }
 
 		        // find a target all modes agree on
-		        List<int> currentTarget = new List<int>(new int[mTargets[0].Count()]);
-		        for (j = 0; j < currentTarget.Count(); ++j)	currentTarget[j] = j;
+		        List<int> currentTarget = new List<int>(new int[mTargets[0].Count]);
+		        for (j = 0; j < currentTarget.Count; ++j)	currentTarget[j] = j;
                 j = 0;
-		        while(j < (int)currentTarget.Count()) {
+		        while(j < (int)currentTarget.Count) {
 
 			        // clear out all the target indices which are not in the currentY
 			        bool found = false;
-			        for (int k = 0; k < currentY.Count(); ++k) {
+			        for (int k = 0; k < currentY.Count; ++k) {
 				        if (currentTarget[j] == currentY[k]) {
 					        found = true;	break;
 				        }
 			        }
-			        if (!found && j < currentTarget.Count() && currentTarget.Count() != 0) {
-                        currentTarget.Swap(j, currentTarget.Count() - 1);
-				        //std::swap(currentTarget[j], currentTarget[currentTarget.Count() - 1]);
+			        if (!found && j < currentTarget.Count && currentTarget.Count != 0) {
+                        currentTarget.Swap(j, currentTarget.Count - 1);
+				        //std::swap(currentTarget[j], currentTarget[currentTarget.Count - 1]);
                         currentTarget.RemoveAt(currentTarget.Count - 1);
 				        continue;
 			        }
 
 			        // clear out all the target indices which are not in the currentWidth
 			        found = false;
-			        for (int k = 0; k < currentWidth.Count(); ++k) {
+			        for (int k = 0; k < currentWidth.Count; ++k) {
 				        if (currentTarget[j] == currentWidth[k]) {
 					        found = true;	break;
 				        }
 			        }
-			        if (!found && currentTarget.Count() != 0) {
-				        currentTarget.Swap(j, currentTarget.Count() - 1);
+			        if (!found && currentTarget.Count != 0) {
+				        currentTarget.Swap(j, currentTarget.Count - 1);
                         //std::swap(currentTarget[j], currentTarget[currentTarget.size() - 1]);
 				        currentTarget.RemoveAt(currentTarget.Count - 1);
 				        continue;
@@ -1277,13 +1273,13 @@ namespace FollowTask {
 
 			        // clear out all the target indices which are not in the currentHeight
 			        found = false;
-			        for (int k = 0; k < currentHeight.Count(); ++k) {
+			        for (int k = 0; k < currentHeight.Count; ++k) {
 				        if (currentTarget[j] == currentHeight[k]) {
 					        found = true;	break;
 				        }
 			        }
-			        if (!found && currentTarget.Count() != 0) {
-				        currentTarget.Swap(j, currentTarget.Count() - 1);
+			        if (!found && currentTarget.Count != 0) {
+				        currentTarget.Swap(j, currentTarget.Count - 1);
                         //std::swap(currentTarget[j], currentTarget[currentTarget.size() - 1]);
                         currentTarget.RemoveAt(currentTarget.Count - 1);
 				        continue;
@@ -1295,7 +1291,7 @@ namespace FollowTask {
 		        }
 
 		        // check if a (agreeable) target has been found
-		        if (currentTarget.Count() != 0) {
+		        if (currentTarget.Count != 0) {
 			        // target found, set in sequence
 
 			        // set it in the sequence
@@ -1310,15 +1306,15 @@ namespace FollowTask {
 			        // revert randstart counters
 			        if (catY_randStart_Added) {
 				        catY_randStart--;
-				        if (catY_randStart < 0 )		    catY_randStart = (int)catY.Count() - 1;
+				        if (catY_randStart < 0 )		    catY_randStart = (int)catY.Count - 1;
 			        }
 			        if (catWidth_randStart_Added) {
 				        catWidth_randStart--;
-				        if (catWidth_randStart < 0 )		catWidth_randStart = (int)catWidth.Count() - 1;
+				        if (catWidth_randStart < 0 )		catWidth_randStart = (int)catWidth.Count - 1;
 			        }
 			        if (catHeight_randStart_Added) {
 				        catHeight_randStart--;
-				        if (catHeight_randStart < 0 )		catHeight_randStart = (int)catHeight.Count() - 1;
+				        if (catHeight_randStart < 0 )		catHeight_randStart = (int)catHeight.Count - 1;
 			        }
 			
 		        }

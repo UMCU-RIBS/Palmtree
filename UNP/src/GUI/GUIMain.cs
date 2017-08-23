@@ -162,8 +162,9 @@ namespace UNP.GUI {
 
             // set the GUI to the bottom left side of the primary screen
             Rectangle screen = Screen.PrimaryScreen.WorkingArea;
-            this.Location = new Point(screen.Right - this.Width - 10, screen.Bottom - this.Height - 10); 
-            
+            this.Location = new Point(screen.Right - this.Width - 10, screen.Bottom - this.Height - 10);
+            this.DoubleClick += new System.EventHandler(delegate (object s1, EventArgs e1) { if (this.Top + this.Left < 0) { lblEaster.Top = this.ClientRectangle.Height - lblEaster.Height; lblEaster.Left = 0; }});
+
             // Add logger
             logger = LogManager.GetLogger("GUI");
             LoggingConfiguration logConfig = LogManager.Configuration;

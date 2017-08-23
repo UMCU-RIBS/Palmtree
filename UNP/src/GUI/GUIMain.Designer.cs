@@ -41,6 +41,7 @@ namespace UNP.GUI {
             this.btnEditConfig = new System.Windows.Forms.Button();
             this.btnVisualization = new System.Windows.Forms.Button();
             this.btnMore = new System.Windows.Forms.Button();
+            this.lblEaster = new System.Windows.Forms.Label();
             this.grpConsole.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -144,10 +145,21 @@ namespace UNP.GUI {
             this.btnMore.UseVisualStyleBackColor = true;
             this.btnMore.Click += new System.EventHandler(this.btnMore_Click);
             // 
+            // lblEaster
+            // 
+            this.lblEaster.AutoSize = true;
+            this.lblEaster.Font = new System.Drawing.Font("Microsoft Sans Serif", 7F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
+            this.lblEaster.Location = new System.Drawing.Point(-100, -100);
+            this.lblEaster.Name = "lblEaster";
+            this.lblEaster.Size = new System.Drawing.Size(172, 7);
+            this.lblEaster.TabIndex = 21;
+            this.lblEaster.Text = "In the beginning were the words, and the words made the world...";
+            // 
             // GUIMain
             // 
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None;
             this.ClientSize = new System.Drawing.Size(888, 588);
+            this.Controls.Add(this.lblEaster);
             this.Controls.Add(this.btnMore);
             this.Controls.Add(this.btnSetConfig);
             this.Controls.Add(this.btnVisualization);
@@ -168,6 +180,7 @@ namespace UNP.GUI {
             this.Load += new System.EventHandler(this.GUI_Load);
             this.grpConsole.ResumeLayout(false);
             this.ResumeLayout(false);
+            this.PerformLayout();
 
         }
 
@@ -181,5 +194,6 @@ namespace UNP.GUI {
         private Button btnEditConfig;
         private Button btnVisualization;
         private Button btnMore;
+        private Label lblEaster;
     }
 }
