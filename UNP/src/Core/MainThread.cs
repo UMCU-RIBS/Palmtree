@@ -95,8 +95,8 @@ namespace UNP.Core {
             try {
                 application = (IApplication)Activator.CreateInstance(applicationType);
                 //Console.WriteLine("Created application instance of " + applicationType.Name);
-            } catch (Exception) {
-                logger.Error("Unable to create an application instance of '" + applicationType.Name + "'");
+            } catch (Exception e) {
+                logger.Error("Unable to create an application instance of '" + applicationType.Name + "' (" + e.Message + ")");
             }
 
             // create/add plugins

@@ -853,7 +853,7 @@ namespace MoleTask {
         private void resumeTask() {
             if (mSceneThread == null)   return;
 
-            // log event task is paused
+            // log event task is resumed
             Data.logEvent(2, "TaskResume", CLASS_NAME);
 
             // show the grid and set the mole

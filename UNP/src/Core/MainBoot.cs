@@ -40,7 +40,7 @@ namespace UNP.Core {
             string parameterFile = "";
             string source = "";
 
-            //args = new string[] { "-parameterfile", "test_UNPMENU.prm", "-source", "KeypressSignal", "-startupConfigAndInit", "-startupStart" };
+            args = new string[] { "-parameterfile", "test_UNPMENU.prm", "-source", "KeypressSignal", "-startupConfigAndInit", "-startupStart" };
 
             // process startup arguments
             for (int i = 0; i < args.Length; i++) {
