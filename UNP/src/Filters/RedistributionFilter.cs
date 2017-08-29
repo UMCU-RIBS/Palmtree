@@ -37,7 +37,7 @@ namespace UNP.Filters {
 
             parameters.addParameter <double[][]>  (
                 "Redistribution",
-                "Specifies which input channels are added together to one or more output channels.\nAlso specifies what Linear values are applied to the output values, after addition, to binarize the output values\n\nInput: Input channel (1...n)\nOutput: output channel (1...n)\nLinear: (channel output) Linear above or under which the channel output will become 1 or 0\nDirection: the direction of the Linearing.\nIf direction < 0 (negative) then smaller than the Linear will result in true; if >= 0 (positive) then larger than the Linear will result in true",
+                "Specifies which input channels are added together to one or more output channels.\nAlso specifies which weights are applied to the input values before addition\n\nInput: Input channel (1...n)\nOutput: output channel (1...n)\nWeight: Weight applied to input channel value",
                 "", "", "1;1;1", new string[] { "Input", "Output", "Weight" });
 
             // message
