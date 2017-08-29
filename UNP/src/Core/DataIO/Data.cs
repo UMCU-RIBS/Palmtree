@@ -600,7 +600,7 @@ namespace UNP.Core.DataIO {
                     header.code = "src";
                     header.columnNames = registeredSourceInputStreamNames.ToArray();
                     header.sampleRate = MainThread.getSource().getSamplesPerSecond();
-                    header.numPlaybackStreams = registeredDataStreamNames.Count;
+                    header.numPlaybackStreams = registeredSourceInputStreamNames.Count;
 
                     // write header
                     if (sourceStreamWriter != null) {
