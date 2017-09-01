@@ -35,7 +35,7 @@ namespace CursorTask {
         private bool showCursor = false;                                    // show the cursor
         private bool moveCursor = false;                                    // move the cursor
         private double cursorX = 0;                                         // the x position of the middle of the cursor
-        private int cursorY = 0;                                            // the y position of the middle of the cursor
+        private double cursorY = 0;                                         // the y position of the middle of the cursor
         private double cursorSpeedTotalTrialTime = 0;                       // cursorspeed in total time per trial
         private double cursorSpeed = 0;                                     // cursorspeed in pixels per second
         private ColorStates cursorColorState = ColorStates.Neutral;
@@ -399,8 +399,13 @@ namespace CursorTask {
 	        return cursorX;
         }
 
-        public int getCursorY() {
+        public double getCursorY() {
 	        return cursorY;
+        }
+
+        // get the cursor's y position as a normalized valued (0 = bottom, 1 = top, also takes cursor radius into account)
+        public double getCursorNormY() {
+            return (((boundaryY + boundarySize - (taskBoundaryLineWidth / 2) - cursorRadius) - cursorY) / (boundarySize - taskBoundaryLineWidth - (cursorRadius * 2)));
         }
 
         // set the cursor's x position to a normalized valued (0 = left, 1 = right, also takes cursor radius into account)
@@ -419,11 +424,11 @@ namespace CursorTask {
         public void setCursorNormY(double y) {
 	        if (y < 0) y = 0;
 	        if (y > 1) y = 1;
-	        cursorY = boundaryY + boundarySize - (taskBoundaryLineWidth / 2) - cursorRadius - (int)((boundarySize - taskBoundaryLineWidth - (cursorRadius * 2)) * y);
+	        cursorY = boundaryY + boundarySize - (taskBoundaryLineWidth / 2) - cursorRadius - ((boundarySize - taskBoundaryLineWidth - (cursorRadius * 2)) * y);
         }
 
         public void centerCursorY() {
-	        cursorY = (getContentHeight() - cursorRadius) / 2;
+	        cursorY = (getContentHeight() - cursorRadius) / 2.0;
         }
 
         public void setCursorVisible(bool show) {

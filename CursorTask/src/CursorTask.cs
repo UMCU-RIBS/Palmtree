@@ -71,7 +71,6 @@ namespace CursorTask {
         private RGBColorFloat mTargetColorNeutral = new RGBColorFloat(1f, 1f, 1f);
         private RGBColorFloat mTargetColorHit = new RGBColorFloat(0f, 1f, 0f);
         private RGBColorFloat mTargetColorMiss = new RGBColorFloat(1f, 0f, 0f);
-        private int mCursorSpeedY = 1;                                              // 
 
         private bool mUpdateCursorOnSignal = false;                                 // update the cursor only on signal (or on smooth animation if false)
         private double mTrialTime = 0;  								            // the total trial time, in seconds if animated, in samples if the cursor is updated by incoming signal
@@ -87,6 +86,7 @@ namespace CursorTask {
 
         // task (active) variables
         private List<int> mTargetSequence = new List<int>(0);					    // the target sequence being used in the task (can either be given by input or generated)
+        private double mCursorSpeedY = 1;                                              // 
 
         private int mWaitCounter = 0;
         private int mCountdownCounter = 0;											// the countdown timer
@@ -177,8 +177,8 @@ namespace CursorTask {
 
                 parameters.addParameter<int>(
                     "TaskInputSignalType",
-                    "Task input signal type",
-                    "0", "2", "0", new string[] { "Normalizer (0 to 1)", "Normalizer (-1 to 1)", "Constant middle" });
+                    "Task input signal type.\n\nWith the direct input setting, the location of the cursor will be set directly by the input.\nWith added input, the cursor position will be set to the cursor's position plus the input multiplied by a cursor speed factor (this factor is based on the trialtime; 1 / trialtime in samples / 2)",
+                    "0", "3", "0", new string[] { "Direct input (0 to 1)", "Direct input (-1 to 1)", "Constant middle", "Added input" });
 
                 parameters.addParameter<bool>(
                     "TaskShowScore",
@@ -194,11 +194,6 @@ namespace CursorTask {
                     "CursorSize",
                     "Cursor size radius in percentage of the bounding box size",
                     "0.0", "50.0", "4.0");
-
-                parameters.addParameter<double>(
-                    "CursorSpeedY",
-                    "Cursorspeed Y multiplication factor",
-                    "0", "", "2");
 
                 parameters.addParameter<RGBColorFloat>(
                     "CursorColorNeutral",
@@ -361,7 +356,12 @@ namespace CursorTask {
             mUpdateCursorOnSignal = parameters.getValue<bool>("UpdateCursorOnSignal");
             if (mUpdateCursorOnSignal)      mTrialTime = parameters.getValueInSamples("TrialTime");
             else                            mTrialTime = parameters.getValue<double>("TrialTime");
-            mCursorSpeedY = (int)Math.Floor(1.0 / parameters.getValueInSamples("TrialTime") / 2.0 * parameters.getValue<double>("CursorSpeedY"));
+
+            // check if the type is added input
+            if (mTaskInputSignalType == 3) {
+                mCursorSpeedY = 1.0 / parameters.getValueInSamples("TrialTime");
+                //mCursorSpeedY = 1.0 / parameters.getValueInSamples("TrialTime") / 2.0;
+            }
 
             // retrieve target settings
             double[][] parTargets = parameters.getValue<double[][]>("Targets");
@@ -706,32 +706,20 @@ namespace CursorTask {
 
                                 // check the input type
                                 if (mTaskInputSignalType == 0) {
-                                    // Direct normalizer (0 to 1)
+                                    // Direct input (0 to 1)
 
                                     mSceneThread.setCursorNormY(input); // setCursorNormY will take care of values below 0 or above 1)
 
                                 } else if (mTaskInputSignalType == 1) {
-                                    // Direct normalizer (-1 to 1)
+                                    // Direct input (-1 to 1)
 
                                     mSceneThread.setCursorNormY((input + 1.0) / 2.0);
 
-                                } else if (mTaskInputSignalType == 2) {
-                                    // Added normalizer (-1 to 1)
+                                } else if (mTaskInputSignalType == 3) {
+                                    // Added input
 
-                                    int y = mSceneThread.getCursorY();
-
-                                    /*
-						            bciout << "----------" << endl;
-						            bciout << "y: " << y << endl;
-						            bciout << "in: " << input << endl;
-						            bciout << "in2: " << ((input + 1.0) / 2.0) << endl;
-						            bciout << "mCursorSpeedY: " << mCursorSpeedY << endl;
-						            bciout << "value: " << (mCursorSpeedY * ((input + 1.0) / 2.0)) << endl;
-                                    */
-                                    y += (int)Math.Floor(mCursorSpeedY * ((input + 1.0) / 2.0));
-                                    /*bciout << "y: " << y << endl;*/
-
-
+                                    double y = mSceneThread.getCursorY();
+                                    y += mCursorSpeedY * input;
                                     mSceneThread.setCursorNormY(y);
 
 
