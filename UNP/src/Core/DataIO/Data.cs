@@ -40,9 +40,11 @@ namespace UNP.Core.DataIO {
         // event logging
         private static bool mLogEvents = false;                 								// 
         private static int[] mEventLoggingLevels = new int[0];
+        private static int amountEventLoggingLevels = 0;
+        private static int maxEventLogLevel = 4;                                                // maximal event log level that is available
 
-        private static FileStream eventStream = null;                                           // filestream that is fed to the binarywriter, containing the stream of events to be written to the .evt file
-        private static StreamWriter eventStreamWriter = null;                                   // writer that writes values to the .evt file
+        private static List<FileStream> eventStreams = new List<FileStream>(0);                // list of filestreams, one for each registered event level. Each filestream is fed to the binarywriter, containing the stream of events to be written to the .evt file
+        private static List<StreamWriter> eventStreamWriters = new List<StreamWriter>(0);      // list of writers, each writes events of specific log level to the .evt file
 
         // source streams
         private static bool mLogSourceInput = false;            								// source input logging enabled/disabled (by configuration parameter)
@@ -519,7 +521,8 @@ namespace UNP.Core.DataIO {
                         files[f] = files[f].Substring(0, files[f].IndexOf('.'));
 
                         // convert to ints for reliable sorting
-                        runs[f] = Int32.Parse(files[f]);
+
+                        if (!int.TryParse(files[f], out runs[f])) logger.Error("Can not convert filenames in session directory (" + sessionDir + "). Check if files have been manually added or renamed. Remove or restore these files and re-run application.");
                     }
 
                     // sort runs array and take last item (= highest), and increase by one
@@ -546,28 +549,45 @@ namespace UNP.Core.DataIO {
                 // check if we want to log events
                 if (mLogEvents) {
 
-                    // construct filepath of event file, with current time as filename 
-                    string fileNameEvt = fileName + ".evt";
-                    string path = Path.Combine(sessionDir, fileNameEvt);
+                    // if no loglevels are defined, we log all events levels, otherwise get amount of event levels we are logging
+                    if (mEventLoggingLevels.Length == 0) amountEventLoggingLevels = maxEventLogLevel;
+                    else amountEventLoggingLevels = mEventLoggingLevels.Length;
 
-                    // create filestream: create file if it does not exists, allow to write, do not share with other processes and use buffer of 8192 bytes
-                    try {
-                        eventStream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 8192);
-                        eventStreamWriter = new StreamWriter(eventStream);
-                        eventStreamWriter.AutoFlush = true;                                         // ensures that after every write operation content of stream is flushed to file
-                        logger.Info("Created event file at " + path);
-                    } catch (Exception e) {
-                        logger.Error("Unable to create event file at " + path + " (" + e.ToString() + ")");
-                    }
+                    // for each desired logging level, create writer and attach id
+                    for (int i = 0; i < amountEventLoggingLevels; i++) {
 
-                    // build event header string
-                    string eventHeader = "Time " + "ID source sample " + "ID data sample " + "Event code " + "Event value";
+                        // init, inside scope for readability
+                        int logLevel = -1;
 
-                    // write header to event file
-                    try {
-                        eventStreamWriter.WriteLine(eventHeader);
-                    } catch (IOException e) {
-                        logger.Error("Can't write to event file: " + e.Message);
+                        // determine logging level for the writer
+                        if (mEventLoggingLevels.Length == 0) logLevel = i + 1;
+                        else logLevel = mEventLoggingLevels[i];
+
+                        // construct filepath of event file, with current time and loglevel as filename 
+                        string fileNameEvt = identifier + "_" + DateTime.Now.ToString("yyyyMMdd") + "_level" + logLevel + "_" + RUN_SUFFIX + run + ".evt";
+                        string path = Path.Combine(sessionDir, fileNameEvt);
+
+                        // create filestream: create file if it does not exists, allow to write, do not share with other processes and use buffer of 8192 bytes (roughly 1000 samples)
+                        try {
+                            eventStreams.Add(new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 8192));
+                            eventStreamWriters.Add(new StreamWriter(eventStreams[i]));
+                            eventStreamWriters[i].AutoFlush = true;                                         // ensures that after every write operation content of stream is flushed to file
+                            logger.Info("Created event file for log level " + logLevel + " at " + path);
+                        } catch (Exception e) {
+                            logger.Error("Unable to create event file at " + path + " (" + e.ToString() + ")");
+                        }
+
+                        // build event header string
+                        string eventHeader = "Time " + "ID_src_sample " + "ID_dat_sample " + "Event_code " + "Event_value";
+
+                        // write header to event file
+                        try {
+                            eventStreamWriters[i].WriteLine(eventHeader);
+                        } catch (IOException e) {
+                            logger.Error("Can't write header to event file: " + e.Message);
+                        }
+
+
                     }
 
                 }
@@ -758,19 +778,21 @@ namespace UNP.Core.DataIO {
             if (sourceStopWatch.IsRunning)      sourceStopWatch.Stop();
 
 
-            // lastly, close event writer, so any remaining events can still be written
-            if (eventStreamWriter != null) {
+            // lastly, close all event writers, so any remaining events can still be written
+            for (int i = 0; i < eventStreams.Count; i++) {
 
-                // log the data stop event
-                //logEvent(1, "Eventstop", "");
+                if (eventStreamWriters[i] != null) {
 
-                // close the writer and stream
-                eventStreamWriter.Close();
-                eventStreamWriter = null;
-                eventStream = null;
-
+                    // close the writer and stream
+                    eventStreamWriters[i].Close();
+                    eventStreamWriters[i] = null;
+                    eventStreams[i] = null;
+                }
             }
 
+            // clear the lists containing event writers
+            eventStreamWriters.Clear();
+            eventStreams.Clear();
 
         }
 
@@ -1027,15 +1049,22 @@ namespace UNP.Core.DataIO {
                 // construct event String    
                 string eventOut = eventTime.ToString("yyyyMMdd_HHmmss_fff") + " " + sourceSampleCounter.ToString() + " " + dataSampleCounter.ToString() + " " + text + " " + value;
 
-                // write event to event file
-                if (eventStreamWriter != null) {
-                    try {
-                        eventStreamWriter.WriteLine(eventOut);
-                    } catch (IOException e) {
-                        logger.Error("Can't write to event file: " + e.Message);
-                    }
-                }
+                // determine which writer corresponds to the given log level
+                int writer = -1;
+                if (mEventLoggingLevels.Length == 0) writer = level - 1;
+                else writer = Array.IndexOf(mEventLoggingLevels, level);
 
+                // write event to event file
+                if (writer != -1) {
+                    if (eventStreamWriters[writer] != null) {
+                        try {
+                            eventStreamWriters[writer].WriteLine(eventOut);
+                        } catch (IOException e) {
+                            logger.Error("Can't write to event file: " + e.Message);
+                        }
+                    }
+                } else logger.Error("Index of event writer given that does not exist. Check code.");
+                
                 // debug
                 logger.Info("Event logged: " + eventOut);
 

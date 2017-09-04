@@ -122,12 +122,6 @@ namespace UNP.Core {
                 }
             }
 
-            // debug
-            //source = "UNP.Sources.GenerateSignal";
-            //source = "UNP.Sources.KeypressSignal";
-            //source = "UNP.Sources.NexusSignal";
-            //source = "UNP.Sources.PlaybackSignal";
-
             // check if no (valid) source was given
             if (string.IsNullOrEmpty(source)) {
 
@@ -137,7 +131,7 @@ namespace UNP.Core {
 
             }
 
-            //(GenerateSignal/KeypressSignal/PlaybackSignal)
+            // GenerateSignal/KeypressSignal/PlaybackSignal
             Type sourceType = Type.GetType(source);
 
             // name this thread
@@ -188,19 +182,14 @@ namespace UNP.Core {
             logger.Info("MainBoot version " + MainBoot.getClassVersion());
             logger.Info("MainThread version " + MainThread.getClassVersion());
 
-
             // message
             if (Environment.Is64BitProcess)
                 logger.Debug("Processes are run in a 64 bit environment");
             else
                 logger.Debug("Processes are run in a 32 bit environment");
 
-
             // setup and initialize the pipeline
             mainThread.initPipeline(sourceType, applicationType);
-
-            // debug: load 
-            mainThread.loadDebugConfig();
 
             // check if a parameter file was given to load at startup
             if (!String.IsNullOrEmpty(parameterFile)) {
