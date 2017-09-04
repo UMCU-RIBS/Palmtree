@@ -8,6 +8,7 @@ using UNP.Core.Helpers;
 using UNP.Core.Params;
 using UNP.Core.DataIO;
 
+
 namespace LocalizerTask {
 
     public class LocalizerTask : IApplication {
@@ -74,46 +75,6 @@ namespace LocalizerTask {
                 parameters = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Application);
 
                 // add parameters
-                parameters.addParameter<string[][]>(
-                    "Stimuli",
-                    "Stimuli available for use in sequence and their corresponding duration in seconds. Stimuli can be either text, images, or sounds, or any combination of these modalities.\n Each row represents a stimulus.",
-                    "", "", "Rust;;;10", new string[] { "Text", "Image", "Sound", "Duration [s]" });
-
-                parameters.addParameter<int[]>(
-                    "Stimuli sequence",
-                    "",
-                    "Sequence of presented stimuli.", "", "", "1;2;1");
-
-                parameters.addParameter<int>(
-                    "Amount of sequences",
-                    "Number of sequences that will be presented consecutively.",
-                    "1", "", "2");
-
-                parameters.addParameter<int>(
-                    "FirstSequenceWait",
-                    "Amount of time before the first sequence of the task starts.",
-                    "0", "", "5s");
-
-                parameters.addParameter<int>(
-                    "SequenceWait",
-                    "Amount of time between end of sequence and start of subsequent sequence.",
-                    "0", "", "10s");
-
-                parameters.addParameter<string>(
-                    "Start text",
-                    "Text shown to participant at beginning of task.",
-                    "", "", "Task will begin shortly.");
-
-                parameters.addParameter<string>(
-                    "Wait text",
-                    "Text shown to participant during waiting periods.",
-                    "", "", "Wait.");
-
-                parameters.addParameter<string>(
-                    "End text",
-                    "Text shown to participant at end of task.",
-                    "", "", "Task is finished.");
-
                 parameters.addParameter<int>(
                     "WindowLeft",
                     "Screen coordinate of application window's left edge",
@@ -143,6 +104,47 @@ namespace LocalizerTask {
                     "WindowBackgroundColor",
                     "Window background color",
                     "", "", "0");
+
+                parameters.addParameter<string[][]>(
+                    "Stimuli",
+                    "Stimuli available for use in sequence and their corresponding duration in seconds. Stimuli can be either text, images, or sounds, or any combination of these modalities.\n Each row represents a stimulus.",
+                    "", "", "Rust;;;10", new string[] { "Text", "Image", "Sound", "Duration [s]" });
+
+                parameters.addParameter<int[]>(
+                    "StimuliSequence",
+                    "",
+                    "Sequence of presented stimuli.", "", "", "1");
+
+                parameters.addParameter<int>(
+                    "AmountOfSequences",
+                    "Number of sequences that will be presented consecutively.",
+                    "1", "", "2");
+
+                parameters.addParameter<int>(
+                    "FirstSequenceWait",
+                    "Amount of time before the first sequence of the task starts.",
+                    "0", "", "5s");
+
+                parameters.addParameter<int>(
+                    "SequenceWait",
+                    "Amount of time between end of sequence and start of subsequent sequence.",
+                    "0", "", "10s");
+
+                parameters.addParameter<string>(
+                    "StartText",
+                    "Text shown to participant at beginning of task.",
+                    "", "", "Task will begin shortly.");
+
+                parameters.addParameter<string>(
+                    "WaitText",
+                    "Text shown to participant during waiting periods.",
+                    "", "", "Wait.");
+
+                parameters.addParameter<string>(
+                    "EndText",
+                    "Text shown to participant at end of task.",
+                    "", "", "Task is finished.");
+
             }
         }
 
@@ -172,13 +174,13 @@ namespace LocalizerTask {
 
             // transfer task specific values
             stimuli = parameters.getValue<string[][]>("Stimuli");
-            stimuliSequence = parameters.getValue<int[]>("Stimuli sequence");
-            amountSequences = parameters.getValue<int>("Amount of sequences");
+            stimuliSequence = parameters.getValue<int[]>("StimuliSequence");
+            amountSequences = parameters.getValue<int>("AmountOfSequences");
             firstSequenceWait = parameters.getValueInSamples("FirstSequenceWait");
             sequenceWait = parameters.getValueInSamples("SequenceWait");
-            startText = parameters.getValue<string>("Start text");
-            waitText = parameters.getValue<string>("Wait text");
-            endText = parameters.getValue<string>("End text");
+            startText = parameters.getValue<string>("StartText");
+            waitText = parameters.getValue<string>("WaitText");
+            endText = parameters.getValue<string>("EndText");
 
 
             // PARAMETER CHECK
@@ -213,6 +215,18 @@ namespace LocalizerTask {
             // check if stimulus sequence is defined
             if(stimuliSequence.Length <= 0) {
                 logger.Error("No stimulus sequence given.");
+                return false;
+            }
+
+            // determine maximal stimulus defined in stimulus sequence
+            int stimMax = 0;
+            for(int i=0; i<stimuliSequence.Length; i++) {
+                if (stimuliSequence[i] > stimMax) stimMax = stimuliSequence[i];
+            }
+
+            // check if there are stimuli defined that are not included in stimuli definition
+            if(stimMax > stimuli[0].Length) {
+                logger.Error("In stimulus sequence, stimulus " + stimMax + " is defined. This stimulus can not be found in stimuli definition, as there are only " + stimuli[0].Length + " stimuli defined.");
                 return false;
             }
 
@@ -272,6 +286,7 @@ namespace LocalizerTask {
 
             // create scene thread
             sceneThread = new LocalizerView(windowRedrawFreqMax, windowLeft, windowTop, windowWidth, windowHeight, false);
+            sceneThread.setBackgroundColor(windowBackgroundColor.getRed(), windowBackgroundColor.getGreen(), windowBackgroundColor.getBlue());
 
             // start the scene thread
             sceneThread.start();
@@ -502,6 +517,9 @@ namespace LocalizerTask {
                     currentSequence = 1;
                     stimulusRemainingTime = -1;
 
+                    // stop sources, filters etc through Mainthread
+                    MainThread.stop();
+
                     break;
 
                 default:
@@ -619,15 +637,22 @@ namespace LocalizerTask {
                 return;
             }
 
-            // transfer parameters from parent parameters
-            parameters = parentParameters;
+            // set window settings
+            windowRedrawFreqMax = parentParameters.getValue<int>("WindowRedrawFreqMax");      // the view update frequency (in maximum fps)
+            windowWidth = parentParameters.getValue<int>("WindowWidth"); ;
+            windowHeight = parentParameters.getValue<int>("WindowHeight"); ;
+            windowLeft = parentParameters.getValue<int>("WindowLeft"); ;
+            windowTop = parentParameters.getValue<int>("WindowTop"); ;
 
-            // configure (ie transfer parameters to local variables and check the values) using dummy sample format, as this task does not receive user input
-            SampleFormat dummyFormat = null;
-            this.configure(ref dummyFormat);
-
-            // UNPMenu task, allow exit
-            //mAllowExit = true;
+            // set task specific variables
+            stimuli = new string[][] { new string[] {"Rust","Concentreer"}, new string[] { "","" }, new string[] { "", "" }, new string[] { "10", "5" } };
+            stimuliSequence = new int[] { 1, 2, 1};
+            amountSequences = 2;
+            firstSequenceWait = 10 * (int)MainThread.SamplesPerSecond();
+            sequenceWait = 5 * (int)MainThread.SamplesPerSecond();
+            startText = "Task will begin shortly";
+            waitText = "Wait";
+            endText = "End task";
 
             // initialize
             initialize();

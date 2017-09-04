@@ -29,7 +29,7 @@ namespace LocalizerTask {
         protected override void load() {
 
             // initialize the showText font
-            showTextFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 20), "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ. ");
+            showTextFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 20), @"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,?!:\=+*#@-/()<>");
             
             // lock for textures events (thread safety)
             lock (textureLock) {
