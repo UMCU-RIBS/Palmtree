@@ -600,30 +600,39 @@ namespace MoleTask {
 
 			            break;
 
+                    // highlighting a row
 		            case TaskStates.RowSelect:
-			            // selecting a row
-
-			            // if (click && mRowID != 0) {	// Click is not at the blank row
 
 			            if (click) {
                             // click
 
+
+
                             setState(TaskStates.RowSelected);
+
+
 
 			            } else {
 				            // no click
 
 				            if(mWaitCounter == 0) {
 
-					            // Advance to next row and wrap around
-					            mRowID++;
+                                
+
+                                // Advance to next row and wrap around
+                                mRowID++;
 					            if(mRowID >= holeRows)		mRowID = 0;
 
 					            // select the row in the scene
 					            mSceneThread.selectRow(mRowID, false);
 
-					            // reset the timer
-					            mWaitCounter = mRowSelectDelay;
+                                // log event that row is highlighted, and whether the row is empty (no mole), blank (no mole and no pile of dirt), or contains a mole
+                                if (mRowID == 0) Data.logEvent(2, "BlankRow ", mRowID.ToString());
+                                else if (mRowID * holeColumns < mMoleIndex && (mRowID + 1) * holeColumns > mMoleIndex) Data.logEvent(2, "MoleRow ", mRowID.ToString());
+                                else Data.logEvent(2, "EmptyRow ", mRowID.ToString());
+
+                                // reset the timer
+                                mWaitCounter = mRowSelectDelay;
 
 				            } else
 					            mWaitCounter--;
@@ -647,34 +656,39 @@ namespace MoleTask {
 				            mWaitCounter--;
 
 			            break;
-		
-		            case TaskStates.ColumnSelect:
-			            // selecting a column
 
-			            // if (click && mColumnID != 0) {		// Click is not at the blank column
-
-			            if (click) {
-				            // click
-			
-				            setState(TaskStates.ColumnSelected);
-
+                    // highlighting a column
+                    case TaskStates.ColumnSelect:
+                        
+                        // if clicked
+                        if (click) {
+                            setState(TaskStates.ColumnSelected);
 
 			            } else {
-				            // no click
+                            
+                            // if time to highlight column has passed
+                            if (mWaitCounter == 0) {
 
-				            if(mWaitCounter == 0) {
+                                // Advance to next row and wrap around
+                                mColumnID++;
 
-					            // Advance to next row and wrap around
-					            mColumnID++;
+                                // if the end of row has been reached
 					            if(mColumnID >= holeColumns) {
+                                    
+                                    // reset column id
 						            mColumnID = 0;
 
 						            // increase how often we have looped through row
 						            mRowLoopCounter++;
 					            }
 
-					            // check if there has been looped more than two times in the row with exit button
-					            if (mRowLoopCounter > 1 && mRowID == 0) {
+                                // log event that column is highlighted, and whether the column is empty (no mole), blank (no mole and no pile of dirt), or contains a mole
+                                if (mColumnID == 0 || mRowID == 0) Data.logEvent(2, "BlankColumn ", mColumnID.ToString());
+                                else if (mMoleIndex == holeColumns * mRowID + mColumnID) Data.logEvent(2, "MoleColumn ", mColumnID.ToString());
+                                else Data.logEvent(2, "EmptyColumn ", mColumnID.ToString());
+
+                                // check if there has been looped more than two times in the row with exit button
+                                if (mRowLoopCounter > 1 && mRowID == 0) {
 						
 						            // start from the top
 						            setState(TaskStates.RowSelect);
@@ -724,7 +738,7 @@ namespace MoleTask {
                                     // hit
 
                                     // log event Mole was hit
-                                    Data.logEvent(2, "MoleHit", (holeColumns * mRowID + mColumnID).ToString());
+                                    Data.logEvent(2, "CellClick", "1");
 
                                     // add one to the score and display
                                     score++;
@@ -752,7 +766,7 @@ namespace MoleTask {
                                 } else {
                                     // no hit
                                     // log event Mole was missed
-                                    Data.logEvent(2, "MoleMiss", (holeColumns * mRowID + mColumnID).ToString());
+                                    Data.logEvent(2, "CellClick", "0");
 
                                     // Start again selecting rows from the top
                                     setState(TaskStates.RowSelect);
@@ -942,7 +956,6 @@ namespace MoleTask {
                     break;
 
                 case TaskStates.RowSelect:
-			        // selecting a row
 
 			        // reset the row and columns positions
 			        mRowID = 0;
@@ -950,24 +963,29 @@ namespace MoleTask {
 
 			        // select row
 			        mSceneThread.selectRow(mRowID, false);
-			
+
+                    // log event that row is highlighted, and whether the row is empty (no mole), blank (no mole and no pile of dirt), or contains a mole
+                    if (mRowID == 0) Data.logEvent(2, "BlankRow ", mRowID.ToString());
+                    else if (mRowID * holeColumns < mMoleIndex && (mRowID + 1) * holeColumns > mMoleIndex) Data.logEvent(2, "MoleRow ", mRowID.ToString());
+                    else Data.logEvent(2, "EmptyRow ", mRowID.ToString());
+
                     // 
-			        mWaitCounter = mRowSelectDelay;
+                    mWaitCounter = mRowSelectDelay;
 
 			        break;
 
-
+                // row was selected 
                 case TaskStates.RowSelected:
-                    // row was selected (highlighted)
-
-                    // log event countdown is started
-                    Data.logEvent(2, "RowSelected ", mRowID.ToString());
 
                     // select row and highlight
                     mSceneThread.selectRow(mRowID, true);
 
+                    // row has been clicked. Check whether it was on a row that contains a mole or not
+                    if (mRowID * holeColumns < mMoleIndex && (mRowID + 1) * holeColumns > mMoleIndex) Data.logEvent(2, "rowClick ", "1");
+                    else Data.logEvent(2, "rowClick ", "0");
+
                     // 
-			        mWaitCounter = mRowSelectedDelay;
+                    mWaitCounter = mRowSelectedDelay;
 
 			        break;
 
@@ -980,8 +998,13 @@ namespace MoleTask {
 			        // select cell
 			        mSceneThread.selectCell(mRowID, mColumnID, false);
 
-			        // reset how often there was looped in this row
-			        mRowLoopCounter = 0;
+                    // log event that column is highlighted, and whether the column is empty(no mole), blank(no mole and no pile of dirt), or contains a mole
+                    if (mColumnID == 0 || mRowID == 0) Data.logEvent(2, "BlankColumn ", mColumnID.ToString());
+                    else if (mMoleIndex == holeColumns * mRowID + mColumnID) Data.logEvent(2, "MoleColumn ", mColumnID.ToString());
+                    else Data.logEvent(2, "EmptyColumn ", mColumnID.ToString());
+
+                    // reset how often there was looped in this row
+                    mRowLoopCounter = 0;
 
                     // 
 			        mWaitCounter = mColumnSelectDelay;

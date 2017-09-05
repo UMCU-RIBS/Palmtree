@@ -88,6 +88,7 @@ namespace FollowTask {
         private int mWaitCounter = 0;
         private int mCountdownCounter = 0;											// the countdown timer
         private int mHitScore = 0;												    // the score of the cursor hitting a block (in number of samples)
+        private double wasInput = -1;                                                  // keep track of previous input
 
         private TaskStates taskState = TaskStates.Wait;
         private TaskStates previousTaskState = TaskStates.Wait;
@@ -754,14 +755,18 @@ namespace FollowTask {
 
 						                } else {
 
-							                // check if a click was made
-							                if (input == 1) {
+                                            // log if current state of ball has changed
+                                            if (wasInput != input) Data.logEvent(2, "BallState", input.ToString());
+                                            wasInput = input;
+
+                                            // check if a click was made
+                                            if (input == 1) {
 
                                                 // set the color
                                                 mSceneThread.setCursorColorSetting(1);
 
-								                // set the timer
-								                if (mCursorColorHitTime == 0)	mCursorColorTimer = 1;
+                                                // set the timer
+                                                if (mCursorColorHitTime == 0)	mCursorColorTimer = 1;
 								                else							mCursorColorTimer = mCursorColorHitTime;
 
 							                }
@@ -771,10 +776,14 @@ namespace FollowTask {
                                     }
 
 					            } else {
-						            // 1. Hitcolor on input
+                                    // 1. Hitcolor on input
 
-						            // check if a click was made
-						            if (input == 1) {
+                                    // log if current state of ball has changed
+                                    if (wasInput != input) Data.logEvent(2, "BallState", input.ToString());
+                                    wasInput = input;
+
+                                    // check if a click was made
+                                    if (input == 1) {
 						
 							            // set the color
 							            mSceneThread.setCursorColorSetting(1);
@@ -793,14 +802,14 @@ namespace FollowTask {
                             mIsCursorInCurrentBlock = mSceneThread.getCursorInCurrentBlock();
 
                             // log event if the current block has changed and update the previous block placeholder
-                            if (mCurrentBlock != mPreviousBlock)     Data.logEvent(2, "CurrentBlockChange", mCurrentBlock.ToString());
+                            if (mCurrentBlock != mPreviousBlock)     Data.logEvent(2, "Changeblock", mCurrentBlock.ToString());
                             mPreviousBlock = mCurrentBlock;
 
                             // log event if cursor entered or left the current block
-                            if (mIsCursorInCurrentBlock != mWasCursorInCurrentBlock) {
-                                if (mIsCursorInCurrentBlock) { Data.logEvent(2, "CursorEnter", mCurrentBlock.ToString()); }
-                                else { Data.logEvent(2, "CursorExit", mCurrentBlock.ToString()); }
-                            }
+                            //if (mIsCursorInCurrentBlock != mWasCursorInCurrentBlock) {
+                            //    if (mIsCursorInCurrentBlock) { Data.logEvent(2, "CursorEnter", mCurrentBlock.ToString()); }
+                            //    else { Data.logEvent(2, "CursorExit", mCurrentBlock.ToString()); }
+                            //}
 
                             // update whether cursor was in current block 
                             mWasCursorInCurrentBlock = mIsCursorInCurrentBlock;
