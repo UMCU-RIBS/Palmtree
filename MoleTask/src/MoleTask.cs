@@ -10,6 +10,7 @@ using UNP.Core;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
 using UNP.Core.DataIO;
+using System.Collections.Specialized;
 
 namespace MoleTask {
 
@@ -226,8 +227,9 @@ namespace MoleTask {
             return CLASS_VERSION;
         }
 
+        // called only when running as stand-alone app, performs configure steps that are only needed when run as stand-alone
         public bool configure(ref SampleFormat input) {
-
+            
             // store the number of input channels
             inputChannels = input.getNumberOfChannels();
 
@@ -237,83 +239,18 @@ namespace MoleTask {
                 return false;
             }
 
-            // 
-            // TODO: parameters.checkminimum, checkmaximum
-
-            
-            // retrieve window settings
-            mWindowLeft = parameters.getValue<int>("WindowLeft");
-            mWindowTop = parameters.getValue<int>("WindowTop");
-            mWindowWidth = parameters.getValue<int>("WindowWidth");
-            mWindowHeight = parameters.getValue<int>("WindowHeight");
-            mWindowRedrawFreqMax = parameters.getValue<int>("WindowRedrawFreqMax");
-            mWindowBackgroundColor = parameters.getValue<RGBColorFloat>("WindowBackgroundColor");
-            //mWindowed = true;           // fullscreen not implemented, so always windowed
-            //mFullscreenMonitor = 0;     // fullscreen not implemented, default to 0 (does nothing)
-            if (mWindowRedrawFreqMax < 0) {
-                logger.Error("The maximum window redraw frequency can be no smaller then 0");
-                return false;
-            }
-            if (mWindowWidth < 1) {
-                logger.Error("The window width can be no smaller then 1");
-                return false;
-            }
-            if (mWindowHeight < 1) {
-                logger.Error("The window height can be no smaller then 1");
-                return false;
-            }
-
             // retrieve the input channel setting
             mTaskInputChannel = parameters.getValue<int>("TaskInputChannel");
-	        if (mTaskInputChannel < 1) {
-		        logger.Error("Invalid input channel, should be higher than 0 (1...n)");
+            if (mTaskInputChannel < 1) {
+                logger.Error("Invalid input channel, should be higher than 0 (1...n)");
                 return false;
-	        }
-	        if (mTaskInputChannel > inputChannels) {
+            }
+            if (mTaskInputChannel > inputChannels) {
                 logger.Error("Input should come from channel " + mTaskInputChannel + ", however only " + inputChannels + " channels are coming in");
                 return false;
-	        }
-
-            // retrieve the task delays 
-            mTaskFirstRunStartDelay = parameters.getValueInSamples("TaskFirstRunStartDelay");
-            mTaskStartDelay = parameters.getValueInSamples("TaskStartDelay");
-            if (mTaskFirstRunStartDelay < 0 || mTaskStartDelay < 0) {
-                logger.Error("Start delays cannot be less than 0");
-                return false;
             }
 
-            // retrieve the countdown time
-            mCountdownTime = parameters.getValueInSamples("CountdownTime");
-            if (mCountdownTime < 0) {
-                logger.Error("Countdown time cannot be less than 0");
-                return false;
-            }
-
-            // retrieve the number of rows and columns in the grid
-            configHoleRows = parameters.getValue<int>("HoleRows");
-            configHoleColumns = parameters.getValue<int>("HoleColumns");
-            if (configHoleColumns > 30 || configHoleColumns <= 0 || configHoleRows > 30 || configHoleRows <= 0) {
-                logger.Error("The number of columns or rows cannot exceed 30 or be below 1");
-                return false;
-            }
-
-            // retrieve selection delays
-            mRowSelectDelay = parameters.getValueInSamples("RowSelectDelay");
-            mRowSelectedDelay = parameters.getValueInSamples("RowSelectedDelay");
-            mColumnSelectDelay = parameters.getValueInSamples("ColumnSelectDelay");
-            mColumnSelectedDelay = parameters.getValueInSamples("ColumnSelectedDelay");
-            if (mRowSelectDelay < 1 || mRowSelectedDelay < 1 || mColumnSelectDelay < 1 || mColumnSelectedDelay < 1) {
-                logger.Error("The 'RowSelectDelay', 'RowSelectedDelay', 'ColumnSelectDelay', 'ColumnSelectedDelay' parameters should not be less than 1");
-                return false;
-            }
-
-            // retrieve the number of targets
-            numTargets = parameters.getValue<int>("NumberTargets");
-            if (numTargets < 1) {
-                logger.Error("Minimum of 1 target is required");
-                return false;
-            }
-
+            // TODO: when UNP_start() can also handle reading variables from other types than int from app.config, put this check for targetsequence in other configure() method
             // retrieve (fixed) target sequence
             fixedTargetSequence = parameters.getValue<int[]>("TargetSequence");
             if (fixedTargetSequence.Length > 0) {
@@ -331,12 +268,84 @@ namespace MoleTask {
                 }
             }
 
+
             // configured as stand-alone, disallow exit
             mAllowExit = false;
 
+            // perform rest of configure
+            return configure(parameters);
+        }
+
+        // general configure, run both when app is run as stand-alone, as well as when run as UNP app
+        public bool configure(Parameters newParameters) {
+
+            // TODO: parameters.checkminimum, checkmaximum
+
+            // retrieve window settings
+            mWindowLeft = newParameters.getValue<int>("WindowLeft");
+            mWindowTop = newParameters.getValue<int>("WindowTop");
+            mWindowWidth = newParameters.getValue<int>("WindowWidth");
+            mWindowHeight = newParameters.getValue<int>("WindowHeight");
+            mWindowRedrawFreqMax = newParameters.getValue<int>("WindowRedrawFreqMax");
+            mWindowBackgroundColor = newParameters.getValue<RGBColorFloat>("WindowBackgroundColor");
+            //mWindowed = true;           // fullscreen not implemented, so always windowed
+            //mFullscreenMonitor = 0;     // fullscreen not implemented, default to 0 (does nothing)
+
+            if (mWindowRedrawFreqMax < 0) {
+                logger.Error("The maximum window redraw frequency can be no smaller then 0");
+                return false;
+            }
+            if (mWindowWidth < 1) {
+                logger.Error("The window width can be no smaller then 1");
+                return false;
+            }
+            if (mWindowHeight < 1) {
+                logger.Error("The window height can be no smaller then 1");
+                return false;
+            }
+            
+            // retrieve the task delays 
+            mTaskFirstRunStartDelay = newParameters.getValueInSamples("TaskFirstRunStartDelay");
+            mTaskStartDelay = newParameters.getValueInSamples("TaskStartDelay");
+            if (mTaskFirstRunStartDelay < 0 || mTaskStartDelay < 0) {
+                logger.Error("Start delays cannot be less than 0");
+                return false;
+            }
+
+            // retrieve the countdown time
+            mCountdownTime = newParameters.getValueInSamples("CountdownTime");
+            if (mCountdownTime < 0) {
+                logger.Error("Countdown time cannot be less than 0");
+                return false;
+            }
+
+            // retrieve the number of rows and columns in the grid
+            configHoleRows = newParameters.getValue<int>("HoleRows");
+            configHoleColumns = newParameters.getValue<int>("HoleColumns");
+            if (configHoleColumns > 30 || configHoleColumns <= 0 || configHoleRows > 30 || configHoleRows <= 0) {
+                logger.Error("The number of columns or rows cannot exceed 30 or be below 1");
+                return false;
+            }
+
+            // retrieve selection delays
+            mRowSelectDelay = newParameters.getValueInSamples("RowSelectDelay");
+            mRowSelectedDelay = newParameters.getValueInSamples("RowSelectedDelay");
+            mColumnSelectDelay = newParameters.getValueInSamples("ColumnSelectDelay");
+            mColumnSelectedDelay = newParameters.getValueInSamples("ColumnSelectedDelay");
+            if (mRowSelectDelay < 1 || mRowSelectedDelay < 1 || mColumnSelectDelay < 1 || mColumnSelectedDelay < 1) {
+                logger.Error("The 'RowSelectDelay', 'RowSelectedDelay', 'ColumnSelectDelay', 'ColumnSelectedDelay' parameters should not be less than 1");
+                return false;
+            }
+
+            // retrieve the number of targets
+            numTargets = newParameters.getValue<int>("NumberTargets");
+            if (numTargets < 1) {
+                logger.Error("Minimum of 1 target is required");
+                return false;
+            }
+
             // return success
             return true;
-
         }
 
         public void initialize() {
@@ -1120,33 +1129,34 @@ namespace MoleTask {
         ////////////////////////////////////////////////
 
         public void UNP_start(Parameters parentParameters) {
-            
+
             // UNP entry point can only be used if initialized as UNPMenu
             if (!mUNPMenuTask) {
                 logger.Error("Using UNP entry point while the task was not initialized as UNPMenu task, check parameters used to call the task constructor");
                 return;
             }
 
-            // transfer the window settings
-            mWindowRedrawFreqMax = parentParameters.getValue<int>("WindowRedrawFreqMax");      // the view update frequency (in maximum fps)
-            //mWindowed = true;
-            mWindowWidth = parentParameters.getValue<int>("WindowWidth");;
-            mWindowHeight = parentParameters.getValue<int>("WindowHeight");;
-            mWindowLeft = parentParameters.getValue<int>("WindowLeft");;
-            mWindowTop = parentParameters.getValue<int>("WindowTop");;
-            //mFullscreenMonitor = 0;
+            // list of parameters that need to be transferred from UNP parameter set
+            List<string> parametersToClone = new List<string> { "WindowRedrawFreqMax", "WindowWidth", "WindowHeight", "WindowLeft", "WindowTop", "WindowBackgroundColor"};
 
-            // set the UNP task standard settings
-            mTaskInputChannel = 1;
-            mTaskFirstRunStartDelay = 4;
-            mTaskStartDelay = 4;
-            mRowSelectDelay = 12;
-            mRowSelectedDelay = 5;
-            mColumnSelectDelay = 12;
-            mColumnSelectedDelay = 5;
-            configHoleRows = 4;
-            configHoleColumns = 4;
-            numTargets = 10;
+            // transfer parentParameters to new parameters
+            Parameters newParameters = parentParameters.clone(parametersToClone);
+
+            // get parameter values from app.config
+            var appSettings = System.Configuration.ConfigurationManager.GetSection(CLASS_NAME) as NameValueCollection;
+
+            // cycle through app.config paramter values and add to parameter set if not already present
+            // TODO, currently only parameters which value is an integer can be read from app.config 
+            for (int i = 0; i < appSettings.Count; i++) {
+                iParam result = newParameters.addParameter<int>(
+                    appSettings.GetKey(i),
+                    "",
+                    "", "", appSettings.Get(i));
+                if(result != null)   logger.Info("Added parameter " + appSettings.GetKey(i) + " with value " + appSettings.Get(i) + " from app.config.");
+            }
+
+            // configure task with new parameters
+            configure(newParameters);
 
             // UNPMenu task, allow exit
             mAllowExit = true;

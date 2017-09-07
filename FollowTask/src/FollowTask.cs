@@ -8,6 +8,7 @@ using UNP.Core;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
 using UNP.Core.DataIO;
+using System.Collections.Specialized;
 
 namespace FollowTask {
 
@@ -185,8 +186,6 @@ namespace FollowTask {
                     "Show the score",
                     "0", "1", "1");
 
-                
-
                 parameters.addParameter<double>(
                     "CursorSize",
                     "Cursor size radius in percentage of the screen height",
@@ -281,7 +280,10 @@ namespace FollowTask {
             return CLASS_VERSION;
         }
 
+        // called only when running as stand-alone app, performs configure steps that are only needed when run as stand-alone
         public bool configure(ref SampleFormat input) {
+
+            // TODO: parameters.checkminimum, checkmaximum
 
             // store the number of input channels
             inputChannels = input.getNumberOfChannels();
@@ -292,67 +294,24 @@ namespace FollowTask {
                 return false;
             }
 
-            // 
-            // TODO: parameters.checkminimum, checkmaximum
-
-            
-            // retrieve window settings
-            mWindowLeft = parameters.getValue<int>("WindowLeft");
-            mWindowTop = parameters.getValue<int>("WindowTop");
-            mWindowWidth = parameters.getValue<int>("WindowWidth");
-            mWindowHeight = parameters.getValue<int>("WindowHeight");
-            mWindowRedrawFreqMax = parameters.getValue<int>("WindowRedrawFreqMax");
-            mWindowBackgroundColor = parameters.getValue<RGBColorFloat>("WindowBackgroundColor");
-            //mWindowed = true;           // fullscreen not implemented, so always windowed
-            //mFullscreenMonitor = 0;     // fullscreen not implemented, default to 0 (does nothing)
-            if (mWindowRedrawFreqMax < 0) {
-                logger.Error("The maximum window redraw frequency can be no smaller then 0");
-                return false;
-            }
-            if (mWindowWidth < 1) {
-                logger.Error("The window width can be no smaller then 1");
-                return false;
-            }
-            if (mWindowHeight < 1) {
-                logger.Error("The window height can be no smaller then 1");
-                return false;
-            }
-
             // retrieve the input channel setting
             mTaskInputChannel = parameters.getValue<int>("TaskInputChannel");
-	        if (mTaskInputChannel < 1) {
-		        logger.Error("Invalid input channel, should be higher than 0 (1...n)");
+            if (mTaskInputChannel < 1) {
+                logger.Error("Invalid input channel, should be higher than 0 (1...n)");
                 return false;
-	        }
-	        if (mTaskInputChannel > inputChannels) {
+            }
+            if (mTaskInputChannel > inputChannels) {
                 logger.Error("Input should come from channel " + mTaskInputChannel + ", however only " + inputChannels + " channels are coming in");
                 return false;
-	        }
-
-            // retrieve the task delays
-            mTaskFirstRunStartDelay = parameters.getValueInSamples("TaskFirstRunStartDelay");
-            mTaskStartDelay = parameters.getValueInSamples("TaskStartDelay");
-            if (mTaskFirstRunStartDelay < 0 || mTaskStartDelay < 0) {
-                logger.Error("Start delays cannot be less than 0");
-                return false;
             }
 
-            // retrieve the countdown time
-            mCountdownTime = parameters.getValueInSamples("CountdownTime");
-            if (mCountdownTime < 0) {
-                logger.Error("Countdown time cannot be less than 0");
-                return false;
-            }
+            // TODO: when UNP_start() can also handle reading variables from other types than int from app.config, put the check for the following variables in other configure() method
 
             // retrieve the score parameter
             mShowScore = parameters.getValue<bool>("TaskShowScore");
 
-            // retrieve the input signal type
-            mTaskInputSignalType = parameters.getValue<int>("TaskInputSignalType");
-            
             // retrieve cursor parameters
             mCursorSize = parameters.getValue<double>("CursorSize");
-            mCursorColorRule = parameters.getValue<int>("CursorColorRule");
             mCursorColorMiss = parameters.getValue<RGBColorFloat>("CursorColorMiss");
             mCursorColorHit = parameters.getValue<RGBColorFloat>("CursorColorHit");
             mCursorColorHitTime = parameters.getValueInSamples("CursorColorHitTime");
@@ -388,20 +347,6 @@ namespace FollowTask {
                 for (int row = 0; row < parTargetTextures[0].Length; ++row) mTargetTextures[row] = parTargetTextures[0][row];
             }
 
-            mTargetYMode = parameters.getValue<int>("TargetYMode");
-            mTargetWidthMode = parameters.getValue<int>("TargetWidthMode");
-            mTargetHeightMode = parameters.getValue<int>("TargetHeightMode");
-
-            mTargetSpeed = parameters.getValue<int>("TargetSpeed");
-            if (mTargetSpeed < 1) {
-                logger.Error("The TargetSpeed parameter be at least 1");
-                return false;
-            }
-
-
-
-
-
             // retrieve the number of targets and (fixed) target sequence
             numTargets = parameters.getValue<int>("NumberTargets");
             fixedTargetSequence = parameters.getValue<int[]>("TargetSequence");
@@ -432,14 +377,68 @@ namespace FollowTask {
 
             }
 
-            /*
-                // other parameters
-                State("Running");
-                State("ConnectionLost");
-                State("KeySequenceActive");
-            */
+            // perform rest of configure
+            return configure(parameters);
+
+        }
+
+        // general configure, run both when app is run as stand-alone, as well as when run as UNP app
+        public bool configure(Parameters newParameters) {
+
+            // retrieve window settings
+            mWindowLeft = newParameters.getValue<int>("WindowLeft");
+            mWindowTop = newParameters.getValue<int>("WindowTop");
+            mWindowWidth = newParameters.getValue<int>("WindowWidth");
+            mWindowHeight = newParameters.getValue<int>("WindowHeight");
+            mWindowRedrawFreqMax = newParameters.getValue<int>("WindowRedrawFreqMax");
+            mWindowBackgroundColor = newParameters.getValue<RGBColorFloat>("WindowBackgroundColor");
+            //mWindowed = true;           // fullscreen not implemented, so always windowed
+            //mFullscreenMonitor = 0;     // fullscreen not implemented, default to 0 (does nothing)
+            if (mWindowRedrawFreqMax < 0) {
+                logger.Error("The maximum window redraw frequency can be no smaller then 0");
+                return false;
+            }
+            if (mWindowWidth < 1) {
+                logger.Error("The window width can be no smaller then 1");
+                return false;
+            }
+            if (mWindowHeight < 1) {
+                logger.Error("The window height can be no smaller then 1");
+                return false;
+            }
+
+            // retrieve the task delays
+            mTaskFirstRunStartDelay = newParameters.getValueInSamples("TaskFirstRunStartDelay");
+            mTaskStartDelay = newParameters.getValueInSamples("TaskStartDelay");
+            if (mTaskFirstRunStartDelay < 0 || mTaskStartDelay < 0) {
+                logger.Error("Start delays cannot be less than 0");
+                return false;
+            }
+
+            // retrieve the countdown time
+            mCountdownTime = newParameters.getValueInSamples("CountdownTime");
+            if (mCountdownTime < 0) {
+                logger.Error("Countdown time cannot be less than 0");
+                return false;
+            }
+
+
+            // retrieve the input signal type
+            mTaskInputSignalType = newParameters.getValue<int>("TaskInputSignalType");
+            mTargetYMode = newParameters.getValue<int>("TargetYMode");
+            mTargetWidthMode = newParameters.getValue<int>("TargetWidthMode");
+            mTargetHeightMode = newParameters.getValue<int>("TargetHeightMode");
+
+            mCursorColorRule = newParameters.getValue<int>("CursorColorRule");
+
+            mTargetSpeed = newParameters.getValue<int>("TargetSpeed");
+            if (mTargetSpeed < 1) {
+                logger.Error("The TargetSpeed parameter be at least 1");
+                return false;
+            }
 
             return true;
+
         }
 
         public void initialize() {
@@ -1345,37 +1344,40 @@ namespace FollowTask {
                 return;
             }
 
-            // set the parameter set as not visible (for GUI configuration)
-            //parameters.ParamSetVisible = false;
+            // list of parameters that need to be transferred from UNP parameter set
+            List<string> parametersToClone = new List<string> { "WindowRedrawFreqMax", "WindowWidth", "WindowHeight", "WindowLeft", "WindowTop", "WindowBackgroundColor" };
 
-            // transfer the window settings
-            mWindowRedrawFreqMax = parentParameters.getValue<int>("WindowRedrawFreqMax");      // the view update frequency (in maximum fps)
-            //mWindowed = true;
-            mWindowWidth = parentParameters.getValue<int>("WindowWidth");;
-            mWindowHeight = parentParameters.getValue<int>("WindowHeight");;
-            mWindowLeft = parentParameters.getValue<int>("WindowLeft");;
-            mWindowTop = parentParameters.getValue<int>("WindowTop");;
-            //mFullscreenMonitor = 0;
+            // transfer parentParameters to new parameters
+            Parameters newParameters = parentParameters.clone(parametersToClone);
+
+            // get parameter values from app.config
+            var appSettings = System.Configuration.ConfigurationManager.GetSection(CLASS_NAME) as NameValueCollection;
+
+            // cycle through app.config paramter values and add to parameter set if not already present
+            // TODO, currently only parameters which value is an integer can be read from app.config 
+            for (int i = 0; i < appSettings.Count; i++) {
+                iParam result = newParameters.addParameter<int>(
+                    appSettings.GetKey(i),
+                    "",
+                    "", "", appSettings.Get(i));
+                if (result != null) logger.Info("Added parameter " + appSettings.GetKey(i) + " with value " + appSettings.Get(i) + " from app.config.");
+            }
+
 
             // set the UNP task standard settings
-            mShowScore = true;
-            mTaskInputSignalType = 1;
-            mTaskInputChannel = 1;
-            mTaskFirstRunStartDelay = 5;
-            mTaskStartDelay = 10;
+            // mTaskInputChannel = 1;
+
+
+            // TODO, currently only parameters which value is an integer can be read from app.config . Add functionality for other types, and then add following variables to app.config
+            numTargets = 70;
+            mCursorColorHitTime = 0;
+            mCursorColorEscapeTime = 0;
             mCursorSize = 4f;
-            mCursorColorRule = 0;
+
+            mShowScore = true;
             mCursorColorMiss = new RGBColorFloat(0.8f, 0f, 0f);
             mCursorColorHit = new RGBColorFloat(0.8f, 0.8f, 0f);
-            mCursorColorHitTime = 0;
             mCursorColorEscape = new RGBColorFloat(0.8f, 0f, 0.8f);
-            mCursorColorEscapeTime = 0;
-            numTargets = 70;
-            mTargetSpeed = 120;
-            mTargetYMode = 3;
-            mTargetWidthMode = 1;
-            mTargetHeightMode = 1;
-
 
             mTargets[0].Clear(); mTargets[0] = new List<float>(new float[6]);
             mTargets[1].Clear(); mTargets[1] = new List<float>(new float[6]);
@@ -1387,7 +1389,6 @@ namespace FollowTask {
             mTargets[0][4] = 75; mTargets[1][4] = 50; mTargets[2][4] = 5;
             mTargets[0][5] = 75; mTargets[1][5] = 50; mTargets[2][5] = 7;
 
-
             mTargetTextures = new List<string>(new string[6]);
             mTargetTextures[0] = "images\\sky.bmp";
             mTargetTextures[1] = "images\\sky.bmp";
@@ -1396,8 +1397,12 @@ namespace FollowTask {
             mTargetTextures[4] = "images\\grass.bmp";
             mTargetTextures[5] = "images\\grass.bmp";
 
-	        // initialize
-	        initialize();
+
+            // configure task with new parameters
+            configure(newParameters);
+
+            // initialize
+            initialize();
 
 	        // start the task
 	        start();

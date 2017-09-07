@@ -656,7 +656,39 @@ namespace UNP.Core.Params {
             }
 
         }
-        
+
+        public Parameters clone(List<string> paramListToClone) {
+
+            // if empty list is provided, clone all parameters
+            if (paramListToClone.Count() == 0) {
+                logger.Warn("Provided empty list of parameters for cloning. All parameters will be cloned.");
+                return clone();
+            } else {
+
+                lock (lockParameters) {
+
+                    // create new parameter object
+                    Parameters clone = new Parameters(this.paramSetName, this.paramSetType);
+
+                    // get a reference to the clone's parameter list
+                    List<iParam> cloneParamList = clone.getParameters();
+
+                    // add desired parameters
+                    for (int i = 0; i < paramListToClone.Count; i++) {
+                        iParam result = getParameter(paramListToClone[i]);
+                        if (result == null) logger.Error("Could not clone parameter " + paramListToClone[i] + " as it is not present in parameterset " + this.paramSetName);
+                        else cloneParamList.Add(result);
+                    }
+
+                    // return the clone
+                    return clone;
+
+                }
+
+            }
+
+        }
+
         public Parameters clone() {
 
             lock (lockParameters) {
