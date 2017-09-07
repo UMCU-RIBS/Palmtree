@@ -18,7 +18,7 @@ namespace EmptyTask {
         private static Logger logger = LogManager.GetLogger(CLASS_NAME);                        // the logger object for the view
         private static Parameters parameters = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Application);
 
-        private EmptyView mSceneThread = null;
+        private EmptyView view = null;
         private Object lockView = new Object();                         // threadsafety lock for all event on the view
 
         public EmptyTask() {
@@ -53,16 +53,16 @@ namespace EmptyTask {
             // lock for thread safety
             lock (lockView) {
 
-                // check the scene (thread) already exists, stop and clear the old one.
-                destroyScene();
+                // check the view (thread) already exists, stop and clear the old one.
+                destroyView();
 
                 //
-                mSceneThread = new EmptyView(50, 0, 0, 800, 600, false);
+                view = new EmptyView(50, 0, 0, 800, 600, false);
 
 
                 // start the scene thread
-                //if (mSceneThread != null) mSceneThread.start();
-                mSceneThread.start();
+                //if (view != null) view.start();
+                view.start();
 
             }
 
@@ -95,23 +95,23 @@ namespace EmptyTask {
 
             // lock for thread safety
             lock (lockView) {
-                destroyScene();
+                destroyView();
             }
 
             // destroy/empty more task variables
 
         }
 
-        private void destroyScene() {
+        private void destroyView() {
             
             // check if a scene thread still exists
-            if (mSceneThread != null) {
+            if (view != null) {
 
                 // stop the animation thread (stop waits until the thread is finished)
-                mSceneThread.stop();
+                view.stop();
 
                 // release the thread (For collection)
-                mSceneThread = null;
+                view = null;
 
             }
 

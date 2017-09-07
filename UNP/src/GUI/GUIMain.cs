@@ -80,6 +80,13 @@ namespace UNP.GUI {
 
                     } catch (Exception) { }
                 }
+                
+                // stop the update timer
+                if (tmrUpdate != null) {
+                    tmrUpdate.Stop();
+                    tmrUpdate.Enabled = false;
+                    tmrUpdate = null;
+                }
 
                 // stop/close the More form
                 if (frmMore != null && !frmMore.IsDisposed) {
@@ -87,12 +94,6 @@ namespace UNP.GUI {
                         frmMore.Close();
                         frmMore.Dispose();
                     } catch (Exception) { }
-                }
-
-                // stop the update timer
-                if (tmrUpdate != null) {
-                    tmrUpdate.Enabled = false;
-                    tmrUpdate = null;
                 }
 
                 // remove references and tell the experiment that the GUI is closed
@@ -104,7 +105,7 @@ namespace UNP.GUI {
 
         void tmrUpdate_Tick(object sender, ElapsedEventArgs e) {
 
-            if (this.IsHandleCreated && !this.IsDisposed) {
+            if (!((System.Timers.Timer)sender).Enabled && this.IsHandleCreated && !this.IsDisposed) {
                 try { 
                     this.Invoke((MethodInvoker)delegate {
                         try {
@@ -275,7 +276,10 @@ namespace UNP.GUI {
             if (frmVisualization != null && frmVisualization.IsDisposed)    frmVisualization = null;
             if (frmVisualization == null) {
                 frmVisualization = new GUIVisualization();
-                frmVisualization.initGraphs();
+
+                // init graphs if the system is already configured and initialized
+                if (MainThread.isSystemConfigured() && MainThread.isSystemInitialized())   frmVisualization.initGraphs();
+
             }
             frmVisualization.Show();
             
@@ -285,7 +289,6 @@ namespace UNP.GUI {
 
             if (frmMore != null && frmMore.IsDisposed)  frmMore = null;
             if (frmMore == null)                        frmMore = new GUIMore();
-
             frmMore.Show();
 
         }

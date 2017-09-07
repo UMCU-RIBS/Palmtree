@@ -49,7 +49,7 @@ namespace UNP.Filters {
             parameters.addParameter <double>       (
                 "ActivePeriod",
                 "Time window of buffer used for determining clicks (in samples or seconds)",
-                "1s", "", "1s");
+                "1s", "", "0.4s");
 
             parameters.addParameter <double>    (
                 "ActiveRateClickThreshold",
@@ -254,6 +254,9 @@ namespace UNP.Filters {
 
                 // set the state initially to active (not refractory)
                 active_state = true;
+
+                // reset the refractory period
+                refractoryCounter = 0;
 
             }
 

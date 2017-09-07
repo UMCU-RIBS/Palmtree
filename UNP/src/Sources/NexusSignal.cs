@@ -737,12 +737,18 @@ namespace UNP.Sources {
 
                 // log timeout event
                 Data.logEvent(1, "SourcePacketTimeout", "");
-                
+
+                // set the connection lost flag to true
+                Globals.setValue<bool>("ConnectionLost", "1");
+
                 // reset the timeout timer (stops the timer and sets elapsed time to zero)
                 swNexusPacketTimeout.Reset();
 
             } else {
                 // packet finished
+
+                // set the connection lost flag to false
+                Globals.setValue<bool>("ConnectionLost", "0");
 
                 // flag to hold whether the packet is corrupt
                 bool packetIsCorrupt = false;

@@ -23,12 +23,13 @@ namespace FollowTask {
 
         private const int CLASS_VERSION = 0;
         private const string CLASS_NAME = "FollowTask";
+        private const string CONNECTION_LOST_SOUND = "sounds\\focuson.wav";
 
         private static Logger logger = LogManager.GetLogger(CLASS_NAME);                        // the logger object for the view
         private static Parameters parameters = null;
 
         private int inputChannels = 0;
-        private FollowView mSceneThread = null;
+        private FollowView view = null;
 
         Random rand = new Random(Guid.NewGuid().GetHashCode());
         private Object lockView = new Object();                         // threadsafety lock for all event on the view
@@ -38,10 +39,9 @@ namespace FollowTask {
         private bool mUNPMenuTaskRunning = false;						// flag to hold whether the task should is running (setting this to false is also used to notify the UNPMenu that the task is finished)
         private bool mUNPMenuTaskSuspended = false;						// flag to hold whether the task is suspended (view will be destroyed/re-initiated)
 
-        private int mConnectionSoundTimer = 0;							// counter to play a sound when the connection is lost
         private bool mConnectionLost = false;							// flag to hold whether the connection is lost
         private bool mConnectionWasLost = false;						// flag to hold whether the connection has been lost (should be reset after being re-connected)
-
+        private System.Timers.Timer mConnectionLostSoundTimer = null;   // timer to play the connection lost sound on
 
         // task input parameters
         private int mWindowLeft = 0;
@@ -114,157 +114,164 @@ namespace FollowTask {
                 parameters = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Application);
 
                 // define the parameters
-                parameters.addParameter<int>(
-                    "WindowLeft",
-                    "Screen coordinate of application window's left edge",
-                    "", "", "0");
-
-                parameters.addParameter<int>(
-                    "WindowTop",
-                    "Screen coordinate of application window's top edge",
-                    "", "", "0");
-
-                parameters.addParameter<int>(
-                    "WindowWidth",
-                    "Width of application window (fullscreen and 0 will take monitor resolution)",
-                    "", "", "800");
-
-                parameters.addParameter<int>(
-                    "WindowHeight",
-                    "Height of application window (fullscreen and 0 will take monitor resolution)",
-                    "", "", "600");
-
-                parameters.addParameter<int>(
-                    "WindowRedrawFreqMax",
-                    "Maximum display redraw interval in FPS (0 for as fast as possible)",
-                    "0", "", "50");
-
-                parameters.addParameter<RGBColorFloat>(
-                    "WindowBackgroundColor",
-                    "Window background color",
-                    "", "", "0");
-
-                /*
-                parameters.addParameter <int>       (
-                    "Windowed",
-                    "Window or Fullscreen - fullscreen is only applied with two monitors",
-                    "0", "1", "1", new string[] {"Fullscreen", "Window"});
-
-                parameters.addParameter <int>       (
-                    "FullscreenMonitor",
-                    "Full screen Monitor",
-                    "0", "1", "1", new string[] {"Monitor 1", "Monitor 2"});
-                */
-
-                parameters.addParameter<int>(
-                    "TaskFirstRunStartDelay",
-                    "Amount of time before the task starts (on the first run of the task)",
-                    "0", "", "5s");
-
-                parameters.addParameter<int>(
-                    "TaskStartDelay",
-                    "Amount of time before the task starts (after the first run of the task)",
-                    "0", "", "10s");
-
-                parameters.addParameter<int>(
-                    "CountdownTime",
-                    "Amount of time the countdown before the task takes",
-                    "0", "", "3s");
-
-                parameters.addParameter<int>(
-                    "TaskInputChannel",
-                    "Channel to base the cursor position on  (1...n)",
-                    "1", "", "1");
-
-                parameters.addParameter<int>(
-                    "TaskInputSignalType",
-                    "Task input signal type",
-                    "0", "2", "0", new string[] { "Normalizer (0 to 1)", "Normalizer (-1 to 1)", "Constant middle" });
-
-                parameters.addParameter<bool>(
-                    "TaskShowScore",
-                    "Show the score",
-                    "0", "1", "1");
-
-                parameters.addParameter<double>(
-                    "CursorSize",
-                    "Cursor size radius in percentage of the screen height",
-                    "0.0", "50.0", "4.0");
-
-                parameters.addParameter<int>(
-                    "CursorColorRule",
-                    "Cursor color rule",
-                    "0", "2", "0", new string[] { "Hitcolor on target hit (normal)", "Hitcolor on input", "Hitcolor on input - Escape color on escape" });
-
-                parameters.addParameter<RGBColorFloat>(
-                    "CursorColorMiss",
-                    "Cursor color when missing",
-                    "", "", "204;0;0");
-
-                parameters.addParameter<RGBColorFloat>(
-                    "CursorColorHit",
-                    "Cursor color when hitting",
-                    "", "", "204;204;0");
-
-                parameters.addParameter<double>(
-                    "CursorColorHitTime",
-                    "Time that the cursor remains in hit color",
-                    "0", "", "2s");
-
-                parameters.addParameter<RGBColorFloat>(
-                    "CursorColorEscape",
-                    "Cursor color when hitting",
-                    "", "", "170;0;170");
-
-                parameters.addParameter<double>(
-                    "CursorColorEscapeTime",
-                    "Time that the cursor remains in escape color",
-                    "0", "", "2s");
-
-                parameters.addParameter<double[][]>(
-                    "Targets",
-                    "Target positions and widths in percentage coordinates\n\nY_perc: The y position of the block on the screen (in percentages of the screen height), note that the value specifies where the middle of the block will be.\nHeight_perc: The height of the block on the screen (in percentages of the screen height)\nWidth_secs: The width of the target block in seconds",
-                    "", "", "25,25,25,75,75,75;50,50,50,50,50,50;2,2,2,3,5,7", new string[] {"Y_perc", "Height_perc", "Width_secs" });
-
-                parameters.addParameter<string[][]>(
-                    "TargetTextures",
-                    "Paths of target texture, relative to executable path",
-                    "", "", "", new string[] {"filepath" });
-
-                parameters.addParameter<int>(
-                    "TargetYMode",
-                    "Targets Y mode",
-                    "0", "3", "3", new string[] { "Target(matrix) order", "Randomize categories", "Randomize cat without replacement", "Sequential categories with rnd start"});
-
-                parameters.addParameter<int>(
-                    "TargetWidthMode",
-                    "Targets Width mode",
-                    "0", "3", "1", new string[] { "Target(matrix) order", "Randomize categories", "Randomize cat without replacement", "Sequential categories with rnd start"});
-                
-                parameters.addParameter<int>(
-                    "TargetHeightMode",
-                    "Targets Height mode",
-                    "0", "3", "1", new string[] { "Target(matrix) order", "Randomize categories", "Randomize cat without replacement", "Sequential categories with rnd start"});
-
-                parameters.addParameter<int>(
-                    "TargetSpeed",
-                    "The speed of the targets (in pixels per second)",
-                    "0", "", "120");
-
-                parameters.addParameter<int>(
-                    "NumberTargets",
-                    "Number of targets",
-                    "1", "", "70");
-
-                parameters.addParameter<int[]>(
-                    "TargetSequence",
-                    "Fixed sequence in which targets should be presented (leave empty for random)\nNote. indexing is 0 based (so a value of 0 will be the first row from the 'Targets' parameter",
-                    "0", "", "");
+                defineParameters(ref parameters);
 
             }
 
             // message
             logger.Info("Application created (version " + CLASS_VERSION + ")");
+
+        }
+
+        private void defineParameters(ref Parameters parameters) {
+
+            // define the parameters
+            parameters.addParameter<int>(
+                "WindowLeft",
+                "Screen coordinate of application window's left edge",
+                "", "", "0");
+
+            parameters.addParameter<int>(
+                "WindowTop",
+                "Screen coordinate of application window's top edge",
+                "", "", "0");
+
+            parameters.addParameter<int>(
+                "WindowWidth",
+                "Width of application window (fullscreen and 0 will take monitor resolution)",
+                "", "", "800");
+
+            parameters.addParameter<int>(
+                "WindowHeight",
+                "Height of application window (fullscreen and 0 will take monitor resolution)",
+                "", "", "600");
+
+            parameters.addParameter<int>(
+                "WindowRedrawFreqMax",
+                "Maximum display redraw interval in FPS (0 for as fast as possible)",
+                "0", "", "50");
+
+            parameters.addParameter<RGBColorFloat>(
+                "WindowBackgroundColor",
+                "Window background color",
+                "", "", "0");
+
+            /*
+            parameters.addParameter <int>       (
+                "Windowed",
+                "Window or Fullscreen - fullscreen is only applied with two monitors",
+                "0", "1", "1", new string[] {"Fullscreen", "Window"});
+
+            parameters.addParameter <int>       (
+                "FullscreenMonitor",
+                "Full screen Monitor",
+                "0", "1", "1", new string[] {"Monitor 1", "Monitor 2"});
+            */
+
+            parameters.addParameter<int>(
+                "TaskFirstRunStartDelay",
+                "Amount of time before the task starts (on the first run of the task)",
+                "0", "", "5s");
+
+            parameters.addParameter<int>(
+                "TaskStartDelay",
+                "Amount of time before the task starts (after the first run of the task)",
+                "0", "", "5s");
+
+            parameters.addParameter<int>(
+                "CountdownTime",
+                "Amount of time the countdown before the task takes",
+                "0", "", "3s");
+
+            parameters.addParameter<int>(
+                "TaskInputChannel",
+                "Channel to base the cursor position on  (1...n)",
+                "1", "", "1");
+
+            parameters.addParameter<int>(
+                "TaskInputSignalType",
+                "Task input signal type",
+                "0", "2", "0", new string[] { "Normalizer (0 to 1)", "Normalizer (-1 to 1)", "Constant middle" });
+
+            parameters.addParameter<bool>(
+                "TaskShowScore",
+                "Show the score",
+                "0", "1", "1");
+
+            parameters.addParameter<double>(
+                "CursorSize",
+                "Cursor size radius in percentage of the screen height",
+                "0.0", "50.0", "4.0");
+
+            parameters.addParameter<int>(
+                "CursorColorRule",
+                "Cursor color rule",
+                "0", "2", "0", new string[] { "Hitcolor on target hit (normal)", "Hitcolor on input", "Hitcolor on input - Escape color on escape" });
+
+            parameters.addParameter<RGBColorFloat>(
+                "CursorColorMiss",
+                "Cursor color when missing",
+                "", "", "204;0;0");
+
+            parameters.addParameter<RGBColorFloat>(
+                "CursorColorHit",
+                "Cursor color when hitting",
+                "", "", "204;204;0");
+
+            parameters.addParameter<double>(
+                "CursorColorHitTime",
+                "Time that the cursor remains in hit color",
+                "0", "", "2s");
+
+            parameters.addParameter<RGBColorFloat>(
+                "CursorColorEscape",
+                "Cursor color when hitting",
+                "", "", "170;0;170");
+
+            parameters.addParameter<double>(
+                "CursorColorEscapeTime",
+                "Time that the cursor remains in escape color",
+                "0", "", "2s");
+
+            parameters.addParameter<double[][]>(
+                "Targets",
+                "Target positions and widths in percentage coordinates\n\nY_perc: The y position of the block on the screen (in percentages of the screen height), note that the value specifies where the middle of the block will be.\nHeight_perc: The height of the block on the screen (in percentages of the screen height)\nWidth_secs: The width of the target block in seconds",
+                "", "", "25,25,25,75,75,75;50,50,50,50,50,50;2,2,2,3,5,7", new string[] { "Y_perc", "Height_perc", "Width_secs" });
+
+            parameters.addParameter<string[][]>(
+                "TargetTextures",
+                "Paths of target texture, relative to executable path",
+                "", "", "", new string[] { "filepath" });
+
+            parameters.addParameter<int>(
+                "TargetYMode",
+                "Targets Y mode",
+                "0", "3", "3", new string[] { "Target(matrix) order", "Randomize categories", "Randomize cat without replacement", "Sequential categories with rnd start" });
+
+            parameters.addParameter<int>(
+                "TargetWidthMode",
+                "Targets Width mode",
+                "0", "3", "1", new string[] { "Target(matrix) order", "Randomize categories", "Randomize cat without replacement", "Sequential categories with rnd start" });
+
+            parameters.addParameter<int>(
+                "TargetHeightMode",
+                "Targets Height mode",
+                "0", "3", "1", new string[] { "Target(matrix) order", "Randomize categories", "Randomize cat without replacement", "Sequential categories with rnd start" });
+
+            parameters.addParameter<int>(
+                "TargetSpeed",
+                "The speed of the targets (in pixels per second)",
+                "0", "", "120");
+
+            parameters.addParameter<int>(
+                "NumberTargets",
+                "Number of targets",
+                "1", "", "70");
+
+            parameters.addParameter<int[]>(
+                "TargetSequence",
+                "Fixed sequence in which targets should be presented (leave empty for random)\nNote. indexing is 0 based (so a value of 0 will be the first row from the 'Targets' parameter",
+                "0", "", "");
 
         }
 
@@ -280,10 +287,7 @@ namespace FollowTask {
             return CLASS_VERSION;
         }
 
-        // called only when running as stand-alone app, performs configure steps that are only needed when run as stand-alone
         public bool configure(ref SampleFormat input) {
-
-            // TODO: parameters.checkminimum, checkmaximum
 
             // store the number of input channels
             inputChannels = input.getNumberOfChannels();
@@ -294,32 +298,82 @@ namespace FollowTask {
                 return false;
             }
 
-            // retrieve the input channel setting
-            mTaskInputChannel = parameters.getValue<int>("TaskInputChannel");
-            if (mTaskInputChannel < 1) {
-                logger.Error("Invalid input channel, should be higher than 0 (1...n)");
+            // configure the parameters
+            return configure(parameters);
+
+        }
+
+        public bool configure(Parameters newParameters) {
+			
+            // 
+            // TODO: parameters.checkminimum, checkmaximum
+
+            
+            // retrieve window settings
+            mWindowLeft = newParameters.getValue<int>("WindowLeft");
+            mWindowTop = newParameters.getValue<int>("WindowTop");
+            mWindowWidth = newParameters.getValue<int>("WindowWidth");
+            mWindowHeight = newParameters.getValue<int>("WindowHeight");
+            mWindowRedrawFreqMax = newParameters.getValue<int>("WindowRedrawFreqMax");
+            mWindowBackgroundColor = newParameters.getValue<RGBColorFloat>("WindowBackgroundColor");
+            //mWindowed = true;           // fullscreen not implemented, so always windowed
+            //mFullscreenMonitor = 0;     // fullscreen not implemented, default to 0 (does nothing)
+            if (mWindowRedrawFreqMax < 0) {
+                logger.Error("The maximum window redraw frequency can be no smaller then 0");
                 return false;
             }
-            if (mTaskInputChannel > inputChannels) {
+            if (mWindowWidth < 1) {
+                logger.Error("The window width can be no smaller then 1");
+                return false;
+            }
+            if (mWindowHeight < 1) {
+                logger.Error("The window height can be no smaller then 1");
+                return false;
+            }
+
+            // retrieve the input channel setting
+            mTaskInputChannel = newParameters.getValue<int>("TaskInputChannel");
+	        if (mTaskInputChannel < 1) {
+		        logger.Error("Invalid input channel, should be higher than 0 (1...n)");
+                return false;
+	        }
+	        if (mTaskInputChannel > inputChannels) {
                 logger.Error("Input should come from channel " + mTaskInputChannel + ", however only " + inputChannels + " channels are coming in");
                 return false;
+	        }
+
+            // retrieve the task delays
+            mTaskFirstRunStartDelay = newParameters.getValueInSamples("TaskFirstRunStartDelay");
+            mTaskStartDelay = newParameters.getValueInSamples("TaskStartDelay");
+            if (mTaskFirstRunStartDelay < 0 || mTaskStartDelay < 0) {
+                logger.Error("Start delays cannot be less than 0");
+                return false;
             }
 
-            // TODO: when UNP_start() can also handle reading variables from other types than int from app.config, put the check for the following variables in other configure() method
+            // retrieve the countdown time
+            mCountdownTime = newParameters.getValueInSamples("CountdownTime");
+            if (mCountdownTime < 0) {
+                logger.Error("Countdown time cannot be less than 0");
+                return false;
+            }
 
             // retrieve the score parameter
-            mShowScore = parameters.getValue<bool>("TaskShowScore");
+            mShowScore = newParameters.getValue<bool>("TaskShowScore");
 
+            // retrieve the input signal type
+            mTaskInputSignalType = newParameters.getValue<int>("TaskInputSignalType");
+            
             // retrieve cursor parameters
-            mCursorSize = parameters.getValue<double>("CursorSize");
-            mCursorColorMiss = parameters.getValue<RGBColorFloat>("CursorColorMiss");
-            mCursorColorHit = parameters.getValue<RGBColorFloat>("CursorColorHit");
-            mCursorColorHitTime = parameters.getValueInSamples("CursorColorHitTime");
-            mCursorColorEscape = parameters.getValue<RGBColorFloat>("CursorColorEscape");
-            mCursorColorEscapeTime = parameters.getValueInSamples("CursorColorEscapeTime");
+            mCursorSize = newParameters.getValue<double>("CursorSize");
+            mCursorColorRule = newParameters.getValue<int>("CursorColorRule");
+            mCursorColorMiss = newParameters.getValue<RGBColorFloat>("CursorColorMiss");
+            mCursorColorHit = newParameters.getValue<RGBColorFloat>("CursorColorHit");
+            mCursorColorHitTime = newParameters.getValueInSamples("CursorColorHitTime");
+            mCursorColorEscape = newParameters.getValue<RGBColorFloat>("CursorColorEscape");
+            mCursorColorEscapeTime = newParameters.getValueInSamples("CursorColorEscapeTime");
 
             // retrieve target settings
-            double[][] parTargets = parameters.getValue<double[][]>("Targets");
+            double[][] parTargets = newParameters.getValue<double[][]>("Targets");
             if (parTargets.Length != 3 || parTargets[0].Length < 1) {
                 logger.Error("Targets parameter must have at least 1 row and 3 columns (Y_perc, Height_perc, Width_secs)");
                 return false;
@@ -339,7 +393,7 @@ namespace FollowTask {
                 }
             }
             
-            string[][] parTargetTextures = parameters.getValue<string[][]>("TargetTextures");
+            string[][] parTargetTextures = newParameters.getValue<string[][]>("TargetTextures");
             if (parTargetTextures.Length == 0) {
                 mTargetTextures = new List<string>(0);
             } else {
@@ -347,9 +401,23 @@ namespace FollowTask {
                 for (int row = 0; row < parTargetTextures[0].Length; ++row) mTargetTextures[row] = parTargetTextures[0][row];
             }
 
+            mTargetYMode = newParameters.getValue<int>("TargetYMode");
+            mTargetWidthMode = newParameters.getValue<int>("TargetWidthMode");
+            mTargetHeightMode = newParameters.getValue<int>("TargetHeightMode");
+
+            mTargetSpeed = newParameters.getValue<int>("TargetSpeed");
+            if (mTargetSpeed < 1) {
+                logger.Error("The TargetSpeed parameter be at least 1");
+                return false;
+            }
+
+
+
+
+
             // retrieve the number of targets and (fixed) target sequence
-            numTargets = parameters.getValue<int>("NumberTargets");
-            fixedTargetSequence = parameters.getValue<int[]>("TargetSequence");
+            numTargets = newParameters.getValue<int>("NumberTargets");
+            fixedTargetSequence = newParameters.getValue<int[]>("TargetSequence");
             if (fixedTargetSequence.Length == 0) {
                 // no fixed sequence
 
@@ -377,77 +445,24 @@ namespace FollowTask {
 
             }
 
-            // perform rest of configure
-            return configure(parameters);
-
-        }
-
-        // general configure, run both when app is run as stand-alone, as well as when run as UNP app
-        public bool configure(Parameters newParameters) {
-
-            // retrieve window settings
-            mWindowLeft = newParameters.getValue<int>("WindowLeft");
-            mWindowTop = newParameters.getValue<int>("WindowTop");
-            mWindowWidth = newParameters.getValue<int>("WindowWidth");
-            mWindowHeight = newParameters.getValue<int>("WindowHeight");
-            mWindowRedrawFreqMax = newParameters.getValue<int>("WindowRedrawFreqMax");
-            mWindowBackgroundColor = newParameters.getValue<RGBColorFloat>("WindowBackgroundColor");
-            //mWindowed = true;           // fullscreen not implemented, so always windowed
-            //mFullscreenMonitor = 0;     // fullscreen not implemented, default to 0 (does nothing)
-            if (mWindowRedrawFreqMax < 0) {
-                logger.Error("The maximum window redraw frequency can be no smaller then 0");
-                return false;
-            }
-            if (mWindowWidth < 1) {
-                logger.Error("The window width can be no smaller then 1");
-                return false;
-            }
-            if (mWindowHeight < 1) {
-                logger.Error("The window height can be no smaller then 1");
-                return false;
-            }
-
-            // retrieve the task delays
-            mTaskFirstRunStartDelay = newParameters.getValueInSamples("TaskFirstRunStartDelay");
-            mTaskStartDelay = newParameters.getValueInSamples("TaskStartDelay");
-            if (mTaskFirstRunStartDelay < 0 || mTaskStartDelay < 0) {
-                logger.Error("Start delays cannot be less than 0");
-                return false;
-            }
-
-            // retrieve the countdown time
-            mCountdownTime = newParameters.getValueInSamples("CountdownTime");
-            if (mCountdownTime < 0) {
-                logger.Error("Countdown time cannot be less than 0");
-                return false;
-            }
-
-
-            // retrieve the input signal type
-            mTaskInputSignalType = newParameters.getValue<int>("TaskInputSignalType");
-            mTargetYMode = newParameters.getValue<int>("TargetYMode");
-            mTargetWidthMode = newParameters.getValue<int>("TargetWidthMode");
-            mTargetHeightMode = newParameters.getValue<int>("TargetHeightMode");
-
-            mCursorColorRule = newParameters.getValue<int>("CursorColorRule");
-
-            mTargetSpeed = newParameters.getValue<int>("TargetSpeed");
-            if (mTargetSpeed < 1) {
-                logger.Error("The TargetSpeed parameter be at least 1");
-                return false;
-            }
+            /*
+                // other parameters
+                State("Running");
+                State("ConnectionLost");
+                State("KeySequenceActive");
+            */
 
             return true;
 
         }
-
+		
         public void initialize() {
                         
             // lock for thread safety
             lock(lockView) {
 
-                // check the scene (thread) already exists, stop and clear the old one.
-                destroyScene();
+                // check the view (thread) already exists, stop and clear the old one.
+                destroyView();
 
                 // initialize the view
                 initializeView();
@@ -471,7 +486,7 @@ namespace FollowTask {
 	            }
 	        
 	            // initialize the target sequence
-	            mSceneThread.initBlockSequence(mTargetSequence, mTargets);
+	            view.initBlockSequence(mTargetSequence, mTargets);
 
             }
 
@@ -480,33 +495,33 @@ namespace FollowTask {
         private void initializeView() {
 
             // create the view
-            mSceneThread = new FollowView(mWindowRedrawFreqMax, mWindowLeft, mWindowTop, mWindowWidth, mWindowHeight, false);
-            mSceneThread.setBackgroundColor(mWindowBackgroundColor.getRed(), mWindowBackgroundColor.getGreen(), mWindowBackgroundColor.getBlue());
+            view = new FollowView(mWindowRedrawFreqMax, mWindowLeft, mWindowTop, mWindowWidth, mWindowHeight, false);
+            view.setBackgroundColor(mWindowBackgroundColor.getRed(), mWindowBackgroundColor.getGreen(), mWindowBackgroundColor.getBlue());
 
             // set task specific display attributes 
-            mSceneThread.setBlockSpeed(mTargetSpeed);                                   // target speed
-            mSceneThread.setCursorSizePerc(mCursorSize);                                // cursor size radius in percentage of the screen height
-            mSceneThread.setCursorHitColor(mCursorColorHit);                            // cursor hit color
-            mSceneThread.setCursorMissColor(mCursorColorMiss);                          // cursor out color            
-            mSceneThread.initBlockTextures(mTargetTextures);                            // initialize target textures (do this before the thread start)
-            mSceneThread.centerCursor();                                                // set the cursor to the middle of the screen
-            mSceneThread.setFixation(false);                                            // hide the fixation
-            mSceneThread.setCountDown(-1);                                              // hide the countdown
+            view.setBlockSpeed(mTargetSpeed);                                   // target speed
+            view.setCursorSizePerc(mCursorSize);                                // cursor size radius in percentage of the screen height
+            view.setCursorHitColor(mCursorColorHit);                            // cursor hit color
+            view.setCursorMissColor(mCursorColorMiss);                          // cursor out color            
+            view.initBlockTextures(mTargetTextures);                            // initialize target textures (do this before the thread start)
+            view.centerCursor();                                                // set the cursor to the middle of the screen
+            view.setFixation(false);                                            // hide the fixation
+            view.setCountDown(-1);                                              // hide the countdown
 
             // check if the cursor rule is set to hitcolor on hit, if so
             // then make the color automatically determined in the Scenethread by it's variable 'mCursorInCurrentBlock',
             // this makes the color update quickly, since the scenethread is executed at a higher frequency
             if (mCursorColorRule == 0) {
-                mSceneThread.setCursorColorSetting(3);
+                view.setCursorColorSetting(3);
             }
 
             // start the scene thread
-            mSceneThread.start();
+            view.start();
 
             // wait till the resources are loaded or a maximum amount of 30 seconds (30.000 / 50 = 600)
             // (resourcesLoaded also includes whether GL is loaded)
             int waitCounter = 600;
-            while (!mSceneThread.resourcesLoaded() && waitCounter > 0) {
+            while (!view.resourcesLoaded() && waitCounter > 0) {
                 Thread.Sleep(50);
                 waitCounter--;
             }
@@ -518,7 +533,7 @@ namespace FollowTask {
             // lock for thread safety
             lock(lockView) {
 
-                if (mSceneThread == null)   return;
+                if (view == null)   return;
 
                 // log event task is started
                 Data.logEvent(2, "TaskStart", CLASS_NAME);
@@ -536,7 +551,7 @@ namespace FollowTask {
 		            setState(TaskStates.Wait);
 
                     // show the fixation
-                    mSceneThread.setFixation(true);
+                    view.setFixation(true);
 		
 	            } else {
 		
@@ -579,8 +594,8 @@ namespace FollowTask {
             // lock for thread safety
             lock (lockView) {
                 
-                if (mSceneThread == null)   return;
-
+                if (view == null)   return;
+                
                 ////////////////////////
                 // BEGIN CONNECTION FILTER ACTIONS//
                 ////////////////////////
@@ -599,38 +614,51 @@ namespace FollowTask {
                         pauzeTask();
 
 			            // show the lost connection warning
-			            mSceneThread.setConnectionLost(true);
+			            view.setConnectionLost(true);
+
+                        // play the connection lost sound
+                        Sound.Play(CONNECTION_LOST_SOUND);
+
+                        // setup and start a timer to play the connection lost sound every 2 seconds
+                        mConnectionLostSoundTimer = new System.Timers.Timer(2000);
+                        mConnectionLostSoundTimer.Elapsed += delegate (object source, System.Timers.ElapsedEventArgs e) {
+
+                            // play the connection lost sound
+                            Sound.Play(CONNECTION_LOST_SOUND);
+
+                        };
+                        mConnectionLostSoundTimer.AutoReset = true;
+                        mConnectionLostSoundTimer.Start();
 
                     }
 
-                    // play the caregiver sound every 20 packages
-                    if (mConnectionSoundTimer == 0) {
-                        /*
-			            PlaySound("sounds\\focuson.wav", NULL, SND_FILENAME);
-                        */
-                        mConnectionSoundTimer = 20;
-                    } else
-                        mConnectionSoundTimer--;
-
+                    // do not process any further
+                    return;
 
                 } else if (mConnectionWasLost && !mConnectionLost) {
                     // if the connection was lost and is not lost anymore
 
-		            // hide the lost connection warning
-		            mSceneThread.setConnectionLost(false);
+                    // stop and clear the connection lost timer
+                    if (mConnectionLostSoundTimer != null) {
+                        mConnectionLostSoundTimer.Stop();
+                        mConnectionLostSoundTimer = null;
+                    }
+
+                    // hide the lost connection warning
+                    view.setConnectionLost(false);
 
                     // resume task
                     resumeTask();
 
                     // reset connection lost variables
                     mConnectionWasLost = false;
-                    mConnectionSoundTimer = 0;
 
                 }
 
                 ////////////////////////
                 // END CONNECTION FILTER ACTIONS//
                 ////////////////////////
+
 
 	            // check if the task is pauzed, do not process any further if this is the case
 	            if (mTaskPauzed)		    return;
@@ -660,7 +688,7 @@ namespace FollowTask {
 				            // still counting down
 
                             // display the countdown
-                            mSceneThread.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.SamplesPerSecond()) + 1);
+                            view.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.SamplesPerSecond()) + 1);
 
                             // reduce the countdown timer
                             mCountdownCounter--;
@@ -669,7 +697,7 @@ namespace FollowTask {
                             // done counting down
 
                             // hide the countdown counter
-                            mSceneThread.setCountDown(-1);
+                            view.setCountDown(-1);
 
                             // set the current block to no block
                             mCurrentBlock = FollowView.noBlock;
@@ -690,25 +718,25 @@ namespace FollowTask {
 			            if (mTaskInputSignalType == 0) {
 				            // Normalizer (0 to 1)
                             
-				            mSceneThread.setCursorNormY(input);	// setCursorNormY will take care of values below 0 or above 1)
+				            view.setCursorNormY(input);	// setCursorNormY will take care of values below 0 or above 1)
 		
 			            } else if (mTaskInputSignalType == 1) {
 				            // Normalizer (-1 to 1)
 
-				            mSceneThread.setCursorNormY((input + 1.0) / 2.0);
+				            view.setCursorNormY((input + 1.0) / 2.0);
 
 			            } else if (mTaskInputSignalType == 1) {
 				            // Constant middle
 
-				            mSceneThread.setCursorNormY(0.5);
+				            view.setCursorNormY(0.5);
 
 			            } else {
-				            //mSceneThread->setCursorY(input);
+				            //view->setCursorY(input);
 
 			            }
 
 			            // check if it is the end of the task
-			            if (mCurrentBlock == mTargetSequence.Count - 1 && (mSceneThread.getCurrentBlock() == FollowView.noBlock)) {
+			            if (mCurrentBlock == mTargetSequence.Count - 1 && (view.getCurrentBlock() == FollowView.noBlock)) {
 				            // end of the task
 
 				            setState(TaskStates.EndText);
@@ -729,7 +757,7 @@ namespace FollowTask {
 
 						            // set the color back to miss if the timer is finished
 						            if (mCursorColorTimer == 0)
-							            mSceneThread.setCursorColorSetting(0);
+							            view.setCursorColorSetting(0);
 
 					            }
 
@@ -746,7 +774,7 @@ namespace FollowTask {
 						                if (Globals.getValue<bool>("KeySequenceActive")) {
 
                                             // set the color
-                                            mSceneThread.setCursorColorSetting(2);
+                                            view.setCursorColorSetting(2);
 
 							                // set the timer
 							                if (mCursorColorEscapeTime == 0)	mCursorColorTimer = 1;
@@ -762,7 +790,7 @@ namespace FollowTask {
                                             if (input == 1) {
 
                                                 // set the color
-                                                mSceneThread.setCursorColorSetting(1);
+                                                view.setCursorColorSetting(1);
 
                                                 // set the timer
                                                 if (mCursorColorHitTime == 0)	mCursorColorTimer = 1;
@@ -785,7 +813,7 @@ namespace FollowTask {
                                     if (input == 1) {
 						
 							            // set the color
-							            mSceneThread.setCursorColorSetting(1);
+							            view.setCursorColorSetting(1);
 
 							            // set the timer
 							            if (mCursorColorHitTime == 0)   mCursorColorTimer = 1;
@@ -797,8 +825,8 @@ namespace FollowTask {
 				            }
 
 				            // retrieve the current block and if cursor is in this block
-				            mCurrentBlock = mSceneThread.getCurrentBlock();
-                            mIsCursorInCurrentBlock = mSceneThread.getCursorInCurrentBlock();
+				            mCurrentBlock = view.getCurrentBlock();
+                            mIsCursorInCurrentBlock = view.getCursorInCurrentBlock();
 
                             // log event if the current block has changed and update the previous block placeholder
                             if (mCurrentBlock != mPreviousBlock)     Data.logEvent(2, "Changeblock", mCurrentBlock.ToString());
@@ -817,7 +845,7 @@ namespace FollowTask {
                             if (mIsCursorInCurrentBlock) mHitScore++;
 
 				            // update the score for display
-				            if (mShowScore)     mSceneThread.setScore(mHitScore);
+				            if (mShowScore)     view.setScore(mHitScore);
 
 			            }
 
@@ -864,7 +892,16 @@ namespace FollowTask {
 
             // lock for thread safety
             lock(lockView) {
-                destroyScene();
+                
+                // destroy the view
+                destroyView();
+
+                // stop and clear the connection lost timer
+                if (mConnectionLostSoundTimer != null) {
+                    mConnectionLostSoundTimer.Stop();
+                    mConnectionLostSoundTimer = null;
+                }
+
             }
 
             // destroy/empty more task variables
@@ -873,16 +910,16 @@ namespace FollowTask {
         }
 
 
-        private void destroyScene() {
+        private void destroyView() {
 
 	        // check if a scene thread still exists
-	        if (mSceneThread != null) {
+	        if (view != null) {
 
 		        // stop the animation thread (stop waits until the thread is finished)
-                mSceneThread.stop();
+                view.stop();
 
                 // release the thread (For collection)
-                mSceneThread = null;
+                view = null;
 
 	        }
 
@@ -890,7 +927,7 @@ namespace FollowTask {
 
         // pauzes the task
         private void pauzeTask() {
-            if (mSceneThread == null)   return;
+            if (view == null)   return;
 
             // log event task is paused
             Data.logEvent(2, "TaskPause", CLASS_NAME);
@@ -903,29 +940,29 @@ namespace FollowTask {
 	
 	        // store the block positions
 	        if (previousTaskState == TaskStates.Task) {
-                storedBlockPositions = mSceneThread.getBlockPositions();
+                storedBlockPositions = view.getBlockPositions();
 	        }
 
 		    // hide everything
-		    mSceneThread.setFixation(false);
-		    mSceneThread.setCountDown(-1);
-		    mSceneThread.setBlocksVisible(false);
-		    mSceneThread.setCursorVisible(false);
-		    mSceneThread.setBlocksMove(false);
-		    mSceneThread.setScore(-1);
+		    view.setFixation(false);
+		    view.setCountDown(-1);
+		    view.setBlocksVisible(false);
+		    view.setCursorVisible(false);
+		    view.setBlocksMove(false);
+		    view.setScore(-1);
 
         }
 
         // resumes the task
         private void resumeTask() {
-            if (mSceneThread == null)   return;
+            if (view == null)   return;
 
             // log event task is paused
             Data.logEvent(2, "TaskResume", CLASS_NAME);
 
             // re-instate the block positions
             if (previousTaskState == TaskStates.Task) {
-                mSceneThread.setBlockPositions(storedBlockPositions);
+                view.setBlockPositions(storedBlockPositions);
 	        }
 
             // set the previous gamestate
@@ -947,19 +984,19 @@ namespace FollowTask {
 			        // starting, pauzed or waiting
 
                     // hide text if present
-                    mSceneThread.setText("");
+                    view.setText("");
 
 				    // hide the fixation and countdown
-				    mSceneThread.setFixation(false);
-                    mSceneThread.setCountDown(-1);
+				    view.setFixation(false);
+                    view.setCountDown(-1);
 
 				    // stop the blocks from moving
-				    mSceneThread.setBlocksMove(false);
+				    view.setBlocksMove(false);
 
 				    // hide the countdown, blocks, cursor and score
-				    mSceneThread.setBlocksVisible(false);
-				    mSceneThread.setCursorVisible(false);
-				    mSceneThread.setScore(-1);
+				    view.setBlocksVisible(false);
+				    view.setCursorVisible(false);
+				    view.setScore(-1);
 
                     // Set wait counter to startdelay
                     if (mTaskFirstRunStartDelay != 0) {
@@ -977,16 +1014,16 @@ namespace FollowTask {
                     Data.logEvent(2, "CountdownStarted ", CLASS_NAME);
 
                     // hide text if present
-                    mSceneThread.setText("");
+                    view.setText("");
 
 				    // hide fixation
-				    mSceneThread.setFixation(false);
+				    view.setFixation(false);
 
 				    // set countdown
                     if (mCountdownCounter > 0)
-                        mSceneThread.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.SamplesPerSecond()) + 1);
+                        view.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.SamplesPerSecond()) + 1);
                     else
-                        mSceneThread.setCountDown(-1);
+                        view.setCountDown(-1);
 
 			        break;
 
@@ -999,24 +1036,24 @@ namespace FollowTask {
 
                     /*
 				    // hide text if present
-				    mSceneThread->setText("");
+				    view->setText("");
                     */
 
                     // hide the countdown counter
-                    mSceneThread.setCountDown(-1);
+                    view.setCountDown(-1);
 
 				    // set the score for display
-				    if (mShowScore)		mSceneThread.setScore(mHitScore);
+				    if (mShowScore)		view.setScore(mHitScore);
 
 				    // reset the cursor position
-				    mSceneThread.centerCursor();
+				    view.centerCursor();
 
 				    // show the cursor
-				    mSceneThread.setCursorVisible(true);
+				    view.setCursorVisible(true);
 
 				    // show the blocks and start the blocks animation
-				    mSceneThread.setBlocksVisible(true);
-				    mSceneThread.setBlocksMove(true);
+				    view.setBlocksVisible(true);
+				    view.setBlocksMove(true);
 
 			        break;
 
@@ -1024,14 +1061,14 @@ namespace FollowTask {
 			        // show text
 			
 				    // stop the blocks from moving
-				    mSceneThread.setBlocksMove(false);
+				    view.setBlocksMove(false);
 
 				    // hide the blocks and cursor
-				    mSceneThread.setBlocksVisible(false);
-				    mSceneThread.setCursorVisible(false);
+				    view.setBlocksVisible(false);
+				    view.setCursorVisible(false);
                     
 				    // show text
-				    mSceneThread.setText("Done");
+				    view.setText("Done");
 
                     // set duration for text to be shown at the end (3s)
                     mWaitCounter = (int)(MainThread.SamplesPerSecond() * 3.0);
@@ -1044,7 +1081,7 @@ namespace FollowTask {
 
         // Stop the task
         private void stopTask() {
-            if (mSceneThread == null)   return;
+            if (view == null)   return;
 
             // set the current block to no block
             mCurrentBlock = FollowView.noBlock;
@@ -1061,7 +1098,7 @@ namespace FollowTask {
 	        }
 
             // initialize the target sequence
-	        mSceneThread.initBlockSequence(mTargetSequence, mTargets);
+	        view.initBlockSequence(mTargetSequence, mTargets);
 
         }
 
@@ -1344,59 +1381,56 @@ namespace FollowTask {
                 return;
             }
 
-            // list of parameters that need to be transferred from UNP parameter set
-            List<string> parametersToClone = new List<string> { "WindowRedrawFreqMax", "WindowWidth", "WindowHeight", "WindowLeft", "WindowTop", "WindowBackgroundColor" };
+            // create a new parameter object and define this task's parameters
+            Parameters newParameters = new Parameters("FollowTask", Parameters.ParamSetTypes.Application);
+            defineParameters(ref newParameters);
 
-            // transfer parentParameters to new parameters
-            Parameters newParameters = parentParameters.clone(parametersToClone);
+            // transfer some parameters from the parent
+            newParameters.setValue("WindowRedrawFreqMax", parentParameters.getValue<int>("WindowRedrawFreqMax"));
+            newParameters.setValue("WindowWidth", parentParameters.getValue<int>("WindowWidth"));
+            newParameters.setValue("WindowHeight", parentParameters.getValue<int>("WindowHeight"));
+            newParameters.setValue("WindowLeft", parentParameters.getValue<int>("WindowLeft"));
+            newParameters.setValue("WindowTop", parentParameters.getValue<int>("WindowTop"));
+
+            // set UNP task standard settings
+            inputChannels = 1;
+            newParameters.setValue("WindowBackgroundColor", "0;0;0");
+            newParameters.setValue("CountdownTime", "3s");
+            newParameters.setValue("TaskShowScore", true);
+            newParameters.setValue("TaskInputSignalType", 1);
+            newParameters.setValue("TaskInputChannel", 1);
+            newParameters.setValue("TaskFirstRunStartDelay", "2s");
+            newParameters.setValue("TaskStartDelay", "2s");
+            newParameters.setValue("CursorSize", 4.0);
+            newParameters.setValue("CursorColorRule", 0);
+            newParameters.setValue("CursorColorMiss", "204;0;0");
+            newParameters.setValue("CursorColorHit", "204;204;0");
+            newParameters.setValue("CursorColorHitTime", 0.0);
+            newParameters.setValue("CursorColorEscape", "170;0;170");
+            newParameters.setValue("CursorColorEscapeTime", 0.0);
+            newParameters.setValue("NumberTargets", 70);
+            newParameters.setValue("TargetSpeed", 120);
+            newParameters.setValue("TargetYMode", 3);
+            newParameters.setValue("TargetWidthMode", 1);
+            newParameters.setValue("TargetHeightMode", 1);
+            newParameters.setValue("Targets", "25,25,25,75,75,75;50,50,50,50,50,50;2,2,2,3,5,7");
+            newParameters.setValue("TargetTextures", "images\\sky.bmp,images\\sky.bmp,images\\sky.bmp,images\\grass.bmp,images\\grass.bmp,images\\grass.bmp");
+            newParameters.setValue("TargetSequence", "");
 
             // get parameter values from app.config
+            // cycle through app.config parameter values and try to set the parameter
             var appSettings = System.Configuration.ConfigurationManager.GetSection(CLASS_NAME) as NameValueCollection;
+            if (appSettings != null) {
+                for (int i = 0; i < appSettings.Count; i++) {
 
-            // cycle through app.config paramter values and add to parameter set if not already present
-            // TODO, currently only parameters which value is an integer can be read from app.config 
-            for (int i = 0; i < appSettings.Count; i++) {
-                iParam result = newParameters.addParameter<int>(
-                    appSettings.GetKey(i),
-                    "",
-                    "", "", appSettings.Get(i));
-                if (result != null) logger.Info("Added parameter " + appSettings.GetKey(i) + " with value " + appSettings.Get(i) + " from app.config.");
+                    // message
+                    logger.Info("Setting parameter '" + appSettings.GetKey(i) + "' to value '" + appSettings.Get(i) + "' from app.config.");
+
+                    // set the value
+                    newParameters.setValue(appSettings.GetKey(i), appSettings.Get(i));
+
+                }
             }
-
-
-            // set the UNP task standard settings
-            // mTaskInputChannel = 1;
-
-
-            // TODO, currently only parameters which value is an integer can be read from app.config . Add functionality for other types, and then add following variables to app.config
-            numTargets = 70;
-            mCursorColorHitTime = 0;
-            mCursorColorEscapeTime = 0;
-            mCursorSize = 4f;
-
-            mShowScore = true;
-            mCursorColorMiss = new RGBColorFloat(0.8f, 0f, 0f);
-            mCursorColorHit = new RGBColorFloat(0.8f, 0.8f, 0f);
-            mCursorColorEscape = new RGBColorFloat(0.8f, 0f, 0.8f);
-
-            mTargets[0].Clear(); mTargets[0] = new List<float>(new float[6]);
-            mTargets[1].Clear(); mTargets[1] = new List<float>(new float[6]);
-            mTargets[2].Clear(); mTargets[2] = new List<float>(new float[6]);
-            mTargets[0][0] = 25; mTargets[1][0] = 50; mTargets[2][0] = 2;
-            mTargets[0][1] = 25; mTargets[1][1] = 50; mTargets[2][1] = 2;
-            mTargets[0][2] = 25; mTargets[1][2] = 50; mTargets[2][2] = 2;
-            mTargets[0][3] = 75; mTargets[1][3] = 50; mTargets[2][3] = 3;
-            mTargets[0][4] = 75; mTargets[1][4] = 50; mTargets[2][4] = 5;
-            mTargets[0][5] = 75; mTargets[1][5] = 50; mTargets[2][5] = 7;
-
-            mTargetTextures = new List<string>(new string[6]);
-            mTargetTextures[0] = "images\\sky.bmp";
-            mTargetTextures[1] = "images\\sky.bmp";
-            mTargetTextures[2] = "images\\sky.bmp";
-            mTargetTextures[3] = "images\\grass.bmp";
-            mTargetTextures[4] = "images\\grass.bmp";
-            mTargetTextures[5] = "images\\grass.bmp";
-
 
             // configure task with new parameters
             configure(newParameters);
@@ -1459,7 +1493,7 @@ namespace FollowTask {
                 initializeView();
                 
                 // (re-) initialize the block sequence
-		        mSceneThread.initBlockSequence(mTargetSequence, mTargets);
+		        view.initBlockSequence(mTargetSequence, mTargets);
                 
             }
 
@@ -1481,7 +1515,7 @@ namespace FollowTask {
 
             // lock for thread safety and destroy the scene
             lock (lockView) {
-                destroyScene();
+                destroyView();
             }
 
         }

@@ -16,6 +16,8 @@ namespace LocalizerTask {
         // fundamentals
         private const int CLASS_VERSION = 0;                                // class version
         private const string CLASS_NAME = "LocalizerTask";                  // class name
+        private const string CONNECTION_LOST_SOUND = "sounds\\focuson.wav";
+
         private static Logger logger = LogManager.GetLogger(CLASS_NAME);    // the logger object for the view
         private static Parameters parameters = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Application);        // parameters
  
@@ -23,15 +25,17 @@ namespace LocalizerTask {
         private bool unpMenuTask = false;                                   // flag whether the task is created by the UNPMenu
         private bool unpMenuTaskRunning = false;                            // flag to hold whether the task is running as UNP task
         private bool unpMenuTaskSuspended = false;                         // flag to hold whether the task (when running as UNP task) is suspended          
-        private int connectionSoundTimer = 0;							    // counter to play a sound when the connection is lost
-        private bool connectionLost = false;							    // flag to hold whether the connection is lost
-        private bool connectionWasLost = false;                             // flag to hold whether the connection has been lost
+
+        private bool mConnectionLost = false;							// flag to hold whether the connection is lost
+        private bool mConnectionWasLost = false;						// flag to hold whether the connection has been lost (should be reset after being re-connected)
+        private System.Timers.Timer mConnectionLostSoundTimer = null;       // timer to play the connection lost sound on
+
         private TaskStates taskState = TaskStates.Start;                    // holds current task state
         private TaskStates previousTaskState = TaskStates.Start;            // holds previous task state
         private int waitCounter = 0;                                        // counter for task state Start and Wait, used to determine time left in this state
 
         // view
-        private LocalizerView sceneThread = null;                           // view for task
+        private LocalizerView view = null;                           // view for task
         private Object lockView = new Object();                             // threadsafety lock for all event on the view
         private int windowLeft = 0;                                         // position of window from left of screen
         private int windowTop = 0;                                          // position of windo from top of screen
@@ -272,8 +276,8 @@ namespace LocalizerTask {
             // lock for thread safety
             lock (lockView) {
 
-                // check the scene (thread) already exists, stop and clear the old one.
-                destroyScene();
+                // check the view (thread) already exists, stop and clear the old one.
+                destroyView();
 
                 // initialize view (scene)
                 initializeView();
@@ -285,11 +289,11 @@ namespace LocalizerTask {
         private void initializeView() {
 
             // create scene thread
-            sceneThread = new LocalizerView(windowRedrawFreqMax, windowLeft, windowTop, windowWidth, windowHeight, false);
-            sceneThread.setBackgroundColor(windowBackgroundColor.getRed(), windowBackgroundColor.getGreen(), windowBackgroundColor.getBlue());
+            view = new LocalizerView(windowRedrawFreqMax, windowLeft, windowTop, windowWidth, windowHeight, false);
+            view.setBackgroundColor(windowBackgroundColor.getRed(), windowBackgroundColor.getGreen(), windowBackgroundColor.getBlue());
 
             // start the scene thread
-            sceneThread.start();
+            view.start();
         }
 
         public void start() {
@@ -298,7 +302,7 @@ namespace LocalizerTask {
             lock (lockView) {
 
                 // check if view is available
-                if (sceneThread == null) return;
+                if (view == null) return;
 
                 // log event task is started
                 Data.logEvent(2, "TaskStart", CLASS_NAME);
@@ -329,50 +333,72 @@ namespace LocalizerTask {
             // lock for thread safety
             lock (lockView) {
 
-                // check if there is a view
-                if (sceneThread == null) return;
+                if (view == null) return;
 
-                // CONNECTION FILTER ACTIONS
+                ////////////////////////
+                // BEGIN CONNECTION FILTER ACTIONS//
+                ////////////////////////
+
                 // check if connection is lost, or was lost
-                if (connectionLost) {
+                if (mConnectionLost) {
 
-                    // if it was just discovered that the connection was lost
-                    if (!connectionWasLost) {
+                    // check if it was just discovered if the connection was lost
+                    if (!mConnectionWasLost) {
+                        // just discovered it was lost
 
-                        // set the connection as lost
-                        connectionWasLost = true;
+                        // set the connection as was lost (this also will make sure the lines in this block willl only run once)
+                        mConnectionWasLost = true;
+
+                        // pauze the task
+                        pauzeTask();
 
                         // show the lost connection warning
-                        sceneThread.setConnectionLost(true);
+                        view.setConnectionLost(true);
 
-                        // pause the task
-                        setState(TaskStates.Pause);
+                        // play the connection lost sound
+                        Sound.Play(CONNECTION_LOST_SOUND);
+
+                        // setup and start a timer to play the connection lost sound every 2 seconds
+                        mConnectionLostSoundTimer = new System.Timers.Timer(2000);
+                        mConnectionLostSoundTimer.Elapsed += delegate (object source, System.Timers.ElapsedEventArgs e) {
+
+                            // play the connection lost sound
+                            Sound.Play(CONNECTION_LOST_SOUND);
+
+                        };
+                        mConnectionLostSoundTimer.AutoReset = true;
+                        mConnectionLostSoundTimer.Start();
+
                     }
 
-                    // play the caregiver sound every 20 packages
-                    if (connectionSoundTimer == 0) {
+                    // do not process any further
+                    return;
 
-                        // play sound and reset timer
-                        playSound("sounds\\focuson.wav");
-                        connectionSoundTimer = 20;
+                } else if (mConnectionWasLost && !mConnectionLost) {
+                    // if the connection was lost and is not lost anymore
 
-                    } else connectionSoundTimer--;
-
-                    // if the connection was lost and is not lost anymore, resume task, ie revert to the previous state
-                } else if (connectionWasLost && !connectionLost) {
-
-                    // check if there is a view to manipulate
-                    if (sceneThread == null) return;
+                    // stop and clear the connection lost timer
+                    if (mConnectionLostSoundTimer != null) {
+                        mConnectionLostSoundTimer.Stop();
+                        mConnectionLostSoundTimer = null;
+                    }
 
                     // hide the lost connection warning
-                    sceneThread.setConnectionLost(false);
+                    view.setConnectionLost(false);
+
+                    // resume task
+                    resumeTask();
 
                     // reset connection lost variables
-                    connectionWasLost = false;
-                    connectionSoundTimer = 0;
+                    mConnectionWasLost = false;
 
-                    resumeTask();
                 }
+
+                ////////////////////////
+                // END CONNECTION FILTER ACTIONS//
+                ////////////////////////
+
+
 
                 // perform actions for state
                 switch (taskState) {
@@ -441,7 +467,7 @@ namespace LocalizerTask {
         private void setState(TaskStates state) {
 
             // check if there is a view to modify
-            if (sceneThread == null) return;
+            if (view == null) return;
 
             // store the previous state
             previousTaskState = taskState;
@@ -455,7 +481,7 @@ namespace LocalizerTask {
                 case TaskStates.Start:
 
                     // set text to display 
-                    sceneThread.setText(startText);
+                    view.setText(startText);
 
                     // feedback to user
                     logger.Info("Participant is waiting for task to begin.");
@@ -478,7 +504,7 @@ namespace LocalizerTask {
                 case TaskStates.Wait:
 
                     // set text to display 
-                    sceneThread.setText(waitText);
+                    view.setText(waitText);
 
                     // feedback to user
                     logger.Info("Participant is waiting for next stimulus.");
@@ -491,7 +517,7 @@ namespace LocalizerTask {
                 case TaskStates.Pause:
 
                     // set text to display 
-                    sceneThread.setText("Task paused.");
+                    view.setText("Task paused.");
 
                     // feedback to user
                     logger.Info("Task paused.");
@@ -504,7 +530,7 @@ namespace LocalizerTask {
                 case TaskStates.End:
 
                     // set text to display 
-                    sceneThread.setText(endText);
+                    view.setText(endText);
 
                     // feedback to user
                     logger.Info("Task finished.");
@@ -529,6 +555,14 @@ namespace LocalizerTask {
             }
         }
 
+        private void pauzeTask() {
+            if (view == null) return;
+
+            // log event task is paused
+            Data.logEvent(2, "TaskPause", CLASS_NAME);
+            
+
+        }
         private void resumeTask() {
 
             // log event task is resumed
@@ -568,7 +602,7 @@ namespace LocalizerTask {
 
             // TODO: set stimulus sound and image
             // set stimulus text to display 
-            sceneThread.setText(stimuli[0][currentStimulus]);
+            view.setText(stimuli[0][currentStimulus]);
 
             // if the stimulus remaining time is not set or is zero, set the remaining time for this stimulus 
             if (stimulusRemainingTime <= 0) {
@@ -604,23 +638,32 @@ namespace LocalizerTask {
 
             // lock for thread safety
             lock (lockView) {
-                destroyScene();
+
+                // destroy the view
+                destroyView();
+
+                // stop and clear the connection lost timer
+                if (mConnectionLostSoundTimer != null) {
+                    mConnectionLostSoundTimer.Stop();
+                    mConnectionLostSoundTimer = null;
+                }
+
             }
 
             // destroy/empty more task variables
 
         }
 
-        private void destroyScene() {
+        private void destroyView() {
             
             // check if a scene thread still exists
-            if (sceneThread != null) {
+            if (view != null) {
 
                 // stop the animation thread (stop waits until the thread is finished)
-                sceneThread.stop();
+                view.stop();
 
                 // release the thread (For collection)
-                sceneThread = null;
+                view = null;
 
             }
 
@@ -692,7 +735,7 @@ namespace LocalizerTask {
             if (unpMenuTaskRunning) {
 
                 // transfer connection lost
-                connectionLost = unpConnectionLost;
+                mConnectionLost = unpConnectionLost;
 
                 // process the input (if the task is not suspended)
                 if (!unpMenuTaskSuspended) process(input);

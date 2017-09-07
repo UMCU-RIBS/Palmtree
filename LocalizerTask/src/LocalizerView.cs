@@ -72,6 +72,9 @@ namespace LocalizerTask {
             // check if there is no signal
             if (showConnectionLost) {
 
+                // set white color for drawing
+                glColor3(1f, 1f, 1f);
+
                 // print text
                 int textWidth = showTextFont.getTextWidth("Lost connection with device");
                 showTextFont.printLine((int)((getContentWidth() - textWidth) / 2), (int)((getContentHeight()) / 4), "Lost connection with device");
@@ -79,31 +82,28 @@ namespace LocalizerTask {
                 // set texture
                 glBindTexture2D(connectionLostTexture);
 
-                // set white color for drawing
-                glColor3(1f, 1f, 1f);
-
                 // draw texture
                 glBeginTriangles();
 
-                // vertex 0
-                glTexCoord2(1.0f, 0.0f);
-                glVertex3((getContentWidth() - 200) / 2 + 200, (getContentHeight() - 200) / 2 + 200, 0.0f);
+			        // vertex 0
+			        glTexCoord2(0.0f, 0.0f);
+			        glVertex3( (getContentWidth() - 200) / 2,				(getContentHeight() - 200) / 2,	            0.0f);
 
-                glTexCoord2(1.0f, 1.0f);
-                glVertex3((getContentWidth() - 200) / 2 + 200, (getContentHeight() - 200) / 2, 0.0f);
+			        glTexCoord2(1.0f, 0.0f);
+			        glVertex3( (getContentWidth() - 200) / 2 + 200,			(getContentHeight() - 200) / 2,		        0.0f);
+			
+			        glTexCoord2(1.0f, 1.0f);
+			        glVertex3( (getContentWidth() - 200) / 2 + 200,			(getContentHeight() - 200) / 2 + 200,       0.0f);
 
-                glTexCoord2(0.0f, 1.0f);
-                glVertex3((getContentWidth() - 200) / 2, (getContentHeight() - 200) / 2, 0.0f);
+			        //vertex 1
+			        glTexCoord2(0.0f, 0.0f);
+			        glVertex3( (getContentWidth() - 200) / 2,				(getContentHeight() - 200) / 2,		        0.0f);
 
-                //vertex 1
-                glTexCoord2(0.0f, 0.0f);
-                glVertex3((getContentWidth() - 200) / 2, (getContentHeight() - 200) / 2 + 200, 0.0f);
+			        glTexCoord2(1.0f, 1.0f);
+			        glVertex3( (getContentWidth() - 200) / 2 + 200,			(getContentHeight() - 200) / 2 + 200,		0.0f);
 
-                glTexCoord2(1.0f, 0.0f);
-                glVertex3((getContentWidth() - 200) / 2 + 200, (getContentHeight() - 200) / 2 + 200, 0.0f);
-
-                glTexCoord2(0.0f, 1.0f);
-                glVertex3((getContentWidth() - 200) / 2, (getContentHeight() - 200) / 2, 0.0f);
+			        glTexCoord2(0.0f, 1.0f);
+			        glVertex3( (getContentWidth() - 200) / 2,				(getContentHeight() - 200) / 2 + 200,		0.0f);
 
                 glEnd();
 

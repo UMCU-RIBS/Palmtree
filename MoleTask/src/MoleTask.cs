@@ -28,12 +28,13 @@ namespace MoleTask {
 
         private const int CLASS_VERSION = 0;
         private const string CLASS_NAME = "MoleTask";
+        private const string CONNECTION_LOST_SOUND = "sounds\\focuson.wav";
 
         private static Logger logger = LogManager.GetLogger(CLASS_NAME);                        // the logger object for the view
         private static Parameters parameters = null;
         
         private int inputChannels = 0;
-        private MoleView mSceneThread = null;
+        private MoleView view = null;
 
         Random rand = new Random(Guid.NewGuid().GetHashCode());
         private Object lockView = new Object();                         // threadsafety lock for all event on the view
@@ -43,10 +44,9 @@ namespace MoleTask {
         private bool mUNPMenuTaskRunning = false;						// flag to hold whether the task should is running (setting this to false is also used to notify the UNPMenu that the task is finished)
         private bool mUNPMenuTaskSuspended = false;						// flag to hold whether the task is suspended (view will be destroyed/re-initiated)
 
-        private int mConnectionSoundTimer = 0;							// counter to play a sound when the connection is lost
         private bool mConnectionLost = false;							// flag to hold whether the connection is lost
         private bool mConnectionWasLost = false;						// flag to hold whether the connection has been lost (should be reset after being re-connected)
-
+        private System.Timers.Timer mConnectionLostSoundTimer = null;   // timer to play the connection lost sound on
 
         // task input parameters
         private int mWindowLeft = 0;
@@ -106,112 +106,119 @@ namespace MoleTask {
                 parameters = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Application);
 
                 // define the parameters
-                parameters.addParameter<int>(
-                    "WindowLeft",
-                    "Screen coordinate of application window's left edge",
-                    "", "", "0");
-
-                parameters.addParameter<int>(
-                    "WindowTop",
-                    "Screen coordinate of application window's top edge",
-                    "", "", "0");
-
-                parameters.addParameter<int>(
-                    "WindowWidth",
-                    "Width of application window (fullscreen and 0 will take monitor resolution)",
-                    "", "", "800");
-
-                parameters.addParameter<int>(
-                    "WindowHeight",
-                    "Height of application window (fullscreen and 0 will take monitor resolution)",
-                    "", "", "600");
-
-                parameters.addParameter<int>(
-                    "WindowRedrawFreqMax",
-                    "Maximum display redraw interval in FPS (0 for as fast as possible)",
-                    "0", "", "50");
-
-                parameters.addParameter<RGBColorFloat>(
-                    "WindowBackgroundColor",
-                    "Window background color",
-                    "", "", "0");
-
-                /*
-                parameters.addParameter <int>       (
-                    "Windowed",
-                    "Window or Fullscreen - fullscreen is only applied with two monitors",
-                    "0", "1", "1", new string[] {"Fullscreen", "Window"});
-
-                parameters.addParameter <int>       (
-                    "FullscreenMonitor",
-                    "Full screen Monitor",
-                    "0", "1", "1", new string[] {"Monitor 1", "Monitor 2"});
-                */
-
-                parameters.addParameter<int>(
-                    "TaskFirstRunStartDelay",
-                    "Amount of time before the task starts (on the first run of the task)",
-                    "0", "", "5s");
-
-                parameters.addParameter<int>(
-                    "TaskStartDelay",
-                    "Amount of time before the task starts (after the first run of the task)",
-                    "0", "", "10s");
-
-                parameters.addParameter<int>(
-                    "CountdownTime",
-                    "Amount of time the countdown before the task takes",
-                    "0", "", "3s");
-
-                parameters.addParameter<int>(
-                    "TaskInputChannel",
-                    "Channel to base the cursor position on  (1...n)",
-                    "1", "", "1");
-
-                parameters.addParameter<int>(
-                    "HoleRows",
-                    "Number of rows in the whack a mole grid",
-                    "1", "30", "6");
-                
-                parameters.addParameter<int>(
-                    "HoleColumns",
-                    "Number of columns in the whack a mole grid",
-                    "1", "30", "8");
-
-                parameters.addParameter<double>(
-                    "RowSelectDelay",
-                    "Amount of time before continuing to next row",
-                    "0", "", "3s");
-
-                parameters.addParameter<double>(
-                    "RowSelectedDelay",
-                    "Amount of time to wait after selecting a row",
-                    "0", "", "3s");
-
-                parameters.addParameter<double>(
-                    "ColumnSelectDelay",
-                    "Amount of time before continuing to next column",
-                    "0", "", "3s");
-
-                parameters.addParameter<double>(
-                    "ColumnSelectedDelay",
-                    "Amount of time after selecting a column to wait",
-                    "0", "", "1s");
-
-                parameters.addParameter<int>(
-                    "NumberTargets",
-                    "Number of targets",
-                    "1", "", "10");
-
-                parameters.addParameter<int[]>(
-                    "TargetSequence",
-                    "Fixed sequence in which targets should be presented (leave empty for random). \nNote. the 'NumberTargets' parameter will be overwritten with the amount of values entered here",
-                    "0", "", "");
+                defineParameters(ref parameters);
 
             }
 
             // message
             logger.Info("Application created (version " + CLASS_VERSION + ")");
+
+        }
+
+        private void defineParameters(ref Parameters parameters) {
+
+            // define the parameters
+            parameters.addParameter<int>(
+                "WindowLeft",
+                "Screen coordinate of application window's left edge",
+                "", "", "0");
+
+            parameters.addParameter<int>(
+                "WindowTop",
+                "Screen coordinate of application window's top edge",
+                "", "", "0");
+
+            parameters.addParameter<int>(
+                "WindowWidth",
+                "Width of application window (fullscreen and 0 will take monitor resolution)",
+                "", "", "800");
+
+            parameters.addParameter<int>(
+                "WindowHeight",
+                "Height of application window (fullscreen and 0 will take monitor resolution)",
+                "", "", "600");
+
+            parameters.addParameter<int>(
+                "WindowRedrawFreqMax",
+                "Maximum display redraw interval in FPS (0 for as fast as possible)",
+                "0", "", "50");
+
+            parameters.addParameter<RGBColorFloat>(
+                "WindowBackgroundColor",
+                "Window background color",
+                "", "", "0");
+
+            /*
+            parameters.addParameter <int>       (
+                "Windowed",
+                "Window or Fullscreen - fullscreen is only applied with two monitors",
+                "0", "1", "1", new string[] {"Fullscreen", "Window"});
+
+            parameters.addParameter <int>       (
+                "FullscreenMonitor",
+                "Full screen Monitor",
+                "0", "1", "1", new string[] {"Monitor 1", "Monitor 2"});
+            */
+
+            parameters.addParameter<int>(
+                "TaskFirstRunStartDelay",
+                "Amount of time before the task starts (on the first run of the task)",
+                "0", "", "5s");
+
+            parameters.addParameter<int>(
+                "TaskStartDelay",
+                "Amount of time before the task starts (after the first run of the task)",
+                "0", "", "5s");
+
+            parameters.addParameter<int>(
+                "CountdownTime",
+                "Amount of time the countdown before the task takes",
+                "0", "", "3s");
+
+            parameters.addParameter<int>(
+                "TaskInputChannel",
+                "Channel to base the cursor position on  (1...n)",
+                "1", "", "1");
+
+            parameters.addParameter<int>(
+                "HoleRows",
+                "Number of rows in the whack a mole grid",
+                "1", "30", "6");
+
+            parameters.addParameter<int>(
+                "HoleColumns",
+                "Number of columns in the whack a mole grid",
+                "1", "30", "8");
+
+            parameters.addParameter<double>(
+                "RowSelectDelay",
+                "Amount of time before continuing to next row",
+                "0", "", "3s");
+
+            parameters.addParameter<double>(
+                "RowSelectedDelay",
+                "Amount of time to wait after selecting a row",
+                "0", "", "3s");
+
+            parameters.addParameter<double>(
+                "ColumnSelectDelay",
+                "Amount of time before continuing to next column",
+                "0", "", "3s");
+
+            parameters.addParameter<double>(
+                "ColumnSelectedDelay",
+                "Amount of time after selecting a column to wait",
+                "0", "", "1s");
+
+            parameters.addParameter<int>(
+                "NumberTargets",
+                "Number of targets",
+                "1", "", "10");
+
+            parameters.addParameter<int[]>(
+                "TargetSequence",
+                "Fixed sequence in which targets should be presented (leave empty for random). \nNote. the 'NumberTargets' parameter will be overwritten with the amount of values entered here",
+                "0", "", "");
 
         }
 
@@ -227,9 +234,8 @@ namespace MoleTask {
             return CLASS_VERSION;
         }
 
-        // called only when running as stand-alone app, performs configure steps that are only needed when run as stand-alone
         public bool configure(ref SampleFormat input) {
-            
+
             // store the number of input channels
             inputChannels = input.getNumberOfChannels();
 
@@ -239,47 +245,22 @@ namespace MoleTask {
                 return false;
             }
 
-            // retrieve the input channel setting
-            mTaskInputChannel = parameters.getValue<int>("TaskInputChannel");
-            if (mTaskInputChannel < 1) {
-                logger.Error("Invalid input channel, should be higher than 0 (1...n)");
-                return false;
-            }
-            if (mTaskInputChannel > inputChannels) {
-                logger.Error("Input should come from channel " + mTaskInputChannel + ", however only " + inputChannels + " channels are coming in");
-                return false;
-            }
-
-            // TODO: when UNP_start() can also handle reading variables from other types than int from app.config, put this check for targetsequence in other configure() method
-            // retrieve (fixed) target sequence
-            fixedTargetSequence = parameters.getValue<int[]>("TargetSequence");
-            if (fixedTargetSequence.Length > 0) {
-                int numHoles = configHoleRows * configHoleColumns;
-                for (int i = 0; i < fixedTargetSequence.Length; ++i) {
-                    if (fixedTargetSequence[i] < 0) {
-                        logger.Error("The TargetSequence parameter contains a target index (" + fixedTargetSequence[i] + ") that is below zero, check the TargetSequence");
-                        return false;
-                    }
-                    if (fixedTargetSequence[i] >= numHoles) {
-                        logger.Error("The TargetSequence parameter contains a target index (" + fixedTargetSequence[i] + ") that is out of range, check the HoleRows and HoleColumns parameters. (note that the indexing is 0 based)");
-                        return false;
-                    }
-                    // TODO: check if the mole is not on an empty spot
-                }
-            }
-
-
             // configured as stand-alone, disallow exit
             mAllowExit = false;
 
-            // perform rest of configure
+            // configure the parameters
             return configure(parameters);
+
         }
 
-        // general configure, run both when app is run as stand-alone, as well as when run as UNP app
+
         public bool configure(Parameters newParameters) {
 
+
+            // 
             // TODO: parameters.checkminimum, checkmaximum
+            //
+
 
             // retrieve window settings
             mWindowLeft = newParameters.getValue<int>("WindowLeft");
@@ -290,7 +271,6 @@ namespace MoleTask {
             mWindowBackgroundColor = newParameters.getValue<RGBColorFloat>("WindowBackgroundColor");
             //mWindowed = true;           // fullscreen not implemented, so always windowed
             //mFullscreenMonitor = 0;     // fullscreen not implemented, default to 0 (does nothing)
-
             if (mWindowRedrawFreqMax < 0) {
                 logger.Error("The maximum window redraw frequency can be no smaller then 0");
                 return false;
@@ -303,7 +283,18 @@ namespace MoleTask {
                 logger.Error("The window height can be no smaller then 1");
                 return false;
             }
-            
+
+            // retrieve the input channel setting
+            mTaskInputChannel = newParameters.getValue<int>("TaskInputChannel");
+            if (mTaskInputChannel < 1) {
+                logger.Error("Invalid input channel, should be higher than 0 (1...n)");
+                return false;
+            }
+            if (mTaskInputChannel > inputChannels) {
+                logger.Error("Input should come from channel " + mTaskInputChannel + ", however only " + inputChannels + " channels are coming in");
+                return false;
+            }
+
             // retrieve the task delays 
             mTaskFirstRunStartDelay = newParameters.getValueInSamples("TaskFirstRunStartDelay");
             mTaskStartDelay = newParameters.getValueInSamples("TaskStartDelay");
@@ -344,8 +335,26 @@ namespace MoleTask {
                 return false;
             }
 
+            // retrieve (fixed) target sequence
+            fixedTargetSequence = newParameters.getValue<int[]>("TargetSequence");
+            if (fixedTargetSequence.Length > 0) {
+                int numHoles = configHoleRows * configHoleColumns;
+                for (int i = 0; i < fixedTargetSequence.Length; ++i) {
+                    if (fixedTargetSequence[i] < 0) {
+                        logger.Error("The TargetSequence parameter contains a target index (" + fixedTargetSequence[i] + ") that is below zero, check the TargetSequence");
+                        return false;
+                    }
+                    if (fixedTargetSequence[i] >= numHoles) {
+                        logger.Error("The TargetSequence parameter contains a target index (" + fixedTargetSequence[i] + ") that is out of range, check the HoleRows and HoleColumns parameters. (note that the indexing is 0 based)");
+                        return false;
+                    }
+                    // TODO: check if the mole is not on an empty spot
+                }
+            }
+
             // return success
             return true;
+
         }
 
         public void initialize() {
@@ -371,8 +380,8 @@ namespace MoleTask {
                         holes.Add(new MoleCell(0, 0, 0, 0, MoleCell.CellType.Hole));
                 }
 
-                // check the scene (thread) already exists, stop and clear the old one.
-                destroyScene();
+                // check the view (thread) already exists, stop and clear the old one.
+                destroyView();
 
                 // initialize the view
                 initializeView();
@@ -402,23 +411,23 @@ namespace MoleTask {
         private void initializeView() {
 
             // create the view
-            mSceneThread = new MoleView(mWindowRedrawFreqMax, mWindowLeft, mWindowTop, mWindowWidth, mWindowHeight, false);
-            mSceneThread.setBackgroundColor(mWindowBackgroundColor.getRed(), mWindowBackgroundColor.getGreen(), mWindowBackgroundColor.getBlue());
+            view = new MoleView(mWindowRedrawFreqMax, mWindowLeft, mWindowTop, mWindowWidth, mWindowHeight, false);
+            view.setBackgroundColor(mWindowBackgroundColor.getRed(), mWindowBackgroundColor.getGreen(), mWindowBackgroundColor.getBlue());
 
             // set task specific display attributes 
-            mSceneThread.setFixation(false);                                            // hide the fixation
-            mSceneThread.setCountDown(-1);                                              // hide the countdown
+            view.setFixation(false);                                            // hide the fixation
+            view.setCountDown(-1);                                              // hide the countdown
 
             // initialize the holes for the scene
-            mSceneThread.initGridPositions(holes, holeRows, holeColumns, 10);
+            view.initGridPositions(holes, holeRows, holeColumns, 10);
 
             // start the scene thread
-            mSceneThread.start();
+            view.start();
 
             // wait till the resources are loaded or a maximum amount of 30 seconds (30.000 / 50 = 600)
             // (resourcesLoaded also includes whether GL is loaded)
             int waitCounter = 600;
-            while (!mSceneThread.resourcesLoaded() && waitCounter > 0) {
+            while (!view.resourcesLoaded() && waitCounter > 0) {
                 Thread.Sleep(50);
                 waitCounter--;
             }
@@ -430,7 +439,7 @@ namespace MoleTask {
             // lock for thread safety
             lock(lockView) {
 
-                if (mSceneThread == null)   return;
+                if (view == null)   return;
 
                 // log event task is started
                 Data.logEvent(2, "TaskStart", CLASS_NAME);
@@ -448,7 +457,7 @@ namespace MoleTask {
 		            setState(TaskStates.Wait);
 
                     // show the fixation
-                    mSceneThread.setFixation(true);
+                    view.setFixation(true);
 
 	            } else {
 			
@@ -492,7 +501,7 @@ namespace MoleTask {
             // lock for thread safety
             lock (lockView) {
                 
-                if (mSceneThread == null)   return;
+                if (view == null)   return;
 
                 ////////////////////////
                 // BEGIN CONNECTION FILTER ACTIONS//
@@ -512,36 +521,46 @@ namespace MoleTask {
                         pauzeTask();
 
 			            // show the lost connection warning
-			            mSceneThread.setConnectionLost(true);
+			            view.setConnectionLost(true);
+
+                        // play the connection lost sound
+                        Sound.Play(CONNECTION_LOST_SOUND);
+
+                        // setup and start a timer to play the connection lost sound every 2 seconds
+                        mConnectionLostSoundTimer = new System.Timers.Timer(2000);
+                        mConnectionLostSoundTimer.Elapsed += delegate (object source, System.Timers.ElapsedEventArgs e) {
+
+                            // play the connection lost sound
+                            Sound.Play(CONNECTION_LOST_SOUND);
+
+                        };
+                        mConnectionLostSoundTimer.AutoReset = true;
+                        mConnectionLostSoundTimer.Start();
 
                     }
 
-                    // play the caregiver sound every 20 packages
-                    if (mConnectionSoundTimer == 0) {
-                        /*
-			            PlaySound("sounds\\focuson.wav", NULL, SND_FILENAME);
-                        */
-                        mConnectionSoundTimer = 20;
-                    } else
-                        mConnectionSoundTimer--;
-
+                    // do not process any further
+                    return;
 
                 } else if (mConnectionWasLost && !mConnectionLost) {
                     // if the connection was lost and is not lost anymore
 
-		            // hide the lost connection warning
-		            mSceneThread.setConnectionLost(false);
+                    // stop and clear the connection lost timer
+                    if (mConnectionLostSoundTimer != null) {
+                        mConnectionLostSoundTimer.Stop();
+                        mConnectionLostSoundTimer = null;
+                    }
+
+                    // hide the lost connection warning
+                    view.setConnectionLost(false);
 
                     // resume task
                     resumeTask();
 
                     // reset connection lost variables
                     mConnectionWasLost = false;
-                    mConnectionSoundTimer = 0;
 
                 }
-
-
 
                 ////////////////////////
                 // END CONNECTION FILTER ACTIONS//
@@ -581,7 +600,7 @@ namespace MoleTask {
                             // still counting down
 
                             // display the countdown
-                            mSceneThread.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.SamplesPerSecond()) + 1);
+                            view.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.SamplesPerSecond()) + 1);
 
                             // reduce the countdown timer
                             mCountdownCounter--;
@@ -590,15 +609,15 @@ namespace MoleTask {
 				            // done counting down
 
 				            // hide the countdown counter
-				            mSceneThread.setCountDown(-1);
+				            view.setCountDown(-1);
 
 				            // Begin at first target and set the mole at the right position
 				            mTargetIndex = 0;
 				            setMole(mTargetSequence[mTargetIndex]);
 
 				            // Show hole grid
-				            mSceneThread.showGrid(true);
-                            mSceneThread.setScore(score);
+				            view.showGrid(true);
+                            view.setScore(score);
 
                             // log event countdown is started
                             Data.logEvent(2, "TrialStart ", CLASS_NAME);
@@ -633,7 +652,7 @@ namespace MoleTask {
 					            if(mRowID >= holeRows)		mRowID = 0;
 
 					            // select the row in the scene
-					            mSceneThread.selectRow(mRowID, false);
+					            view.selectRow(mRowID, false);
 
                                 // log event that row is highlighted, and whether the row is empty (no mole), blank (no mole and no pile of dirt), or contains a mole
                                 if (mRowID == 0) Data.logEvent(2, "BlankRow ", mRowID.ToString());
@@ -704,7 +723,7 @@ namespace MoleTask {
 
 					            } else {
 						            // select the cell in the scene
-						            mSceneThread.selectCell(mRowID, mColumnID, false);
+						            view.selectCell(mRowID, mColumnID, false);
 						
 						            // reset the timer
 						            mWaitCounter = mColumnSelectDelay;
@@ -751,7 +770,7 @@ namespace MoleTask {
 
                                     // add one to the score and display
                                     score++;
-                                    mSceneThread.setScore(score);
+                                    view.setScore(score);
 
                                     // go to next target in the sequence and set mole
                                     mTargetIndex++;
@@ -844,7 +863,16 @@ namespace MoleTask {
 
             // lock for thread safety
             lock(lockView) {
-                destroyScene();
+
+                // destroy the view
+                destroyView();
+
+                // stop and clear the connection lost timer
+                if (mConnectionLostSoundTimer != null) {
+                    mConnectionLostSoundTimer.Stop();
+                    mConnectionLostSoundTimer = null;
+                }
+
             }
 
             // destroy/empty more task variables
@@ -855,7 +883,7 @@ namespace MoleTask {
 
         // pauzes the task
         private void pauzeTask() {
-	        if (mSceneThread == null)   return;
+	        if (view == null)   return;
 
             // log event task is paused
             Data.logEvent(2, "TaskPause", CLASS_NAME);
@@ -866,15 +894,17 @@ namespace MoleTask {
 	        // store the previous state
 	        previousTaskState = taskState;
 			
-		    // hide the grid and hide the score
-		    mSceneThread.showGrid(false);
-		    mSceneThread.setScore(-1);
-	    
+            // hide everything
+            view.setFixation(false);
+            view.setCountDown(-1);
+            view.showGrid(false);
+            view.setScore(-1);
+
         }
 
         // resumes the task
         private void resumeTask() {
-            if (mSceneThread == null)   return;
+            if (view == null)   return;
 
             // log event task is resumed
             Data.logEvent(2, "TaskResume", CLASS_NAME);
@@ -883,11 +913,11 @@ namespace MoleTask {
             if (previousTaskState == TaskStates.RowSelect || previousTaskState == TaskStates.RowSelected || previousTaskState == TaskStates.ColumnSelect || previousTaskState == TaskStates.ColumnSelected) {
 			
 			    // show the grid and set the mole
-			    mSceneThread.showGrid(true);
+			    view.showGrid(true);
 			    setMole(mTargetSequence[mTargetIndex]);
 
 			    // show the score
-			    mSceneThread.setScore(score);
+			    view.setScore(score);
 
 		    }
 	    
@@ -900,16 +930,16 @@ namespace MoleTask {
         }
 
 
-        private void destroyScene() {
+        private void destroyView() {
 
 	        // check if a scene thread still exists
-	        if (mSceneThread != null) {
+	        if (view != null) {
 
 		        // stop the animation thread (stop waits until the thread is finished)
-                mSceneThread.stop();
+                view.stop();
 
                 // release the thread (For collection)
-                mSceneThread = null;
+                view = null;
 
 	        }
 
@@ -926,17 +956,17 @@ namespace MoleTask {
 			        // starting, pauzed or waiting
                     
 			        // hide text if present
-			        mSceneThread.setText("");
+			        view.setText("");
 
 			        // hide the fixation and countdown
-			        mSceneThread.setFixation(false);
-                    mSceneThread.setCountDown(-1);
+			        view.setFixation(false);
+                    view.setCountDown(-1);
 
 			        // Hide countdown, selection, mole and score
-                    mSceneThread.selectRow(-1, false);
+                    view.selectRow(-1, false);
 			        setMole(-1);
-                    mSceneThread.setScore(-1);
-                    mSceneThread.showGrid(false);
+                    view.setScore(-1);
+                    view.showGrid(false);
 
                     // Set wait counter to startdelay
                     if (mTaskFirstRunStartDelay != 0) {
@@ -954,13 +984,13 @@ namespace MoleTask {
                     Data.logEvent(2, "CountdownStarted ", CLASS_NAME);
 
                     // hide fixation
-                    mSceneThread.setFixation(false);
+                    view.setFixation(false);
 
                     // set countdown
                     if (mCountdownCounter > 0)
-                        mSceneThread.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.SamplesPerSecond()) + 1);
+                        view.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.SamplesPerSecond()) + 1);
                     else
-                        mSceneThread.setCountDown(-1);
+                        view.setCountDown(-1);
 
                     break;
 
@@ -971,7 +1001,7 @@ namespace MoleTask {
 			        mColumnID = 0;
 
 			        // select row
-			        mSceneThread.selectRow(mRowID, false);
+			        view.selectRow(mRowID, false);
 
                     // log event that row is highlighted, and whether the row is empty (no mole), blank (no mole and no pile of dirt), or contains a mole
                     if (mRowID == 0) Data.logEvent(2, "BlankRow ", mRowID.ToString());
@@ -987,7 +1017,7 @@ namespace MoleTask {
                 case TaskStates.RowSelected:
 
                     // select row and highlight
-                    mSceneThread.selectRow(mRowID, true);
+                    view.selectRow(mRowID, true);
 
                     // row has been clicked. Check whether it was on a row that contains a mole or not
                     if (mRowID * holeColumns < mMoleIndex && (mRowID + 1) * holeColumns > mMoleIndex) Data.logEvent(2, "rowClick ", "1");
@@ -1005,7 +1035,7 @@ namespace MoleTask {
 			        mColumnID = 0;
 
 			        // select cell
-			        mSceneThread.selectCell(mRowID, mColumnID, false);
+			        view.selectCell(mRowID, mColumnID, false);
 
                     // log event that column is highlighted, and whether the column is empty(no mole), blank(no mole and no pile of dirt), or contains a mole
                     if (mColumnID == 0 || mRowID == 0) Data.logEvent(2, "BlankColumn ", mColumnID.ToString());
@@ -1025,7 +1055,7 @@ namespace MoleTask {
 			        // column was selected
 
 			        // select cell and highlight
-			        mSceneThread.selectCell(mRowID, mColumnID, true);
+			        view.selectCell(mRowID, mColumnID, true);
 
                     // 
 			        mWaitCounter = mColumnSelectedDelay;
@@ -1036,10 +1066,10 @@ namespace MoleTask {
 			        // show text
 			
 			        // hide hole grid
-			        mSceneThread.showGrid(false);
+			        view.showGrid(false);
 
 			        // show text
-				    mSceneThread.setText("Done");
+				    view.setText("Done");
 
                     // set duration for text to be shown at the end (3s)
                     mWaitCounter = (int)(MainThread.SamplesPerSecond() * 3.0);
@@ -1052,7 +1082,7 @@ namespace MoleTask {
 
         // Stop the task
         private void stopTask() {
-            if (mSceneThread == null) return;
+            if (view == null) return;
 
 	        // Set state to Wait
 	        setState(TaskStates.Wait);
@@ -1129,37 +1159,59 @@ namespace MoleTask {
         ////////////////////////////////////////////////
 
         public void UNP_start(Parameters parentParameters) {
-
+            
             // UNP entry point can only be used if initialized as UNPMenu
             if (!mUNPMenuTask) {
                 logger.Error("Using UNP entry point while the task was not initialized as UNPMenu task, check parameters used to call the task constructor");
                 return;
             }
 
-            // list of parameters that need to be transferred from UNP parameter set
-            List<string> parametersToClone = new List<string> { "WindowRedrawFreqMax", "WindowWidth", "WindowHeight", "WindowLeft", "WindowTop", "WindowBackgroundColor"};
 
-            // transfer parentParameters to new parameters
-            Parameters newParameters = parentParameters.clone(parametersToClone);
+            // create a new parameter object and define this task's parameters
+            Parameters newParameters = new Parameters("FollowTask", Parameters.ParamSetTypes.Application);
+            defineParameters(ref newParameters);
+
+            // transfer some parameters from the parent
+            newParameters.setValue("WindowRedrawFreqMax", parentParameters.getValue<int>("WindowRedrawFreqMax"));
+            newParameters.setValue("WindowWidth", parentParameters.getValue<int>("WindowWidth"));
+            newParameters.setValue("WindowHeight", parentParameters.getValue<int>("WindowHeight"));
+            newParameters.setValue("WindowLeft", parentParameters.getValue<int>("WindowLeft"));
+            newParameters.setValue("WindowTop", parentParameters.getValue<int>("WindowTop"));
+
+            // set UNP task standard settings
+            inputChannels = 1;
+            mAllowExit = true;                  // UNPMenu task, allow exit
+            newParameters.setValue("WindowBackgroundColor", "0;0;0");
+            newParameters.setValue("CountdownTime", "3s");
+            newParameters.setValue("TaskInputChannel", 1);
+            newParameters.setValue("TaskFirstRunStartDelay", "2s");
+            newParameters.setValue("TaskStartDelay", "2s");
+            newParameters.setValue("HoleRows", 4);
+            newParameters.setValue("HoleColumns", 4);
+            newParameters.setValue("RowSelectDelay", 12.0);
+            newParameters.setValue("RowSelectedDelay", 5.0);
+            newParameters.setValue("ColumnSelectDelay", 12.0);
+            newParameters.setValue("ColumnSelectedDelay", 5.0);
+            newParameters.setValue("NumberTargets", 10);
+            newParameters.setValue("TargetSequence", "");
 
             // get parameter values from app.config
+            // cycle through app.config parameter values and try to set the parameter
             var appSettings = System.Configuration.ConfigurationManager.GetSection(CLASS_NAME) as NameValueCollection;
+            if (appSettings != null) {
+                for (int i = 0; i < appSettings.Count; i++) {
 
-            // cycle through app.config paramter values and add to parameter set if not already present
-            // TODO, currently only parameters which value is an integer can be read from app.config 
-            for (int i = 0; i < appSettings.Count; i++) {
-                iParam result = newParameters.addParameter<int>(
-                    appSettings.GetKey(i),
-                    "",
-                    "", "", appSettings.Get(i));
-                if(result != null)   logger.Info("Added parameter " + appSettings.GetKey(i) + " with value " + appSettings.Get(i) + " from app.config.");
+                    // message
+                    logger.Info("Setting parameter '" + appSettings.GetKey(i) + "' to value '" + appSettings.Get(i) + "' from app.config.");
+
+                    // set the value
+                    newParameters.setValue(appSettings.GetKey(i), appSettings.Get(i));
+
+                }
             }
 
             // configure task with new parameters
             configure(newParameters);
-
-            // UNPMenu task, allow exit
-            mAllowExit = true;
 
             // initialize
             initialize();
@@ -1169,7 +1221,6 @@ namespace MoleTask {
 
             // set the task as running
             mUNPMenuTaskRunning = true;
-
 
         }
 
@@ -1239,7 +1290,7 @@ namespace MoleTask {
 
             // lock for thread safety and destroy the scene
             lock (lockView) {
-                destroyScene();
+                destroyView();
             }
 
         }

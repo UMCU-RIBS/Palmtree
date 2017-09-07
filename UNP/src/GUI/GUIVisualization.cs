@@ -60,7 +60,7 @@ namespace UNP.GUI {
         }
 
         public void initGraphs() {
-
+            
             // thread safety
             lock (lockVisualization) {
 
@@ -71,7 +71,7 @@ namespace UNP.GUI {
 
                     // retrieve the visualization stream names (this is already an array copy of the list held in the data class)
                     string[] visualizationStreamNames = Data.getVisualizationDataStreamNames();
-
+                    
                     // create graphs
                     visualizationGraphs = new Graph[NumberOfGraphs];
                     for (int i = 0; i < NumberOfGraphs; i++) {
@@ -143,13 +143,13 @@ namespace UNP.GUI {
             int numStreams = streamNames.Length;
 
             // 
-            int y = 12 + id * 200;
+            int y = 12 + id * 180;
 
             // create the actual control
             Chart chart = new Chart();
             chart.Location = new System.Drawing.Point(12, y);
             chart.Name = "crtGraph" + id;
-            chart.Size = new System.Drawing.Size(800, 190);
+            chart.Size = new System.Drawing.Size(this.ClientRectangle.Width - 20, 160);
             chart.TabIndex = id;
             chart.Text = "crtGraph" + id;
             chart.BorderlineWidth = 1;
@@ -449,18 +449,23 @@ namespace UNP.GUI {
             // thread safety
             lock (lockVisualization) {
 
-                // loop through the graphs
-                for (int i = 0; i < visualizationGraphs.Length; i++) {
+                // check if the visualization graphs are set
+                if (visualizationGraphs != null) {
 
-                    // check if the graph needs to be updated on the timer (instead of on new data)
-                    if (!visualizationGraphs[i].updateOnNewData) {
+                    // loop through the graphs
+                    for (int i = 0; i < visualizationGraphs.Length; i++) {
 
-                        // update the chart
-                        updateChart(visualizationGraphs[i]);
+                        // check if the graph needs to be updated on the timer (instead of on new data)
+                        if (!visualizationGraphs[i].updateOnNewData) {
 
-                    }
+                            // update the chart
+                            updateChart(visualizationGraphs[i]);
 
-                }   // end loop
+                        }
+
+                    }   // end loop
+
+                }
 
             }   // end lock
 

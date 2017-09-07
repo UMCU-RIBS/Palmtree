@@ -27,12 +27,13 @@ namespace CursorTask {
 
         private const int CLASS_VERSION = 0;
         private const string CLASS_NAME = "CursorTask";
+        private const string CONNECTION_LOST_SOUND = "sounds\\focuson.wav";
 
         private static Logger logger = LogManager.GetLogger(CLASS_NAME);                        // the logger object for the view
         private static Parameters parameters = null;
 
         private int inputChannels = 0;
-        private CursorView mSceneThread = null;
+        private CursorView view = null;
 
         Random rand = new Random(Guid.NewGuid().GetHashCode());
         private Object lockView = new Object();                         // threadsafety lock for all event on the view
@@ -42,10 +43,9 @@ namespace CursorTask {
         private bool mUNPMenuTaskRunning = false;						// flag to hold whether the task should is running (setting this to false is also used to notify the UNPMenu that the task is finished)
         private bool mUNPMenuTaskSuspended = false;						// flag to hold whether the task is suspended (view will be destroyed/re-initiated)
 
-        private int mConnectionSoundTimer = 0;							// counter to play a sound when the connection is lost
         private bool mConnectionLost = false;							// flag to hold whether the connection is lost
         private bool mConnectionWasLost = false;						// flag to hold whether the connection has been lost (should be reset after being re-connected)
-
+        private System.Timers.Timer mConnectionLostSoundTimer = null;   // timer to play the connection lost sound on
 
         // task input parameters
         private int mWindowLeft = 0;
@@ -423,8 +423,8 @@ namespace CursorTask {
             // lock for thread safety
             lock (lockView) {
 
-                // check the scene (thread) already exists, stop and clear the old one.
-                destroyScene();
+                // check the view (thread) already exists, stop and clear the old one.
+                destroyView();
 
                 // initialize the view
                 initializeView();
@@ -455,29 +455,29 @@ namespace CursorTask {
         private void initializeView() {
 
             // create the view
-            mSceneThread = new CursorView(mWindowRedrawFreqMax, mWindowLeft, mWindowTop, mWindowWidth, mWindowHeight, false);
-            mSceneThread.setBackgroundColor(mWindowBackgroundColor.getRed(), mWindowBackgroundColor.getGreen(), mWindowBackgroundColor.getBlue());
+            view = new CursorView(mWindowRedrawFreqMax, mWindowLeft, mWindowTop, mWindowWidth, mWindowHeight, false);
+            view.setBackgroundColor(mWindowBackgroundColor.getRed(), mWindowBackgroundColor.getGreen(), mWindowBackgroundColor.getBlue());
 
             // set task specific display attributes 
-            mSceneThread.setCursorSizePerc(mCursorSize);                         // cursor size radius in percentage of the screen height
-            mSceneThread.setCursorSpeed((float)mTrialTime);                             // set the cursor speed
-            mSceneThread.setCursorNeutralColor(mCursorColorNeutral);                    // 
-            mSceneThread.setCursorHitColor(mCursorColorHit);                            // 
-            mSceneThread.setCursorMissColor(mCursorColorMiss);                          // 
-            mSceneThread.setTargetNeutralColor(mTargetColorNeutral);                    // 
-            mSceneThread.setTargetHitColor(mTargetColorHit);                            // 
-            mSceneThread.setTargetMissColor(mTargetColorMiss);                          // 
-            mSceneThread.centerCursorY();                                               // set the cursor to the middle of the screen
-            mSceneThread.setFixation(false);                                            // hide the fixation
-            mSceneThread.setCountDown(-1);                                              // hide the countdown
+            view.setCursorSizePerc(mCursorSize);                         // cursor size radius in percentage of the screen height
+            view.setCursorSpeed((float)mTrialTime);                             // set the cursor speed
+            view.setCursorNeutralColor(mCursorColorNeutral);                    // 
+            view.setCursorHitColor(mCursorColorHit);                            // 
+            view.setCursorMissColor(mCursorColorMiss);                          // 
+            view.setTargetNeutralColor(mTargetColorNeutral);                    // 
+            view.setTargetHitColor(mTargetColorHit);                            // 
+            view.setTargetMissColor(mTargetColorMiss);                          // 
+            view.centerCursorY();                                               // set the cursor to the middle of the screen
+            view.setFixation(false);                                            // hide the fixation
+            view.setCountDown(-1);                                              // hide the countdown
 
             // start the scene thread
-            mSceneThread.start();
+            view.start();
 
             // wait till the resources are loaded or a maximum amount of 30 seconds (30.000 / 50 = 600)
             // (resourcesLoaded also includes whether GL is loaded)
             int waitCounter = 600;
-            while (!mSceneThread.resourcesLoaded() && waitCounter > 0) {
+            while (!view.resourcesLoaded() && waitCounter > 0) {
                 Thread.Sleep(50);
                 waitCounter--;
             }
@@ -489,7 +489,7 @@ namespace CursorTask {
             // lock for thread safety
             lock(lockView) {
 
-                if (mSceneThread == null)   return;
+                if (view == null)   return;
 
                 // log event task is started
                 Data.logEvent(2, "TaskStart", CLASS_NAME);
@@ -507,7 +507,7 @@ namespace CursorTask {
 		            setState(TaskStates.Wait);
 
                     // show the fixation
-                    mSceneThread.setFixation(true);
+                    view.setFixation(true);
 		
 	            } else {
 		
@@ -549,8 +549,8 @@ namespace CursorTask {
 
             // lock for thread safety
             lock (lockView) {
-                
-                if (mSceneThread == null)   return;
+
+                if (view == null) return;
 
                 ////////////////////////
                 // BEGIN CONNECTION FILTER ACTIONS//
@@ -569,33 +569,45 @@ namespace CursorTask {
                         // pauze the task
                         pauzeTask();
 
-			            // show the lost connection warning
-			            mSceneThread.setConnectionLost(true);
+                        // show the lost connection warning
+                        view.setConnectionLost(true);
+
+                        // play the connection lost sound
+                        Sound.Play(CONNECTION_LOST_SOUND);
+
+                        // setup and start a timer to play the connection lost sound every 2 seconds
+                        mConnectionLostSoundTimer = new System.Timers.Timer(2000);
+                        mConnectionLostSoundTimer.Elapsed += delegate (object source, System.Timers.ElapsedEventArgs e) {
+
+                            // play the connection lost sound
+                            Sound.Play(CONNECTION_LOST_SOUND);
+
+                        };
+                        mConnectionLostSoundTimer.AutoReset = true;
+                        mConnectionLostSoundTimer.Start();
 
                     }
 
-                    // play the caregiver sound every 20 packages
-                    if (mConnectionSoundTimer == 0) {
-                        /*
-			            PlaySound("sounds\\focuson.wav", NULL, SND_FILENAME);
-                        */
-                        mConnectionSoundTimer = 20;
-                    } else
-                        mConnectionSoundTimer--;
-
+                    // do not process any further
+                    return;
 
                 } else if (mConnectionWasLost && !mConnectionLost) {
                     // if the connection was lost and is not lost anymore
 
-		            // hide the lost connection warning
-		            mSceneThread.setConnectionLost(false);
+                    // stop and clear the connection lost timer
+                    if (mConnectionLostSoundTimer != null) {
+                        mConnectionLostSoundTimer.Stop();
+                        mConnectionLostSoundTimer = null;
+                    }
+
+                    // hide the lost connection warning
+                    view.setConnectionLost(false);
 
                     // resume task
                     resumeTask();
 
                     // reset connection lost variables
                     mConnectionWasLost = false;
-                    mConnectionSoundTimer = 0;
 
                 }
 
@@ -603,8 +615,10 @@ namespace CursorTask {
                 // END CONNECTION FILTER ACTIONS//
                 ////////////////////////
 
-	            // check if the task is pauzed, do not process any further if this is the case
-	            if (mTaskPauzed)		    return;
+
+
+                // check if the task is pauzed, do not process any further if this is the case
+                if (mTaskPauzed)		    return;
 
 
                 // use the task state
@@ -632,7 +646,7 @@ namespace CursorTask {
                             // still counting down
 
                             // display the countdown
-                            mSceneThread.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.SamplesPerSecond()) + 1);
+                            view.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.SamplesPerSecond()) + 1);
 
                             // reduce the countdown timer
                             mCountdownCounter--;
@@ -641,7 +655,7 @@ namespace CursorTask {
                             // done counting down
 
                             // hide the countdown counter
-                            mSceneThread.setCountDown(-1);
+                            view.setCountDown(-1);
 
                             // set the current target/trial to the first target/trial
                             mCurrentTarget = 0;
@@ -674,12 +688,12 @@ namespace CursorTask {
                                     mCursorCounter = 0;
 
                                     // center the cursor on the Y axis
-                                    mSceneThread.centerCursorY();
+                                    view.centerCursorY();
 
                                     // set the target
                                     int currentTargetY = (int)mTargets[0][mTargetSequence[mCurrentTarget]];
                                     int currentTargetHeight = (int)mTargets[1][mTargetSequence[mCurrentTarget]];
-                                    mSceneThread.setTarget(currentTargetY, currentTargetHeight);
+                                    view.setTarget(currentTargetY, currentTargetHeight);
 
                                     // set the trial state to trial
                                     setTrialState(TrialStates.Trial);
@@ -700,7 +714,7 @@ namespace CursorTask {
                                     if (mCursorCounter > mTrialTime) mCursorCounter = (int)mTrialTime;
 
                                     // set the X position
-                                    mSceneThread.setCursorNormX(mCursorCounter / mTrialTime, true);
+                                    view.setCursorNormX(mCursorCounter / mTrialTime, true);
 
                                 }
 
@@ -708,19 +722,19 @@ namespace CursorTask {
                                 if (mTaskInputSignalType == 0) {
                                     // Direct input (0 to 1)
 
-                                    mSceneThread.setCursorNormY(input); // setCursorNormY will take care of values below 0 or above 1)
+                                    view.setCursorNormY(input); // setCursorNormY will take care of values below 0 or above 1)
 
                                 } else if (mTaskInputSignalType == 1) {
                                     // Direct input (-1 to 1)
 
-                                    mSceneThread.setCursorNormY((input + 1.0) / 2.0);
+                                    view.setCursorNormY((input + 1.0) / 2.0);
 
                                 } else if (mTaskInputSignalType == 3) {
                                     // Added input
 
-                                    double y = mSceneThread.getCursorY();
+                                    double y = view.getCursorY();
                                     y += mCursorSpeedY * input;
-                                    mSceneThread.setCursorNormY(y);
+                                    view.setCursorNormY(y);
 
 
                                 } else {
@@ -729,20 +743,20 @@ namespace CursorTask {
                                 }
 
                                 // check if the end has been reached by the target (the trial has ended)
-                                if (mSceneThread.isCursorAtEnd(true)) {
+                                if (view.isCursorAtEnd(true)) {
 
                                     // check if the target was hit
-                                    if (mSceneThread.isTargetHit()) {
-                                        mSceneThread.setCursorNormX(1, true);
+                                    if (view.isTargetHit()) {
+                                        view.setCursorNormX(1, true);
 
                                         // add to score if cursor hits the block
                                         mHitScore++;
 
                                         // update the score for display
-                                        if (mShowScore) mSceneThread.setScore(mHitScore);
+                                        if (mShowScore) view.setScore(mHitScore);
 
                                     } else {
-                                        mSceneThread.setCursorNormX(1, false);
+                                        view.setCursorNormX(1, false);
                                     }
 
                                     // set the wait after the trial (3s)
@@ -826,23 +840,32 @@ namespace CursorTask {
 
             // lock for thread safety
             lock (lockView) {
-                destroyScene();
+
+                // destroy the view
+                destroyView();
+
+                // stop and clear the connection lost timer
+                if (mConnectionLostSoundTimer != null) {
+                    mConnectionLostSoundTimer.Stop();
+                    mConnectionLostSoundTimer = null;
+                }
+
             }
 
             // destroy/Cursor more task variables
 
         }
 
-        private void destroyScene() {
+        private void destroyView() {
 
             // check if a scene thread still exists
-            if (mSceneThread != null) {
+            if (view != null) {
 
                 // stop the animation thread (stop waits until the thread is finished)
-                mSceneThread.stop();
+                view.stop();
 
                 // release the thread (For collection)
-                mSceneThread = null;
+                view = null;
 
             }
 
@@ -851,7 +874,7 @@ namespace CursorTask {
         
         // pauzes the task
         private void pauzeTask() {
-            if (mSceneThread == null) return;
+            if (view == null) return;
 
             // log event task is paused
             Data.logEvent(2, "TaskPause", CLASS_NAME);
@@ -863,17 +886,17 @@ namespace CursorTask {
 	        previousTaskState = taskState;
 
 		    // hide everything
-		    mSceneThread.setFixation(false);
-		    mSceneThread.setCountDown(-1);
-		    mSceneThread.setCursorVisible(false);
-		    mSceneThread.setTargetVisible(false);
-		    mSceneThread.setScore(-1);
+		    view.setFixation(false);
+		    view.setCountDown(-1);
+		    view.setCursorVisible(false);
+		    view.setTargetVisible(false);
+		    view.setScore(-1);
 
         }
 
         // resumes the task
         private void resumeTask() {
-            if (mSceneThread == null) return;
+            if (view == null) return;
 
             // log event task is paused
             Data.logEvent(2, "TaskResume", CLASS_NAME);
@@ -897,20 +920,20 @@ namespace CursorTask {
                     // starting, pauzed or waiting
 
 				    // hide text if present
-				    mSceneThread.setText("");
+				    view.setText("");
 
                     // hide the fixation and countdown
-                    mSceneThread.setFixation(false);
-                    mSceneThread.setCountDown(-1);
+                    view.setFixation(false);
+                    view.setCountDown(-1);
 
                     // hide the cursor, target and score
-				    mSceneThread.setCursorVisible(false);
-				    mSceneThread.setCursorMoving(false);		// only moving is animated
-				    mSceneThread.setTargetVisible(false);
-				    mSceneThread.setScore(-1);
+				    view.setCursorVisible(false);
+				    view.setCursorMoving(false);		// only moving is animated
+				    view.setTargetVisible(false);
+				    view.setScore(-1);
 
 				    // hide the boundary
-				    mSceneThread.setBoundaryVisible(false);
+				    view.setBoundaryVisible(false);
 
                     // Set wait counter to startdelay
                     if (mTaskFirstRunStartDelay != 0) {
@@ -928,22 +951,22 @@ namespace CursorTask {
                     Data.logEvent(2, "CountdownStarted ", CLASS_NAME);
 
                     // hide text if present
-                    mSceneThread.setText("");
+                    view.setText("");
 
                     // hide fixation
-                    mSceneThread.setFixation(false);
+                    view.setFixation(false);
 
                     // hide the cursor, target and boundary
-                    mSceneThread.setBoundaryVisible(false);
-                    mSceneThread.setCursorVisible(false);
-                    mSceneThread.setCursorMoving(false);        // only moving is animated
-                    mSceneThread.setTargetVisible(false);
+                    view.setBoundaryVisible(false);
+                    view.setCursorVisible(false);
+                    view.setCursorMoving(false);        // only moving is animated
+                    view.setTargetVisible(false);
 
                     // set countdown
                     if (mCountdownCounter > 0)
-                        mSceneThread.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.SamplesPerSecond()) + 1);
+                        view.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.SamplesPerSecond()) + 1);
                     else
-                        mSceneThread.setCountDown(-1);
+                        view.setCountDown(-1);
 
                     break;
 
@@ -955,16 +978,16 @@ namespace CursorTask {
                     Data.logEvent(2, "TrialStart ", CLASS_NAME);
 
 				    // hide text if present
-				    mSceneThread.setText("");
+				    view.setText("");
 
                     // hide the countdown counter
-                    mSceneThread.setCountDown(-1);
+                    view.setCountDown(-1);
 
                     // show the boundary
-                    mSceneThread.setBoundaryVisible(true);
+                    view.setBoundaryVisible(true);
 
                     // set the score for display
-                    if (mShowScore) mSceneThread.setScore(mHitScore);
+                    if (mShowScore) view.setScore(mHitScore);
 
                     break;
 
@@ -972,17 +995,17 @@ namespace CursorTask {
 			        // show text
 
 				    // stop the blocks from moving
-				    //mSceneThread.setBlocksMove(false);
+				    //view.setBlocksMove(false);
 
 				    // hide the boundary, target and cursor
-				    mSceneThread.setBoundaryVisible(false);
-				    mSceneThread.setCursorVisible(false);
-				    mSceneThread.setCursorMoving(false);		// only if moving is animated, do just in case
-				    mSceneThread.setTargetVisible(false);
+				    view.setBoundaryVisible(false);
+				    view.setCursorVisible(false);
+				    view.setCursorMoving(false);		// only if moving is animated, do just in case
+				    view.setTargetVisible(false);
 
 
                     // show text
-                    mSceneThread.setText("Done");
+                    view.setText("Done");
 
                     // set duration for text to be shown at the end (3s)
                     mWaitCounter = (int)(MainThread.SamplesPerSecond() * 3.0);
@@ -1004,15 +1027,15 @@ namespace CursorTask {
 			        // rest before trial (cursor is hidden)
 
 				    // hide the cursor and make the cursor color neutral
-				    mSceneThread.setCursorVisible(false);
-				    mSceneThread.setCursorColor(CursorView.ColorStates.Neutral);
+				    view.setCursorVisible(false);
+				    view.setCursorColor(CursorView.ColorStates.Neutral);
 
 				    // hide the target and make the target color neutral
-				    mSceneThread.setTargetVisible(false);
-				    mSceneThread.setTargetColor(CursorView.ColorStates.Neutral);
+				    view.setTargetVisible(false);
+				    view.setTargetColor(CursorView.ColorStates.Neutral);
 
 				    // set the cursor at the beginning
-				    mSceneThread.setCursorNormX(0, true);
+				    view.setCursorNormX(0, true);
 
 			        break;
 
@@ -1020,16 +1043,16 @@ namespace CursorTask {
 			    // trial (cursor is shown and moving)
 
 				    // make the cursor visible and make the cursor color neutral
-				    mSceneThread.setCursorVisible(true);
-				    mSceneThread.setCursorColor(CursorView.ColorStates.Neutral);
+				    view.setCursorVisible(true);
+				    view.setCursorColor(CursorView.ColorStates.Neutral);
                         
 				    // show the target and make the target color neutral
-				    mSceneThread.setTargetVisible(true);
-				    mSceneThread.setTargetColor(CursorView.ColorStates.Neutral);
+				    view.setTargetVisible(true);
+				    view.setTargetColor(CursorView.ColorStates.Neutral);
 
 				    // check if the cursor movement is animated, if so, set the cursor moving
 				    if (!mUpdateCursorOnSignal)
-					    mSceneThread.setCursorMoving(true);
+					    view.setCursorMoving(true);
 
 			        break;
 
@@ -1037,25 +1060,25 @@ namespace CursorTask {
 			        // trial ending (cursor will stay at the end)
 
 				    // make the cursor visible
-				    mSceneThread.setCursorVisible(true);
+				    view.setCursorVisible(true);
 
 				    // show the target
-				    mSceneThread.setTargetVisible(true);
+				    view.setTargetVisible(true);
 
 				    // check if it was a hit or a miss
-				    if (mSceneThread.isTargetHit()) {
+				    if (view.isTargetHit()) {
 					    // hit
-					    mSceneThread.setCursorColor(CursorView.ColorStates.Hit);
-					    mSceneThread.setTargetColor(CursorView.ColorStates.Hit);
+					    view.setCursorColor(CursorView.ColorStates.Hit);
+					    view.setTargetColor(CursorView.ColorStates.Hit);
 				    } else {
 					    // miss
-					    mSceneThread.setCursorColor(CursorView.ColorStates.Miss);
-					    mSceneThread.setTargetColor(CursorView.ColorStates.Miss);
+					    view.setCursorColor(CursorView.ColorStates.Miss);
+					    view.setTargetColor(CursorView.ColorStates.Miss);
 				    }
 
 				    // check if the cursor movement is animated, if so, stop the cursor from moving
 				    if (!mUpdateCursorOnSignal)
-					    mSceneThread.setCursorMoving(false);
+					    view.setCursorMoving(false);
 
 			        break;
 
@@ -1065,7 +1088,7 @@ namespace CursorTask {
         
         // Stop the task
         private void stopTask() {
-            if (mSceneThread == null) return;
+            if (view == null) return;
 
             // set state to wait
             setState(TaskStates.Wait);
@@ -1409,7 +1432,7 @@ namespace CursorTask {
 
             // lock for thread safety and destroy the scene
             lock (lockView) {
-                destroyScene();
+                destroyView();
             }
 
         }

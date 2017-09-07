@@ -51,7 +51,8 @@ namespace UNP.Views {
         private float windowBackgroundColorB = 0f;
         private bool windowBackgroundColorChanged = false;
 
-        private MouseState mouseState = new MouseState();
+        protected MouseState mouseState = new MouseState();
+        protected Point mouseInWindowPos = new Point(0, 0);
 
         // pure abstract functions that are required to be implemented by the deriving class
         protected abstract void load();
@@ -408,7 +409,7 @@ namespace UNP.Views {
                 update(timePassed / 1000f);
 
                 // Get current mouse state
-                mouseState = OpenTK.Input.Mouse.GetState();
+                mouseState = Mouse.GetCursorState();
 
                 // redraw/render
                 try {
@@ -447,7 +448,10 @@ namespace UNP.Views {
             // Reset the matrix
             GL.MatrixMode(MatrixMode.Modelview);
             GL.LoadIdentity();
-            
+
+            // calculate the cursor position in relation to the window
+            mouseInWindowPos = this.PointToClient(new Point(mouseState.X, mouseState.Y));
+
             // call the render in the deriving class
             render();
 
@@ -469,6 +473,13 @@ namespace UNP.Views {
 
         public bool isRightMouseDown() {
             return mouseState.IsButtonDown(MouseButton.Right);
+        }
+        
+        public int getMouseXInwindow() {
+            MouseState mState = Mouse.GetCursorState();
+            //Point mousePos = this.PointToClient(new Point(mState.X, mState.Y));
+            
+            return mState.X;
         }
 
         public void drawLine(float x1, float y1, float x2, float y2, float lineWidth, bool dashed, float colorR, float colorG, float colorB) {
