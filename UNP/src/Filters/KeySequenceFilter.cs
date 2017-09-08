@@ -100,12 +100,9 @@ namespace UNP.Filters {
             // configure output logging for this filter
             configureOutputLogging(filterName + "_", output);
 
-            // debug output
-            logger.Debug("--- Filter configuration: " + filterName + " ---");
-            logger.Debug("Input channels: " + inputChannels);
-            logger.Debug("Enabled: " + mEnableFilter);
-            logger.Debug("Output channels: " + outputChannels);
-
+            // print configuration
+            printLocalConfiguration();
+            
             // return success
             return true;
 
@@ -168,6 +165,9 @@ namespace UNP.Filters {
             }
 
             // TODO: take resetFilter into account (currently always resets the buffers on initialize
+
+            // print configuration
+            printLocalConfiguration();
 
             // initialize the variables
             initialize();
@@ -247,6 +247,22 @@ namespace UNP.Filters {
                 // store the sequence
                 mSequence = newParameters.getValue<bool[]>("Sequence");
 
+            }
+
+        }
+
+        private void printLocalConfiguration() {
+
+            // debug output
+            logger.Debug("--- Filter configuration: " + filterName + " ---");
+            logger.Debug("Input channels: " + inputChannels);
+            logger.Debug("Enabled: " + mEnableFilter);
+            logger.Debug("Output channels: " + outputChannels);
+            if (mEnableFilter) {
+                logger.Debug("FilterInputChannel: " + filterInputChannel);
+                logger.Debug("Threshold: " + mThreshold);
+                logger.Debug("Proportion: " + mProportionCorrect);
+                logger.Debug("Sequence: " + (mSequence == null ? "-" : string.Join(",", mSequence).Replace("True", "1").Replace("False", "0")));
             }
 
         }

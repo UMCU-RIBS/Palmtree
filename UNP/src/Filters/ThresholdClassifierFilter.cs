@@ -97,11 +97,8 @@ namespace UNP.Filters {
             // configure output logging for this filter
             configureOutputLogging(filterName + "_", output);
 
-            // debug output
-            logger.Debug("--- Filter configuration: " + filterName + " ---");
-            logger.Debug("Input channels: " + inputChannels);
-            logger.Debug("Enabled: " + mEnableFilter);
-            logger.Debug("Output channels: " + outputChannels);
+            // print configuration
+            printLocalConfiguration();
 
             // return success
             return true;
@@ -202,6 +199,9 @@ namespace UNP.Filters {
 
             }
 
+            // print configuration
+            printLocalConfiguration();
+
             // initialize the variables (if needed)
             initialize();
 
@@ -284,6 +284,27 @@ namespace UNP.Filters {
 
             }
             
+        }
+
+        private void printLocalConfiguration() {
+
+            // debug output
+            logger.Debug("--- Filter configuration: " + filterName + " ---");
+            logger.Debug("Input channels: " + inputChannels);
+            logger.Debug("Enabled: " + mEnableFilter);
+            logger.Debug("Output channels: " + outputChannels);
+            if (mEnableFilter) {
+                string strThresholds = "Thresholds: ";
+                if (mConfigInputChannels != null) {
+                    for (int i = 0; i < mConfigInputChannels.Length; i++) {
+                        strThresholds += "[" + mConfigInputChannels[i] + ", " + mConfigOutputChannels[i] + ", " + mConfigThresholds[i] + ", " + mConfigDirections[i] + "]";
+                    }
+                } else {
+                    strThresholds += "-";
+                }
+                logger.Debug(strThresholds);
+            }
+
         }
 
         public void initialize() {

@@ -80,11 +80,8 @@ namespace UNP.Filters {
             // configure output logging for this filter
             configureOutputLogging(filterName + "_", output);
 
-            // debug output
-            logger.Debug("--- Filter configuration: " + filterName + " ---");
-            logger.Debug("Input channels: " + inputChannels);
-            logger.Debug("Enabled: " + mEnableFilter);
-            logger.Debug("Output channels: " + outputChannels);
+            // print configuration
+            printLocalConfiguration();
 
             // return success
             return true;
@@ -149,6 +146,9 @@ namespace UNP.Filters {
 
             // TODO: take resetFilter into account (currently always resets the buffers on initialize)
 
+            // print configuration
+            printLocalConfiguration();
+
             // initialize the variables
             initialize();
 
@@ -206,6 +206,27 @@ namespace UNP.Filters {
                 // store the bufferweights
                 mBufferWeights = newParameters.getValue<double[][]>("BufferWeights");
 
+            }
+
+        }
+
+        private void printLocalConfiguration() {
+
+            // debug output
+            logger.Debug("--- Filter configuration: " + filterName + " ---");
+            logger.Debug("Input channels: " + inputChannels);
+            logger.Debug("Enabled: " + mEnableFilter);
+            logger.Debug("Output channels: " + outputChannels);
+            if (mEnableFilter) {
+                string strWeights = "Weights: ";
+                if (mBufferWeights != null) {
+                    for (int i = 0; i < mBufferWeights.Length; i++) {
+                        strWeights += "[" + string.Join(", ", mBufferWeights[i]) + "]";
+                    }
+                } else {
+                    strWeights += "-";
+                }
+                logger.Debug(strWeights);
             }
 
         }

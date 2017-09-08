@@ -138,11 +138,8 @@ namespace UNP.Filters {
             // configure output logging for this filter
             configureOutputLogging(filterName + "_", output);
 
-            // debug output
-            logger.Debug("--- Filter configuration: " + filterName + " ---");
-            logger.Debug("Input channels: " + inputChannels);
-            logger.Debug("Enabled: " + mEnableFilter);
-            logger.Debug("Output channels: " + outputChannels);
+            // print configuration
+            printLocalConfiguration();
 
             // return success
             return true;
@@ -206,6 +203,10 @@ namespace UNP.Filters {
             }
 
             // TODO: take resetFilter into account (currently always resets the buffers on initialize
+
+
+            // print configuration
+            printLocalConfiguration();
 
             // initialize the variables
             initialize();
@@ -355,6 +356,25 @@ namespace UNP.Filters {
 
                 }
                 
+            }
+
+        }
+
+        private void printLocalConfiguration() {
+
+            // debug output
+            logger.Debug("--- Filter configuration: " + filterName + " ---");
+            logger.Debug("Input channels: " + inputChannels);
+            logger.Debug("Enabled: " + mEnableFilter);
+            logger.Debug("Output channels: " + outputChannels);
+            if (mEnableFilter) {
+                logger.Debug("Adaptation: " + (mAdaptation == null ? "-" : string.Join(",", mAdaptation)));
+                logger.Debug("InitialChannelMeans: " + (mInitialMeans == null ? "-" : string.Join(",", mInitialMeans)));
+                logger.Debug("InitialChannelStds: " + (mInitialStds == null ? "-" : string.Join(",", mInitialStds)));
+                logger.Debug("BufferLength: " + mBufferSize);
+                logger.Debug("AdaptationMinimalLength: " + mAdaptationMinimalLength);
+                logger.Debug("ExcludeStdThreshold: " + (mExcludeStdThreshold == null ? "-" : string.Join(",", mExcludeStdThreshold)));
+                logger.Debug("mBufferDiscardFirst: " + mBufferDiscardFirst);
             }
 
         }

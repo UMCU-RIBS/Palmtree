@@ -1,9 +1,4 @@
 ﻿using NLog;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using UNP.Core;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
 
@@ -85,11 +80,8 @@ namespace UNP.Filters {
             // configure output logging for this filter
             configureOutputLogging(filterName + "_", output);
 
-            // debug output
-            logger.Debug("--- Filter configuration: " + filterName + " ---");
-            logger.Debug("Input channels: " + inputChannels);
-            logger.Debug("Enabled: " + mEnableFilter);
-            logger.Debug("Output channels: " + outputChannels);
+            // print configuration
+            printLocalConfiguration();
 
             // return success
             return true;
@@ -154,6 +146,9 @@ namespace UNP.Filters {
 
             // TODO: take resetFilter into account (currently always resets the buffers on initialize
 
+            // print configuration
+            printLocalConfiguration();
+
             // initialize the variables
             initialize();
 
@@ -217,6 +212,20 @@ namespace UNP.Filters {
                 // store the gains for each input channel
                 mGains = newParameters.getValue<double[]>("NormalizerGains");
 
+            }
+
+        }
+
+        private void printLocalConfiguration() {
+
+            // debug output
+            logger.Debug("--- Filter configuration: " + filterName + " ---");
+            logger.Debug("Input channels: " + inputChannels);
+            logger.Debug("Enabled: " + mEnableFilter);
+            logger.Debug("Output channels: " + outputChannels);
+            if (mEnableFilter) {
+                logger.Debug("Offsets: " + (mOffsets == null ? "-" : string.Join(",", mOffsets)));
+                logger.Debug("Gains: " + (mGains == null ? "-" : string.Join(",", mGains)));
             }
 
         }
