@@ -18,7 +18,7 @@ namespace UNP.GUI {
         private System.Timers.Timer tmrUpdate = null;           // timer to update the GUI
 
         private GUIConfig frmConfig = null;                     // coniguration form
-        private bool configApplied = false;                     // the configuration was applied (and needs to be before starting)
+        private bool configApplied = true;                     // the configuration was applied (and needs to be before starting)
 
         private GUIVisualization frmVisualization = null;       // visualization form
         private GUIMore frmMore = null;                         // more form
@@ -104,17 +104,17 @@ namespace UNP.GUI {
         }
 
         void tmrUpdate_Tick(object sender, ElapsedEventArgs e) {
-
-            if (!((System.Timers.Timer)sender).Enabled && this.IsHandleCreated && !this.IsDisposed) {
-                try { 
+            try {
+                if (((System.Timers.Timer)sender).Enabled && this.IsHandleCreated && !this.IsDisposed) {
                     this.Invoke((MethodInvoker)delegate {
                         try {
                             // retrieve the console information
                             updateMainInformation();
                         } catch (Exception) { }
                     });
-                } catch (Exception) { }
-            }
+                
+                }
+            } catch (Exception) { }
 
         }
 
@@ -125,38 +125,60 @@ namespace UNP.GUI {
             //logger.Info("MainThread.isSystemInitialized() " + MainThread.isSystemInitialized());
             //logger.Info("MainThread.isStarted() " + MainThread.isStarted());
 
-            // check if the mainthread is configured and initialized
-            if (MainThread.isSystemConfigured() && MainThread.isSystemInitialized()) {
-                // configured and initialized
+            // check if the mainthread is running
+            if (MainThread.isRunning()) {
+                // is running
 
-                // check if the main thread is started
-                if (MainThread.isStarted()) {
-                    // started
+                // check if the mainthread is configured and initialized
+                if (MainThread.isSystemConfigured() && MainThread.isSystemInitialized()) {
+                    // configured and initialized
 
-                    btnEditConfig.Enabled = false;
-                    btnSetConfig.Enabled = false;
-                    btnStart.Enabled = false;
-                    btnStop.Enabled = true;
+                    // check if the main thread is started
+                    if (MainThread.isStarted()) {
+                        // started
+
+                        btnEditConfig.Enabled = false;
+                        btnSetConfig.Enabled = false;
+                        btnStart.Enabled = false;
+                        btnStop.Enabled = true;
+
+                    } else {
+                        // stopped
+
+                        btnEditConfig.Enabled = true;
+                        btnSetConfig.Enabled = true;
+                        btnStart.Enabled = configApplied;
+                        btnStop.Enabled = false;
+                    }
 
                 } else {
-                    // stopped
+                    // not configured and/or not initialized
 
                     btnEditConfig.Enabled = true;
                     btnSetConfig.Enabled = true;
-                    btnStart.Enabled = configApplied;
+                    btnStart.Enabled = false;
                     btnStop.Enabled = false;
+
                 }
 
-            } else {
-                // not configured and/or not initialized
+                // other buttons
+                btnVisualization.Enabled = true;
+                btnMore.Enabled = true;
 
-                btnEditConfig.Enabled = true;
-                btnSetConfig.Enabled = true;
+            } else {
+                // mainthread not running
+
+                // system buttons
+                btnEditConfig.Enabled = false;
+                btnSetConfig.Enabled = false;
                 btnStart.Enabled = false;
                 btnStop.Enabled = false;
 
+                // other buttons
+                btnVisualization.Enabled = false;
+                btnMore.Enabled = false;
+
             }
-            
         }
 
         private void GUI_Load(object sender, EventArgs e) {
@@ -176,8 +198,8 @@ namespace UNP.GUI {
             rtbTarget.UseDefaultRowColoringRules = true;
             rtbTarget.AutoScroll = true;
             logConfig.AddTarget("richTextBox", rtbTarget);
-            //LoggingRule rule = new LoggingRule("*", LogLevel.Trace, rtbTarget);
-            LoggingRule rule = new LoggingRule("*", LogLevel.Info, rtbTarget);
+            LoggingRule rule = new LoggingRule("*", LogLevel.Trace, rtbTarget);
+            //LoggingRule rule = new LoggingRule("*", LogLevel.Info, rtbTarget);
             logConfig.LoggingRules.Add(rule);
             LogManager.Configuration = logConfig;
 
@@ -204,7 +226,7 @@ namespace UNP.GUI {
 
             if (frmConfig == null)  frmConfig = new GUIConfig();
             DialogResult dr = frmConfig.ShowDialog();
-            configApplied = (dr != DialogResult.OK);        // config is not applied if the configuration is save and changed (config needs te be set again first)
+            configApplied = (dr != DialogResult.OK);        // config is not applied if the configuration is saved and changed (config needs te be set again first)
             
             // update the console information
             updateMainInformation();

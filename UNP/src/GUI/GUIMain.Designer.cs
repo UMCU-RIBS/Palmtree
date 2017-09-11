@@ -73,6 +73,7 @@ namespace UNP.GUI {
             // 
             // btnSetConfig
             // 
+            this.btnSetConfig.Enabled = false;
             this.btnSetConfig.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
             this.btnSetConfig.Location = new System.Drawing.Point(166, 18);
             this.btnSetConfig.Margin = new System.Windows.Forms.Padding(4);
@@ -111,6 +112,7 @@ namespace UNP.GUI {
             // 
             // btnEditConfig
             // 
+            this.btnEditConfig.Enabled = false;
             this.btnEditConfig.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
             this.btnEditConfig.Location = new System.Drawing.Point(16, 18);
             this.btnEditConfig.Margin = new System.Windows.Forms.Padding(4);
@@ -123,6 +125,7 @@ namespace UNP.GUI {
             // 
             // btnVisualization
             // 
+            this.btnVisualization.Enabled = false;
             this.btnVisualization.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
             this.btnVisualization.Location = new System.Drawing.Point(642, 18);
             this.btnVisualization.Margin = new System.Windows.Forms.Padding(4);
@@ -135,6 +138,7 @@ namespace UNP.GUI {
             // 
             // btnMore
             // 
+            this.btnMore.Enabled = false;
             this.btnMore.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
             this.btnMore.Location = new System.Drawing.Point(756, 18);
             this.btnMore.Margin = new System.Windows.Forms.Padding(4);
@@ -151,7 +155,7 @@ namespace UNP.GUI {
             this.lblEaster.Font = new System.Drawing.Font("Microsoft Sans Serif", 7F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
             this.lblEaster.Location = new System.Drawing.Point(-100, -100);
             this.lblEaster.Name = "lblEaster";
-            this.lblEaster.Size = new System.Drawing.Size(172, 7);
+            this.lblEaster.Size = new System.Drawing.Size(222, 9);
             this.lblEaster.TabIndex = 21;
             this.lblEaster.Text = "In the beginning were the words, and the words made the world...";
             // 

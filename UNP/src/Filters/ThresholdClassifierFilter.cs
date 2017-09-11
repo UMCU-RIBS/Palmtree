@@ -114,93 +114,108 @@ namespace UNP.Filters {
          *  The functions handles both the configuration and initialization of filter related variables.
          **/
         public bool configureRunningFilter(Parameters newParameters, bool resetFilter) {
+            
+            // check if new parameters are given (only a reset is also an option)
+            if (newParameters != null) {
 
-            // retrieve whether the filter should be enabled
-            bool newEnabled = newParameters.getValue<bool>("EnableFilter");
-            if (!mEnableFilter && newEnabled) {
-                // filter was off, and should be switched on
+                // retrieve whether the filter should be enabled
+                bool newEnabled = newParameters.getValue<bool>("EnableFilter");
+                if (!mEnableFilter && newEnabled) {
+                    // filter was off, and should be switched on
 
-                // determine the highest output channel from the configuration
-                double[][] newThresholds = parameters.getValue<double[][]>("Thresholds");
-                int highestOutputChannel = 0;
-                for (int row = 0; row < newThresholds[0].Length; ++row) {
-                    if (newThresholds[1][row] > highestOutputChannel)
-                        highestOutputChannel = (int)newThresholds[1][row];
+                    // determine the highest output channel from the configuration
+                    double[][] newThresholds = parameters.getValue<double[][]>("Thresholds");
+                    int highestOutputChannel = 0;
+                    for (int row = 0; row < newThresholds[0].Length; ++row) {
+                        if (newThresholds[1][row] > highestOutputChannel)
+                            highestOutputChannel = (int)newThresholds[1][row];
+                    }
+
+                    // check if the number of output channels would remain the same (if the change would be applied)
+                    if (outputChannels != highestOutputChannel) {
+
+                        // message
+                        logger.Error("Error while trying to enable the filter. Enabling the filter would adjust the number of output channels from " + outputChannels + " to " + highestOutputChannel + ", this might break the next filter(s) and is disallowed, not applying filter re-configuration");
+
+                        // return failure
+                        return false;
+
+                    }
+
+                } else if (mEnableFilter && !newEnabled) {
+                    // filter was on, and should be switched off
+
+                    // Check if the number of output channels would remain or change the same (if the change would be applied)
+                    // When the filter is to be switched off, then the current number of output
+                    // channels (now, with the filter on) should be the same as the number of input channels. 
+                    if (outputChannels != inputChannels) {
+                        // number of channels would change, disallow adjustment
+
+                        // message
+                        logger.Error("Error while trying to disable the filter. Disabling the filter would adjust the number of output channels from " + outputChannels + " to " + inputChannels + ", this might break the next filter(s) and is disallowed, not applying filter re-configuration");
+
+                        // return failure
+                        return false;
+
+                    }
+
                 }
 
-                // check if the number of output channels would remain the same (if the change would be applied)
-                if (outputChannels != highestOutputChannel) {
+                // check the values and application logic of the parameters
+                if (!checkParameters(newParameters))    return false;
+
+                // retrieve and check the LogDataStreams parameter
+                bool newLogDataStreams = newParameters.getValue<bool>("LogDataStreams");
+                if (!mLogDataStreams && newLogDataStreams) {
+                    // logging was (in the initial configuration) switched off and is trying to be switched on
+                    // (refuse, it cannot be switched on, because sample streams have to be registered during the first configuration)
 
                     // message
-                    logger.Error("Error while trying to enable the filter. Enabling the filter would adjust the number of output channels from " + outputChannels + " to " + highestOutputChannel + ", this might break the next filter(s) and is disallowed, not applying filter re-configuration");
+                    logger.Error("Cannot switch the logging of data streams on because it was initially switched off (and streams need to be registered during the first configuration, logging is refused");
 
                     // return failure
                     return false;
 
                 }
 
-            } else if (mEnableFilter && !newEnabled) {
-                // filter was on, and should be switched off
+                // transfer the parameters to local variables
+                transferParameters(newParameters);
 
-                // Check if the number of output channels would remain or change the same (if the change would be applied)
-                // When the filter is to be switched off, then the current number of output
-                // channels (now, with the filter on) should be the same as the number of input channels. 
-                if (outputChannels != inputChannels) {
-                    // number of channels would change, disallow adjustment
+                // apply change in the logging of sample streams
+                if (mLogDataStreams && mLogDataStreamsRuntime && !newLogDataStreams) {
+                    // logging was (in the initial configuration) switched on and is currently on but wants to be switched off (resulting in 0's being output)
 
                     // message
-                    logger.Error("Error while trying to disable the filter. Disabling the filter would adjust the number of output channels from " + outputChannels + " to " + inputChannels + ", this might break the next filter(s) and is disallowed, not applying filter re-configuration");
+                    logger.Debug("Logging of data streams was switched on but is now switched off, only zeros will be logged");
 
-                    // return failure
-                    return false;
+                    // switch logging off (to zeros)
+                    mLogDataStreamsRuntime = false;
+
+                } else if (mLogDataStreams && !mLogDataStreamsRuntime && newLogDataStreams) {
+                    // logging was (in the initial configuration) switched on and is currently off but wants to be switched on (resume logging)
+
+                    // message
+                    logger.Debug("Logging of data streams was switched off but is now switched on, logging is resumed");
+
+                    // switch logging on
+                    mLogDataStreamsRuntime = true;
 
                 }
 
-            }
-
-            // check the values and application logic of the parameters
-            if (!checkParameters(newParameters))    return false;
-
-            // retrieve and check the LogDataStreams parameter
-            bool newLogDataStreams = newParameters.getValue<bool>("LogDataStreams");
-            if (!mLogDataStreams && newLogDataStreams) {
-                // logging was (in the initial configuration) switched off and is trying to be switched on
-                // (refuse, it cannot be switched on, because sample streams have to be registered during the first configuration)
-
-                // message
-                logger.Error("Cannot switch the logging of data streams on because it was initially switched off (and streams need to be registered during the first configuration, logging is refused");
-
-                // return failure
-                return false;
+                // print configuration
+                printLocalConfiguration();
 
             }
 
-            // transfer the parameters to local variables
-            transferParameters(newParameters);
+            // TODO: take resetFilter into account (currently always resets the buffers on initialize
+            //          but when set not to reset, the buffers should be resized while retaining their values!)
 
-            // apply change in the logging of sample streams
-            if (mLogDataStreams && mLogDataStreamsRuntime && !newLogDataStreams) {
-                // logging was (in the initial configuration) switched on and is currently on but wants to be switched off (resulting in 0's being output)
+            if (resetFilter) {
 
                 // message
-                logger.Debug("Logging of data streams was switched on but is now switched off, only zeros will be logged");
-
-                // switch logging off (to zeros)
-                mLogDataStreamsRuntime = false;
-
-            } else if (mLogDataStreams && !mLogDataStreamsRuntime && newLogDataStreams) {
-                // logging was (in the initial configuration) switched on and is currently off but wants to be switched on (resume logging)
-
-                // message
-                logger.Debug("Logging of data streams was switched off but is now switched on, logging is resumed");
-
-                // switch logging on
-                mLogDataStreamsRuntime = true;
+                logger.Debug("Filter reset");
 
             }
-
-            // print configuration
-            printLocalConfiguration();
 
             // initialize the variables (if needed)
             initialize();

@@ -36,12 +36,12 @@ namespace UNP.Core {
             // startup argument variables
             bool nogui = false;
             bool startupConfigAndInit = false;
-            bool startupStart = false;
+            bool startupStartRun = false;
             string parameterFile = "";
             string source = "";
 
             //args = new string[] { "-parameterfile", "UNPMenu_nexus.prm", "-source", "NexusSignal", "-startupConfigAndInit", "-startupStart" };
-            //args = new string[] { "-parameterfile", "unpmenu_test.prm", "-source", "KeypressSignal", "-startupConfigAndInit", "-startupStart" };
+            args = new string[] { "-parameterfile", "test_UNPMENU.prm", "-source", "KeypressSignal", "-startupConfigAndInit", "-startupStartRun" };
             //args = new string[] { "-source", "KeypressSignal", "-startupConfigAndInit", "-startupStart" };
 
             // process startup arguments
@@ -54,13 +54,13 @@ namespace UNP.Core {
                 string argument = args[i].ToLower();
 
                 // check if no gui should be shown
-                if (argument == "-nogui")                   nogui = true;
+                if (argument == "-nogui")                       nogui = true;
 
                 // check if no gui should be shown
-                if (argument == "-startupconfigandinit")    startupConfigAndInit = true;
+                if (argument == "-startupconfigandinit")        startupConfigAndInit = true;
                 
                 // check if no gui should be shown
-                if (argument == "-startupstart")            startupStart = true;
+                if (argument == "-startupstartrun")             startupStartRun = true;
 
                 // check if the source is given
                 if (argument == "-source") {
@@ -140,7 +140,7 @@ namespace UNP.Core {
                 Thread.CurrentThread.Name = "Main Thread";
             
             // create the main (control) object
-            MainThread mainThread = new MainThread();
+            MainThread mainThread = new MainThread(startupConfigAndInit, startupStartRun);
 
             // check if the GUI should be loaded/shown
             if (!nogui) {
@@ -199,30 +199,7 @@ namespace UNP.Core {
                 ParameterManager.loadParameterFile(parameterFile, ParameterManager.getParameterSets());
 
             }
-            /*
-            // check if the sytem should be configured and initialized at statup
-            if (startupConfigAndInit) {
-
-                // TODO: max, quick and dirty
-                // start a thread that fires after
-                Thread thread = new Thread(() => {
-
-                    Thread.Sleep(1000);
-
-                    if (MainThread.configureSystem()) {
-                        // successfully configured
-
-                        // initialize
-                        MainThread.initializeSystem();
-
-                        if (startupStart) MainThread.start();
-
-                }
-                });
-                thread.Start();
-                
-            }
-            */
+            
             // start the main thread
             // (do it here, so the UNPThead uses main to run on)
             mainThread.run();

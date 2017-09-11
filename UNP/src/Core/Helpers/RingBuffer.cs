@@ -62,6 +62,12 @@ namespace UNP.Core.Helpers {
         public int Size() {
             return mData.Length;
         }
+
+        public void Clear() {
+            mCursor = 0;
+            mWrapped = false;
+        }
+
     }
 
 }

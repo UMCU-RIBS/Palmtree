@@ -42,6 +42,11 @@ namespace UNP.Core.Helpers {
             }
         }
 
+        public void Clear() {
+            mCursor = 0;
+            mWrapped = false;
+        }
+
     }
 
 }

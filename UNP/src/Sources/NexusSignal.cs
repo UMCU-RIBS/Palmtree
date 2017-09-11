@@ -247,6 +247,9 @@ namespace UNP.Sources {
                 // if a serial port object is still there, close the port first
                 if (serialPort != null) closeSerialPort();
 
+                // set the connection lost flag to false
+                Globals.setValue<bool>("ConnectionLost", "0");
+                
                 // open the serial port
                 if (!openSerialPort(comPort, deviceProtocol)) {
 
@@ -285,6 +288,9 @@ namespace UNP.Sources {
 
             // lock for thread safety
             lock(lockStarted) {
+
+                // set the connection lost flag to false
+                Globals.setValue<bool>("ConnectionLost", "0");
 
                 // check if the generator was not already started
                 if (started)     return;

@@ -97,57 +97,70 @@ namespace UNP.Filters {
          *  The functions handles both the configuration and initialization of filter related variables.
          **/
         public bool configureRunningFilter(Parameters newParameters, bool resetFilter) {
+            
+            // check if new parameters are given (only a reset is also an option)
+            if (newParameters != null) {
 
-            //
-            // no pre-check on the number of output channels is needed here, the number of output
-            // channels will remain the some regardless to the filter being enabled or disabled
-            // 
+                //
+                // no pre-check on the number of output channels is needed here, the number of output
+                // channels will remain the some regardless to the filter being enabled or disabled
+                // 
 
-            // check the values and application logic of the parameters
-            if (!checkParameters(newParameters)) return false;
+                // check the values and application logic of the parameters
+                if (!checkParameters(newParameters)) return false;
 
-            // retrieve and check the LogDataStreams parameter
-            bool newLogDataStreams = newParameters.getValue<bool>("LogDataStreams");
-            if (!mLogDataStreams && newLogDataStreams) {
-                // logging was (in the initial configuration) switched off and is trying to be switched on
-                // (refuse, it cannot be switched on, because sample streams have to be registered during the first configuration)
+                // retrieve and check the LogDataStreams parameter
+                bool newLogDataStreams = newParameters.getValue<bool>("LogDataStreams");
+                if (!mLogDataStreams && newLogDataStreams) {
+                    // logging was (in the initial configuration) switched off and is trying to be switched on
+                    // (refuse, it cannot be switched on, because sample streams have to be registered during the first configuration)
 
-                // message
-                logger.Error("Cannot switch the logging of data streams on because it was initially switched off (and streams need to be registered during the first configuration, logging is refused");
+                    // message
+                    logger.Error("Cannot switch the logging of data streams on because it was initially switched off (and streams need to be registered during the first configuration, logging is refused");
 
-                // return failure
-                return false;
+                    // return failure
+                    return false;
+
+                }
+
+                // transfer the parameters to local variables
+                transferParameters(newParameters);
+
+                // apply change in the logging of sample streams
+                if (mLogDataStreams && mLogDataStreamsRuntime && !newLogDataStreams) {
+                    // logging was (in the initial configuration) switched on and is currently on but wants to be switched off (resulting in 0's being output)
+
+                    // message
+                    logger.Debug("Logging of data streams was switched on but is now switched off, only zeros will be logged");
+
+                    // switch logging off (to zeros)
+                    mLogDataStreamsRuntime = false;
+
+                } else if (mLogDataStreams && !mLogDataStreamsRuntime && newLogDataStreams) {
+                    // logging was (in the initial configuration) switched on and is currently off but wants to be switched on (resume logging)
+
+                    // message
+                    logger.Debug("Logging of data streams was switched off but is now switched on, logging is resumed");
+
+                    // switch logging on
+                    mLogDataStreamsRuntime = true;
+
+                }
+
+                // print configuration
+                printLocalConfiguration();
 
             }
 
-            // transfer the parameters to local variables
-            transferParameters(newParameters);
+            // TODO: take resetFilter into account (currently always resets the buffers on initialize
+            //          but when set not to reset, the buffers should be resized while retaining their values!)
 
-            // apply change in the logging of sample streams
-            if (mLogDataStreams && mLogDataStreamsRuntime && !newLogDataStreams) {
-                // logging was (in the initial configuration) switched on and is currently on but wants to be switched off (resulting in 0's being output)
+            if (resetFilter) {
 
                 // message
-                logger.Debug("Logging of data streams was switched on but is now switched off, only zeros will be logged");
-
-                // switch logging off (to zeros)
-                mLogDataStreamsRuntime = false;
-
-            } else if (mLogDataStreams && !mLogDataStreamsRuntime && newLogDataStreams) {
-                // logging was (in the initial configuration) switched on and is currently off but wants to be switched on (resume logging)
-
-                // message
-                logger.Debug("Logging of data streams was switched off but is now switched on, logging is resumed");
-
-                // switch logging on
-                mLogDataStreamsRuntime = true;
+                logger.Debug("Filter reset");
 
             }
-
-            // TODO: take resetFilter into account (currently always resets the buffers on initialize)
-
-            // print configuration
-            printLocalConfiguration();
 
             // initialize the variables
             initialize();

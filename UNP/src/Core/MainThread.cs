@@ -28,9 +28,11 @@ namespace UNP.Core {
 
         private static ManualResetEvent loopManualResetEvent = new ManualResetEvent(false);    // Manual reset event to call the WaitOne event on (this allows - in contrast to the sleep wait - to cancel the wait period at any point when a new sample comes in) 
 
-        private static bool running = true;				                            // flag to define if the UNP thread is still running (setting to false will stop the experiment thread) 
+        private static bool running = false;				                        // flag to define if the UNP thread is running (setting to false will stop the experiment thread) 
         private static bool process = false;                                        // flag to define if the thread is allowed to process samples
 
+        private static bool startupConfigAndInit = false;
+        private static bool startupStartRun = false;
         private static bool systemConfigured = false;                               // 
         private static bool systemInitialized = false;                              // 
         private static bool started = false;                                        // flag to hold whether the system is in a started or stopped state
@@ -53,14 +55,12 @@ namespace UNP.Core {
         /**
          * UNPThread constructor
          * 
-         * Creates the source, pipeline filters and application
-         * 
          */
-        public MainThread() {
+        public MainThread(bool startupConfigAndInit, bool startupStartRun) {
 
-            // initialially set as not configured
-            systemConfigured = false;
-            systemInitialized = false;
+            // transfer the startup flags to local variables
+            MainThread.startupConfigAndInit = startupConfigAndInit;
+            MainThread.startupStartRun = startupStartRun;
 
         }
 
@@ -377,6 +377,17 @@ namespace UNP.Core {
             return started;
 	    }
 
+        /**
+         * Returns whether the system is runing
+         * 
+         * @return Whether the system is running
+         */
+        public static bool isRunning() {
+            return running;
+	    }
+
+
+
         public void run() {
 
             // debug messages
@@ -393,15 +404,38 @@ namespace UNP.Core {
             // local variables
             double[] sample = null;
 
-            #if(DEBUG_SAMPLES_LOG_PERFORMANCE)
+            #if (DEBUG_SAMPLES_LOG_PERFORMANCE)
 
                 long samplesProcessed = 0;
 
             #endif
 
+            // check if the sytem should be configured and initialized at startup
+            if (startupConfigAndInit) {
+
+                if (MainThread.configureSystem()) {
+                    // successfully configured
+
+                    // initialize
+                    MainThread.initializeSystem();
+                    
+                }
+
+            }
+
+            // flag as running
+            running = true;
+
+            // check if the system should be started at startup (and is ready to start)
+            if (startupStartRun && systemConfigured && systemInitialized) {
+                
+                // start the run
+                MainThread.start();
+
+            }
+
             // loop while running
             while (running) {
-                
                 
                 // lock for thread safety
                 // (very much needed, else it will make calls to other modules and indirectly the data module, which already might have stopped at that point)
