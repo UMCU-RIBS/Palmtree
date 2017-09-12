@@ -100,7 +100,7 @@ namespace UNP.Core {
             }
 
             // create/add plugins
-            //plugins.Add(new WindowsSensorsPlugin("WindowsSensorsPlugin", "wsp"));
+            plugins.Add(new WindowsSensorsPlugin("WindowsSensorsPlugin", "wsp"));
 
         }
 

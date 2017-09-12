@@ -41,7 +41,7 @@ namespace UNP.Core {
             string source = "";
 
             //args = new string[] { "-parameterfile", "UNPMenu_nexus.prm", "-source", "NexusSignal", "-startupConfigAndInit", "-startupStart" };
-            args = new string[] { "-parameterfile", "test_UNPMENU.prm", "-source", "KeypressSignal", "-startupConfigAndInit", "-startupStartRun" };
+            //args = new string[] { "-parameterfile", "test_UNPMENU.prm", "-source", "KeypressSignal", "-startupConfigAndInit", "-startupStartRun" };
             //args = new string[] { "-source", "KeypressSignal", "-startupConfigAndInit", "-startupStart" };
 
             // process startup arguments
@@ -56,10 +56,10 @@ namespace UNP.Core {
                 // check if no gui should be shown
                 if (argument == "-nogui")                       nogui = true;
 
-                // check if no gui should be shown
+                // 
                 if (argument == "-startupconfigandinit")        startupConfigAndInit = true;
                 
-                // check if no gui should be shown
+                // 
                 if (argument == "-startupstartrun")             startupStartRun = true;
 
                 // check if the source is given
