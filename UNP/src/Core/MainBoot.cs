@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
+using UNP.Core.Helpers;
 using UNP.Core.Params;
 using UNP.GUI;
 
@@ -127,7 +128,7 @@ namespace UNP.Core {
             if (string.IsNullOrEmpty(source)) {
 
                 // allow the user to choose a source by popup
-                source = SourceMessageBox.Show(sources);
+                source = ListMessageBox.ShowSingle("Source", sources);
                 if (string.IsNullOrEmpty(source))  return;
 
             }
@@ -142,11 +143,14 @@ namespace UNP.Core {
             // create the main (control) object
             MainThread mainThread = new MainThread(startupConfigAndInit, startupStartRun);
 
+            // variable for the GUI interface object
+            GUIMain gui = null;
+
             // check if the GUI should be loaded/shown
             if (!nogui) {
 
                 // create the GUI interface object
-                GUIMain gui = new GUIMain();
+                gui = new GUIMain();
 
                 // create a GUI (as a separate process)
                 // and pass a reference to the experiment for the GUI to pull information from and push commands to the experiment object
@@ -159,13 +163,16 @@ namespace UNP.Core {
 
                     // setup the GUI
                     Application.EnableVisualStyles();
+
+                    // start and run the GUI
                     try {
-                        // start the GUI
                         Application.Run(gui);
-                    } catch (Exception) { }
+                    } catch (Exception e) {
+                        logger.Error("Exception in GUI: " + e.Message);
+                    }
 
                     // message
-                    logger.Info("GUI (thread) started");
+                    logger.Info("GUI (thread) stopped");
 
                 });
                 thread.SetApartmentState(ApartmentState.STA);
@@ -205,6 +212,12 @@ namespace UNP.Core {
             // (do it here, so the UNPThead uses main to run on)
             mainThread.run();
 
+            // check if there is a gui, and close it by delegate
+            if (gui != null) {
+                gui.closeDelegate();
+                gui = null;
+            }
+            
             // stop all the winforms (Informs all message pumps that they must terminate, and then closes all application windows after the messages have been processed.)
             // TODO: sometimes sticks on this, ever since GUIVisualization was added
             Application.Exit();
@@ -212,99 +225,6 @@ namespace UNP.Core {
             // exit the environment
             Environment.Exit(0);
 
-        }
-
-    }
-
-    public class SourceMessageBox : Form {
-
-        private string[][] sources = null;
-        public string source = "";
-
-        private System.Windows.Forms.ListBox lstSources;
-        private System.Windows.Forms.Button btnOK;
-        private System.Windows.Forms.Button btnExit;
-
-        public SourceMessageBox(string[][] sources) {
-            this.sources = sources;
-
-            this.lstSources = new System.Windows.Forms.ListBox();
-            this.btnOK = new System.Windows.Forms.Button();
-            this.btnExit = new System.Windows.Forms.Button();
-            this.SuspendLayout();
-
-            this.lstSources.FormattingEnabled = true;
-            this.lstSources.ItemHeight = 16;
-            this.lstSources.Location = new System.Drawing.Point(4, 5);
-            this.lstSources.Name = "listBox1";
-            this.lstSources.Size = new System.Drawing.Size(287, 212);
-            this.lstSources.TabIndex = 0;
-            this.lstSources.DoubleClick += new System.EventHandler(delegate (object sender, EventArgs e) {
-                btnOK.PerformClick();
-            });
-            for (int i = 0; i < sources.Length; i++) {
-                this.lstSources.Items.Add(sources[i][0]);
-            }
-
-            
-
-            this.btnOK.Location = new System.Drawing.Point(12, 228);
-            this.btnOK.Name = "btnOK";
-            this.btnOK.Size = new System.Drawing.Size(101, 26);
-            this.btnOK.TabIndex = 1;
-            this.btnOK.Text = "OK";
-            this.btnOK.UseVisualStyleBackColor = true;
-            this.btnOK.Click += new System.EventHandler(delegate (object sender, EventArgs e) {
-                if (lstSources.SelectedIndex == -1) {
-                    MessageBox.Show("Select a source from the list to continue...", "Select a source", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-                    return;
-                }
-                source = sources[lstSources.SelectedIndex][1];
-                this.DialogResult = DialogResult.OK;
-            });
-
-
-            this.btnExit.Location = new System.Drawing.Point(179, 228);
-            this.btnExit.Name = "btnExit";
-            this.btnExit.Size = new System.Drawing.Size(101, 26);
-            this.btnExit.TabIndex = 2;
-            this.btnExit.Text = "Exit";
-            this.btnExit.UseVisualStyleBackColor = true;
-            this.btnExit.Click += new System.EventHandler(delegate (object sender, EventArgs e) {
-                this.DialogResult = DialogResult.Cancel;
-
-            });
-
-
-            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(292, 262);
-            this.Controls.Add(this.lstSources);
-            this.Controls.Add(this.btnOK);
-            this.Controls.Add(this.btnExit);
-            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
-            this.Margin = new System.Windows.Forms.Padding(4);
-            this.MaximizeBox = false;
-            this.MinimizeBox = false;
-            this.Name = "DlgSource";
-            this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Hide;
-            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "Source";
-            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(delegate (object sender, FormClosingEventArgs e) {
-                if (e.CloseReason == CloseReason.UserClosing) {
-                    this.DialogResult = DialogResult.Cancel;
-                }
-            });
-            
-            this.ResumeLayout(false);
-
-        }
-
-        public static string Show(string[][] sources) {
-            using (var form = new SourceMessageBox(sources)) {
-                if (form.ShowDialog() == DialogResult.OK)   return form.source;
-                return "";
-            }
         }
 
     }

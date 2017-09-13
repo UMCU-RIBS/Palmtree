@@ -663,7 +663,7 @@ namespace UNP.Views {
         private void SharpGLView_FormClosing(object sender, FormClosingEventArgs e) {
 
             // check whether the user is closing the form
-            if (e.CloseReason == CloseReason.UserClosing) {
+            if (e.CloseReason == CloseReason.UserClosing && running) {
 
                 // call user close form function
                 userCloseForm();

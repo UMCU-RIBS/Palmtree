@@ -108,6 +108,9 @@
     <Compile Include="src\Core\Events\VisualizationEventArgs.cs" />
     <Compile Include="src\Core\Events\VisualizationValuesArgs.cs" />
     <Compile Include="src\Core\Helpers\DoubleConverter.cs" />
+    <Compile Include="src\Core\Helpers\ListMessageBox.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="src\Core\Helpers\Sound.cs" />
     <Compile Include="src\Core\Params\ParamFileString.cs" />
     <Compile Include="src\Filters\RedistributionFilter.cs" />

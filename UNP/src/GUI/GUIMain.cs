@@ -14,6 +14,7 @@ namespace UNP.GUI {
 
         private static Logger logger;
 
+        private bool closeDelegateCalled = false;               // flag whether the GUI closing is called by delegate (seperate thread)
         private bool loaded = false;                            // flag to hold whether the form is loaded
         private System.Timers.Timer tmrUpdate = null;           // timer to update the GUI
 
@@ -43,7 +44,7 @@ namespace UNP.GUI {
         private void GUI_FormClosing(object sender, FormClosingEventArgs e) {
 
             // check whether the user is closing the form
-            if (e.CloseReason == CloseReason.UserClosing) {
+            if (!closeDelegateCalled && e.CloseReason == CloseReason.UserClosing) {
 
                 // ask the user for confirmation
                 if (MessageBox.Show("Are you sure you want to close?", "Are you sure?", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.No) {
@@ -66,6 +67,13 @@ namespace UNP.GUI {
             // check if the form is actually closing
             if (e.Cancel == false) {
 
+                // stop the update timer
+                if (tmrUpdate != null) {
+                    tmrUpdate.Stop();
+                    tmrUpdate.Enabled = false;
+                    tmrUpdate = null;
+                }
+
                 // check if a visualization form is created (and not closed)
                 if (frmVisualization != null && !frmVisualization.IsDisposed) {
 
@@ -80,13 +88,6 @@ namespace UNP.GUI {
 
                     } catch (Exception) { }
                 }
-                
-                // stop the update timer
-                if (tmrUpdate != null) {
-                    tmrUpdate.Stop();
-                    tmrUpdate.Enabled = false;
-                    tmrUpdate = null;
-                }
 
                 // stop/close the More form
                 if (frmMore != null && !frmMore.IsDisposed) {
@@ -96,9 +97,33 @@ namespace UNP.GUI {
                     } catch (Exception) { }
                 }
 
-                // remove references and tell the experiment that the GUI is closed
-                MainThread.eventGUIClosed();
+                // check if the GUI is closed from higher up (if so, we do not need to tell mainthread)
+                if (!closeDelegateCalled) {
 
+                    // tell the experiment that the GUI is closed
+                    MainThread.eventGUIClosed();
+
+                }
+
+            }
+
+        }
+
+        public void closeDelegate() {
+
+            closeDelegateCalled = true;
+
+            if (this.IsHandleCreated && !this.IsDisposed) {
+                try {
+                    // close the form on the forms thread
+                    this.Invoke((MethodInvoker)delegate {
+                        try {
+                            this.Close();
+                            this.Dispose(true);
+                            Application.ExitThread();
+                        } catch (Exception) { }
+                    });
+                } catch (Exception) { }
             }
 
         }
