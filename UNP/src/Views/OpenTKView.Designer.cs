@@ -57,6 +57,7 @@
             this.Name = "OpenTKView";
             this.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
             this.Text = "View";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.OpenTKView_FormClosing);
             this.Shown += new System.EventHandler(this.OpenTKView_Shown);
             this.Move += new System.EventHandler(this.OpenTKView_Move);
             this.ResumeLayout(false);

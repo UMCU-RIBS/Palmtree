@@ -61,6 +61,7 @@
             this.Name = "SharpGLView";
             this.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
             this.Text = "View";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.SharpGLView_FormClosing);
             this.Shown += new System.EventHandler(this.SharpGLView_Shown);
             this.Move += new System.EventHandler(this.SharpGLView_Move);
             ((System.ComponentModel.ISupportInitialize)(this.glControl)).EndInit();

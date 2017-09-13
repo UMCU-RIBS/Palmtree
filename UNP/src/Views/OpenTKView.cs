@@ -60,6 +60,7 @@ namespace UNP.Views {
         protected abstract void resize(int width, int height);
         protected abstract void update(double secondsElapsed);
         protected abstract void render();
+        protected abstract void userCloseForm();
 
         public OpenTKView(int updateFrequency, int x, int y, int width, int height, bool border) {
             this.updateFrequency = updateFrequency;
@@ -719,6 +720,17 @@ namespace UNP.Views {
 
         }
 
+        private void OpenTKView_FormClosing(object sender, FormClosingEventArgs e) {
+
+            // check whether the user is closing the form
+            if (e.CloseReason == CloseReason.UserClosing) {
+
+                // call user close form function
+                userCloseForm();
+
+            }
+
+        }
 
     }
 }

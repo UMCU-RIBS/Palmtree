@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using UNP.Core;
 using UNP.Core.Helpers;
 using UNP.Views;
 
@@ -320,6 +321,13 @@ namespace FollowTask {
 		        glEnd();
 
 	        }
+
+        }
+
+        protected override void userCloseForm() {
+
+            // pass to the mainthread
+            MainThread.eventViewClosed();
 
         }
 

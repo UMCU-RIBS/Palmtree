@@ -56,10 +56,10 @@ namespace UNP.Core {
                 // check if no gui should be shown
                 if (argument == "-nogui")                       nogui = true;
 
-                // 
+                // check if the configuration and initialization should be done automatically at startup
                 if (argument == "-startupconfigandinit")        startupConfigAndInit = true;
-                
-                // 
+
+                // check if the run should be started automatically at startup
                 if (argument == "-startupstartrun")             startupStartRun = true;
 
                 // check if the source is given
@@ -159,9 +159,10 @@ namespace UNP.Core {
 
                     // setup the GUI
                     Application.EnableVisualStyles();
-
-                    // start the GUI
-                    Application.Run(gui);
+                    try {
+                        // start the GUI
+                        Application.Run(gui);
+                    } catch (Exception) { }
 
                     // message
                     logger.Info("GUI (thread) started");

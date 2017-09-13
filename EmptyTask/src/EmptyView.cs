@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-
+using UNP.Core;
 using UNP.Views;
 
 namespace EmptyTask {
@@ -36,7 +36,6 @@ namespace EmptyTask {
         protected override void load() {
             
 
-
         }
 
         protected override void unload() {
@@ -64,6 +63,13 @@ namespace EmptyTask {
                 glVertex2(50f, 0f);
             glEnd();
             
+        }
+
+        protected override void userCloseForm() {
+
+            // pass to the mainthread
+            MainThread.eventViewClosed();
+
         }
 
     }

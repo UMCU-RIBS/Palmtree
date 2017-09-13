@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using UNP.Core;
 using UNP.Core.Helpers;
 using UNP.Views;
 
@@ -374,6 +375,13 @@ namespace CursorTask {
 		        glEnd();
 
 	        }
+
+        }
+
+        protected override void userCloseForm() {
+
+            // pass to the mainthread
+            MainThread.eventViewClosed();
 
         }
 

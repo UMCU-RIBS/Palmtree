@@ -661,6 +661,18 @@ namespace UNP.Core {
         }
 
         /**
+         * Called when the View is dispatched and closed
+         * 
+         * Not using delegate (or interface) events since there would be only one receiver, being this function called.
+         */
+        public static void eventViewClosed() {
+
+            // stop the program from running
+            running = false;
+
+        }
+
+        /**
          * Static function to return the number of samples per second according the source
          * Used by Parameters to convert seconds to samples
          **/
