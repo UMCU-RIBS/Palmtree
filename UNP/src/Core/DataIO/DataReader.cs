@@ -234,12 +234,21 @@ namespace UNP.Core.DataIO {
                 for (int i = 0; i < numRows; i++) {
 
                     // store the samples
-                    arrSamples[i] = BitConverter.ToUInt32(bOutput, i * header.rowSize);
+                    // TODO: hack to make sure wsp files can be read, need to conform sp files to data format: use uint for sampleId, not a double
+                    if (header.code == "wsp") {
+                        arrSamples[i] = (uint)BitConverter.ToDouble(bOutput, i * header.rowSize);
+                    } else {
+                        arrSamples[i] = BitConverter.ToUInt32(bOutput, i * header.rowSize);
+                    }
 
                     // store the values
                     matValues[i] = new double[header.numColumns - 1];
-                    Buffer.BlockCopy(bOutput, i * header.rowSize + sizeof(uint), matValues[i], 0, header.rowSize - sizeof(uint));
-
+                    // TODO: hack to make sure wsp files can be read, need to conform sp files to data format: use uint for sampleId, not a double
+                    if (header.code == "wsp") {
+                        Buffer.BlockCopy(bOutput, i * header.rowSize + sizeof(double), matValues[i], 0, header.rowSize - sizeof(double));
+                    } else {
+                        Buffer.BlockCopy(bOutput, i * header.rowSize + sizeof(uint), matValues[i], 0, header.rowSize - sizeof(uint));
+                    }
                 }
 
                 // return the numbers of rows
@@ -317,8 +326,13 @@ namespace UNP.Core.DataIO {
                     header.columnNames = Encoding.ASCII.GetString(bColumnNames).Split('\t');
 
                     // determine the size of one row (in bytes)
-                    header.rowSize = sizeof(uint);                                    // sample id
-                    header.rowSize += (header.numColumns - 1) * sizeof(double);      // data
+                    // TODO: hack to make sure wsp files can be read, need to conform sp files to data format: use uint for sampleId, not a double
+                    if (header.code=="wsp") {
+                        header.rowSize = header.numColumns * sizeof(double);
+                    } else {
+                        header.rowSize = sizeof(uint);                                    // sample id
+                        header.rowSize += (header.numColumns - 1) * sizeof(double);      // data
+                    }
 
                     // store the position where the data starts (= the current position of the pointer in the stream after reading the header)
                     header.posDataStart = dataStream.Position;

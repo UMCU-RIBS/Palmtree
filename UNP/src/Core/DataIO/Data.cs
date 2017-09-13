@@ -240,10 +240,8 @@ namespace UNP.Core.DataIO {
 
             }
 
-
+            //
             subDirPerRun = parameters.getValue<bool>("SubDirectoryPerRun");
-
-            // ...
 
             // if there is data to store, create data (sub-)directory
             if (mLogSourceInput || mLogPipelineInputStreams || mLogFiltersAndApplicationStreams || mLogEvents || mLogPluginInput) {
