@@ -136,7 +136,7 @@ namespace UNP.Plugins {
                 logger.Info("Sensor report interval: " + reportInterval);
 
                 // retrieve the sample rate
-                sampleRate = parameters.getValue<double>("SampleRate");
+                sampleRate = parameters.getValue<double>("LogSampleRate");
                 if (sampleRate <= 0) {
                     logger.Error("The sample rate cannot be 0 or lower");
                     return false;
@@ -361,9 +361,10 @@ namespace UNP.Plugins {
                     // check if we are generating
                     if (started) {
 
-                        // log the current values
-                        Data.logPluginDataValue(acceleration, pluginId);
-
+                        // log the current values, if we set this to do so
+                        if (mLogDataStreams) {
+                            Data.logPluginDataValue(acceleration, pluginId);
+                        }
                     }
 
                 }

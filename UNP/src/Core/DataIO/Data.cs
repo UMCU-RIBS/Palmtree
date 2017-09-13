@@ -1105,6 +1105,7 @@ namespace UNP.Core.DataIO {
                     } else {
 
                         // if no room left in buffer, flush buffer to file and try to log plugin data again
+                        // TODO: is it smart to call twice same function? because of lock can cause block of values to be placed after block of values that was actually after it?
                         writePluginData(pluginId);
                         logPluginDataValue(values, pluginId);
                     }
