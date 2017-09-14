@@ -13,6 +13,7 @@ using UNP.Core.Params;
 using UNP.Sources;
 using UNP.Plugins;
 using UNP.Core.DataIO;
+using System.Windows.Forms;
 
 namespace UNP.Core {
     
@@ -33,6 +34,7 @@ namespace UNP.Core {
 
         private static bool startupConfigAndInit = false;
         private static bool startupStartRun = false;
+        private static bool noGUI = false;
         private static bool systemConfigured = false;                               // 
         private static bool systemInitialized = false;                              // 
         private static bool started = false;                                        // flag to hold whether the system is in a started or stopped state
@@ -56,11 +58,12 @@ namespace UNP.Core {
          * UNPThread constructor
          * 
          */
-        public MainThread(bool startupConfigAndInit, bool startupStartRun) {
+        public MainThread(bool startupConfigAndInit, bool startupStartRun, bool noGUI) {
 
             // transfer the startup flags to local variables
             MainThread.startupConfigAndInit = startupConfigAndInit;
             MainThread.startupStartRun = startupStartRun;
+            MainThread.noGUI = noGUI;
 
         }
 
@@ -108,11 +111,12 @@ namespace UNP.Core {
          * Configures the system (the source, pipeline filters and application)
          **/
         public static bool configureSystem() {
-
+            
+            
             // configure the data object
             if (!Data.configure()) {
 
-                // message
+                // mesage
                 logger.Error("An error occured while configuring the data class, stopped");
 
                 // return failure and go no further
@@ -410,6 +414,9 @@ namespace UNP.Core {
 
             #endif
 
+            // flag as running
+            running = true;
+
             // check if the sytem should be configured and initialized at startup
             if (startupConfigAndInit) {
 
@@ -418,13 +425,24 @@ namespace UNP.Core {
 
                     // initialize
                     MainThread.initializeSystem();
-                    
+
+                } else {
+
+                    // check if there is no gui
+                    if (noGUI) {
+
+                        // message
+                        MessageBox.Show("Error during configuration, check log file", "Error during configuration", MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+                        // do not start the process
+                        running = false;
+
+                    }
+
                 }
 
             }
 
-            // flag as running
-            running = true;
 
             // check if the system should be started at startup (and is ready to start)
             if (startupStartRun && systemConfigured && systemInitialized) {

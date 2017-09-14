@@ -141,7 +141,7 @@ namespace UNP.Core {
                 Thread.CurrentThread.Name = "Main Thread";
             
             // create the main (control) object
-            MainThread mainThread = new MainThread(startupConfigAndInit, startupStartRun);
+            MainThread mainThread = new MainThread(startupConfigAndInit, startupStartRun, nogui);
 
             // variable for the GUI interface object
             GUIMain gui = null;
