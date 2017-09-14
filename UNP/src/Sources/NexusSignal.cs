@@ -25,7 +25,7 @@ namespace UNP.Sources {
         public const int NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE = 2;
 
         public const int DEFAULT_BAUD = SerialPortNet.CBR_115200;   // default Baud-Rate is 112k
-        public const int COM_TIMEOUT = 1000;                        // 1000 ms trasmission timeout
+        public const int COM_TIMEOUT = 3000;                        // 3000 ms trasmission timeout
         public const int PACKET_BUFFER_SIZE = 128;                  // packet buffer size which is large enough for P6 // (i.e. NEXUS-1 STS time-domain) packages of 120 values
 
         public const int PACKET_START = 0;

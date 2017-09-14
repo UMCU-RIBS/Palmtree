@@ -441,8 +441,20 @@ namespace UNP.Core {
 
                 }
 
-            }
+            } else {
 
+                // check if there is no gui
+                if (noGUI) {
+
+                    // message
+                    MessageBox.Show("Error during startup, without a GUI and automatic startup arguments there is no way to run the program, check startup arguments", "Error during startup", MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+                    // do not start the process
+                    running = false;
+
+                }
+
+            }
 
             // check if the system should be started at startup (and is ready to start)
             if (startupStartRun && systemConfigured && systemInitialized) {
