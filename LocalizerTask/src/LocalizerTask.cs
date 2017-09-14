@@ -14,7 +14,7 @@ namespace LocalizerTask {
     public class LocalizerTask : IApplication {
 
         // fundamentals
-        private const int CLASS_VERSION = 0;                                // class version
+        private const int CLASS_VERSION = 1;                                // class version
         private const string CLASS_NAME = "LocalizerTask";                  // class name
         private const string CONNECTION_LOST_SOUND = "sounds\\focuson.wav";
 

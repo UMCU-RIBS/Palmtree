@@ -6,7 +6,7 @@ namespace UNP.Filters {
 
     public class NormalizerFilter : FilterBase, IFilter {
 
-        private new const int CLASS_VERSION = 0;
+        private new const int CLASS_VERSION = 1;
 
         private double[] mOffsets = null;                           // array to hold the offset for each channel
         private double[] mGains = null;                             // array to hold the gain for each channel

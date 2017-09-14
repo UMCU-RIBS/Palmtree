@@ -6,7 +6,7 @@ namespace UNP.Filters {
 
     public class ThresholdClassifierFilter : FilterBase, IFilter {
 
-        private new const int CLASS_VERSION = 0;
+        private new const int CLASS_VERSION = 1;
 
         private int[] mConfigInputChannels = null;
         private int[] mConfigOutputChannels = null;

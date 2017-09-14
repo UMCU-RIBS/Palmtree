@@ -15,7 +15,7 @@ namespace UNP.Plugins {
 
     public class WindowsSensorsPlugin : IPlugin {
         
-        private const int CLASS_VERSION = 0;
+        private const int CLASS_VERSION = 1;
        
         private static Logger logger = null;
         private static Parameters parameters = null;

@@ -26,7 +26,7 @@ namespace MoleTask {
 			EndText
 		};
 
-        private const int CLASS_VERSION = 0;
+        private const int CLASS_VERSION = 1;
         private const string CLASS_NAME = "MoleTask";
         private const string CONNECTION_LOST_SOUND = "sounds\\focuson.wav";
 

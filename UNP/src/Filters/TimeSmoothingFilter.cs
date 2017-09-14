@@ -11,7 +11,7 @@ namespace UNP.Filters {
 
     public class TimeSmoothingFilter : FilterBase, IFilter {
 
-        private new const int CLASS_VERSION = 0;
+        private new const int CLASS_VERSION = 1;
 
         private RingBuffer[] mDataBuffers = null;                   // an array of ringbuffers, a ringbuffer for every channel
         private double[][] mBufferWeights = null;                   // matrix with the buffer weights for each channel (1st dimention are the channels; 2nd dimension are the sample weights per channel)

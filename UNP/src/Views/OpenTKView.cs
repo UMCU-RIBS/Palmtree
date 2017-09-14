@@ -51,7 +51,8 @@ namespace UNP.Views {
         private float windowBackgroundColorB = 0f;
         private bool windowBackgroundColorChanged = false;
 
-        protected MouseState mouseState = new MouseState();
+        private MouseState mouseState = new MouseState();
+        private KeyboardState keyboardState = new KeyboardState();
         protected Point mouseInWindowPos = new Point(0, 0);
 
         // pure abstract functions that are required to be implemented by the deriving class
@@ -412,6 +413,9 @@ namespace UNP.Views {
                 // Get current mouse state
                 mouseState = Mouse.GetCursorState();
 
+                // Get current keyboard state
+                keyboardState = Keyboard.GetState();
+
                 // redraw/render
                 try {
                     glControl.Invalidate();
@@ -476,11 +480,36 @@ namespace UNP.Views {
             return mouseState.IsButtonDown(MouseButton.Right);
         }
         
-        public int getMouseXInwindow() {
-            MouseState mState = Mouse.GetCursorState();
-            //Point mousePos = this.PointToClient(new Point(mState.X, mState.Y));
-            
-            return mState.X;
+        public bool isKeyDown(System.Windows.Forms.Keys key) {
+
+            // TODO: something smarter to convert a generic key value (now System.Windows.Forms.Keys) to a OpenTK specific key value (OpenTK.Input.Key)
+            if (key == Keys.A)                                  return keyboardState.IsKeyDown(OpenTK.Input.Key.A);
+            if (key == Keys.Escape)                             return keyboardState.IsKeyDown(OpenTK.Input.Key.Escape);
+            if (key == Keys.D1 || key == Keys.NumPad1)          return keyboardState.IsKeyDown(OpenTK.Input.Key.Number1);
+            if (key == Keys.D2 || key == Keys.NumPad2)          return keyboardState.IsKeyDown(OpenTK.Input.Key.Number2);
+            if (key == Keys.LControlKey)                        return keyboardState.IsKeyDown(OpenTK.Input.Key.ControlLeft);
+            if (key == Keys.RControlKey)                        return keyboardState.IsKeyDown(OpenTK.Input.Key.ControlRight);
+
+            return false;
+
+        }
+
+        public bool isKeyDownEscape() {
+            return keyboardState.IsKeyDown(OpenTK.Input.Key.Escape);
+        }
+
+        public bool isKeyUp(System.Windows.Forms.Keys key) {
+
+            // TODO: something smarter to convert a generic key value (now System.Windows.Forms.Keys) to a OpenTK specific key value (OpenTK.Input.Key)
+            if (key == Keys.A)                                  return keyboardState.IsKeyUp(OpenTK.Input.Key.A);
+            if (key == Keys.Escape)                             return keyboardState.IsKeyUp(OpenTK.Input.Key.Escape);
+            if (key == Keys.D1 || key == Keys.NumPad1)          return keyboardState.IsKeyUp(OpenTK.Input.Key.Number1);
+            if (key == Keys.D2 || key == Keys.NumPad2)          return keyboardState.IsKeyUp(OpenTK.Input.Key.Number2);
+            if (key == Keys.LControlKey)                        return keyboardState.IsKeyUp(OpenTK.Input.Key.ControlLeft);
+            if (key == Keys.RControlKey)                        return keyboardState.IsKeyUp(OpenTK.Input.Key.ControlRight);
+
+            return false;
+
         }
 
         public void drawLine(float x1, float y1, float x2, float y2, float lineWidth, bool dashed, float colorR, float colorG, float colorB) {

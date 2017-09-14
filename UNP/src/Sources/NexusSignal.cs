@@ -17,7 +17,7 @@ namespace UNP.Sources {
     public class NexusSignal : ISource {
 
         private const string CLASS_NAME = "NexusSignal";
-        private const int CLASS_VERSION = 0;
+        private const int CLASS_VERSION = 1;
 
         public const int NEXUS_POWERMODE_SAMPLES_PER_PACKAGE = 1;
         public const int NEXUS_POWERMODE_CHANNELS_PER_PACKAGE = 4;

@@ -25,7 +25,7 @@ namespace CursorTask {
             TrialEnd            // trial ending (cursor will stay at the end)
         };
 
-        private const int CLASS_VERSION = 0;
+        private const int CLASS_VERSION = 1;
         private const string CLASS_NAME = "CursorTask";
         private const string CONNECTION_LOST_SOUND = "sounds\\focuson.wav";
 

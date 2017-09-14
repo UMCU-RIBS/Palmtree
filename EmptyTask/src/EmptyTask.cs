@@ -12,7 +12,7 @@ namespace EmptyTask {
 
     public class EmptyTask : IApplication {
 
-        private const int CLASS_VERSION = 0;
+        private const int CLASS_VERSION = 1;
         private const string CLASS_NAME = "EmptyTask";
 
         private static Logger logger = LogManager.GetLogger(CLASS_NAME);                        // the logger object for the view

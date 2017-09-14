@@ -19,7 +19,7 @@ namespace UNP.Sources {
     public class KeypressSignal : ISource {
 
         private const string CLASS_NAME = "KeypressSignal";
-        private const int CLASS_VERSION = 0;
+        private const int CLASS_VERSION = 1;
 
         private const int threadLoopDelayNoProc = 200;                                  // thread loop delay when not processing (1000ms / 5 run times per second = rest 200ms)
 

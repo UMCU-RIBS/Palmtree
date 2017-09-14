@@ -33,10 +33,10 @@ namespace UNP.Views {
         bool isLeftMouseDown();
         bool isRightMouseDown();
 
-
-        // task functions
-
-
+        bool isKeyDown(System.Windows.Forms.Keys key);
+        bool isKeyDownEscape();
+        bool isKeyUp(System.Windows.Forms.Keys key);
 
     }
+
 }

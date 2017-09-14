@@ -18,7 +18,7 @@ namespace UNP.Core {
     
     public class MainThread {
 
-        private const int CLASS_VERSION = 0;
+        private const int CLASS_VERSION = 1;
 
         private static Logger logger = LogManager.GetLogger("MainThread");
 
@@ -666,7 +666,7 @@ namespace UNP.Core {
          * Not using delegate (or interface) events since there would be only one receiver, being this function called.
          */
         public static void eventViewClosed() {
-
+            logger.Error("eventViewClosed");
             // stop the program from running
             running = false;
 

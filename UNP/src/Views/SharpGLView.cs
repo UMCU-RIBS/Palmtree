@@ -47,6 +47,8 @@ namespace UNP.Views {
         private float windowBackgroundColorB = 0f;
         private bool windowBackgroundColorChanged = false;
 
+        protected Point mouseInWindowPos = new Point(0, 0);
+
         // pure abstract functions that are required to be implemented by the deriving class
         protected abstract void load();
         protected abstract void unload();
@@ -418,6 +420,21 @@ namespace UNP.Views {
         }
 
         public bool isRightMouseDown() {
+            // TODO: implement
+            return false;
+        }
+
+        bool isKeyDown(System.Windows.Forms.Keys key) {
+            // TODO: implement
+            return false;
+        }
+
+        bool isKeyDownEscape() {
+            // TODO: implement
+            return false;
+        }
+
+        bool isKeyUp(System.Windows.Forms.Keys key) {
             // TODO: implement
             return false;
         }

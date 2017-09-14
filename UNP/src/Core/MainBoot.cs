@@ -13,7 +13,7 @@ namespace UNP.Core {
 
     public static class MainBoot {
 
-        private const int CLASS_VERSION = 0;
+        private const int CLASS_VERSION = 1;
 
         private static Logger logger = LogManager.GetLogger("MainBoot");
 
