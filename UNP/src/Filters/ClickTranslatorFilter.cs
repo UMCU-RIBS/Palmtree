@@ -17,8 +17,10 @@ namespace UNP.Filters {
         private int mBufferSize = 0;                                // now equals the activeperiod variable, can be used to enlarge the buffer but only use the last part (activeperiod)
         private int startActiveBlock = 0;                           // now is always 0 since the activeperiod and buffersize are equal, is used when the buffer is larger than the activeperiod
         private double activeRateThreshold = 0;                     // 
-        private int refractoryPeriod = 0;                           // the refractory period that should be waited before a new click can be triggered
-        private int refractoryCounter = 0;                          // counter to count down the samples for refractory
+        private int clickRefractoryPeriod = 0;                      // the refractory period that should be waited before a new click can be triggered
+        private int keySequenceRefractoryPeriod = 0;                      // the refractory period that should be waited before a new click can be triggered
+        private int clickRefractoryCounter = 0;                     // counter to count down the samples for refractory (after a normal click)
+        private int keySequenceRefractoryCounter = 0;                    // counter to count down the samples for refractory (after the keysequence)
 
         private RingBuffer[] mDataBuffers = null;                   // an array of ringbuffers, a ringbuffer for every channel
         private bool active_state = true;
@@ -57,8 +59,13 @@ namespace UNP.Filters {
                 "0", "1", ".5");
 
             parameters.addParameter<double>        (
-                "RefractoryPeriod",
+                "ClickRefractoryPeriod",
                 "Time window after click in which no click will be translated (in samples or seconds)",
+                "1s", "", "3.6s");
+
+            parameters.addParameter<double>(
+                "KeySequenceRefractoryPeriod",
+                "Time window after key sequence in which no click will be translated (in samples or seconds)",
                 "1s", "", "3.6s");
 
             // message
@@ -170,18 +177,30 @@ namespace UNP.Filters {
 
             }
 
-            // TODO: take resetFilter into account (currently always resets the buffers on initialize
-            //          but when set not to reset, the buffers should be resized while retaining their values!)
-
+            // check if we are resetting the filter
             if (resetFilter) {
 
                 // message
                 logger.Debug("Filter reset");
 
-            }
+                // clear the data buffers
+                for (int i = 0; i < inputChannels; i++)
+                    mDataBuffers[i].Clear();
 
-            // initialize the variables
-            initialize();
+                // reset the refractory periods
+                clickRefractoryCounter = 0;
+                keySequenceRefractoryCounter = 0;
+                
+                // allow for clicks
+                active_state = true;
+
+            } else {
+
+                // todo: resize the mDataBuffer according to the configuration, now just recreating instead
+                mDataBuffers = new RingBuffer[inputChannels];
+                for (uint i = 0; i < inputChannels; i++) mDataBuffers[i] = new RingBuffer((uint)mBufferSize);
+
+            }
 
             // return success
             return true;
@@ -216,14 +235,22 @@ namespace UNP.Filters {
                     return false;
                 }
 
-                // check the refractory period
-                int newRefractoryPeriod = newParameters.getValueInSamples("RefractoryPeriod");
-                if (newRefractoryPeriod < 1) {
-                    logger.Error("The InactivePeriod parameter must be at least 1 sampleblock");
+                // check the click refractory period
+                int newClickRefractoryPeriod = newParameters.getValueInSamples("ClickRefractoryPeriod");
+                if (newClickRefractoryPeriod < 1) {
+                    logger.Error("The ClickRefractoryPeriod parameter must be at least 1 sampleblock");
                     return false;
                 }
 
-		    }
+                // check the key sequence refractory period
+                int newKeySequenceRefractoryPeriod = newParameters.getValueInSamples("KeySequenceRefractoryPeriod");
+                if (newKeySequenceRefractoryPeriod < 1) {
+                    logger.Error("The KeySequenceRefractoryPeriod parameter must be at least 1 sampleblock");
+                    return false;
+                }
+
+
+            }
 
             // return success
             return true;
@@ -249,12 +276,13 @@ namespace UNP.Filters {
                 // store the active rate threshold
                 activeRateThreshold = newParameters.getValue<double>("ActiveRateClickThreshold");
 
+                // store the click refractory period
+                clickRefractoryPeriod = newParameters.getValueInSamples("ClickRefractoryPeriod");
+
                 // store the refractory period
-                refractoryPeriod = newParameters.getValueInSamples("RefractoryPeriod");
+                keySequenceRefractoryPeriod = newParameters.getValueInSamples("KeySequenceRefractoryPeriod");
 
             }
-
-
 
         }
 
@@ -268,7 +296,7 @@ namespace UNP.Filters {
             if (mEnableFilter) {
                 logger.Debug("ActivePeriod: " + activePeriod);
                 logger.Debug("ActiveRateClickThreshold: " + activeRateThreshold);
-                logger.Debug("RefractoryPeriod: " + refractoryPeriod);
+                logger.Debug("ClickRefractoryPeriod: " + clickRefractoryPeriod);
             }
 
         }
@@ -284,9 +312,10 @@ namespace UNP.Filters {
 
                 // set the state initially to active (not refractory)
                 active_state = true;
-
-                // reset the refractory period
-                refractoryCounter = 0;
+                
+                // reset the refractory periods
+                clickRefractoryCounter = 0;
+                keySequenceRefractoryCounter = 0;
 
             }
 
@@ -297,8 +326,9 @@ namespace UNP.Filters {
             // set the state initially to active (not refractory)
             active_state = true;
 
-            // reset the refractory period
-            refractoryCounter = 0;
+            // reset the refractory periods
+            clickRefractoryCounter = 0;
+            keySequenceRefractoryCounter = 0;
 
         }
 
@@ -319,8 +349,21 @@ namespace UNP.Filters {
             if (mEnableFilter) {
                 // filter enabled
 
-		        //loop over channels and samples
-		        for( int channel = 0; channel < inputChannels; ++channel ) {	
+                // check if a keysequence was made
+                if (Globals.getValue<bool>("KeySequenceActive")) {
+
+                    // reset the click refractory period (in case this one is longer than the escape refractory, we should be able to listen for clicks after the keysequence)
+                    clickRefractoryCounter = 0;
+
+                    // set the escape refractory period
+                    keySequenceRefractoryCounter = keySequenceRefractoryPeriod + 1;   // +1 one because in this same loop, the counter will be lowered with 1
+
+                    // do not accept new keypresses
+                    active_state = false;
+                }
+
+                //loop over channels and samples
+                for ( int channel = 0; channel < inputChannels; ++channel ) {	
 
 			        //add new sample to buffer
 			        mDataBuffers[channel].Put(input[channel]);
@@ -343,9 +386,13 @@ namespace UNP.Filters {
 				        // the first should always be 1
 				        if ((activeRate >= activeRateThreshold) && (data[0] == 1)) {
 					
+                            // output a click
 					        output[channel] = 1;
+
+                            // refractory from the click
 					        active_state = false;
-                            refractoryCounter = refractoryPeriod;
+                            clickRefractoryCounter = clickRefractoryPeriod;
+
 					        //State( "ReadyForClick" ) = 0;
 					        //State( "Clicked" ) = 1;
 
@@ -361,12 +408,19 @@ namespace UNP.Filters {
 
 				        // inactive_state stops after set refractory period
 				        output[channel] = 0;
-				        //State( "Clicked" ) = 0;
-                        refractoryCounter--;
 
-				        if (refractoryCounter == 0) {
+                        //State( "Clicked" ) = 0;
+                        // count down the refractory counters
+                        if (clickRefractoryCounter > 0)         clickRefractoryCounter--;
+                        if (keySequenceRefractoryCounter > 0)    keySequenceRefractoryCounter--;
+
+                        // check if the counters reached 0
+                        if (clickRefractoryCounter == 0 && keySequenceRefractoryCounter == 0) {
+
+                            // allow for clicks again
 					        active_state = true;
 					        //State( "ReadyForClick" ) = 1;
+
 				        }
 
 			        }
