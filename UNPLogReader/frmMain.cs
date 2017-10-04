@@ -424,8 +424,9 @@ namespace UNPLogReader {
             
             // retrieve StatevectorLen
             fieldName = "StatevectorLen=";
-            fieldValueLength = 3;
+            //fieldValueLength = 3;
             pos = info.firstLine.IndexOf(fieldName);
+            fieldValueLength = Math.Min(3, info.firstLine.Length - (pos + fieldName.Length));               // adjusted: fieldValueLength is variable: so it is either three, or in case the string is shorter, the remainder of the string: either 1 or 2 
             if (pos == -1 || info.firstLine.Length < pos + fieldName.Length + fieldValueLength) {
                 MessageBox.Show("Could not retrieve " + fieldName + ", aborting");
                 info = null;
