@@ -38,7 +38,7 @@ namespace UNP.Core {
             bool nogui = false;
             bool startupConfigAndInit = false;
             bool startupStartRun = false;
-            string parameterFile = "";
+            string parameterFile = @"";
             string source = "";
 
             //args = new string[] { "-parameterfile", "UNPMenu_nexus.prm", "-source", "NexusSignal", "-startupConfigAndInit", "-startupStart" };

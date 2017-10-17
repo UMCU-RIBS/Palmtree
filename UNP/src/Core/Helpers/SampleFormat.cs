@@ -8,14 +8,14 @@ namespace UNP.Core.Helpers {
     public class SampleFormat {
         
         private int channels = 0;                       //
-        private double rate = 0;                        // sample rate (in samples/second)
-        //private int[] types = null;                     // 
+        private int rate = 0;                        // amount of values contained in one packet
+        //private int[] types = null;                   // 
 
         public SampleFormat() {
         
         }
 
-        public SampleFormat(int channels, double rate) {
+        public SampleFormat(int channels, int rate) {
             this.channels = channels;
             this.rate = rate;
         }
@@ -24,7 +24,7 @@ namespace UNP.Core.Helpers {
             return channels;
         }
 
-        public double getRate() {
+        public int getRate() {
             return rate;
         }
 

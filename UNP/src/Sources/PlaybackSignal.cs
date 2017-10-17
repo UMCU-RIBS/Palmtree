@@ -263,7 +263,7 @@ namespace UNP.Sources {
                     }
 
                     // create a sampleformat
-                    output = new SampleFormat(outputChannels, sampleRate);
+                    output = new SampleFormat(outputChannels, 1);
 
                     // check the constants (buffer size in combination with buffer min read)
                     if (INPUT_BUFFER_MIN_READ_SECONDS < 2) {
@@ -336,7 +336,7 @@ namespace UNP.Sources {
             highPrecision = parameters.getValue<bool>("HighPrecision");
 
             // create a sampleformat
-            output = new SampleFormat(outputChannels, sampleRate);
+            output = new SampleFormat(outputChannels, 1);
 
             // calculate the sample interval
             sampleIntervalMs = (int)Math.Floor(1000.0 / sampleRate);

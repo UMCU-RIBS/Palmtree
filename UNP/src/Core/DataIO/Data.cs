@@ -48,13 +48,18 @@ namespace UNP.Core.DataIO {
         private static bool mLogSourceInput = false;            								// source input logging enabled/disabled (by configuration parameter)
         private static int numSourceInputStreams = 0;                                           // the number of streams coming from the source input
         private static List<string> registeredSourceInputStreamNames = new List<string>(0);     // the names of the registered source input streams to store in the .src file
-        private static List<int> registeredSourceInputStreamTypes = new List<int>(0);           // the types of the registered source input streams to store in the .src file
+        private static List<SampleFormat> registeredSourceInputStreamFormat = new List<SampleFormat>(0);           // the types of the registered source input streams to store in the .src file
 
         private static FileStream sourceStream = null;                                          // filestream that is fed to the binarywriter, containing the stream of values to be written to the .src file
         private static BinaryWriter sourceStreamWriter = null;                                  // writer that writes values to the .src file
         private static uint sourceSampleCounter = 0;                                            // the current row of values being written to the .src file, acts as id
         private static Stopwatch sourceStopWatch = new Stopwatch();                             // creates stopwatch to measure time difference between incoming samples
         private static double sourceElapsedTime = 0;                                            // amount of time [ms] elapsed since start of proccesing of previous sample
+
+        private static int expectedSamples = 0;                                                 // expected amount of samples per packet
+        private static int maxRate = 0;                                                         // highest rate, ie amount of samples per packet of the input streams 
+        private static int[] sourceRates = null;                                                // rates of the different source input streams
+        private static double[][] sourceInputBuffers = null;
 
         // pipeline input streams
         private static bool mLogPipelineInputStreams = false;            				        // stream logging for pipeline input enabled/disabled (by configuration parameter)
@@ -85,6 +90,7 @@ namespace UNP.Core.DataIO {
         private static List<List<string>> registeredPluginInputStreamNames = new List<List<string>>(0);     // for each plugin, the names of the registered plugin input streams to store in the plugin data log file
         private static List<List<int>> registeredPluginInputStreamTypes = new List<List<int>>(0);           // for each plugin, the types of the registered plugin input streams to store in the plugin data log file
         private static List<int> numPluginInputStreams = new List<int>(0);                                  // the number of streams that will be logged for each plugin
+
 
         private static List<double[]> pluginDataValues = new List<double[]>(0);               // list of two dimensional arrays to hold plugin data as it comes in 
         private static int bufferSize = 10000;                                                  // TEMP size of buffer, ie amount of datavalues stored for each plugin before the buffer is flushed to the data file at sampleProcessingEnd
@@ -184,7 +190,7 @@ namespace UNP.Core.DataIO {
 
             // clear the registered source input streams
             registeredSourceInputStreamNames.Clear();
-            registeredSourceInputStreamTypes.Clear();
+            registeredSourceInputStreamFormat.Clear();
             numSourceInputStreams = 0;
 
             // clear the registered data streams
@@ -264,6 +270,7 @@ namespace UNP.Core.DataIO {
                     logger.Error("Unable to create sesion data directory at " + sessionDir + " (" + e.ToString() + ")");
                 }
             }
+
             return true;
 
         }
@@ -274,18 +281,22 @@ namespace UNP.Core.DataIO {
          * 
          * (this should be called during configuration, by all sources that will log their samples)
          **/
-        public static void registerSourceInputStream(string streamName, SampleFormat streamType) {
+        public static void registerSourceInputStream(string streamName, SampleFormat streamFormat) {
 
             // register a new stream
             registeredSourceInputStreamNames.Add(streamName);
-            registeredSourceInputStreamTypes.Add(0);
+            registeredSourceInputStreamFormat.Add(streamFormat);
+
+            // check if newly registered stream has same amount of samples per packet as rest of streams
+            for(int i = 0; i < numSourceInputStreams; i++) {
+                if (registeredSourceInputStreamFormat[i].getRate() != streamFormat.getRate()) logger.Error("Registered source input stream '" + streamName + "' contains " + streamFormat.getRate() + " samples per packet, which differs from other registered source input streams. Therefore the samples in streams containing less samples per packet than other streams will be zeroed-out in .src file.");
+            }  
 
             // add one to the total number of streams
             numSourceInputStreams++;
 
             // message
-            logger.Debug("Registered source input stream '" + streamName + "' of the type ...");
-
+            logger.Debug("Registered source input stream '" + streamName + "' containing " + streamFormat.getRate() +  " samples per packet.");
         }
 
         public static int getNumberOfSourceInputStreams() {
@@ -624,6 +635,22 @@ namespace UNP.Core.DataIO {
                     if (sourceStreamWriter != null) {
                         DataWriter.writeBinaryHeader(sourceStreamWriter, header);
                     }
+
+                    // calculate expected amount of samples (rate) per incoming source packet
+                    expectedSamples = 0;
+                    maxRate = 0;
+                    sourceRates = new int[numSourceInputStreams];
+                    for (int i = 0; i < numSourceInputStreams; i++) {
+                        sourceRates[i] = registeredSourceInputStreamFormat[i].getRate();
+                        expectedSamples += sourceRates[i];
+                        maxRate = Math.Max(maxRate, sourceRates[i]);
+                    }
+
+                    // if there are streams that have more than 1 sample per packet, prepare buffers based on rates
+                    if (maxRate > 1) {
+                        sourceInputBuffers = new double[numSourceInputStreams][];
+                        for (int i = 0; i < numSourceInputStreams; i++) sourceInputBuffers[i] = new double[maxRate];
+                    }
                 }
 
                 // check if there are any samples streams to be logged
@@ -708,6 +735,7 @@ namespace UNP.Core.DataIO {
 
             }
 
+          
             // check if data visualization is enabled
             if (mEnableDataVisualization) {
 
@@ -924,13 +952,8 @@ namespace UNP.Core.DataIO {
             //logger.Debug("To .src file: " + sourceElapsedTime + " " + sourceSampleCounter + " " + string.Join("|", sourceStreamValues));
 
             // integrity check of collected source values
-            if (sourceStreamValues.Length != numSourceInputStreams) {
-
-                // message
-                logger.Error("Less data streams have been logged (" + sourceStreamValues.Length + ") than have been registered (" + numSourceInputStreams + ") for logging, unreliable .src file, check code");
-
-
-            } else {
+            if (sourceStreamValues.Length != expectedSamples) logger.Error("Different amount of samples have been logged (" + sourceStreamValues.Length + ") than have been registered (" + expectedSamples + ") for logging, unreliable .src file, check code.");
+            else {
 
                 // check if source logging is enabled
                 if (mLogSourceInput) {
@@ -945,13 +968,82 @@ namespace UNP.Core.DataIO {
                     // create new array to hold all bytes
                     int l1 = sourceSampleCounterBinary.Length;
                     int l2 = sourceElapsedTimeBinary.Length;
-                    int l3 = sourceStreamValues.Length * sizeof(double);
-                    byte[] streamOut = new byte[l1 + l2 + l3];
+                    int l3 = numSourceInputStreams * sizeof(double);
+                    byte[] streamOut = null;                                // not initial
 
-                    // blockcopy all bytes to this array
-                    Buffer.BlockCopy(sourceSampleCounterBinary, 0, streamOut, 0, l1);
-                    Buffer.BlockCopy(sourceElapsedTimeBinary, 0, streamOut, l1, l2);
-                    Buffer.BlockCopy(sourceStreamValues, 0, streamOut, l1 + l2, l3);
+                    // if there are streams that have more than one sample per incoming packet, buffer and interleave these samples for correct writing to .src file
+                    if (maxRate > 1) {
+
+                        // init vars
+                        byte[] streamOutTemp = new byte[l1 + l2 + l3];
+                        streamOut = new byte[streamOutTemp.Length * (sourceStreamValues.Length/ numSourceInputStreams)];
+                        double[] sourceStreamValuesTemp = new double[numSourceInputStreams];
+                        int inputPointer = 0;
+                        int binaryBufferPointer = 0;
+
+                        // transfer data
+                        for (int stream = 0; stream < (sourceStreamValues.Length / numSourceInputStreams); stream++) {
+                            for (int i = 0; i < numSourceInputStreams; i++) {
+                                sourceStreamValuesTemp[i] = sourceStreamValues[inputPointer + i]; 
+                            }
+                            // blockcopy all bytes to this array
+                            Buffer.BlockCopy(sourceSampleCounterBinary, 0, streamOutTemp, 0, l1);
+                            Buffer.BlockCopy(sourceElapsedTimeBinary, 0, streamOutTemp, l1, l2);
+                            Buffer.BlockCopy(sourceStreamValuesTemp, 0, streamOutTemp, l1 + l2, l3);
+
+                            // store this array togehter with other binarized samples 
+                            Buffer.BlockCopy(streamOutTemp, 0, streamOut, binaryBufferPointer, streamOutTemp.Length);
+
+                            // increase pointers
+                            inputPointer += numSourceInputStreams;
+                            binaryBufferPointer += streamOutTemp.Length;
+                        }
+
+
+
+                            //// clear buffers and pointer
+                            //for (int i = 0; i < sourceInputBuffers.Length; i++) Array.Clear(sourceInputBuffers[i], 0, maxRate);
+                            //int bufferPointer = 0;
+
+                            //// fill buffers
+                            //for (int stream = 0; stream < numSourceInputStreams; stream++) {
+                            //    for (int sample = 0; sample < sourceRates[stream]; sample++) {
+                            //        sourceInputBuffers[stream][sample] = sourceStreamValues[bufferPointer + sample];
+                            //    }
+                            //    bufferPointer += sourceRates[stream];
+                            //}
+
+                            //// clear byte buffers and pointer
+                            //byte[] streamOutTemp = new byte[l1 + l2 + l3];
+                            //streamOut = new byte[streamOutTemp.Length * maxRate];
+                            //double[] sourceStreamValuesTemp = new double[numSourceInputStreams];
+                            //int binaryBufferPointer = 0;
+
+                            //// interleave buffers and binarize
+                            //for (int sample = 0; sample < maxRate; sample++) {
+                            //    for (int stream = 0; stream < numSourceInputStreams; stream++) {
+
+                            //        // interleave
+                            //        sourceStreamValuesTemp[stream] = sourceInputBuffers[stream][sample];
+                            //    }
+
+                            //    // blockcopy all bytes to this array
+                            //    Buffer.BlockCopy(sourceSampleCounterBinary, 0, streamOutTemp, 0, l1);
+                            //    Buffer.BlockCopy(sourceElapsedTimeBinary, 0, streamOutTemp, l1, l2);
+                            //    Buffer.BlockCopy(sourceStreamValuesTemp, 0, streamOutTemp, l1 + l2, l3);
+
+                            //    // store this array togehter with other binarized samples 
+                            //    Buffer.BlockCopy(streamOutTemp, 0, streamOut, binaryBufferPointer, streamOutTemp.Length);
+                            //    binaryBufferPointer += streamOutTemp.Length;
+                        
+                    } else {
+
+                        // blockcopy all bytes to this array
+                        streamOut = new byte[l1 + l2 + l3];
+                        Buffer.BlockCopy(sourceSampleCounterBinary, 0, streamOut, 0, l1);
+                        Buffer.BlockCopy(sourceElapsedTimeBinary, 0, streamOut, l1, l2);
+                        Buffer.BlockCopy(sourceStreamValues, 0, streamOut, l1 + l2, l3);
+                    }
 
                     // write source to file
                     if (sourceStreamWriter != null) {

@@ -145,7 +145,7 @@ namespace UNP.Sources {
             highPrecision = parameters.getValue<bool>("HighPrecision");
 
             // create a sampleformat
-            output = new SampleFormat(outputChannels, sampleRate);
+            output = new SampleFormat(outputChannels, 1);
 
             // calculate the sample interval
             sampleIntervalMs = (int)Math.Floor(1000.0 / sampleRate);
