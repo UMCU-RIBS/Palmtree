@@ -231,7 +231,7 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="images\" />
+    <Folder Include="libs\" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="NLog.config">
@@ -287,8 +287,7 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>if not exist $(TargetDir)images mkdir $(TargetDir)images
-xcopy $(ProjectDir)images\*.* $(TargetDir)images /Y /D</PostBuildEvent>
+    <PostBuildEvent>xcopy $(ProjectDir)libs\*.* $(TargetDir) /Y /D</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
