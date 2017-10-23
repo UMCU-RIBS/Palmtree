@@ -1441,7 +1441,6 @@ namespace CursorTask {
 			        }
 			        if (!found && j < currentTarget.Count && currentTarget.Count != 0) {
                         currentTarget.Swap(j, currentTarget.Count - 1);
-				        //std::swap(currentTarget[j], currentTarget[currentTarget.Count - 1]);
                         currentTarget.RemoveAt(currentTarget.Count - 1);
 				        continue;
 			        }
@@ -1455,7 +1454,6 @@ namespace CursorTask {
 			        }
 			        if (!found && currentTarget.Count != 0) {
 				        currentTarget.Swap(j, currentTarget.Count - 1);
-                        //std::swap(currentTarget[j], currentTarget[currentTarget.size() - 1]);
                         currentTarget.RemoveAt(currentTarget.Count - 1);
 				        continue;
 			        }

@@ -19,12 +19,16 @@ namespace UNP.Filters {
 
         private double[] mOffsets = null;                           // array to hold the offset for each channel
         private double[] mGains = null;                             // array to hold the gain for each channel
+
         private int[] mAdaptation = null;
         private bool mDoAdapt = false;
-        private int mBufferSize = 0;                        // time window of past data per buffer that enters into statistic
+        private int mBufferSize = 0;                                // time window of past data per buffer that enters into statistic
         private string[][] mBuffers = null;
         private string mUpdateTrigger = null;
-        private RingBuffer[][] mDataBuffers = null;           // holds the data for each channel (for the size of buffer)
+        private bool mPreviousTrigger = true;                       // store the previous trigger state 
+
+        private RingBuffer[][] mDataBuffers = null;                 // holds the data for each channel (for the size of buffer)
+
 
         public NormalizerFilter(string filterName) {
 
@@ -76,7 +80,7 @@ namespace UNP.Filters {
 
             parameters.addParameter<string>(
                 "UpdateTrigger",
-                "Expression (global variables can be used, e.g. [feedback] == 1) on which the offset and gain will be updated, the trigger will occur when the expression changes from 0 to 1.\nUse empty string for continues update.\n\nNote the variablenames in the expressions are case-sensitive",
+                "Expression (global variables can be used, e.g. [feedback] == 0) on which the offset and gain will be updated, the trigger will occur when the expression result changes from 0 to 1.\nUse empty string for continues update.\n\nNote the variablenames in the expressions are case-sensitive",
                 "", "", "[Feedback]==0");
 
             // message
@@ -381,7 +385,10 @@ namespace UNP.Filters {
         }
 
         public void start() {
-            
+
+            // initially set to trigger to true
+            mPreviousTrigger = true;
+
         }
 
         public void stop() {
@@ -394,7 +401,7 @@ namespace UNP.Filters {
         public bool isStarted() {
             return false;
         }
-
+        
         public void process(double[] input, out double[] output) {
 
             // create an output sample
@@ -404,35 +411,45 @@ namespace UNP.Filters {
             if (mEnableFilter) {
                 // filter enabled
 
+                // check if adaptation is on for one of the channels
                 if (mDoAdapt) {
-                    logger.Error("-----");
+
+                    //logger.Error("-----");
                     for (int channel = 0; channel < mBuffers.Length; ++channel) {
                         for (int buffer = 0; buffer < mBuffers[channel].Length; ++buffer) {
                             bool testResult = Globals.evaluateConditionExpression(mBuffers[channel][buffer]);
-                            logger.Debug("channel: " + channel + "   buffer: " + buffer + "    testResult = " + testResult);
+                            //logger.Debug("channel: " + channel + "   buffer: " + buffer + "    testResult = " + testResult);
                             if (testResult) {
                                 mDataBuffers[channel][buffer].Put(input[channel]);
                             }
                         }
                     }
-                    /*
-                    if (mpUpdateTrigger != NULL) {
-                        bool currentTrigger = mpUpdateTrigger->Evaluate(&Input);
-                        //bciout << "mPreviousTrigger: " << mPreviousTrigger << endl;
-                        //bciout << "currentTrigger: " << currentTrigger << endl;
+
+                    // check if there is an update trigger
+                    if (mUpdateTrigger != null) {
+                        // update trigger set
+                        
+                        // check the expression
+                        bool currentTrigger = Globals.evaluateConditionExpression(mUpdateTrigger);
+                        //logger.Debug("mPreviousTrigger: " + mPreviousTrigger);
+                        //logger.Debug("currentTrigger: " + currentTrigger);
+
+                        // check if the trigger expession result goes from 0 to 1
                         if (currentTrigger && !mPreviousTrigger) {
-                            bciout << "update" << endl;
-                            Update();
+                            //logger.Debug("Update");
+                            update();
 
                         }
                         mPreviousTrigger = currentTrigger;
-                    } else
-                        Update();
-                        */
 
+                    } else {
+                        // no trigger, continuous update
+
+                        update();
+
+                    }
 
                 }
-
 
                 // loop through every channel
                 for (int channel = 0; channel < inputChannels; ++channel) {
@@ -468,65 +485,104 @@ namespace UNP.Filters {
 
         private void update() {
 
-            /*
-            for (size_t channel = 0; channel < mDataBuffers.size(); ++channel)
-                if (mAdaptation[channel] != none) { // Compute raw moments for all buffers.
-                    size_t numValues = 0;
-                    vector<double> bufferMeans;
-                    vector<double> bufferSqMeans;
-                    for (size_t i = 0; i < mDataBuffers[channel].size(); ++i) {
-                        const RingBuffer&buffer = mDataBuffers[channel][i];
-                        const RingBuffer::DataVector&data = buffer.Data();
-                        double bufferSum = 0,
-                               bufferSqSum = 0;
-                        for (size_t j = 0; j < buffer.Fill(); ++j) {
+            // loop through the channels
+            for (int channel = 0; channel < mDataBuffers.Length; channel++) {
+
+                // check if adaptation needs to be applied to this channel
+                if (mAdaptation[channel] != (int)AdaptationTypes.None) {
+
+                    //
+                    // computer the mean(s) and variandce) for each buffer
+                    //
+
+                    uint numValues = 0;
+                    List<double> bufferMeans = new List<double>();
+                    List<double> bufferSqMeans = new List<double>();
+
+                    // loop through the buffers within the channel
+                    for (int i = 0; i < mDataBuffers[channel].Length; ++i) {
+
+                        // retrieve the samplebuffer and it's data
+                        RingBuffer buffer = mDataBuffers[channel][i];
+                        double[] data = buffer.Data();
+
+                        // calculate the mean of the buffer and the mean sum-of-squares
+                        // and add the mean and mean sum-of-squares to a buffer(list)
+                        double bufferSum = 0;
+                        double bufferSqSum = 0;
+                        for (int j = 0; j < buffer.Fill(); ++j) {
                             bufferSum += data[j];
                             bufferSqSum += data[j] * data[j];
                         }
                         numValues += buffer.Fill();
                         if (buffer.Fill() > 0) {
-                            bufferMeans.push_back(bufferSum / buffer.Fill());
-                            bufferSqMeans.push_back(bufferSqSum / buffer.Fill());
+                            bufferMeans.Add(bufferSum / buffer.Fill());
+                            bufferSqMeans.Add(bufferSqSum / buffer.Fill());
                         }
+
                     }
-                    // Compute total mean and variance from the raw moments.
+
+
+                    //
+                    // Compute the total mean and variance from the raw moments.
+                    //
+
                     double dataMean = 0;
-                    if (!bufferMeans.empty()) { // Use the mean of means to avoid bias.
-                        dataMean
-                          = accumulate(bufferMeans.begin(), bufferMeans.end(), 0.0)
-                            / bufferMeans.size();
+                    
+                    // check if there are values in the buffer
+                    if (bufferMeans.Count > 0) {
+                        
+                        // calculate the mean of means
+                        for (int i = 0; i < bufferMeans.Count; i++) {
+                            dataMean += bufferMeans[i];
+                        }
+                        dataMean /= bufferMeans.Count;
 
-                        mOffsets[channel] = static_cast<float>(dataMean);
-                        bcidbg << "Channel " << channel
-                               << ": Set offset to " << mOffsets[channel] << " using information"
-                               << " from " << bufferMeans.size() << " buffers"
-                               << endl;
+                        // set the mean of mean as the offset (use the mean of means to avoid bias)
+                        mOffsets[channel] = dataMean;
+
+                        // message
+                        //logger.Debug("Channel " + channel + ": Set offset to " + mOffsets[channel] + " using information from " + bufferMeans.Count + " buffers");
+
                     }
 
-                    if (mAdaptation[channel] == zeroMeanUnitVariance) { // Normalize to unit variance.
+                    
+                    // check if there should be normalized to the unit variance (the gain should be adjusted as well)
+                    if (mAdaptation[channel] == (int)AdaptationTypes.ZeroMeanUnitVar) {
+
                         double dataSqMean = 0;
-                        if (!bufferSqMeans.empty()) { // Again, use the mean of means to avoid bias.
-                            dataSqMean
-                              = accumulate(bufferSqMeans.begin(), bufferSqMeans.end(), 0.0)
-                                / bufferSqMeans.size();
+
+                        // calculate the mean of the sum-of-squared means
+                        for (int i = 0; i < bufferSqMeans.Count; i++) {
+                            dataSqMean += bufferSqMeans[i];
                         }
+                        dataSqMean /= bufferSqMeans.Count;
+
+                        // calculate the variance? 
                         double dataVar = dataSqMean - dataMean * dataMean;
+
+                        // check if the value is not 0
                         const double eps = 1e-10;
                         if (dataVar > eps) {
-                            mGains[channel] = 1.0f / ::sqrt(dataVar);
-                            bcidbg << "Set gain to " << mGains[channel]
-                                   << ", using data variance"
-                                   << endl;
+
+                            // calculate the gain by dividing 1 by the standard deviation?
+                            mGains[channel] = 1.0 / Math.Sqrt(dataVar);
+
+                            // message
+                            //logger.Debug("Set gain to " + mGains[channel] + ", using data variance");
+
                         }
-                        bcidbg(2) << "\n"
-                                    << "\tmean:    \t" << dataMean << "\n"
-                                    << "\tvariance:\t" << dataVar << "\n"
-                                    << "\tsamples: \t" << numValues << "\n"
-                                    << flush;
+
+                        // message
+                        //logger.Debug("mean: " + dataMean + " - variance:" + dataVar + " - samples: " + numValues);
+
                     }
+                    
                 }
-                */
-        }
+
+            }   // end channel loop
+            
+        }   // end function
 
     }
 
