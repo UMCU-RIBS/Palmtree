@@ -2,8 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
-using System.Text;
 using UNP.Core.Helpers;
 
 namespace UNP.Core.Params {
@@ -233,7 +231,7 @@ namespace UNP.Core.Params {
         private iParam getParameter(string paramName) {
 
             // try to find the parameter by name
-            for (int i = 0; i < paramList.Count(); i++) {
+            for (int i = 0; i < paramList.Count; i++) {
                 if (paramList[i].Name.Equals(paramName)) {
                     return paramList[i];
                 }
@@ -548,7 +546,7 @@ namespace UNP.Core.Params {
 
         public bool setValue(string paramName, int[][] paramValue) {
             Parameters.Units[][] paramUnit = new Parameters.Units[paramValue.Length][];
-            for (int i = 0; i < paramUnit.Count(); i++) paramUnit[i] = new Parameters.Units[paramValue[i].Length];
+            for (int i = 0; i < paramUnit.Length; i++) paramUnit[i] = new Parameters.Units[paramValue[i].Length];
             return setValue(paramName, paramValue, paramUnit);
         }
         public bool setValue(string paramName, int[][] paramValue, Parameters.Units[][] paramUnit) {
@@ -580,7 +578,7 @@ namespace UNP.Core.Params {
 
         public bool setValue(string paramName, double[][] paramValue) {
             Parameters.Units[][] paramUnit = new Parameters.Units[paramValue.Length][];
-            for (int i = 0; i < paramUnit.Count(); i++) paramUnit[i] = new Parameters.Units[paramValue[i].Length];
+            for (int i = 0; i < paramUnit.Length; i++) paramUnit[i] = new Parameters.Units[paramValue[i].Length];
             return setValue(paramName, paramValue, paramUnit);
         }
         public bool setValue(string paramName, double[][] paramValue, Parameters.Units[][] paramUnit) {
@@ -682,7 +680,7 @@ namespace UNP.Core.Params {
         public Parameters clone(string[] paramListToClone) {
 
             // if empty list is provided, clone all parameters
-            if (paramListToClone.Count() == 0) {
+            if (paramListToClone.Length == 0) {
 
                 logger.Warn("Provided empty list of parameters for cloning. All parameters will be cloned.");
                 return clone();
