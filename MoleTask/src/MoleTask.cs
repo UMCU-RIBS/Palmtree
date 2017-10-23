@@ -1,8 +1,6 @@
 ﻿using NLog;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading;
 
 using UNP.Applications;
@@ -234,7 +232,7 @@ namespace MoleTask {
             return CLASS_VERSION;
         }
 
-        public bool configure(ref SampleFormat input) {
+        public bool configure(ref PackageFormat input) {
 
             // store the number of input channels
             inputChannels = input.getNumberOfChannels();
@@ -397,7 +395,7 @@ namespace MoleTask {
 		            // targetsequence is set in parameters
 
                     // clear the targets
-		            if (mTargetSequence.Count() != 0)		mTargetSequence.Clear();
+		            if (mTargetSequence.Count != 0)		mTargetSequence.Clear();
                 
 		            // transfer the targetsequence
                     mTargetSequence = new List<int>(fixedTargetSequence);
@@ -776,7 +774,7 @@ namespace MoleTask {
                                     mTargetIndex++;
 
                                     // check whether at the end of targetsequence
-                                    if (mTargetIndex == mTargetSequence.Count()) {
+                                    if (mTargetIndex == mTargetSequence.Count) {
 
                                         // show end text
                                         setState(TaskStates.EndText);

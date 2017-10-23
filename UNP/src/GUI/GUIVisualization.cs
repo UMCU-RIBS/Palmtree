@@ -5,7 +5,6 @@ using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Globalization;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -116,7 +115,7 @@ namespace UNP.GUI {
 
                     // clear the graph structs
                     for (int i = 0; i < NumberOfGraphs; i++) {
-                        if (i >= visualizationGraphs.Count()) break;
+                        if (i >= visualizationGraphs.Length) break;
 
                         // remove/clear the char control
                         this.Controls.Remove(visualizationGraphs[i].chart);

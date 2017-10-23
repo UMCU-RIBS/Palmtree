@@ -1,10 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using SharpFont;
 using NLog;
-using System.Runtime.InteropServices;
 
 namespace UNP.Views {
 

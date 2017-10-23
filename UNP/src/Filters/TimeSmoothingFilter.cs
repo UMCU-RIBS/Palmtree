@@ -1,8 +1,5 @@
 ﻿using NLog;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using UNP.Core;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
@@ -54,7 +51,7 @@ namespace UNP.Filters {
          * parameters and, if valid, transfers the configuration parameters to local variables
          * (initialization of the filter is done later by the initialize function)
          **/
-        public bool configure(ref SampleFormat input, out SampleFormat output) {
+        public bool configure(ref PackageFormat input, out PackageFormat output) {
 
             // retrieve the number of input channels
             inputChannels = input.getNumberOfChannels();
@@ -69,7 +66,7 @@ namespace UNP.Filters {
             outputChannels = inputChannels;
 
             // create an output sampleformat
-            output = new SampleFormat(outputChannels, input.getRate());
+            output = new PackageFormat(outputChannels, input.getSamples(), input.getRate());
 
             // check the values and application logic of the parameters
             if (!checkParameters(parameters))   return false;
@@ -251,7 +248,7 @@ namespace UNP.Filters {
 
                 // determine the buffersize
                 uint bufferSize = 0;
-                if (mBufferWeights.Count() > 0)   bufferSize = (uint)mBufferWeights[0].Count();
+                if (mBufferWeights.Length > 0)   bufferSize = (uint)mBufferWeights[0].Length;
 
                 // create the data buffers
                 mDataBuffers = new RingBuffer[inputChannels];
@@ -295,7 +292,7 @@ namespace UNP.Filters {
                     for (uint i = 0; i < mDataBuffers[channel].Fill(); ++i) {
 
                         // calculate the correct position in the buffer weights (corrected for mcursor position)
-                        ringpos = (mDataBuffers[channel].CursorPos() - i + (uint)mBufferWeights[channel].Count() - 1) % (uint)mBufferWeights[channel].Count();
+                        ringpos = (mDataBuffers[channel].CursorPos() - i + (uint)mBufferWeights[channel].Length - 1) % (uint)mBufferWeights[channel].Length;
                         outputValue += data[i] * mBufferWeights[channel][ringpos];
 
                     }

@@ -1,10 +1,9 @@
-﻿#define DEBUG_TESTDATA                                             // Output test data instead of data from the Nexus, even when connection with Nexus is timed-out
+﻿//#define DEBUG_TESTDATA                                             // Output test data instead of data from the Nexus, even when connection with Nexus is timed-out
 
 using Microsoft.Win32.SafeHandles;
 using NLog;
 using System;
 using System.Diagnostics;
-using System.IO;
 using System.IO.Ports;
 using System.Reflection;
 using System.Threading;
@@ -12,6 +11,9 @@ using UNP.Core;
 using UNP.Core.DataIO;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
+#if (DEBUG_TESTDATA)
+    using static UNP.Core.Helpers.DebugHelper;
+#endif
 
 namespace UNP.Sources {
 
@@ -19,7 +21,7 @@ namespace UNP.Sources {
 
         // fundamentals
         private const string CLASS_NAME = "NexusSignal";
-        private const int CLASS_VERSION = 1;
+        private const int CLASS_VERSION = 2;
 
         public const int NEXUS_POWERMODE_SAMPLES_PER_PACKAGE = 1;
         public const int NEXUS_POWERMODE_CHANNELS_PER_PACKAGE = 4;
@@ -34,9 +36,9 @@ namespace UNP.Sources {
         public const int PACKET_START = 0;
         public const int PACKET_FINISHED = 8;                       // packet-state for completed packet
 
-
         // debug variables,used in debug mode to create test data 
-        private debugSignalType debSig = debugSignalType.Rand;      // type of debug data: random of sinusoid-based
+#if (DEBUG_TESTDATA)
+        private DebugSignalType debSig = DebugSignalType.Rand;      // type of debug data: random of sinusoid-based
         private double[] testData = null;
         ushort[] testDataShort = null;
         private double samplingFrequency = 200;                     // sampling frequency of test signal, in case debugSignalType is Sinus. 
@@ -48,6 +50,7 @@ namespace UNP.Sources {
             new double[] { 20, 60, 38 } ,
             new double[] { 40, 32, 5 }                                                                           
         };
+#endif
 
         // 
         private static Logger logger = LogManager.GetLogger(CLASS_NAME);
@@ -186,7 +189,7 @@ namespace UNP.Sources {
 
         }
 
-        public bool configure(out SampleFormat output) {
+        public bool configure(out PackageFormat output) {
 
             // transfer inputOutput information
             inputOutput = parameters.getValue<double[][]>("InputOutput");
@@ -214,9 +217,9 @@ namespace UNP.Sources {
             int sampleRateOption = parameters.getValue<int>("SampleRate");
             if (sampleRateOption == 0)  sampleRate = 5;
 
-            // TODO: ths can be erased, is now done seperately for time and power further down?
-            // create a sampleformat
-            output = new SampleFormat(numOutputChannels, 1);
+            // create the sampleformat (the nexusfilter - regardless if set to power or time domain - will always give one sample per package, thus 1)
+            // therefore, the given samplerate is actually the packagerate here
+            output = new PackageFormat(numOutputChannels, 1, sampleRate);
             
             // retrieve and set the comport
             int comPortOption = parameters.getValue<int>("ComPort");
@@ -241,14 +244,12 @@ namespace UNP.Sources {
 
                 numberOfInputValues = NEXUS_POWERMODE_CHANNELS_PER_PACKAGE * NEXUS_POWERMODE_SAMPLES_PER_PACKAGE;
 
-                // create sampleFormat obect
-                SampleFormat nexusPowerSampleFormat = new SampleFormat(1, NEXUS_POWERMODE_SAMPLES_PER_PACKAGE);
+                // create sampleFormat object. Since we are splitting the nexus channels up to seperate streams, the format defines 1 channel
+                PackageFormat nexusPowerSampleFormat = new PackageFormat(1, NEXUS_POWERMODE_SAMPLES_PER_PACKAGE, sampleRate);
 
-                // register the streams
-                for (int sample = 0; sample < NEXUS_POWERMODE_SAMPLES_PER_PACKAGE; sample++) {
-                    for (int channel = 0; channel < NEXUS_POWERMODE_CHANNELS_PER_PACKAGE; channel++) {
-                        Data.registerSourceInputStream("Nexus_Input_Ch" + (channel + 1) + "_Smpl" + (sample + 1), nexusPowerSampleFormat);
-                    }
+                // register the channels from the nexus (which in power mode have only 1 sample) as seperate source input streams)
+                for (int channel = 0; channel < NEXUS_POWERMODE_CHANNELS_PER_PACKAGE; channel++) {
+                    Data.registerSourceInputStream("Nexus_Input_Ch" + (channel + 1), nexusPowerSampleFormat);
                 }
             }
 
@@ -302,8 +303,8 @@ namespace UNP.Sources {
                     return false;
                 }
 
-                // create sampleFormat obect
-                SampleFormat nexusTimeSampleFormat = new SampleFormat(1, NEXUS_TIMEMODE_SAMPLES_PER_PACKAGE);
+                // create sampleFormat object. Since we are splitting the nexus channels up to seperate streams, the format defines 1 channel
+                PackageFormat nexusTimeSampleFormat = new PackageFormat(1, NEXUS_TIMEMODE_SAMPLES_PER_PACKAGE, sampleRate);
 
                 // TODO: change names of stream to bins they represent?
                 // register the streams
@@ -536,7 +537,7 @@ namespace UNP.Sources {
     
                                 // if in debug mode, inject test data in buffer. If test data is set to random, generate new data for packet. If set to sinus, keep using same packet because the generated signals are repetitive in nature
                                 #if (DEBUG_TESTDATA)
-                                    if (debSig == debugSignalType.Rand) {
+                                    if (debSig == DebugSignalType.Rand) {
                                         testData = genDebugData();
                                         testDataShort = Array.ConvertAll(testData, x => (ushort)x);
                                     }
@@ -569,7 +570,7 @@ namespace UNP.Sources {
 
                                 // if in debug mode, inject test data in buffer. If test data is set to random, generate new data for packet. If set to sinus, keep using same packet because the generated signals are repetitive in nature
                                 #if (DEBUG_TESTDATA)
-                                    if (debSig == debugSignalType.Rand) {
+                                    if (debSig == DebugSignalType.Rand) {
                                         testData = genDebugData();
                                         testDataShort = Array.ConvertAll(testData, x => (ushort)x);
                                     }

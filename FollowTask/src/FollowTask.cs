@@ -287,7 +287,7 @@ namespace FollowTask {
             return CLASS_VERSION;
         }
 
-        public bool configure(ref SampleFormat input) {
+        public bool configure(ref PackageFormat input) {
 
             // store the number of input channels
             inputChannels = input.getNumberOfChannels();

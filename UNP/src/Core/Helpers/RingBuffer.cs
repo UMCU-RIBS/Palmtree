@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 namespace UNP.Core.Helpers {
 
@@ -26,7 +23,7 @@ namespace UNP.Core.Helpers {
         }
 
         public uint Fill() {
-            return mWrapped ? (uint)mData.Count() : mCursor;
+            return mWrapped ? (uint)mData.Length : mCursor;
         }
 
         public double[] Data() {
@@ -36,12 +33,12 @@ namespace UNP.Core.Helpers {
         public double[] DataSequential() {
             double[] retArr;
             if (mWrapped) {
-                retArr = new double[mData.Count()];
+                retArr = new double[mData.Length];
                 if (mCursor == 0)
-                    Array.Copy(mData, 0, retArr, 0, mData.Count());
+                    Array.Copy(mData, 0, retArr, 0, mData.Length);
                 else {
-                    Array.Copy(mData, mCursor, retArr, 0, mData.Count() - mCursor);
-                    Array.Copy(mData, 0, retArr, mData.Count() - mCursor, mCursor);
+                    Array.Copy(mData, mCursor, retArr, 0, mData.Length - mCursor);
+                    Array.Copy(mData, 0, retArr, mData.Length - mCursor, mCursor);
                 }
             } else {
                 retArr = new double[mCursor];
@@ -52,8 +49,8 @@ namespace UNP.Core.Helpers {
 
         public void Put(double inData) {
 
-            if (mData.Count() > 0)    mData[mCursor] = inData;
-            if (++mCursor == mData.Count()) {
+            if (mData.Length > 0)    mData[mCursor] = inData;
+            if (++mCursor == mData.Length) {
                 mWrapped = true;
                 mCursor = 0;
             }

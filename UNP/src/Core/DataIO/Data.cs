@@ -19,6 +19,9 @@ namespace UNP.Core.DataIO {
     // performance (important since the Data class is called upon frequently)
     public static class Data {
 
+        private const string CLASS_NAME = "Data";
+        private const int CLASS_VERSION = 2;
+
         private const int DATAFORMAT_VERSION = 1;
         private const string RUN_SUFFIX = "Run_";                                                // suffix used to append to created files
         private const int MAX_EVENT_LOGLEVELS = 4;                                               // maximal event log level that is available
@@ -48,7 +51,7 @@ namespace UNP.Core.DataIO {
         private static bool mLogSourceInput = false;            								// source input logging enabled/disabled (by configuration parameter)
         private static int numSourceInputStreams = 0;                                           // the number of streams coming from the source input
         private static List<string> registeredSourceInputStreamNames = new List<string>(0);     // the names of the registered source input streams to store in the .src file
-        private static List<SampleFormat> registeredSourceInputStreamFormat = new List<SampleFormat>(0);           // the types of the registered source input streams to store in the .src file
+        private static List<PackageFormat> registeredSourceInputStreamFormat = new List<PackageFormat>(0);   // the types of the registered source input streams to store in the .src file
 
         private static FileStream sourceStream = null;                                          // filestream that is fed to the binarywriter, containing the stream of values to be written to the .src file
         private static BinaryWriter sourceStreamWriter = null;                                  // writer that writes values to the .src file
@@ -180,6 +183,14 @@ namespace UNP.Core.DataIO {
 
         }
 
+        public static int getClassVersion() {
+            return CLASS_VERSION;
+        }
+
+        public static string getClassName() {
+            return CLASS_NAME;
+        }
+
         /**
          * Configure the data class. Checks the values and application logic of the
          * parameters and, if valid, transfers the configuration parameters to local variables
@@ -281,7 +292,7 @@ namespace UNP.Core.DataIO {
          * 
          * (this should be called during configuration, by all sources that will log their samples)
          **/
-        public static void registerSourceInputStream(string streamName, SampleFormat streamFormat) {
+        public static void registerSourceInputStream(string streamName, PackageFormat streamFormat) {
 
             // register a new stream
             registeredSourceInputStreamNames.Add(streamName);
@@ -289,14 +300,14 @@ namespace UNP.Core.DataIO {
 
             // check if newly registered stream has same amount of samples per packet as rest of streams
             for(int i = 0; i < numSourceInputStreams; i++) {
-                if (registeredSourceInputStreamFormat[i].getRate() != streamFormat.getRate()) logger.Error("Registered source input stream '" + streamName + "' contains " + streamFormat.getRate() + " samples per packet, which differs from other registered source input streams. Therefore the samples in streams containing less samples per packet than other streams will be zeroed-out in .src file.");
+                if (registeredSourceInputStreamFormat[i].getSamples() != streamFormat.getSamples()) logger.Error("Registered source input stream '" + streamName + "' contains " + streamFormat.getSamples() + " samples per packet, which differs from other registered source input streams. Therefore the samples in streams containing less samples per packet than other streams will be zeroed-out in .src file.");
             }  
 
             // add one to the total number of streams
             numSourceInputStreams++;
 
             // message
-            logger.Debug("Registered source input stream '" + streamName + "' containing " + streamFormat.getRate() +  " samples per packet.");
+            logger.Debug("Registered source input stream '" + streamName + "' containing " + streamFormat.getSamples() +  " samples per packet.");
         }
 
         public static int getNumberOfSourceInputStreams() {
@@ -308,20 +319,20 @@ namespace UNP.Core.DataIO {
         }
         
         // register the pipeline input based on the output format of the source
-        public static void registerPipelineInput(SampleFormat output) {
+        public static void registerPipelineInput(PackageFormat inputFormat) {
 
             // store the pipeline sample rate
-            pipelineSampleRate = output.getRate();
+            pipelineSampleRate = inputFormat.getSamples();
             
             // check if the pipeline input streams should be logged
             if (mLogPipelineInputStreams) {
 
                 // use the number of input channels for the pipeline to the number of output channels from the source
-                numPipelineInputStreams = output.getNumberOfChannels();
+                numPipelineInputStreams = inputFormat.getNumberOfChannels();
 
                 // register the streams
                 for (int channel = 0; channel < numPipelineInputStreams; channel++)
-                    Data.registerDataStream(("Pipeline_Input_Ch" + (channel + 1)), output);
+                    Data.registerDataStream(("Pipeline_Input_Ch" + (channel + 1)), inputFormat);
 
             }
 
@@ -329,8 +340,8 @@ namespace UNP.Core.DataIO {
             if (mEnableDataVisualization) {
 
                 // register the streams to visualize
-                for (int channel = 0; channel < output.getNumberOfChannels(); channel++) {
-                    Data.registerVisualizationStream(("Pipeline_Input_Ch" + (channel + 1)), output);
+                for (int channel = 0; channel < inputFormat.getNumberOfChannels(); channel++) {
+                    Data.registerVisualizationStream(("Pipeline_Input_Ch" + (channel + 1)), inputFormat);
 
                 }
             }
@@ -343,7 +354,7 @@ namespace UNP.Core.DataIO {
          * 
          * (this should be called during configuration, by all sources/filters/application that will log their samples)
          **/
-        public static void registerDataStream(string streamName, SampleFormat streamType) {
+        public static void registerDataStream(string streamName, PackageFormat streamFormat) {
 
             // register a new stream
             registeredDataStreamNames.Add(streamName);
@@ -363,7 +374,7 @@ namespace UNP.Core.DataIO {
          * 
          * (this should be called during configuration, by all sources/filters/application that will log their samples)
          **/
-        public static void registerVisualizationStream(string streamName, SampleFormat streamType) {
+        public static void registerVisualizationStream(string streamName, PackageFormat streamFormat) {
 
             // register a new stream
             registeredVisualizationStreamNames.Add(streamName);
@@ -392,7 +403,7 @@ namespace UNP.Core.DataIO {
          * 
          * (in contrast to registering source and datastreams this function takes all streams in one go, because plugins are assigned an id at this point to allow to write the data from all streams from one plugin to one file)  
          **/
-        public static int registerPluginInputStream(string pluginName, string pluginExt, string[] streamNames, SampleFormat[] streamTypes) {
+        public static int registerPluginInputStream(string pluginName, string pluginExt, string[] streamNames, PackageFormat[] streamTypes) {
 
             // assign id to plugin 
             int pluginId = numPlugins;
@@ -641,7 +652,7 @@ namespace UNP.Core.DataIO {
                     maxRate = 0;
                     sourceRates = new int[numSourceInputStreams];
                     for (int i = 0; i < numSourceInputStreams; i++) {
-                        sourceRates[i] = registeredSourceInputStreamFormat[i].getRate();
+                        sourceRates[i] = registeredSourceInputStreamFormat[i].getSamples();
                         expectedSamples += sourceRates[i];
                         maxRate = Math.Max(maxRate, sourceRates[i]);
                     }

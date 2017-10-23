@@ -164,7 +164,7 @@ namespace LocalizerTask {
             return CLASS_NAME;
         }
 
-        public bool configure(ref SampleFormat input) {
+        public bool configure(ref PackageFormat input) {
 
             // PARAMETER TRANSFER 
 

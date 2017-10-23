@@ -1,10 +1,9 @@
 ﻿using NLog;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Xml;
 using UNP.Applications;
+using UNP.Core.DataIO;
 using UNP.Filters;
 using UNP.Sources;
 
@@ -91,6 +90,30 @@ namespace UNP.Core.Params {
             // create versions node and add to root node
             XmlNode versionsNode = paramFile.CreateElement("versions");
             rootNode.AppendChild(versionsNode);
+
+            // get data name and version value, and create data version node 
+            int dataVersionValue = Data.getClassVersion();
+            string dataVersionName = Data.getClassName();
+            XmlNode dataVersionNode = paramFile.CreateElement("version");
+
+            // add name attribute 
+            XmlAttribute dataNameAttr = paramFile.CreateAttribute("name");
+            dataNameAttr.Value = dataVersionName;
+            dataVersionNode.Attributes.Append(dataNameAttr);
+
+            // add type attribute 
+            XmlAttribute dataTypeAttr = paramFile.CreateAttribute("type");
+            dataTypeAttr.Value = "data";
+            dataVersionNode.Attributes.Append(dataTypeAttr);
+
+            // add value attribute
+            XmlAttribute dataValueAttr = paramFile.CreateAttribute("value");
+            dataValueAttr.Value = dataVersionValue.ToString();
+            dataVersionNode.Attributes.Append(dataValueAttr);
+
+            // add data version node to versions node
+            versionsNode.AppendChild(dataVersionNode);
+
 
             // get source name and version value, and create source version node 
             ISource source = MainThread.getSource();

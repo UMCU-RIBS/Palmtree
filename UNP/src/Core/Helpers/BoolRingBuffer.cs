@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 
 namespace UNP.Core.Helpers {
@@ -26,7 +25,7 @@ namespace UNP.Core.Helpers {
         }
 
         public uint Fill() {
-            return mWrapped ? (uint)mData.Count() : mCursor;
+            return mWrapped ? (uint)mData.Length : mCursor;
         }
 
         public bool[] Data() {
@@ -35,8 +34,8 @@ namespace UNP.Core.Helpers {
 
         public void Put(bool inData) {
 
-            if (mData.Count() > 0)    mData[mCursor] = inData;
-            if (++mCursor == mData.Count()) {
+            if (mData.Length > 0)    mData[mCursor] = inData;
+            if (++mCursor == mData.Length) {
                 mWrapped = true;
                 mCursor = 0;
             }

@@ -1,10 +1,7 @@
 ﻿using NLog;
-using OpenTK.Graphics.OpenGL;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using UNP.Core;
 using UNP.Core.Helpers;
@@ -15,7 +12,6 @@ namespace FollowTask {
     public class FollowView : OpenTKView, IView {
     //public class FollowView : SharpGLView, IView {
 
-        private const double PI = 3.1415926535897932384626433832795;
         public const int noBlock = -1;
 
         private static Logger logger = LogManager.GetLogger("FollowView");                        // the logger object for the view
@@ -119,11 +115,11 @@ namespace FollowTask {
 	            blockTexturesToLoad.Clear();
 
 	            // clear all block information
-	            for (int i = 0; i < (int)mBlocks.Count(); ++i)  mBlocks[i].mTexture = 0;
+	            for (int i = 0; i < (int)mBlocks.Count; ++i)  mBlocks[i].mTexture = 0;
 	            mBlocks.Clear();
 
 	            // clear all textures
-	            for (int i = 0; i < (int)blockTextures.Count(); ++i)
+	            for (int i = 0; i < (int)blockTextures.Count; ++i)
                     glDeleteTexture(blockTextures[i]);
 	            blockTextures.Clear();
 
@@ -142,7 +138,7 @@ namespace FollowTask {
 
 		        // loop through the blocks
 		        bool isInBlock = false;
-		        for (int i = 0; i < mBlocks.Count(); ++i) {
+		        for (int i = 0; i < mBlocks.Count; ++i) {
 
 			        // set the new block position
 			        mBlocks[i].mX = mBlocks[i].mX + blockSpeed * (float)secondsElapsed;
@@ -204,7 +200,7 @@ namespace FollowTask {
 		        glColor3(1f, 1f, 1f);
 
 		        // loop through the blocks
-		        for (int i = 0; i < mBlocks.Count(); ++i) {
+		        for (int i = 0; i < mBlocks.Count; ++i) {
 
 			        // skip block which are out of display
 			        if (mBlocks[i].mX + mBlocks[i].mWidth < 0)    	continue;
@@ -257,7 +253,7 @@ namespace FollowTask {
 
 		        // cursor polygon
                 glBeginPolygon();
-			        for(double i = 0; i < 2 * PI; i += PI / 24)
+			        for(double i = 0; i < 2 * Math.PI; i += Math.PI / 24)
  				        glVertex3(Math.Cos(i) * cursorRadius + cursorX, Math.Sin(i) * cursorRadius + cursorY, 0.0);
                 glEnd();
 
@@ -355,17 +351,17 @@ namespace FollowTask {
             lock(textureLock) {
             
 	            // clear all the texture references in the block array
-	            for (int i = 0; i < mBlocks.Count(); ++i)
+	            for (int i = 0; i < mBlocks.Count; ++i)
                     mBlocks[i].mTexture = 0;
                 
 	            // delete existing textures, clear the array and resize to fit the new ones
-	            for (int i = 0; i < blockTextures.Count(); ++i)
+	            for (int i = 0; i < blockTextures.Count; ++i)
                     glDeleteTexture(blockTextures[i]);
                 blockTextures.Clear();
-                blockTextures = new List<int>(new int[blockTexturesToLoad.Count()]);
+                blockTextures = new List<int>(new int[blockTexturesToLoad.Count]);
 
 	            // load the new block textures (if possible)
-	            for (int i = 0; i < blockTexturesToLoad.Count(); ++i) {
+	            for (int i = 0; i < blockTexturesToLoad.Count; ++i) {
 		
 		            // initialy set to 0 (also reserved by openGL as a no texture pointer)
 		            blockTextures[i] = 0;
@@ -402,7 +398,7 @@ namespace FollowTask {
                 int i = 0;
 
 	            // clear all block sequence information
-	            for (i = 0; i < mBlocks.Count(); ++i)   mBlocks[i].mTexture = 0;
+	            for (i = 0; i < mBlocks.Count; ++i)   mBlocks[i].mTexture = 0;
 	            mBlocks.Clear();
 
 	            // set the block variables nothing
@@ -411,7 +407,7 @@ namespace FollowTask {
 
 	            // loop through the targets in the sequence
 	            float startX = 0;
-	            for (i = 0; i < inTargetSequence.Count(); ++i) {
+	            for (i = 0; i < inTargetSequence.Count; ++i) {
 
 		            // calculate the block height and y position (based on percentages)
 		            float height = getContentHeight() * (inTargets[1][inTargetSequence[i]] / 100.0f);
@@ -428,7 +424,7 @@ namespace FollowTask {
 		            FollowBlock block = new FollowBlock(startX, y, widthPixels, height);
                     
 		            // set the block texture (initialized to 0 = no texture)
-		            if (inTargetSequence[i] < (int)blockTextures.Count())
+		            if (inTargetSequence[i] < (int)blockTextures.Count)
 			            block.mTexture = blockTextures[inTargetSequence[i]];
 
 		            // add block for display
@@ -474,10 +470,10 @@ namespace FollowTask {
                 
 	            // clear the array and size it
 	            blockTexturesToLoad.Clear();
-                blockTexturesToLoad = new List<string>(new string[inTargetTextures.Count()]);
+                blockTexturesToLoad = new List<string>(new string[inTargetTextures.Count]);
 
 	            // loop through the textures
-	            for (int i = 0; i < (int)inTargetTextures.Count(); ++i) {
+	            for (int i = 0; i < (int)inTargetTextures.Count; ++i) {
 		
 		            // set empty string initially
 		            blockTexturesToLoad[i] = "";

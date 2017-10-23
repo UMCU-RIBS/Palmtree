@@ -103,7 +103,7 @@ namespace UNP.Sources {
 
         }
 
-        public bool configure(out SampleFormat output) {
+        public bool configure(out PackageFormat output) {
 
             // retrieve the number of output channels
             outputChannels = parameters.getValue<int>("Channels");
@@ -125,7 +125,7 @@ namespace UNP.Sources {
             highPrecision = parameters.getValue<bool>("HighPrecision");
 
             // create a sampleformat
-            output = new SampleFormat(outputChannels, 1);
+            output = new PackageFormat(outputChannels, 1, sampleRate);      // since the number of samples is 1 per package, the given samplerate is the packagerate)
 
             // calculate the sample interval
             sampleIntervalMs = (int)Math.Floor(1000.0 / sampleRate);
@@ -152,14 +152,12 @@ namespace UNP.Sources {
 
             }
 
-
             // TODO: debug, even sourceinput dingen; tijdelijk, dit hoort niet in generateSignal klasse
-
-            SampleFormat generateSignalSampleFormat = new SampleFormat(1, 1);
+            PackageFormat generateSignalSampleFormat = new PackageFormat(outputChannels, 1, sampleRate);
             for (int i = 0; i < outputChannels; i++) {
                 Data.registerSourceInputStream(("Ch" + i), generateSignalSampleFormat);
             }
-            
+
             // flag as configured
             configured = true;
 

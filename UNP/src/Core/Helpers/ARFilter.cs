@@ -5,7 +5,7 @@ using NLog;
 namespace UNP.Core.Helpers {
 
     // implements an ARFilter allowing power spectrum estimation using the Maximum Entropy Method, described in Numerical Recipes (Press et al.) and used in BCI2000
-    class ARFilter {
+    public class ARFilter {
 
         // basic fields
         private const string CLASS_NAME = "ARFilter";

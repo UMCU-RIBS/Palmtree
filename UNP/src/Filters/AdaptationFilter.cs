@@ -1,10 +1,5 @@
 ﻿using NLog;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using UNP.Core;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
 
@@ -112,7 +107,7 @@ namespace UNP.Filters {
          * parameters and, if valid, transfers the configuration parameters to local variables
          * (initialization of the filter is done later by the initialize function)
          **/
-        public bool configure(ref SampleFormat input, out SampleFormat output) {
+        public bool configure(ref PackageFormat input, out PackageFormat output) {
 
             // retrieve the number of input channels
             inputChannels = input.getNumberOfChannels();
@@ -127,7 +122,7 @@ namespace UNP.Filters {
             outputChannels = inputChannels;
 
             // create an output sampleformat
-            output = new SampleFormat(outputChannels, input.getRate());
+            output = new PackageFormat(outputChannels, input.getSamples(), input.getRate());
 
             // check the values and application logic of the parameters
             if (!checkParameters(parameters))   return false;
@@ -286,7 +281,7 @@ namespace UNP.Filters {
                     // check the buffer size in samples
                     int newBufferSize = newParameters.getValueInSamples("BufferLength");
                     if (newBufferSize < 1) {
-				        logger.Error("The BufferLength parameter specifies a zero-sized buffer (while one or more channels are set to dynamic adaptation");
+				        logger.Error("The BufferLength parameter specifies a zero-sized buffer (while one or more channels are set to dynamic adaptation)");
                         return false;
                     }
 

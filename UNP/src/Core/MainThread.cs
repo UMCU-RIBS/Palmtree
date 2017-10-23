@@ -59,7 +59,7 @@ namespace UNP.Core {
          * 
          */
         public MainThread(bool startupConfigAndInit, bool startupStartRun, bool noGUI) {
-
+            
             // transfer the startup flags to local variables
             MainThread.startupConfigAndInit = startupConfigAndInit;
             MainThread.startupStartRun = startupStartRun;
@@ -144,7 +144,7 @@ namespace UNP.Core {
             }
 
             // configure source (this will also give the output format information)
-            SampleFormat tempFormat = null;
+            PackageFormat tempFormat = null;
             if (source != null) {
 
                 // configure the source
@@ -168,7 +168,7 @@ namespace UNP.Core {
 
                 // create a local variable to temporarily store the output format of the filter in
                 // (will be given in the configure step)
-                SampleFormat outputFormat = null;
+                PackageFormat outputFormat = null;
 
                 // configure the filter
                 if (!filters[i].configure(ref tempFormat, out outputFormat)) {

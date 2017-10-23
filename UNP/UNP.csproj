@@ -56,6 +56,10 @@
     </StartupObject>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Expressive, Version=1.1.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\ExpressiveParser.1.1.1\lib\Net40\Expressive.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="NLog, Version=4.0.0.0, Culture=neutral, PublicKeyToken=5120e14c03d0593c, processorArchitecture=MSIL">
       <HintPath>..\packages\NLog.4.4.12\lib\net45\NLog.dll</HintPath>
       <Private>True</Private>
@@ -109,6 +113,7 @@
     <Compile Include="src\Core\Events\VisualizationEventArgs.cs" />
     <Compile Include="src\Core\Events\VisualizationValuesArgs.cs" />
     <Compile Include="src\Core\Helpers\ARFilter.cs" />
+    <Compile Include="src\Core\Helpers\DebugHelper.cs" />
     <Compile Include="src\Core\Helpers\DoubleConverter.cs" />
     <Compile Include="src\Core\Helpers\ListMessageBox.cs">
       <SubType>Form</SubType>
@@ -171,7 +176,7 @@
     <Compile Include="src\Core\Helpers\RGBColor.cs" />
     <Compile Include="src\Core\Helpers\RingBuffer.cs" />
     <Compile Include="src\Core\Helpers\SampleConversion.cs" />
-    <Compile Include="src\Core\Helpers\SampleFormat.cs" />
+    <Compile Include="src\Core\Helpers\PackageFormat.cs" />
     <Compile Include="src\Core\MainThread.cs" />
     <Compile Include="src\GUI\GUIMain.cs">
       <SubType>Form</SubType>

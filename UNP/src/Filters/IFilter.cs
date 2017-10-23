@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
 
@@ -13,7 +10,7 @@ namespace UNP.Filters {
         string getName();
         Parameters getParameters();
 
-        bool configure(ref SampleFormat input, out SampleFormat output);
+        bool configure(ref PackageFormat input, out PackageFormat output);
         void initialize();
         bool configureRunningFilter(Parameters newParameters, bool resetFilter);
 

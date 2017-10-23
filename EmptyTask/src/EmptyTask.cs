@@ -1,8 +1,5 @@
 ﻿using NLog;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 using UNP.Applications;
 using UNP.Core.Helpers;
@@ -44,7 +41,7 @@ namespace EmptyTask {
             return CLASS_NAME;
         }
 
-        public bool configure(ref SampleFormat input) {
+        public bool configure(ref PackageFormat input) {
             return true;
         }
 

@@ -20,9 +20,10 @@ namespace CursorTask {
         };
 
         enum TrialStates : int {
-            TrialBeginning,     // rest before trial (cursor is hidden)
+            PreTrial,           // rest before trial (cursor is hidden, only target is shown)
             Trial,              // trial (cursor is shown and moving)
-            TrialEnd            // trial ending (cursor will stay at the end)
+            PostTrial,          // post trial (cursor will stay at the end)
+            ITI                 // inter trial interval (both the cursor and the target are hidden)
         };
 
         private const int CLASS_VERSION = 1;
@@ -73,7 +74,10 @@ namespace CursorTask {
         private RGBColorFloat mTargetColorMiss = new RGBColorFloat(1f, 0f, 0f);
 
         private bool mUpdateCursorOnSignal = false;                                 // update the cursor only on signal (or on smooth animation if false)
-        private double mTrialTime = 0;  								            // the total trial time, in seconds if animated, in samples if the cursor is updated by incoming signal
+        private int mPreTrialDuration = 0;  								        // 
+        private double mTrialDuration = 0;  								        // the total trial time (in seconds if animated, in samples if the cursor is updated by incoming signal)
+        private int mPostTrialDuration = 0;  								        // 
+        private int mITIDuration = 0;  								                // 
 
         private int[] fixedTargetSequence = new int[0];				                // the target sequence (input parameter)
         private int numTargets = 0;
@@ -95,7 +99,7 @@ namespace CursorTask {
 
         private TaskStates taskState = TaskStates.Wait;
         private TaskStates previousTaskState = TaskStates.Wait;
-        private TrialStates mTrialState = TrialStates.TrialBeginning;								// the state of the trial
+        private TrialStates mTrialState = TrialStates.PreTrial;								// the state of the trial
         private int mCurrentTarget = 0;                                     // the target/trial in the targetsequence that is currently done
         
 
@@ -177,7 +181,7 @@ namespace CursorTask {
 
                 parameters.addParameter<int>(
                     "TaskInputSignalType",
-                    "Task input signal type.\n\nWith the direct input setting, the location of the cursor will be set directly by the input.\nWith added input, the cursor position will be set to the cursor's position plus the input multiplied by a cursor speed factor (this factor is based on the trialtime; 1 / trialtime in samples / 2)",
+                    "Task input signal type.\n\nWith the direct input setting, the location of the cursor will be set directly by the input.\nWith added input, the cursor position will be set to the cursor's position plus the input multiplied by a cursor speed factor (this factor is based on the trialduration; 1 / trialduration in samples / 2)",
                     "0", "3", "0", new string[] { "Direct input (0 to 1)", "Direct input (-1 to 1)", "Constant middle", "Added input" });
 
                 parameters.addParameter<bool>(
@@ -186,9 +190,24 @@ namespace CursorTask {
                     "0", "1", "1");
 
                 parameters.addParameter<double>(
-                    "TrialTime",
-                    "Time per trial to hit the target",
-                    "0", "", "4s");
+                    "PreTrialDuration",
+                    "Duration of displaying the target before the cursor appears and starts moving",
+                    "0", "", "1s");
+
+                parameters.addParameter<double>(
+                    "TrialDuration",
+                    "Duration per trial to hit the target. This is the time from when the cursor appears and starts moving till when it hits or misses the target",
+                    "1", "", "2s");
+
+                parameters.addParameter<double>(
+                    "PostTrialDuration",
+                    "Duration of result display after feedback.",
+                    "0", "", "1s");
+
+                parameters.addParameter<double>(
+                    "ITIDuration",
+                    "Duration of inter-trial interval. During this period both the cursor and target will be hidden and only the playfield rectangle will be shown",
+                    "0", "", "2s");
 
                 parameters.addParameter<double>(
                     "CursorSize",
@@ -278,7 +297,7 @@ namespace CursorTask {
             return CLASS_NAME;
         }
 
-        public bool configure(ref SampleFormat input) {
+        public bool configure(ref PackageFormat input) {
 
             // store the number of input channels
             inputChannels = input.getNumberOfChannels();
@@ -349,18 +368,44 @@ namespace CursorTask {
             mTaskInputSignalType = parameters.getValue<int>("TaskInputSignalType");
 
             // retrieve and calculate cursor parameters
-            mCursorSize = parameters.getValue<double>("CursorSize");
-            mCursorColorNeutral = parameters.getValue<RGBColorFloat>("CursorColorNeutral");
-            mCursorColorHit = parameters.getValue<RGBColorFloat>("CursorColorHit");
-            mCursorColorMiss = parameters.getValue<RGBColorFloat>("CursorColorMiss");
-            mUpdateCursorOnSignal = parameters.getValue<bool>("UpdateCursorOnSignal");
-            if (mUpdateCursorOnSignal)      mTrialTime = parameters.getValueInSamples("TrialTime");
-            else                            mTrialTime = parameters.getValue<double>("TrialTime");
+            mCursorSize                     = parameters.getValue<double>("CursorSize");
+            mCursorColorNeutral             = parameters.getValue<RGBColorFloat>("CursorColorNeutral");
+            mCursorColorHit                 = parameters.getValue<RGBColorFloat>("CursorColorHit");
+            mCursorColorMiss                = parameters.getValue<RGBColorFloat>("CursorColorMiss");
+            mUpdateCursorOnSignal           = parameters.getValue<bool>("UpdateCursorOnSignal");
 
+            // retrieve the trial pre-duration parameters
+            mPreTrialDuration = parameters.getValueInSamples("PreTrialDuration");
+            if (mPreTrialDuration < 0) {
+                logger.Error("The pre-trial duration parameter cannot be smaller than 0");
+                return false;
+            }
+
+            // retrieve the trial duration parameters
+            if (mUpdateCursorOnSignal)      mTrialDuration = parameters.getValueInSamples("TrialDuration");
+            else                            mTrialDuration = parameters.getValue<double>("TrialDuration");
+            if (mTrialDuration <= 0) {
+                logger.Error("Trial duration parameter cannot be 0");
+                return false;
+            }
             // check if the type is added input
             if (mTaskInputSignalType == 3) {
-                mCursorSpeedY = 1.0 / parameters.getValueInSamples("TrialTime");
-                //mCursorSpeedY = 1.0 / parameters.getValueInSamples("TrialTime") / 2.0;
+                mCursorSpeedY = 1.0 / parameters.getValueInSamples("TrialDuration");
+                //mCursorSpeedY = 1.0 / parameters.getValueInSamples("TrialDuration") / 2.0;
+            }
+
+            // retrieve the trial post-duration parameters
+            mPostTrialDuration = parameters.getValueInSamples("PostTrialDuration");
+            if (mPostTrialDuration < 0) {
+                logger.Error("The post-trial duration parameter cannot be smaller than 0");
+                return false;
+            }
+
+            // retrieve the ITI duration parameters
+            mITIDuration = parameters.getValueInSamples("ITIDuration");
+            if (mITIDuration < 0) {
+                logger.Error("The ITI duration parameter cannot be smaller than 0");
+                return false;
             }
 
             // retrieve target settings
@@ -460,7 +505,7 @@ namespace CursorTask {
 
             // set task specific display attributes 
             view.setCursorSizePerc(mCursorSize);                         // cursor size radius in percentage of the screen height
-            view.setCursorSpeed((float)mTrialTime);                             // set the cursor speed
+            view.setCursorSpeed((float)mTrialDuration);                             // set the cursor speed
             view.setCursorNeutralColor(mCursorColorNeutral);                    // 
             view.setCursorHitColor(mCursorColorHit);                            // 
             view.setCursorMissColor(mCursorColorMiss);                          // 
@@ -659,6 +704,7 @@ namespace CursorTask {
 
                             // set the current target/trial to the first target/trial
                             mCurrentTarget = 0;
+                            setTarget();
 
                             // reset the score
                             mHitScore = 0;
@@ -666,37 +712,36 @@ namespace CursorTask {
                             // set the state to task
                             setState(TaskStates.Task);
 
-                            // do not wait before starting to move the cursor
-                            mWaitCounter = 0;
-
-                            // apply the current trial state
-                            setTrialState(TrialStates.TrialBeginning);
-
+                            // start pre-trial
+                            startPreTrial();
+                            
                         }
 
                         break;
 
                     case TaskStates.Task:
 
+
                         switch (mTrialState) {
 
-                            case TrialStates.TrialBeginning:
+                            case TrialStates.ITI:
 
                                 if (mWaitCounter == 0) {
 
-                                    // set the cursorcounter to 0 (is only used of the cursor is updated by the signal)
-                                    mCursorCounter = 0;
+                                    // start pre-trial
+                                    startPreTrial();
 
-                                    // center the cursor on the Y axis
-                                    view.centerCursorY();
+                                } else
+                                    mWaitCounter--;
 
-                                    // set the target
-                                    int currentTargetY = (int)mTargets[0][mTargetSequence[mCurrentTarget]];
-                                    int currentTargetHeight = (int)mTargets[1][mTargetSequence[mCurrentTarget]];
-                                    view.setTarget(currentTargetY, currentTargetHeight);
+                                break;
 
-                                    // set the trial state to trial
-                                    setTrialState(TrialStates.Trial);
+                            case TrialStates.PreTrial:
+
+                                if (mWaitCounter == 0) {
+
+                                    // start the trial
+                                    startTrial();
 
                                 } else
                                     mWaitCounter--;
@@ -711,10 +756,10 @@ namespace CursorTask {
 
                                     // package came in, so raise the cursor counter
                                     mCursorCounter++;
-                                    if (mCursorCounter > mTrialTime) mCursorCounter = (int)mTrialTime;
+                                    if (mCursorCounter > mTrialDuration) mCursorCounter = (int)mTrialDuration;
 
                                     // set the X position
-                                    view.setCursorNormX(mCursorCounter / mTrialTime, true);
+                                    view.setCursorNormX(mCursorCounter / mTrialDuration, true);
 
                                 }
 
@@ -745,8 +790,17 @@ namespace CursorTask {
                                 // check if the end has been reached by the target (the trial has ended)
                                 if (view.isCursorAtEnd(true)) {
 
+                                    // set feedback as false
+                                    Globals.setValue<bool>("Feedback", "0");
+
+                                    // log event feedback is stopped
+                                    Data.logEvent(2, "FeedbackStop", CLASS_NAME);
+
                                     // check if the target was hit
                                     if (view.isTargetHit()) {
+                                        // hit
+
+                                        // set the cursor against the target
                                         view.setCursorNormX(1, true);
 
                                         // add to score if cursor hits the block
@@ -756,20 +810,21 @@ namespace CursorTask {
                                         if (mShowScore) view.setScore(mHitScore);
 
                                     } else {
+                                        // miss
+
+                                        // set the cursor against the target
                                         view.setCursorNormX(1, false);
+
                                     }
 
-                                    // set the wait after the trial (3s)
-                                    mWaitCounter = (int)(MainThread.SamplesPerSecond() * 3.0);
-
-                                    // set to trial end state
-                                    setTrialState(TrialStates.TrialEnd);
+                                    // start post-trial
+                                    startPostTrial();
 
                                 }
 
                                 break;
 
-                            case TrialStates.TrialEnd:
+                            case TrialStates.PostTrial:
 
                                 if (mWaitCounter == 0) {
 
@@ -781,12 +836,10 @@ namespace CursorTask {
                                         setState(TaskStates.EndText);
 
                                     } else {
+                                        // not end of task
 
-                                        // goto the next target/trial
-                                        mCurrentTarget++;
-
-                                        // set the trial state to beginning trial
-                                        setTrialState(TrialStates.TrialBeginning);
+                                        // continue to next trial (inside of this funtion it might stop go to ITI, or continue immediately to startPreTrial or startTrial)
+                                        nextTrial();
 
                                     }
 
@@ -826,6 +879,117 @@ namespace CursorTask {
                 }
 
             }
+
+        }
+
+        private void startPreTrial() {
+
+            // check if there is a pre-trial duration
+            if (mPreTrialDuration == 0) {
+                // no pre-trial duration
+
+                // start the trial (immediately without the pre-trial duration)
+                startTrial();
+
+            } else {
+                // pre-trial duration
+
+                // set the pre trial duration
+                mWaitCounter = mPreTrialDuration;
+
+                // set the trial state to beginning trial
+                setTrialState(TrialStates.PreTrial);
+
+            }
+
+        }
+
+        private void startTrial() {
+
+            // set the cursorcounter to 0 (is only used of the cursor is updated by the signal)
+            mCursorCounter = 0;
+
+            // set feedback as true
+            Globals.setValue<bool>("Feedback", "1");
+            Globals.setValue<int>("Target", mTargetSequence[mCurrentTarget].ToString());
+
+            // log event feedback is started
+            Data.logEvent(2, "FeedbackStart", CLASS_NAME);
+
+            // set the trial state to trial
+            setTrialState(TrialStates.Trial);
+
+        }
+
+        private void startPostTrial() {
+
+            // check if there is a post-trial duration
+            if (mPostTrialDuration == 0) {
+                // no post-trial duration
+
+                // check if this was the last target/trial
+                if (mCurrentTarget == mTargetSequence.Count - 1) {
+                    // end of the task
+
+                    // set the state to end
+                    setState(TaskStates.EndText);
+
+                } else {
+                    // not end of task
+
+                    // continue to next trial (inside of this funtion it might stop go to ITI, or continue immediately to startPreTrial or startTrial)
+                    nextTrial();
+
+                }
+
+            } else {
+                // posttrial duration
+
+                // set the wait after the trial
+                mWaitCounter = mPostTrialDuration;
+
+                // set to trial post state
+                setTrialState(TrialStates.PostTrial);
+
+            }
+
+        }
+
+        private void nextTrial() {
+
+            // goto the next target/trial
+            mCurrentTarget++;
+            setTarget();
+
+            // check if a inter-trial interval was set
+            if (mITIDuration == 0) {
+                // no ITI duration
+
+                // start pre-trial (inside of this funtion it might continue immediately to startTrial)
+                startPreTrial();
+
+            } else {
+                // ITI duration
+
+                // set the duration of the inter-trial-interval
+                mWaitCounter = mITIDuration;
+
+                // set the trial state to inter-trial-interval
+                setTrialState(TrialStates.ITI);
+
+            }
+
+        }
+
+        private void setTarget() {
+
+            // center the cursor on the Y axis
+            view.centerCursorY();
+
+            // set the target
+            int currentTargetY = (int)mTargets[0][mTargetSequence[mCurrentTarget]];
+            int currentTargetHeight = (int)mTargets[1][mTargetSequence[mCurrentTarget]];
+            view.setTarget(currentTargetY, currentTargetHeight);
 
         }
 
@@ -879,6 +1043,8 @@ namespace CursorTask {
             // log event task is paused
             Data.logEvent(2, "TaskPause", CLASS_NAME);
 
+            // TODO: should log FeedbackSttop event, in case the task is within the trial
+
             // set task as pauzed
             mTaskPauzed = true;
 
@@ -892,6 +1058,8 @@ namespace CursorTask {
 		    view.setTargetVisible(false);
 		    view.setScore(-1);
 
+            // TODO: should store TrialState as well
+
         }
 
         // resumes the task
@@ -901,15 +1069,19 @@ namespace CursorTask {
             // log event task is paused
             Data.logEvent(2, "TaskResume", CLASS_NAME);
 
+            // TODO: should log FeedbackStart event, in case the task is within the trial
+
             // set the previous gamestate
             setState(previousTaskState);
 
 	        // set task as not longer pauzed
 	        mTaskPauzed = false;
 
+            // TODO: should be using setTrialState
+
         }
 
-        
+
         private void setState(TaskStates state) {
 
 	        // Set state
@@ -1023,19 +1195,19 @@ namespace CursorTask {
 	        mTrialState = state;
             
 	        switch (mTrialState) {
-		        case TrialStates.TrialBeginning:
-			        // rest before trial (cursor is hidden)
+		        case TrialStates.PreTrial:
+                    // rest before trial (cursor is hidden, target is shown)
 
-				    // hide the cursor and make the cursor color neutral
-				    view.setCursorVisible(false);
+                    // set the cursor at the beginning
+                    view.setCursorNormX(0, true);
+
+                    // hide the cursor and make the cursor color neutral
+                    view.setCursorVisible(false);
 				    view.setCursorColor(CursorView.ColorStates.Neutral);
 
-				    // hide the target and make the target color neutral
-				    view.setTargetVisible(false);
+				    // show the target and make the target color neutral
+				    view.setTargetVisible(true);
 				    view.setTargetColor(CursorView.ColorStates.Neutral);
-
-				    // set the cursor at the beginning
-				    view.setCursorNormX(0, true);
 
 			        break;
 
@@ -1056,8 +1228,8 @@ namespace CursorTask {
 
 			        break;
 
-		        case TrialStates.TrialEnd:
-			        // trial ending (cursor will stay at the end)
+		        case TrialStates.PostTrial:
+			        // post trial (cursor will stay at the end)
 
 				    // make the cursor visible
 				    view.setCursorVisible(true);
@@ -1082,13 +1254,29 @@ namespace CursorTask {
 
 			        break;
 
-	        }
+                case TrialStates.ITI:
+                    // rest before trial (cursor and target are hidden)
+                    
+                    // hide the cursor
+                    view.setCursorVisible(false);
+
+                    // hide the target
+                    view.setTargetVisible(false);
+
+                    break;
+            }
 
         }
         
         // Stop the task
         private void stopTask() {
             if (view == null) return;
+
+            // set feedback as false
+            Globals.setValue<bool>("Feedback", "0");
+
+            // log event feedback is stopped
+            Data.logEvent(2, "FeedbackStop", CLASS_NAME);
 
             // set state to wait
             setState(TaskStates.Wait);
@@ -1338,7 +1526,10 @@ namespace CursorTask {
             mTaskFirstRunStartDelay = 5;
             mTaskStartDelay = 10;
 	        mUpdateCursorOnSignal = true;
-	        mTrialTime = (int)(MainThread.SamplesPerSecond() * 4.0); ;              // depends on 'mUpdateCursorOnSignal', now set to packages
+	        mPreTrialDuration = (int)(MainThread.SamplesPerSecond() * 1.0);             // 
+            mTrialDuration = (int)(MainThread.SamplesPerSecond() * 2.0); ;              // depends on 'mUpdateCursorOnSignal', now set to packages
+            mPostTrialDuration = (int)(MainThread.SamplesPerSecond() * 1.0); ;          // 
+            mITIDuration = (int)(MainThread.SamplesPerSecond() * 2.0); ;                // 
 
             mCursorSize = 4f;
 

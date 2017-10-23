@@ -1,11 +1,7 @@
 ﻿using NLog;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading;
 using UNP.Core;
 using UNP.Core.DataIO;
@@ -145,7 +141,7 @@ namespace UNP.Sources {
 
         }
 
-        public bool configure(out SampleFormat output) {
+        public bool configure(out PackageFormat output) {
             #pragma warning disable 0162            // for constant checks, conscious ignore
             
             // retrieve whether the file should be read into memory
@@ -263,7 +259,9 @@ namespace UNP.Sources {
                     }
 
                     // create a sampleformat
-                    output = new SampleFormat(outputChannels, 1);
+                    // (at this point we can only playback .day files with the pipeline input streams, these always have 1 sample per package.
+                    // since the number of samples is 1 per package, the given samplerate is the packagerate)
+                    output = new PackageFormat(outputChannels, 1, sampleRate);      
 
                     // check the constants (buffer size in combination with buffer min read)
                     if (INPUT_BUFFER_MIN_READ_SECONDS < 2) {
@@ -334,9 +332,6 @@ namespace UNP.Sources {
 
             // retrieve the high precision setting
             highPrecision = parameters.getValue<bool>("HighPrecision");
-
-            // create a sampleformat
-            output = new SampleFormat(outputChannels, 1);
 
             // calculate the sample interval
             sampleIntervalMs = (int)Math.Floor(1000.0 / sampleRate);

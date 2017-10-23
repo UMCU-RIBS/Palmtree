@@ -51,7 +51,7 @@ namespace UNP.Filters {
          * parameters and, if valid, transfers the configuration parameters to local variables
          * (initialization of the filter is done later by the initialize function)
          **/
-        public bool configure(ref SampleFormat input, out SampleFormat output) {
+        public bool configure(ref PackageFormat input, out PackageFormat output) {
 
             // retrieve and check the number of input channels
             inputChannels = input.getNumberOfChannels();
@@ -92,7 +92,7 @@ namespace UNP.Filters {
             }
 
             // create an output sampleformat
-            output = new SampleFormat(outputChannels, input.getRate());
+            output = new PackageFormat(outputChannels, input.getSamples(), input.getRate());
 
             // configure output logging for this filter
             configureOutputLogging(filterName + "_", output);

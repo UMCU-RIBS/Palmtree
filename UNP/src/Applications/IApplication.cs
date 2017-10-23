@@ -10,7 +10,7 @@ namespace UNP.Applications {
         Parameters getParameters();
         string getClassName();
 
-        bool configure(ref SampleFormat input);
+        bool configure(ref PackageFormat input);
         void initialize();
 
         void start();

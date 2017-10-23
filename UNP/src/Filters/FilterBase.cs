@@ -1,8 +1,5 @@
 ﻿using NLog;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using UNP.Core;
 using UNP.Core.DataIO;
 using UNP.Core.Helpers;
@@ -38,7 +35,7 @@ namespace UNP.Filters {
             return CLASS_VERSION;
         }
 
-        public void configureOutputLogging(string prefix, SampleFormat output) {
+        public void configureOutputLogging(string prefix, PackageFormat output) {
 
             // retrieve and prepare the logging of streams
             mLogDataStreams = parameters.getValue<bool>("LogDataStreams");

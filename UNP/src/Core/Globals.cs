@@ -1,7 +1,7 @@
-﻿using NLog;
+﻿using Expressive;
+using NLog;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
 
@@ -14,12 +14,13 @@ namespace UNP.Core {
 
         private static Logger logger = LogManager.GetLogger("Globals");
         private static List<iParam> paramList = new List<iParam>(0);
-        private static Object lockParameters = new Object();                         // threadsafety lock for all event on the parameters
+        private static Object lockParameters = new Object();                                                    // threadsafety lock for all event on the parameters
+        private static Dictionary<string, object> evaluableVariables = new Dictionary<string, object>();        // dictionary for evaluatable variables
 
         private static iParam getParameter(string paramName) {
 
             // try to find the parameter by name
-            for (int i = 0; i < paramList.Count(); i++) {
+            for (int i = 0; i < paramList.Count; i++) {
                 if (paramList[i].Name.Equals(paramName)) {
                     return paramList[i];
                 }
@@ -106,15 +107,142 @@ namespace UNP.Core {
                 // create the parameter if it does not exist
                 if (param == null) param = addParameter<T>(paramName);
 
-                // if not able to create, return 0
+                // if not able to create, return
                 if (param == null) return;
 
                 // call setter of the parameter for further processing
-                if (!param.setValue(paramValue)) {
+                if (param.setValue(paramValue)) {
+                    // successfully set
+
+                    // also store certain types as evaluable variables
+                    if (param.GetType() == typeof(ParamBool)) {
+                        evaluableVariables[paramName] = ((ParamBool)param).Value ? 1 : 0;
+                    } else if (param.GetType() == typeof(ParamInt)) {
+                        evaluableVariables[paramName] = ((ParamInt)param).Value;
+                    } else if (param.GetType() == typeof(ParamDouble)) {
+                        evaluableVariables[paramName] = ((ParamDouble)param).Value;
+                    }
+
+                } else {
+                // failure to set
+
+                    // message
                     logger.Error("Could not find parameter '" + paramName + "' in globals, discarded");
+
                 }
             
             }
+
+        }
+
+
+        public static bool testExpression(string expression) {
+            if (string.IsNullOrEmpty(expression))   return true;
+
+            try {
+
+                // evaluate the expression
+                var expressionObject = new Expression(expression);
+                var expressionResult = expressionObject.Evaluate(evaluableVariables);
+
+                // return success, the expression is valid
+                return true;
+
+            } catch (Exception e) {
+
+                // check if the error is not because a variable is not found
+                if (e.Message.Contains("has not been supplied")) {
+                    
+                    // return succes, the expression is valid, just the variables are not set
+                    return true;
+
+                } else {
+
+                    // return failure, the experession is incorrect
+                    return false;
+                }
+
+            }
+        }
+
+        public static bool evaluateConditionExpression(string expression) {
+            if (string.IsNullOrEmpty(expression)) return false;
+
+            try {
+
+                // evaluate the expression
+                var expressionObject = new Expression(expression);
+                var expressionResult = expressionObject.Evaluate(evaluableVariables);
+
+                // try to interpret the result as an boolean
+                bool result = false;
+                if (!bool.TryParse(expressionResult.ToString(), out result)) {
+
+                    // message
+                    logger.Error("Error while converting the output of the expression '" + expression + "' to boolean, returning false");
+
+                    // return failure
+                    return false;
+
+                }
+
+                // return the boolean result
+                return result;
+
+            } catch (Exception e) {
+
+                // check if the error is not because a variable is not found
+                if (!e.Message.Contains("has not been supplied")) {
+
+                    // message
+                    logger.Error("Error while evaluating expression '" + expression + "', returning false");
+
+                }
+
+            }
+
+            // return failure
+            return false;
+
+        }
+
+        public static double evaluateExpression(string expression) {
+
+            try {
+
+                // evaluate the expression
+                var expressionObject = new Expression(expression);
+                var expressionResult = expressionObject.Evaluate(evaluableVariables);
+
+                // try to interpret the result as a double
+                double result = -1;
+                if (!double.TryParse(expressionResult.ToString(), out result)) {
+
+                    // message
+                    logger.Error("Error while converting the output of the expression '" + expression + "' to double, returning -1");
+
+                    // return failure
+                    return -1;
+
+                }
+
+                // return the double result
+                return result;
+                
+            } catch (Exception e) {
+
+                // check if the error is not because a variable is not found
+                if (!e.Message.Contains("has not been supplied")) {
+
+                    // message
+                    logger.Error("Error while evaluating expression '" + expression + "', returning -1");
+
+                }
+
+            }
+
+            // return failure
+            return -1;
 
         }
 
