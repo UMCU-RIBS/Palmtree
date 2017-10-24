@@ -788,10 +788,17 @@ namespace CursorTask {
                                 } else if (mTaskInputSignalType == 3) {
                                     // Added input
 
-                                    double y = view.getCursorY();
+                                    //logger.Error("----");
+                                    //double y = view.getCursorY();
+                                    double y = view.getCursorNormY();
+                                    //logger.Error("input: " + input);
+                                    //logger.Error("mCursorSpeedY: " + mCursorSpeedY);
+                                    //logger.Error("y: " + y);
                                     y += mCursorSpeedY * input;
+                                    //logger.Error("after y: " + y);
                                     view.setCursorNormY(y);
-
+                                    //view.setCursorY(y);
+                                    
 
                                 } else {
 

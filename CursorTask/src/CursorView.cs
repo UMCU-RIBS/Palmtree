@@ -407,6 +407,10 @@ namespace CursorTask {
 	        return cursorY;
         }
 
+        public void setCursorY(double y) {
+            cursorY = y;
+        }
+
         // get the cursor's y position as a normalized valued (0 = bottom, 1 = top, also takes cursor radius into account)
         public double getCursorNormY() {
             return (((boundaryY + boundarySize - (taskBoundaryLineWidth / 2) - cursorRadius) - cursorY) / (boundarySize - taskBoundaryLineWidth - (cursorRadius * 2)));
