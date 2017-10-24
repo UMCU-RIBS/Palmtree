@@ -530,9 +530,17 @@ namespace CursorTask {
         }
 
         public void start() {
-            
+
+            // check if the task is standalone (not unp menu)
+            if (!mUNPMenuTask) {
+
+                // store the generated sequence in the output parameter xml
+                Data.adjustXML(CLASS_NAME, "TargetSequence", string.Join(" ", mTargetSequence));
+
+            }
+
             // lock for thread safety
-            lock(lockView) {
+            lock (lockView) {
 
                 if (view == null)   return;
 

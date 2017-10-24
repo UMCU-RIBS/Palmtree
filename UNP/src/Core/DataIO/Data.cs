@@ -506,7 +506,7 @@ namespace UNP.Core.DataIO {
                         logger.Error("Error: Could not save adjusted parameter file " + xmlFile + " (" + e.Message + ")");
                         return false;
                     }
-                    logger.Info("Saved new value: " + result.Value + " to node " + parameterName + " in parameter set " + parameterSet);
+                    //logger.Debug("Saved new value: " + result.Value + " to node " + parameterName + " in parameter set " + parameterSet);
                     return true;
                 } else {
                     logger.Info("Node for updating can not be found in parameter file.");
