@@ -320,8 +320,19 @@ namespace LocalizerTask {
 
         public void stop() {
 
-            // set state to End if not already in this state
-            if(taskState != TaskStates.End)     setState(TaskStates.End);
+            // log event task is stopped prematurely by user
+            Data.logEvent(2, "TaskStop", CLASS_NAME + ";user");
+
+            // set text to display 
+            view.setText(endText);
+
+            // reset all relevant variables in case task is restarted
+            currentStimulus = stimulusCounter = 0;
+            currentSequence = 1;
+            stimulusRemainingTime = -1;
+
+            // stop sources, filters etc through Mainthread
+            MainThread.stop();
         }
 
         public bool isStarted() {
@@ -487,7 +498,7 @@ namespace LocalizerTask {
                     logger.Info("Participant is waiting for task to begin.");
 
                     // log event participant is waiting
-                    Data.logEvent(2, "WaitPresented", "");
+                    Data.logEvent(2, "WaitPresented", CLASS_NAME);
 
                     // initialize wait counter, determining how long this state will last
                     waitCounter = firstSequenceWait;
@@ -510,7 +521,7 @@ namespace LocalizerTask {
                     logger.Info("Participant is waiting for next stimulus.");
 
                     // log event participant is waiting
-                    Data.logEvent(2, "WaitPresented", "");
+                    Data.logEvent(2, "WaitPresented", CLASS_NAME);
 
                     break;
 
@@ -536,7 +547,7 @@ namespace LocalizerTask {
                     logger.Info("Task finished.");
 
                     // log event that task is stopped
-                    Data.logEvent(2, "TaskStop", CLASS_NAME);
+                    Data.logEvent(2, "TaskStop", CLASS_NAME + ";end");
 
                     // reset all relevant variables in case task is restarted
                     currentStimulus = stimulusCounter = 0;

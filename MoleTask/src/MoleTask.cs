@@ -594,9 +594,9 @@ namespace MoleTask {
 			            } else
 				            mWaitCounter--;
 
-			            break;
+                        break;
 
-		            case TaskStates.CountDown:
+                    case TaskStates.CountDown:
                         // Countdown before start of task
 
                   
@@ -771,9 +771,6 @@ namespace MoleTask {
                                 if (mMoleIndex == holeColumns * mRowID + mColumnID) {
                                     // hit
 
-                                    // log event Mole was hit
-                                    Data.logEvent(2, "CellClick", "1");
-
                                     // add one to the score and display
                                     score++;
                                     view.setScore(score);
@@ -799,8 +796,6 @@ namespace MoleTask {
 
                                 } else {
                                     // no hit
-                                    // log event Mole was missed
-                                    Data.logEvent(2, "CellClick", "0");
 
                                     // Start again selecting rows from the top
                                     setState(TaskStates.RowSelect);
@@ -820,7 +815,7 @@ namespace MoleTask {
 			            if (mWaitCounter == 0) {
 
                             // log event task is stopped
-                            Data.logEvent(2, "TaskStop", CLASS_NAME);
+                            Data.logEvent(2, "TaskStop", CLASS_NAME + ";end");
 
                             // check if we are running from the UNPMenu
                             if (mUNPMenuTask) {
@@ -1063,8 +1058,12 @@ namespace MoleTask {
 			        // select cell and highlight
 			        view.selectCell(mRowID, mColumnID, true);
 
-                    // 
-			        mWaitCounter = mColumnSelectedDelay;
+                    // log cell click event
+                    if (mMoleIndex == holeColumns * mRowID + mColumnID) Data.logEvent(2, "CellClick", "1");
+                    else                                                Data.logEvent(2, "CellClick", "0");
+
+                    // set wait time before advancing
+                    mWaitCounter = mColumnSelectedDelay;
 
 			        break;
 
@@ -1090,8 +1089,11 @@ namespace MoleTask {
         private void stopTask() {
             if (view == null) return;
 
-	        // Set state to Wait
-	        setState(TaskStates.Wait);
+            // log that user ended task prematurely
+            Data.logEvent(2, "TaskStop", CLASS_NAME + ";user");
+
+            // Set state to Wait
+            setState(TaskStates.Wait);
 
             // check if there is no fixed target sequence
 	        if (fixedTargetSequence.Length == 0) {
