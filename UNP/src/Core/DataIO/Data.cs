@@ -1163,7 +1163,7 @@ namespace UNP.Core.DataIO {
                             eventStreamWriters[levelIndex].WriteLine(eventOut);
 
                             // debug
-                            logger.Debug("Event logged: " + eventOut);
+                            //logger.Debug("Event logged: " + eventOut);
 
                         } catch (IOException e) {
 

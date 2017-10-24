@@ -574,6 +574,9 @@ namespace CursorTask {
 
         public void stop() {
 
+            // log event task is stopped
+            Data.logEvent(2, "TaskStop", CLASS_NAME + ";user");
+
             // lock for thread safety
             lock (lockView) {
 
@@ -802,7 +805,7 @@ namespace CursorTask {
                                     Globals.setValue<bool>("Feedback", "0");
 
                                     // log event feedback is stopped
-                                    Data.logEvent(2, "FeedbackStop", CLASS_NAME);
+                                    Data.logEvent(2, "FeedbackStop", (view.isTargetHit() ? "1" : "0"));
 
                                     // check if the target was hit
                                     if (view.isTargetHit()) {
@@ -866,7 +869,7 @@ namespace CursorTask {
                         if (mWaitCounter == 0) {
 
                             // log event task is stopped
-                            Data.logEvent(2, "TaskStop", CLASS_NAME);
+                            Data.logEvent(2, "TaskStop", CLASS_NAME + ";end");
 
                             // check if we are running from the UNPMenu
                             if (mUNPMenuTask) {
@@ -891,6 +894,9 @@ namespace CursorTask {
         }
 
         private void startPreTrial() {
+
+            // log event pre-feedback is started
+            Data.logEvent(2, "PreFeedbackStart", mCurrentTarget.ToString() + ";" + mTargetSequence[mCurrentTarget].ToString());
 
             // check if there is a pre-trial duration
             if (mPreTrialDuration == 0) {
@@ -922,7 +928,7 @@ namespace CursorTask {
             Globals.setValue<int>("Target", mTargetSequence[mCurrentTarget].ToString());
 
             // log event feedback is started
-            Data.logEvent(2, "FeedbackStart", CLASS_NAME);
+            Data.logEvent(2, "FeedbackStart", mCurrentTarget.ToString() + ";" + mTargetSequence[mCurrentTarget].ToString());
 
             // set the trial state to trial
             setTrialState(TrialStates.Trial);
@@ -964,6 +970,10 @@ namespace CursorTask {
         }
 
         private void nextTrial() {
+
+
+            // log event feedback is stopped
+            Data.logEvent(2, "ITIStart", "");
 
             // goto the next target/trial
             mCurrentTarget++;
@@ -1128,7 +1138,7 @@ namespace CursorTask {
                     // countdown when task starts
 
                     // log event countdown is started
-                    Data.logEvent(2, "CountdownStarted ", CLASS_NAME);
+                    Data.logEvent(2, "CountdownStarted ", "");
 
                     // hide text if present
                     view.setText("");
@@ -1155,7 +1165,7 @@ namespace CursorTask {
                     // perform the task
 
                     // log event countdown is started
-                    Data.logEvent(2, "TrialStart ", CLASS_NAME);
+                    Data.logEvent(2, "TrialStart ", "");
 
 				    // hide text if present
 				    view.setText("");
@@ -1284,7 +1294,7 @@ namespace CursorTask {
             Globals.setValue<bool>("Feedback", "0");
 
             // log event feedback is stopped
-            Data.logEvent(2, "FeedbackStop", CLASS_NAME);
+            Data.logEvent(2, "FeedbackStop", "user");
 
             // set state to wait
             setState(TaskStates.Wait);

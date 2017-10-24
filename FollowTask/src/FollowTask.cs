@@ -95,8 +95,8 @@ namespace FollowTask {
         private TaskStates previousTaskState = TaskStates.Wait;
         private int mCurrentBlock = FollowView.noBlock;                             // the current block which is in line with X of the cursor (so the middle)
         private int mPreviousBlock = FollowView.noBlock;                            // the previous block that was in line with X of the cursor
-        private bool mIsCursorInCurrentBlock = false;                              // whether the cursor is inside the current block
-        private bool mWasCursorInCurrentBlock = false;                              // whether the cursor was inside the current blockprivate bool mWasCursorInCurrentBlock = false;                              // whether the cursor was inside the current block
+        //private bool mIsCursorInCurrentBlock = false;                              // whether the cursor is inside the current block
+        //private bool mWasCursorInCurrentBlock = false;                              // whether the cursor was inside the current blockprivate bool mWasCursorInCurrentBlock = false;                              // whether the cursor was inside the current block
 
 
         private float[] storedBlockPositions = null;                                // to store the previous block positions while suspended
@@ -573,8 +573,11 @@ namespace FollowTask {
 
         public void stop() {
 
+            // log event task is stopped
+            Data.logEvent(2, "TaskStop", CLASS_NAME + ";user");
+
             // lock for thread safety
-            lock(lockView) {
+            lock (lockView) {
 
                 // stop the task
                 stopTask();
@@ -834,10 +837,14 @@ namespace FollowTask {
 
 				            // retrieve the current block and if cursor is in this block
 				            mCurrentBlock = view.getCurrentBlock();
-                            mIsCursorInCurrentBlock = view.getCursorInCurrentBlock();
+                            bool mIsCursorInCurrentBlock = view.getCursorInCurrentBlock();
+
+                            // retrieve which block condition the current block is
+                            int blockCondition = -1;
+                            if (mCurrentBlock != FollowView.noBlock) blockCondition = mTargetSequence[mCurrentBlock];
 
                             // log event if the current block has changed and update the previous block placeholder
-                            if (mCurrentBlock != mPreviousBlock)     Data.logEvent(2, "Changeblock", mCurrentBlock.ToString());
+                            if (mCurrentBlock != mPreviousBlock)     Data.logEvent(2, "Changeblock", (mCurrentBlock.ToString() + ";" + blockCondition.ToString()));
                             mPreviousBlock = mCurrentBlock;
 
                             // log event if cursor entered or left the current block
@@ -847,7 +854,7 @@ namespace FollowTask {
                             //}
 
                             // update whether cursor was in current block 
-                            mWasCursorInCurrentBlock = mIsCursorInCurrentBlock;
+                            //mWasCursorInCurrentBlock = mIsCursorInCurrentBlock;
 
                             // add to score if cursor hits the block
                             if (mIsCursorInCurrentBlock) mHitScore++;
@@ -865,7 +872,7 @@ namespace FollowTask {
 			            if(mWaitCounter == 0) {
 
                             // log event task is stopped
-                            Data.logEvent(2, "TaskStop", CLASS_NAME);
+                            Data.logEvent(2, "TaskStop", CLASS_NAME + ";end");
 
                             // check if we are running from the UNPMenu
                             if (mUNPMenuTask) {
@@ -1019,7 +1026,7 @@ namespace FollowTask {
                     // countdown when task starts
 
                     // log event countdown is started
-                    Data.logEvent(2, "CountdownStarted ", CLASS_NAME);
+                    Data.logEvent(2, "CountdownStarted ", "");
 
                     // hide text if present
                     view.setText("");
@@ -1040,7 +1047,7 @@ namespace FollowTask {
                     // perform the task
 
                     // log event countdown is started
-                    Data.logEvent(2, "TrialStart ", CLASS_NAME);
+                    Data.logEvent(2, "TrialStart ", "");
 
                     /*
 				    // hide text if present
