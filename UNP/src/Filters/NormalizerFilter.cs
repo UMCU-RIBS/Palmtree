@@ -392,9 +392,15 @@ namespace UNP.Filters {
         }
 
         public void stop() {
-            //double[] newGains = newParameters.getValue<double[]>("NormalizerGains");
-            //double[] test = new double[] { 1112, 3334 };
-            //parameters.setValue("NormalizerGains", test);
+
+            // check if adaptation is switched on
+            if (mDoAdapt) {
+
+                // store the offsets and gains in the parameters
+                parameters.setValue("NormalizerOffsets", string.Join(" ", mOffsets));
+                parameters.setValue("NormalizerGains", string.Join(" ", mGains));
+
+            }
 
         }
 
