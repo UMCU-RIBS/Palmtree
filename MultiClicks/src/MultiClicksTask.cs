@@ -156,18 +156,6 @@ namespace MultiClicksTask {
                 "Window background color",
                 "", "", "0");
 
-            /*
-            parameters.addParameter <int>       (
-                "Windowed",
-                "Window or Fullscreen - fullscreen is only applied with two monitors",
-                "0", "1", "1", new string[] {"Fullscreen", "Window"});
-
-            parameters.addParameter <int>       (
-                "FullscreenMonitor",
-                "Full screen Monitor",
-                "0", "1", "1", new string[] {"Monitor 1", "Monitor 2"});
-            */
-
             parameters.addParameter<int>(
                 "TaskFirstRunStartDelay",
                 "Amount of time before the task starts (on the first run of the task)",
@@ -235,8 +223,13 @@ namespace MultiClicksTask {
 
             parameters.addParameter<double[][]>(
                 "Targets",
-                "Target positions and widths in percentage coordinates\n\nY_perc: The y position of the block on the screen (in percentages of the screen height), note that the value specifies where the middle of the block will be.\nHeight_perc: The height of the block on the screen (in percentages of the screen height)\nWidth_secs: The width of the target block in seconds",
-                "", "", "25,25,25,75,75,75;50,50,50,50,50,50;2,2,2,3,5,7", new string[] { "Y_perc", "Height_perc", "Width_secs" });
+                "The width of the target block in seconds",
+                "", "", "2,2,2,3,5,7", new string[] { "Width_secs" });
+
+            parameters.addParameter<string[][]>(
+                "Clicks",
+                "Create clicks by combining targets. Targets are specified by the row number they appear in the Target matrix, zero-based.",
+                "", "", "Click,Double Click,Escape;1,1 0 1, 2", new string[] { "Name", "Target_combination"});
 
             parameters.addParameter<string[][]>(
                 "TargetTextures",
@@ -374,8 +367,8 @@ namespace MultiClicksTask {
 
             // retrieve target settings
             double[][] parTargets = newParameters.getValue<double[][]>("Targets");
-            if (parTargets.Length != 3 || parTargets[0].Length < 1) {
-                logger.Error("Targets parameter must have at least 1 row and 3 columns (Y_perc, Height_perc, Width_secs)");
+            if (parTargets.Length != 1 || parTargets[0].Length < 1) {
+                logger.Error("Targets parameter must have at least 1 row and  columns (Y_perc, Height_perc, Width_secs)");
                 return false;
             }
             
@@ -384,9 +377,9 @@ namespace MultiClicksTask {
             mTargets[1] = new List<float>(new float[parTargets[0].Length]);
             mTargets[2] = new List<float>(new float[parTargets[0].Length]);
             for(int row = 0; row < parTargets[0].Length; ++row) {
-                mTargets[0][row] = (float)parTargets[0][row];
-                mTargets[1][row] = (float)parTargets[1][row];
-                mTargets[2][row] = (float)parTargets[2][row];
+                mTargets[0][row] = 50;
+                mTargets[1][row] = 100;
+                mTargets[2][row] = (float)parTargets[0][row];
                 if (mTargets[2][row] <= 0) {
                     logger.Error("The value '" + parTargets[2][row] + "' in the Targets parameter is not a valid width value, should be a positive numeric");
                     return false;
