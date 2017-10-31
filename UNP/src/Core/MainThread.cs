@@ -706,13 +706,13 @@ namespace UNP.Core {
          * Static function to return the number of samples per second according the source
          * Used by Parameters to convert seconds to samples
          **/
-        public static double SamplesPerSecond() {
+        public static double getPipelineSamplesPerSecond() {
             
             // check 
             if (source != null) {
 
                 // retrieve the number of samples per second
-                return source.getSamplesPerSecond();
+                return source.getOutputSamplesPerSecond();
 
             } else {
                 

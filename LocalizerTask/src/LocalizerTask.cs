@@ -623,7 +623,7 @@ namespace LocalizerTask {
 
                     // determine remaining stimulus time in samples
                     // TODO: this should be in ParamStringMat.getvalueInSamples()
-                    double samples = stimulusRemainingTime * MainThread.SamplesPerSecond();
+                    double samples = stimulusRemainingTime * MainThread.getPipelineSamplesPerSecond();
                     stimulusRemainingTime = (int)Math.Round(samples);
 
                     // give warning if rounding occurs
@@ -702,8 +702,8 @@ namespace LocalizerTask {
             stimuli = new string[][] { new string[] {"Rust","Concentreer"}, new string[] { "","" }, new string[] { "", "" }, new string[] { "10", "5" } };
             stimuliSequence = new int[] { 1, 2, 1};
             amountSequences = 2;
-            firstSequenceWait = 10 * (int)MainThread.SamplesPerSecond();
-            sequenceWait = 5 * (int)MainThread.SamplesPerSecond();
+            firstSequenceWait = 10 * (int)MainThread.getPipelineSamplesPerSecond();
+            sequenceWait = 5 * (int)MainThread.getPipelineSamplesPerSecond();
             startText = "Task will begin shortly";
             waitText = "Wait";
             endText = "End task";

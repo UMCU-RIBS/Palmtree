@@ -710,7 +710,7 @@ namespace FollowTask {
 				            // still counting down
 
                             // display the countdown
-                            view.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.SamplesPerSecond()) + 1);
+                            view.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.getPipelineSamplesPerSecond()) + 1);
 
                             // reduce the countdown timer
                             mCountdownCounter--;
@@ -1044,7 +1044,7 @@ namespace FollowTask {
 
 				    // set countdown
                     if (mCountdownCounter > 0)
-                        view.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.SamplesPerSecond()) + 1);
+                        view.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.getPipelineSamplesPerSecond()) + 1);
                     else
                         view.setCountDown(-1);
 
@@ -1094,7 +1094,7 @@ namespace FollowTask {
 				    view.setText("Done");
 
                     // set duration for text to be shown at the end (3s)
-                    mWaitCounter = (int)(MainThread.SamplesPerSecond() * 3.0);
+                    mWaitCounter = (int)(MainThread.getPipelineSamplesPerSecond() * 3.0);
 
                     break;
 

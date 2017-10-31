@@ -5,19 +5,19 @@ namespace UNP.Core.Helpers {
     public static class SampleConversion {
 
         public static double sampleRate() {
-            return MainThread.SamplesPerSecond();
+            return MainThread.getPipelineSamplesPerSecond();
         }
 
         public static int timeToSamples(double timeInSeconds) {
-            return (int)Math.Round(timeInSeconds * MainThread.SamplesPerSecond());
+            return (int)Math.Round(timeInSeconds * MainThread.getPipelineSamplesPerSecond());
         }
 
         public static double timeToSamplesAsDouble(double timeInSeconds) {
-            return timeInSeconds * MainThread.SamplesPerSecond();
+            return timeInSeconds * MainThread.getPipelineSamplesPerSecond();
         }
 
         public static double samplesToTime(int samples) {
-            return (double)samples / MainThread.SamplesPerSecond();
+            return (double)samples / MainThread.getPipelineSamplesPerSecond();
         }
     }
 

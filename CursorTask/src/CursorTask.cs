@@ -713,7 +713,7 @@ namespace CursorTask {
                             // still counting down
 
                             // display the countdown
-                            view.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.SamplesPerSecond()) + 1);
+                            view.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.getPipelineSamplesPerSecond()) + 1);
 
                             // reduce the countdown timer
                             mCountdownCounter--;
@@ -1173,7 +1173,7 @@ namespace CursorTask {
 
                     // set countdown
                     if (mCountdownCounter > 0)
-                        view.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.SamplesPerSecond()) + 1);
+                        view.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.getPipelineSamplesPerSecond()) + 1);
                     else
                         view.setCountDown(-1);
 
@@ -1217,7 +1217,7 @@ namespace CursorTask {
                     view.setText("Done");
 
                     // set duration for text to be shown at the end (3s)
-                    mWaitCounter = (int)(MainThread.SamplesPerSecond() * 3.0);
+                    mWaitCounter = (int)(MainThread.getPipelineSamplesPerSecond() * 3.0);
 
 
 			        break;
@@ -1613,10 +1613,10 @@ namespace CursorTask {
             mTaskFirstRunStartDelay = 5;
             mTaskStartDelay = 10;
 	        mUpdateCursorOnSignal = true;
-	        mPreTrialDuration = (int)(MainThread.SamplesPerSecond() * 1.0);             // 
-            mTrialDuration = (int)(MainThread.SamplesPerSecond() * 2.0); ;              // depends on 'mUpdateCursorOnSignal', now set to packages
-            mPostTrialDuration = (int)(MainThread.SamplesPerSecond() * 1.0); ;          // 
-            mITIDuration = (int)(MainThread.SamplesPerSecond() * 2.0); ;                // 
+	        mPreTrialDuration = (int)(MainThread.getPipelineSamplesPerSecond() * 1.0);             // 
+            mTrialDuration = (int)(MainThread.getPipelineSamplesPerSecond() * 2.0); ;              // depends on 'mUpdateCursorOnSignal', now set to packages
+            mPostTrialDuration = (int)(MainThread.getPipelineSamplesPerSecond() * 1.0); ;          // 
+            mITIDuration = (int)(MainThread.getPipelineSamplesPerSecond() * 2.0); ;                // 
 
             mCursorSize = 4f;
 

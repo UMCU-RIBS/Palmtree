@@ -117,13 +117,17 @@ namespace UNP.Sources {
             return parameters;
         }
 
+        public double getInputSamplesPerSecond() {
+            return 0;
+        }
+
         /**
          * function to retrieve the number of samples per second
          * 
          * This value could be requested by the main thread and is used to allow parameters
          * to be converted from seconds to samples
          **/
-        public double getSamplesPerSecond() {
+        public double getOutputSamplesPerSecond() {
 
             // check if the source is not configured yet
             if (!configured) {

@@ -1,4 +1,4 @@
-﻿//#define DEBUG_TESTDATA                                             // Output test data instead of data from the Nexus, even when connection with Nexus is timed-out
+﻿#define DEBUG_TESTDATA                                             // Output test data instead of data from the Nexus, even when connection with Nexus is timed-out
 
 using Microsoft.Win32.SafeHandles;
 using NLog;
@@ -23,34 +23,36 @@ namespace UNP.Sources {
         private const string CLASS_NAME = "NexusSignal";
         private const int CLASS_VERSION = 2;
 
-        public const int NEXUS_POWERMODE_SAMPLES_PER_PACKAGE = 1;
-        public const int NEXUS_POWERMODE_CHANNELS_PER_PACKAGE = 4;
-        public const int NEXUS_TIMEMODE_SAMPLES_PER_PACKAGE = 40;
-        public const int NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE = 2;
-        public const int NEXUS_TIMEMODE_SIGNALFREQUENCY = 200;      // frequency of the time domain signal provided by the Nexus
+        private const double OUTPUT_SAMPLE_RATE = 5;                                      // hold the amount of samples per second that the source outputs (used by the mainthead to convert seconds to number of samples)
+        private const int NEXUS_POWERMODE_SAMPLES_PER_PACKAGE = 1;
+        private const int NEXUS_POWERMODE_CHANNELS_PER_PACKAGE = 4;
+        private const int NEXUS_POWERMODE_SIGNALFREQUENCY = 5;
+        private const int NEXUS_TIMEMODE_SAMPLES_PER_PACKAGE = 40;
+        private const int NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE = 2;
+        private const int NEXUS_TIMEMODE_SIGNALFREQUENCY = 200;      // frequency of the time domain signal provided by the Nexus
 
-        public const int DEFAULT_BAUD = SerialPortNet.CBR_115200;   // default Baud-Rate is 112k
-        public const int COM_TIMEOUT = 3000;                        // 3000 ms trasmission timeout
-        public const int PACKET_BUFFER_SIZE = 128;                  // packet buffer size which is large enough for P6 // (i.e. NEXUS-1 STS time-domain) packages of 120 values
+        private const int DEFAULT_BAUD = SerialPortNet.CBR_115200;   // default Baud-Rate is 112k
+        private const int COM_TIMEOUT = 3000;                        // 3000 ms trasmission timeout
+        private const int PACKET_BUFFER_SIZE = 128;                  // packet buffer size which is large enough for P6 // (i.e. NEXUS-1 STS time-domain) packages of 120 values
 
-        public const int PACKET_START = 0;
-        public const int PACKET_FINISHED = 8;                       // packet-state for completed packet
+        private const int PACKET_START = 0;
+        private const int PACKET_FINISHED = 8;                       // packet-state for completed packet
 
         // debug variables,used in debug mode to create test data 
-#if (DEBUG_TESTDATA)
-        private DebugSignalType debSig = DebugSignalType.Rand;      // type of debug data: random of sinusoid-based
-        private double[] testData = null;
-        ushort[] testDataShort = null;
-        private double samplingFrequency = 200;                     // sampling frequency of test signal, in case debugSignalType is Sinus. 
-        private double[][] amps = new double[2][] {                 // amplitudes of sinusoids in test signal, in case debugSignalType is Sinus. Every amplitude is (re)used as one channel, until all input channels are filled.
-            new double[] { 10, 20, 30 },                                      
-            new double[] { 40, 10, 20 }
-        };
-        private double[][] frequencies = new double[2][] {          // frequencies of sinusoids in test signal, in case debugSignalType is Sinus. Every frequency is (re)used as one channel, until all input channels are filled.
-            new double[] { 20, 60, 38 } ,
-            new double[] { 40, 32, 5 }                                                                           
-        };
-#endif
+        #if (DEBUG_TESTDATA)
+            private DebugSignalType debSig = DebugSignalType.Rand;      // type of debug data: random of sinusoid-based
+            private double[] testData = null;
+            ushort[] testDataShort = null;
+            private double samplingFrequency = 200;                     // sampling frequency of test signal, in case debugSignalType is Sinus. 
+            private double[][] amps = new double[2][] {                 // amplitudes of sinusoids in test signal, in case debugSignalType is Sinus. Every amplitude is (re)used as one channel, until all input channels are filled.
+                new double[] { 10, 20, 30 },                                      
+                new double[] { 40, 10, 20 }
+            };
+            private double[][] frequencies = new double[2][] {          // frequencies of sinusoids in test signal, in case debugSignalType is Sinus. Every frequency is (re)used as one channel, until all input channels are filled.
+                new double[] { 20, 60, 38 } ,
+                new double[] { 40, 32, 5 }                                                                           
+            };
+        #endif
 
         // 
         private static Logger logger = LogManager.GetLogger(CLASS_NAME);
@@ -70,9 +72,9 @@ namespace UNP.Sources {
         private int[] inputChannels = null;
         int[] inputChUniq = null;                                           // unique id's of input channels
         private int[] outputChannels = null;
-        private double sampleRate = 0;                                      // hold the amount of samples per second that the source outputs (used by the mainthead to convert seconds to number of samples)
         private int deviceProtocol = 0;
         private int numberOfInputValues = 0;
+        private double inputSampleRate = 0;                                 // input sample rate of source
 
         // active variables
         private SerialPort serialPort = null;
@@ -129,11 +131,6 @@ namespace UNP.Sources {
                 "0", "5", "4", new string[] { "Nexus protocol 1 (legacy)", "Nexus protocol 2 (legacy)", "Nexus protocol 3 (legacy)", "Nexus protocol 4 (legacy)", "Nexus protocol 5 power", "Nexus protocol 6 time" });
 
             parameters.addParameter<int>(
-                "SampleRate",
-                "Rate with which samples are outputted from the source in samples per second (hz).\n\nNote: When using a Nexus protocol this sample rate is more theoretical/virtual since the rate at which samples actually\ncome out depends on the device's communication timing (and not an internal software timer).\nIt is, however, important to set this rate as the rest of the modules rely on knowing the number of samples per second.",
-                "0", "0", "0", new string[] { "5Hz" });
-
-            parameters.addParameter<int>(
                 "modelOrder",
                 "Order of prediction model used for time-frequency domain transform. Only relevant in case of input in time domain (device protocol 6).",
                 "1", "", "5");
@@ -165,19 +162,14 @@ namespace UNP.Sources {
             return parameters;
         }
 
-        /**
-         * function to retrieve the number of samples per second
-         * 
-         * This value could be requested by the main thread and is used to allow parameters
-         * to be converted from seconds to samples
-         **/
-        public double getSamplesPerSecond() {
+
+        public double getInputSamplesPerSecond() {
 
             // check if the source is not configured yet
             if (!configured) {
 
                 // message
-                logger.Error("Trying to retrieve the samples per second before the source was configured, first configure the source, returning 0");
+                logger.Error("Trying to retrieve the input samples per second before the source was configured, first configure the source, returning 0");
 
                 // return 0
                 return 0;
@@ -185,9 +177,33 @@ namespace UNP.Sources {
             }
 
             // return the samples per second
-            return sampleRate;
+            return inputSampleRate;
 
         }
+
+        /**
+        
+         **/
+        public double getOutputSamplesPerSecond() {
+
+            // check if the source is not configured yet
+            if (!configured) {
+
+                // message
+                logger.Error("Trying to retrieve the output samples per second before the source was configured, first configure the source, returning 0");
+
+                // return 0
+                return 0;
+
+            }
+
+            // return the samples per second
+            return OUTPUT_SAMPLE_RATE;
+
+        }
+
+
+        
 
         public bool configure(out PackageFormat output) {
 
@@ -213,13 +229,12 @@ namespace UNP.Sources {
                 return false;
             }
 
-            // retrieve and set the sample rate
-            int sampleRateOption = parameters.getValue<int>("SampleRate");
-            if (sampleRateOption == 0)  sampleRate = 5;
+
+
 
             // create the sampleformat (the nexusfilter - regardless if set to power or time domain - will always give one sample per package, thus 1)
             // therefore, the given samplerate is actually the packagerate here
-            output = new PackageFormat(numOutputChannels, 1, sampleRate);
+            output = new PackageFormat(numOutputChannels, 1, OUTPUT_SAMPLE_RATE);
             
             // retrieve and set the comport
             int comPortOption = parameters.getValue<int>("ComPort");
@@ -242,10 +257,13 @@ namespace UNP.Sources {
             // calculate and register the source input streams for power mode
             if (deviceProtocol == 5) {
 
+                // set input sample rate
+                inputSampleRate = NEXUS_POWERMODE_SIGNALFREQUENCY;
+
                 numberOfInputValues = NEXUS_POWERMODE_CHANNELS_PER_PACKAGE * NEXUS_POWERMODE_SAMPLES_PER_PACKAGE;
 
                 // create sampleFormat object. Since we are splitting the nexus channels up to seperate streams, the format defines 1 channel
-                PackageFormat nexusPowerSampleFormat = new PackageFormat(1, NEXUS_POWERMODE_SAMPLES_PER_PACKAGE, sampleRate);
+                PackageFormat nexusPowerSampleFormat = new PackageFormat(1, NEXUS_POWERMODE_SAMPLES_PER_PACKAGE, inputSampleRate);
 
                 // register the channels from the nexus (which in power mode have only 1 sample) as seperate source input streams)
                 for (int channel = 0; channel < NEXUS_POWERMODE_CHANNELS_PER_PACKAGE; channel++) {
@@ -255,6 +273,9 @@ namespace UNP.Sources {
 
             // transfer relevant parameters for time mode, perform sanity checks on parameters and create ARFilter, and register output streams
             if (deviceProtocol == 6) {
+
+                // set input sample rate
+                inputSampleRate = NEXUS_TIMEMODE_SIGNALFREQUENCY;
 
                 numberOfInputValues = NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE * NEXUS_TIMEMODE_SAMPLES_PER_PACKAGE;
 
@@ -304,7 +325,7 @@ namespace UNP.Sources {
                 }
 
                 // create sampleFormat object. Since we are splitting the nexus channels up to seperate streams, the format defines 1 channel
-                PackageFormat nexusTimeSampleFormat = new PackageFormat(1, NEXUS_TIMEMODE_SAMPLES_PER_PACKAGE, sampleRate);
+                PackageFormat nexusTimeSampleFormat = new PackageFormat(1, NEXUS_TIMEMODE_SAMPLES_PER_PACKAGE, inputSampleRate);
 
                 // TODO: change names of stream to bins they represent?
                 // register the streams
@@ -334,12 +355,17 @@ namespace UNP.Sources {
             // if in debug mode, prepare test data
             #if (DEBUG_TESTDATA)
 
+                // give feedback 
+                logger.Error("DEBUG MODE ON. GENERATING TEST DATA.");
+
+
                 // prepare test data
                 testData = genDebugData();
 
                 // convert testData to ushort so it can be injected in the packet buffer
                 testDataShort = Array.ConvertAll(testData, x => (ushort)x);
 
+                
             #endif
 
 
@@ -534,15 +560,6 @@ namespace UNP.Sources {
 
                             // power mode
                             if (deviceProtocol == 5) {
-    
-                                // if in debug mode, inject test data in buffer. If test data is set to random, generate new data for packet. If set to sinus, keep using same packet because the generated signals are repetitive in nature
-                                #if (DEBUG_TESTDATA)
-                                    if (debSig == DebugSignalType.Rand) {
-                                        testData = genDebugData();
-                                        testDataShort = Array.ConvertAll(testData, x => (ushort)x);
-                                    }
-                                    Array.Copy(testDataShort, 0, packet.buffer, 0, numberOfInputValues);                         
-                                #endif
 
                                 // output array
                                 double[] retSample = new double[numOutputChannels];
@@ -568,14 +585,11 @@ namespace UNP.Sources {
                             // time mode
                             if (deviceProtocol == 6) {
 
-                                // if in debug mode, inject test data in buffer. If test data is set to random, generate new data for packet. If set to sinus, keep using same packet because the generated signals are repetitive in nature
-                                #if (DEBUG_TESTDATA)
-                                    if (debSig == DebugSignalType.Rand) {
-                                        testData = genDebugData();
-                                        testDataShort = Array.ConvertAll(testData, x => (ushort)x);
-                                    }
-                                    Array.Copy(testDataShort, 0, packet.buffer, 0, numberOfInputValues);
-                                #endif
+                                // HACK
+                                //for (int i = 0; i < numberOfInputValues; i++) {
+                                //    if (packet.buffer[i] == 0) logger.Error("Value is zero");
+                                //    logger.Info("going into filter: " + packet.buffer[i]);
+                                //}
 
                                 // reset output array and cast buffer to doubles to allow ARFilter to work 
                                 double[] retSample = new double[numOutputChannels];
@@ -827,8 +841,8 @@ namespace UNP.Sources {
             do {
 
                 // try to read one byte from the serial port
-                if (readSerial(ref buf, 1) == 1) {  
-                    
+                if (readSerial(ref buf, 1) == 1) {
+
                     // byte available: parse the selected protocol
                     switch (protocol) {
                         case 1:
@@ -967,13 +981,26 @@ namespace UNP.Sources {
                             // check if there are input values to log (depends mainly on the device protocol)
                             if (numberOfInputValues > 0) {
 
+                                // if in debug mode, inject test data in buffer. If test data is set to random, generate new data for packet. If set to sinus, keep using same packet because the generated signals are repetitive in nature
                                 #if (DEBUG_TESTDATA)
-                                    Array.Copy(testDataShort, 0, packet.buffer, 0, numberOfInputValues);                         // inject test data in buffer
+
+                                    if (debSig == DebugSignalType.Rand) {
+                                        testData = genDebugData();
+                                        testDataShort = Array.ConvertAll(testData, x => (ushort)x);
+                                    }
+                                    Array.Copy(testDataShort, 0, packet.buffer, 0, numberOfInputValues);
+
                                 #endif
 
                                 // pick the values from the buffer
                                 ushort[] values = new ushort[numberOfInputValues];
                                 Array.Copy(packet.buffer, 0, values, 0, numberOfInputValues);
+
+                                // HACK
+                                //for (int i = 0; i < numberOfInputValues; i++) {
+                                //    if (packet.buffer[i] == 0) logger.Error("Value is zero");
+                                //    logger.Info("going into .src: " + packet.buffer[i]);
+                                //}
 
                                 // log the values as source input before timing correction
                                 Data.logSourceInputValues(values);
@@ -1469,7 +1496,7 @@ namespace UNP.Sources {
 				        // save data in sequences of ch1ch2ch3ch1ch2ch3... as process() expects it in this order
 				        int buf_pos = (sample_offset * 12) + (curr_sample * 3) + curr_ch;
                         
-                        Debug.Assert(buf_pos < PACKET_BUFFER_SIZE - 1);
+                        //Debug.Assert(buf_pos < PACKET_BUFFER_SIZE - 1);
 
                         if (!low_byte)
                             temp_value = actbyte << 8;
@@ -1583,7 +1610,7 @@ namespace UNP.Sources {
             // for eac channel, create test data
             for (int ch = 0; ch < channels; ch++) {
 
-                double[] tempData = Extensions.generateTestData(amps[counter], frequencies[counter], samplingFrequency, samples, debSig);
+                double[] tempData = DebugHelper.generateTestData(amps[counter], frequencies[counter], samplingFrequency, samples, debSig);
                 counter++;
 
                 // if there are not enough amplitudes and frequencies defined, recycle by resetting counter

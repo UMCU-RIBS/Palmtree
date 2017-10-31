@@ -321,8 +321,8 @@ namespace UNP.Core.DataIO {
         // register the pipeline input based on the output format of the source
         public static void registerPipelineInput(PackageFormat inputFormat) {
 
-            // store the pipeline sample rate
-            pipelineSampleRate = inputFormat.getSamples();
+            // store the pipeline sample rate per second (Hz)
+            pipelineSampleRate = inputFormat.getRate();
             
             // check if the pipeline input streams should be logged
             if (mLogPipelineInputStreams) {
@@ -639,7 +639,7 @@ namespace UNP.Core.DataIO {
                     header.version = DATAFORMAT_VERSION;
                     header.code = "src";
                     header.columnNames = registeredSourceInputStreamNames.ToArray();
-                    header.sampleRate = MainThread.getSource().getSamplesPerSecond();
+                    header.sampleRate = MainThread.getSource().getInputSamplesPerSecond();
                     header.numPlaybackStreams = registeredSourceInputStreamNames.Count;
 
                     // write header
