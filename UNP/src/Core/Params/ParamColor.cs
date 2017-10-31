@@ -57,16 +57,16 @@ namespace UNP.Core.Params {
 
         }
 
-        public int getValueInSamples() {
+        public T getValueInSamples<T>() {
 
             // message
-            logger.Warn("Trying to retrieve the value for color parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') in number of samples, use getValue<T>() instead, returning 0");
-            
-            // return 0
-            return 0;
+            logger.Error("Trying to retrieve the value in samples for color parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') in number of samples, cannot convert a color, returning 0");
+
+            // return value
+            return (T)Convert.ChangeType(0, typeof(int));
 
         }
-
+        
         public override string ToString() {
             return getValue();
         }

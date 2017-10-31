@@ -10,11 +10,11 @@ namespace UNP.Core.Params {
 
         public string getValue() {
             string strRet = "";
-            for (int c = 0; c < this.values.Length; c++) {
+            for (int c = 0; c < values.Length; c++) {
                 if (c != 0) strRet += Parameters.MatColumnDelimiters[0];
-                for (int r = 0; r < this.values[c].Length; r++) {
+                for (int r = 0; r < values[c].Length; r++) {
                     if (r != 0) strRet += Parameters.MatRowDelimiters[0];
-                    strRet += this.values[c][r];
+                    strRet += values[c][r];
                 }
             }
             return strRet;
@@ -76,13 +76,14 @@ namespace UNP.Core.Params {
 
         }
 
+        public T getValueInSamples<T>() {
 
-        public int getValueInSamples() {
-            
-            // TODO: 
-            
-            // 
-            return getValue<int>();
+            // message
+            logger.Error("Trying to retrieve the value in samples for string[][] parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') in number of samples, cannot convert strings, returning 0");
+
+            // return value
+            return (T)Convert.ChangeType(0, typeof(int));
+
         }
 
         public override string ToString() {

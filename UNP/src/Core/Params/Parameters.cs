@@ -253,7 +253,7 @@ namespace UNP.Core.Params {
                     logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', returning 0");
 
                     // return 0
-                    return (T)Convert.ChangeType(null, typeof(T));
+                    return (T)Convert.ChangeType(0, typeof(T));
 
                 }
 
@@ -262,6 +262,36 @@ namespace UNP.Core.Params {
 
             }
 
+        }
+
+        public T getValueInSamples<T>(string paramName) {
+
+            lock (lockParameters) {
+
+                iParam param = getParameter(paramName);
+                if (param == null) {
+
+                    // message
+                    logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', returning 0");
+
+                    // return 0
+                    return (T)Convert.ChangeType(0, typeof(T));
+
+                }
+
+                // return the value
+                return param.getValueInSamples<T>();
+
+            }
+
+        }
+
+        public int getValueInSamples(string paramName) {
+            return getValueInSamples<int>(paramName);
+        }
+
+        public int[] getValuesInSamples(string paramName) {
+            return getValueInSamples<int[]>(paramName);
         }
 
         public string getType(string paramName) {
@@ -308,27 +338,6 @@ namespace UNP.Core.Params {
 
         }
         
-        public int getValueInSamples(string paramName) {
-
-            lock (lockParameters) {
-
-                iParam param = getParameter(paramName);
-                if (param == null) {
-
-                    // message
-                    logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', returning 0");
-
-                    // return 0
-                    return 0;
-
-                }
-
-                // return the value
-                return param.getValueInSamples();
-
-            }
-
-        }
         
         public string ToString(string paramName) {
 

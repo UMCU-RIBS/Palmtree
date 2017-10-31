@@ -54,10 +54,30 @@ namespace UNP.Core.Params {
 
         }
 
+        public T getValueInSamples<T>() {
+
+            Type paramType = typeof(T);
+            if (paramType == typeof(int)) {
+                // request to return as int
+
+                // return value
+                return (T)Convert.ChangeType(getValueInSamples(), typeof(int));
+
+            } else {
+                // request to return as other
+
+                // message and return 0
+                logger.Error("Could not retrieve the value in samples for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') as '" + paramType.Name + "', can only return value as int. Returning 0");
+                return (T)Convert.ChangeType(0, typeof(T));
+
+            }
+
+        }
+
         public int getValueInSamples() {
 
             // retrieve the value as double
-            double val = getValue<double>();
+            double val = value;
             int intSamples = 0;
 
             // check if the unit is set in seconds

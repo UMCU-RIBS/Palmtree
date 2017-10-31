@@ -1,4 +1,5 @@
 ﻿using System;
+using UNP.Core.Helpers;
 
 namespace UNP.Core.Params {
 
@@ -11,13 +12,13 @@ namespace UNP.Core.Params {
 
         public string getValue() {
             string strRet = "";
-            for (int c = 0; c < this.values.Length; c++) {
+            for (int c = 0; c < values.Length; c++) {
                 if (c != 0) strRet += Parameters.MatColumnDelimiters[0];
-                for (int r = 0; r < this.values[c].Length; r++) {
+                for (int r = 0; r < values[c].Length; r++) {
                     if (r != 0) strRet += Parameters.MatRowDelimiters[0];
 
-                    strRet += this.values[c][r].ToString(Parameters.NumberCulture);
-                    strRet += (this.units[c][r] == Parameters.Units.Seconds ? "s" : "");
+                    strRet += values[c][r].ToString(Parameters.NumberCulture);
+                    strRet += (units[c][r] == Parameters.Units.Seconds ? "s" : "");
                 }
             }
             return strRet;
@@ -81,12 +82,81 @@ namespace UNP.Core.Params {
 
         }
 
-        public int getValueInSamples() {
+        public T getValueInSamples<T>() {
+
+            Type paramType = typeof(T);
+            if (paramType == typeof(int[][])) {
+                // request to return as int[][]
+
+                // return value
+                return (T)Convert.ChangeType(getValueInSamples(), typeof(int[][]));
+
+            } else {
+                // request to return as other
+
+                // message and return 0
+                logger.Error("Could not retrieve the value in samples for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') as '" + paramType.Name + "', can only return value as int[][]. Returning 0");
+                return (T)Convert.ChangeType(0, typeof(T));
+
+            }
+
+        }
+
+        public int[][] getValueInSamples() {
             
-            // TODO: 
-            
-            // 
-            return getValue<int>();
+            // create an matrix of values (in samples) to return
+            int[][] retValues = new int[values.Length][];
+
+            // loop through the columns
+            for (int c = 0; c < units.Length; c++) {
+
+                // create array of values (in samples) for this column
+                retValues[c] = new int[values[c].Length];
+                
+                // loop through the rows
+                for (int r = 0; r < values[c].Length; r++) {
+
+                    // retrieve the value
+                    double val = values[c][r];
+                    int intSamples = 0;
+
+                    // check if the unit is set in seconds
+                    if (units[c][r] == Parameters.Units.Seconds) {
+                        // flagged as seconds
+
+                        // convert, check rounding
+                        double samples = SampleConversion.timeToSamplesAsDouble(val);   // conversion result as double, no rounding before
+                        intSamples = (int)Math.Round(samples);
+                        if (samples != intSamples) {
+
+                            // message
+                            logger.Warn("Value for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') was retrieved in number of samples (" + val + "s * " + SampleConversion.sampleRate() + "Hz), but has been rounded from " + samples + " sample(s) to " + intSamples + " sample(s)");
+
+                        }
+
+                    } else {
+                        // not flagged as seconds
+
+                        // convert double to int, check rounding
+                        intSamples = (int)Math.Round(val);
+                        if (val != intSamples) {
+
+                            // message
+                            logger.Warn("Value for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') was retrieved in number of samples, but has been rounded from " + val + " sample(s) to " + intSamples + " samples");
+
+                        }
+
+                    }
+
+                    retValues[c][r] = intSamples;
+
+                }
+
+            }
+
+            // return number of samples
+            return retValues;
+
         }
 
         public override string ToString() {

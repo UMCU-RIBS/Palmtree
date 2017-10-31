@@ -14,8 +14,8 @@ namespace UNP.Core.Params {
 
         string getValue();
         T getValue<T>();
+        T getValueInSamples<T>();
         T getUnit<T>();
-        int getValueInSamples();
         bool tryValue(string value);
         bool setValue(string value);
 

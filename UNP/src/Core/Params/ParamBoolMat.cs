@@ -79,13 +79,13 @@ namespace UNP.Core.Params {
 
         }
 
-        public int getValueInSamples() {
+        public T getValueInSamples<T>() {
 
             // message
-            logger.Warn("Trying to retrieve the value for bool[][] parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') in number of samples, use getValue<T>() instead");
-            
-            // try normal getValue
-            return getValue<int>();
+            logger.Error("Trying to retrieve the value in samples for bool[][] parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') in number of samples, cannot convert booleans, returning 0");
+
+            // return value
+            return (T)Convert.ChangeType(0, typeof(int));
 
         }
 

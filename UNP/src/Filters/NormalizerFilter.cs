@@ -396,18 +396,21 @@ namespace UNP.Filters {
             // check if adaptation is switched on
             if (mDoAdapt) {
 
-                // store the offsets and gains 
-                string normalizerOffsets = "";
-                string normalizerGains = "";
-
-                for(int param = 0; param < mOffsets.Length; param++) {
-                    normalizerOffsets += " " + mOffsets[param].ToString(Parameters.NumberCulture);
-                    normalizerGains += " " + mGains[param].ToString(Parameters.NumberCulture);
+                // build the offsets and gains strings
+                string strOffsets = "";
+                string strGains = "";
+                for(int i = 0; i < mOffsets.Length; i++) {
+					if (i != 0)	strOffsets += " ";
+                    strOffsets += mOffsets[i].ToString(Parameters.NumberCulture);
                 }
+				for(int i = 0; i < mGains.Length; i++) {
+					if (i != 0)	strGains += " ";
+					strGains += " " + mGains[i].ToString(Parameters.NumberCulture);
+				}
 
                 // update parameters
-                parameters.setValue("NormalizerOffsets", normalizerOffsets);
-                parameters.setValue("NormalizerGains", normalizerGains);
+                parameters.setValue("NormalizerOffsets", strOffsets);
+                parameters.setValue("NormalizerGains", strGains);
 
             }
 

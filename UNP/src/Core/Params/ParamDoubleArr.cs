@@ -1,4 +1,5 @@
 ﻿using System;
+using UNP.Core.Helpers;
 
 namespace UNP.Core.Params {
 
@@ -71,12 +72,72 @@ namespace UNP.Core.Params {
 
         }
 
-        public int getValueInSamples() {
-            
-            // TODO:
+        public T getValueInSamples<T>() {
 
-            //
-            return getValue<int>();
+            Type paramType = typeof(T);
+            if (paramType == typeof(int[])) {
+                // request to return as int[]
+
+                // return value
+                return (T)Convert.ChangeType(getValueInSamples(), typeof(int[]));
+
+            } else {
+                // request to return as other
+
+                // message and return 0
+                logger.Error("Could not retrieve the value in samples for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') as '" + paramType.Name + "', can only return value as int[]. Returning 0");
+                return (T)Convert.ChangeType(0, typeof(T));
+
+            }
+
+        }
+
+        public int[] getValueInSamples() {
+
+            // create an array of values (in samples) to return
+            int[] retValues = new int[values.Length];
+
+            // loop through the array
+            for (int i = 0; i < retValues.Length; i++) {
+
+                // retrieve the value
+                double val = values[i];
+                int intSamples = 0;
+
+                // check if the unit is set in seconds
+                if (units[i] == Parameters.Units.Seconds) {
+                    // flagged as seconds
+
+                    // convert, check rounding
+                    double samples = SampleConversion.timeToSamplesAsDouble(val);   // conversion result as double, no rounding before
+                    intSamples = (int)Math.Round(samples);
+                    if (samples != intSamples) {
+
+                        // message
+                        logger.Warn("Value for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') was retrieved in number of samples (" + val + "s * " + SampleConversion.sampleRate() + "Hz), but has been rounded from " + samples + " sample(s) to " + intSamples + " sample(s)");
+
+                    }
+
+                } else {
+                    // not flagged as seconds
+
+                    // convert double to int, check rounding
+                    intSamples = (int)Math.Round(val);
+                    if (val != intSamples) {
+
+                        // message
+                        logger.Warn("Value for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') was retrieved in number of samples, but has been rounded from " + val + " sample(s) to " + intSamples + " samples");
+
+                    }
+
+                }
+
+                retValues[i] = intSamples;
+
+            }
+
+            // return number of samples
+            return retValues;
 
         }
 

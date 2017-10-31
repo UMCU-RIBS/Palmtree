@@ -56,13 +56,13 @@ namespace UNP.Core.Params {
 
         }
 
-        public int getValueInSamples() {
+        public T getValueInSamples<T>() {
 
             // message
-            logger.Error("Trying to retrieve the value for string parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') in number of samples, use getValue<T>() instead, returning 0");
+            logger.Error("Trying to retrieve the value in samples for string parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') in number of samples, cannot convert a boolean, returning 0");
 
-            // return 0
-            return 0;
+            // return value
+            return (T)Convert.ChangeType(0, typeof(int));
 
         }
 
