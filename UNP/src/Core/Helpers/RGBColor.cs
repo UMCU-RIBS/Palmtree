@@ -52,6 +52,9 @@ namespace UNP.Core.Helpers {
             setBlue(blue);
         }
 
+        public RGBColorFloat(int value) {
+            setInt24(value);
+        }
 
         public float getRed()           {   return this.red;    }
         public float getGreen()         {   return this.green;  }
@@ -97,6 +100,22 @@ namespace UNP.Core.Helpers {
             if (blue < 0)       blue = 0;
             if (blue > 1)       blue = 1;
             this.blue = blue;
+        }
+
+        public void setInt24(int value) {
+            if (value < 0)          value = 0;
+            if (value > 16777215)   value = 16777215;
+            
+            // convert int to RGB
+            int red = (value >> 16) & 0xFF;
+            int green = (value >> 8) & 0xFF;
+            int blue = value & 0xFF;
+
+            // store the values
+            setRed((byte)red);
+            setGreen((byte)green);
+            setBlue((byte)blue);
+
         }
 
     }

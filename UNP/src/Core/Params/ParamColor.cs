@@ -129,11 +129,15 @@ namespace UNP.Core.Params {
                     return false;
 
                 }
-                
+
+                // cap the value
+                if (intValue < 0)           intValue = 0;
+                if (intValue > 16777215)    intValue = 16777215;
+
                 // convert int to RGB
-                int blue = (int)Math.Floor(intValue / 65536.0);
-                int green = (int)Math.Floor((intValue - blue * 65536) / 256.0);
-                int red = intValue - (blue * 65536) - (green * 256);
+                int red = (intValue >> 16) & 0xFF;
+                int green = (intValue >> 8) & 0xFF;
+                int blue = intValue & 0xFF;
 
                 // store the values
                 this.value.setRed((byte)red);
