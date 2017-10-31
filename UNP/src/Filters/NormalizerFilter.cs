@@ -352,7 +352,7 @@ namespace UNP.Filters {
                         for (int i = 0; i < mBuffers.Length; i++) {
                             logger.Debug("     Ch" + i + " = '" + string.Join("  -   ", mBuffers[i]) + "'");
                         }
-                    } else {
+                    } else { 
                         logger.Debug("Buffers: -");
                     }
                     logger.Debug("BufferLength: " + mBufferSize);
@@ -396,9 +396,18 @@ namespace UNP.Filters {
             // check if adaptation is switched on
             if (mDoAdapt) {
 
-                // store the offsets and gains in the parameters
-                parameters.setValue("NormalizerOffsets", string.Join(" ", mOffsets));
-                parameters.setValue("NormalizerGains", string.Join(" ", mGains));
+                // store the offsets and gains 
+                string normalizerOffsets = "";
+                string normalizerGains = "";
+
+                for(int param = 0; param < mOffsets.Length; param++) {
+                    normalizerOffsets += " " + mOffsets[param].ToString(Parameters.NumberCulture);
+                    normalizerGains += " " + mGains[param].ToString(Parameters.NumberCulture);
+                }
+
+                // update parameters
+                parameters.setValue("NormalizerOffsets", normalizerOffsets);
+                parameters.setValue("NormalizerGains", normalizerGains);
 
             }
 
