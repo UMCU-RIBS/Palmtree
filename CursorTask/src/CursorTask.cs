@@ -30,6 +30,17 @@ namespace CursorTask {
         private const string CLASS_NAME = "CursorTask";
         private const string CONNECTION_LOST_SOUND = "sounds\\focuson.wav";
 
+        private const string TARGET_MODE_DESC = "For every trial, within every column (so within the y, height.. etc), a option (category) is selected given the Target...Mode.\n\n" +
+                                                "With setting 0 the option is selected sequentially as the order in the target matrix column.\n" +
+                                                "With setting 1 to 4, all the distict options (categories) are indexed for each column.\n" +
+                                                "   - Using setting 1, a random category (with replacement) is selected from the list.\n" +
+                                                "   - Using setting 2, the categoryset is repeated in the total targetsequence while randomization within the categoryset is applied.\n" +
+                                                "   - Using setting 3, options from the categoryset are selected sequentially but the first option is selected at random\n" +
+                                                "   - using setting 4, the categoryset is repeated in the total targetsequence where randomization is applied to the full sequence\n\n" +
+                                                " After the selection of an option within each column (given the selectionMode), a row from the target matrix will be selected which is the combination of all the\n" +
+                                                " seperate options. If that option (as a row in the target matrix) does not exists then randomization is repeated. If a randomization stalemate is produced then\n" +
+                                                " an error will be given and more degrees of freedom should be given (either by extending the target options or choosing different Target..Modes.";
+
         private static Logger logger = LogManager.GetLogger(CLASS_NAME);                        // the logger object for the view
         private static Parameters parameters = null;
 
@@ -241,13 +252,13 @@ namespace CursorTask {
 
                 parameters.addParameter<int>(
                     "TargetYMode",
-                    "Targets Y mode",
-                    "0", "3", "1", new string[] { "Target(matrix) order", "Randomize categories", "Randomize cat without replacement", "Sequential categories with rnd start" });
+                    "Targets Y mode\n\n" + TARGET_MODE_DESC,
+                    "0", "3", "4", new string[] { "0. Target(matrix) order", "1. Randomize categories (unbalanced)", "2. Randomize categories (balanced), randomization within set", "3. Sequential categories with rnd start", "4. Randomize categories (balanced), randomization over full sequence" });
 
                 parameters.addParameter<int>(
                     "TargetHeightMode",
-                    "Targets Height mode",
-                    "0", "3", "1", new string[] { "Target(matrix) order", "Randomize categories", "Randomize cat without replacement", "Sequential categories with rnd start" });
+                    "Targets Height mode\n\n" + TARGET_MODE_DESC,
+                    "0", "3", "1", new string[] { "0. Target(matrix) order", "1. Randomize categories (unbalanced)", "2. Randomize categories (balanced), randomization within set", "3. Sequential categories with rnd start", "4. Randomize categories (balanced), randomization over full sequence" });
 
                 parameters.addParameter<RGBColorFloat>(
                     "TargetColorNeutral",
@@ -785,6 +796,11 @@ namespace CursorTask {
 
                                     view.setCursorNormY((input + 1.0) / 2.0);
 
+                                } else if (mTaskInputSignalType == 2) {
+                                    // Constant middle
+
+                                    view.setCursorNormY(0.5);
+
                                 } else if (mTaskInputSignalType == 3) {
                                     // Added input
 
@@ -798,10 +814,6 @@ namespace CursorTask {
                                     //logger.Error("after y: " + y);
                                     view.setCursorNormY(y);
                                     //view.setCursorY(y);
-                                    
-
-                                } else {
-
 
                                 }
 
@@ -1363,6 +1375,10 @@ namespace CursorTask {
 
 	        }
 
+            // create counters for the targetOrder (in case it is needed)
+            int catY_targetOrder = 0;
+            int catHeight_targetOrder = 0;
+
 	        // create the arrays to handle the no replace randomization (in case it is needed)
             List<int> catY_noReplace = new List<int>(0);
             List<int> catHeight_noReplace = new List<int>(0);
@@ -1371,10 +1387,28 @@ namespace CursorTask {
 	        int catY_randStart = rand.Next(0, catY.Count);
 	        int catHeight_randStart = rand.Next(0, catHeight.Count);
 
-	        bool catY_randStart_Added = false;
-	        bool catHeight_randStart_Added = false;
+            // create the arrays to handle the randomized full sequence (in case it is needed)
+            List<int> catY_FullSeq_Randomized = new List<int>(numTargets);
+            List<int> catHeight_FullSeq_Randomized = new List<int>(numTargets);
+            int catYCounter = 0;
+            int catHeightCounter = 0;
+            for (i = 0; i < numTargets; ++i) {
 
-	        // create a target sequence
+                // add the unique values sequential in the full seq lists
+                catY_FullSeq_Randomized.Add(catYCounter);
+                catHeight_FullSeq_Randomized.Add(catHeightCounter);
+
+                // increase the unique list item counters
+                catYCounter++;
+                if (catYCounter == catY_unique.Count)   catYCounter = 0;
+                catHeightCounter++;
+                if (catHeightCounter == catHeight_unique.Count) catHeightCounter = 0;
+
+            }
+            catY_FullSeq_Randomized.Shuffle();
+            catHeight_FullSeq_Randomized.Shuffle();
+
+            // create a target sequence
             List<int> currentY = new List<int>(0);          // initial value should be overwritten, but just in case
             List<int> currentHeight = new List<int>(0);
 
@@ -1382,10 +1416,6 @@ namespace CursorTask {
 	        int generateSafetyCounter = numTargets + 1000;
             i = 0;
             while(i < numTargets) {
-			
-		        // none been added at the beginning of the loop
-		        catY_randStart_Added = false;
-		        catHeight_randStart_Added = false;
 
 		        // count the loops and check for generation
 		        if (generateSafetyCounter-- == 0) {
@@ -1393,66 +1423,83 @@ namespace CursorTask {
 			        return;
 		        }
 
-			
-		        // check Y mode
-		        if (mTargetYMode == 0) {			// 0: Target(matrix) order
-			
-			
-		        } else if (mTargetYMode == 1) {	// 1: randomize categories
-			        currentY = catY[rand.Next(0, catY.Count)];
 
-		        } else if (mTargetYMode == 2) {	// 2:random categories without replacement
-				
-			        if (catY_noReplace.Count == 0) {
+                // check Y mode
+                if (mTargetYMode == 0) {                // 0: Target(matrix) order
 
-				        catY_noReplace = new List<int>(new int[catY.Count]);
-				        for (j = 0; j < catY_noReplace.Count; ++j)	catY_noReplace[j] = j;
-					
-                        catY_noReplace.Shuffle();
-			        }
+                    currentY = new List<int>(1) { catY_targetOrder };
 
-			        currentY = catY[catY_noReplace[catY_noReplace.Count - 1]];
+                } else if (mTargetYMode == 1) {         // 1: randomize categories (unbalanced)
 
-                    catY_noReplace.RemoveAt(catY_noReplace.Count -1);
+                    currentY = catY[rand.Next(0, catY.Count)];
 
-		        } else if (mTargetYMode == 3) {	// 3:sequential categories with rnd start
-			
-			        currentY = catY[catY_randStart];
-			        catY_randStart++;
-			        if (catY_randStart == catY.Count)		catY_randStart = 0;
-			        catY_randStart_Added = true;
+                } else if (mTargetYMode == 2) {         // 2:random categories (balanced, without replacement within categoryset repetitions)
 
-		        }
+                    // refill the list if needed
+                    if (catY_noReplace.Count == 0) {
+                        catY_noReplace = new List<int>(new int[catY.Count]);
+                        for (j = 0; j < catY_noReplace.Count; ++j) catY_noReplace[j] = j;
+                    }
 
-		        // check Height mode
-		        if (mTargetHeightMode == 0) {			// 0: Target(matrix) order
-			
-			
-		        } else if (mTargetHeightMode == 1) {	// 1: randomize categories
-			        currentHeight = catHeight[rand.Next(0, catHeight.Count)];
+                    // shuffle (and reshuffle, this might resolve a impossible combination in the loop)
+                    catY_noReplace.Shuffle();
+
+                    // selection the last option
+                    currentY = catY[catY_noReplace[catY_noReplace.Count - 1]];
+
+                } else if (mTargetYMode == 3) {         // 3:sequential categories with rnd start
+
+                    currentY = catY[catY_randStart];
+
+                } else if (mTargetYMode == 4) {         // 4: categories (balanced, randomized repeated categoryset)
+
+                    // shuffle (and reshuffle, this might resolve a impossible combination in the loop)
+                    catY_FullSeq_Randomized.Shuffle();
+
+                    // select the last option
+                    currentY = catY[catY_FullSeq_Randomized[catY_FullSeq_Randomized.Count - 1]];
+
+                }
+
+                // check Height mode
+                if (mTargetHeightMode == 0) {           // 0: Target(matrix) order
+
+                    currentHeight = new List<int>(1) { catHeight_targetOrder };
+
+                } else if (mTargetHeightMode == 1) {    // 1: randomize categories (unbalanced)
+
+                    currentHeight = catHeight[rand.Next(0, catHeight.Count)];
                     
-		        } else if (mTargetHeightMode == 2) {	// 2:random categories without replacement
-			        if (catHeight_noReplace.Count == 0) {
-				        
-                        catHeight_noReplace = new List<int>(new int[catHeight.Count]);
-				        for (j = 0; j < catHeight_noReplace.Count; ++j)	catHeight_noReplace[j] = j;
-				        
-                        catHeight_noReplace.Shuffle();
+		        } else if (mTargetHeightMode == 2) {    // 2:random categories (balanced, without replacement within categoryset repetitions)
 
+                    // refill the list if needed
+                    if (catHeight_noReplace.Count == 0) {
+                        catHeight_noReplace = new List<int>(new int[catHeight.Count]);
+				        for (j = 0; j < catHeight_noReplace.Count; ++j)	catHeight_noReplace[j] = j;    
 			        }
-			        currentHeight = catHeight[catHeight_noReplace[catHeight_noReplace.Count - 1]];
-                    catHeight_noReplace.RemoveAt(catHeight_noReplace.Count -1);
+
+                    // shuffle (and reshuffle, this might resolve a impossible combination in the loop)
+                    catHeight_noReplace.Shuffle();
+
+                    // selection the last option
+                    currentHeight = catHeight[catHeight_noReplace[catHeight_noReplace.Count - 1]];
 
 		        } else if (mTargetHeightMode == 3) {	// 3:sequential categories with rnd start
+
 			        currentHeight = catHeight[catHeight_randStart];
-			        catHeight_randStart++;
-			        if (catHeight_randStart == catHeight.Count)		catHeight_randStart = 0;
-			        catHeight_randStart_Added = true;
 
-		        }
+                } else if (mTargetHeightMode == 4) {    // 4: categories (balanced, randomized repeated categoryset)
 
-		        // find a target all modes agree on
-		        List<int> currentTarget = new List<int>(new int[mTargets[0].Count]);
+                    // shuffle (and reshuffle, this might resolve a impossible combination in the loop)
+                    catHeight_FullSeq_Randomized.Shuffle();
+
+                    // select the last option
+                    currentHeight = catHeight[catHeight_FullSeq_Randomized[catHeight_FullSeq_Randomized.Count - 1]];
+
+                }
+
+                // find a target all modes agree on
+                List<int> currentTarget = new List<int>(new int[mTargets[0].Count]);
 		        for (j = 0; j < currentTarget.Count; ++j)	currentTarget[j] = j;
                 j = 0;
 		        while(j < (int)currentTarget.Count) {
@@ -1498,20 +1545,37 @@ namespace CursorTask {
 			        // continue to generate the next target
 			        i++;
 
-		        } else {
-			        // no target found, revert sequential counters if needed
 
-			        // revert randstart counters
-			        if (catY_randStart_Added) {
-				        catY_randStart--;
-				        if (catY_randStart < 0 )		    catY_randStart = (int)catY.Count - 1;
-			        }
-			        if (catHeight_randStart_Added) {
-				        catHeight_randStart--;
-				        if (catHeight_randStart < 0 )		catHeight_randStart = (int)catHeight.Count - 1;
-			        }
-			
-		        }
+                    // progress counters depending on the mode
+
+                    if (mTargetYMode == 0) {                                            // 0: Target(matrix) order
+                        catY_targetOrder++;
+                        if (catY_targetOrder == mTargets[0].Count) catY_targetOrder = 0;
+                    } else if (mTargetYMode == 2) {                                     // 2:random categories (balanced, without replacement within categoryset repetitions)
+                        catY_noReplace.RemoveAt(catY_noReplace.Count - 1);                  // remove from the list
+                    } else if (mTargetYMode == 3) {                                     // 3:sequential categories with rnd start
+                        catY_randStart++;
+                        if (catY_randStart == catY.Count) catY_randStart = 0;
+                    } else if (mTargetYMode == 4) {                                // 4: categories (balanced, randomized repeated categoryset)
+                        catY_FullSeq_Randomized.RemoveAt(catY_FullSeq_Randomized.Count - 1);    // remove from the list
+                    }
+
+                    // progress counters depending on the mode
+                    if (mTargetHeightMode == 0) {                                            // 0: Target(matrix) order
+                        catHeight_targetOrder++;
+                        if (catHeight_targetOrder == mTargets[1].Count) catHeight_targetOrder = 0;
+                    } else if (mTargetHeightMode == 2) {                                // 2:random categories (balanced, without replacement within categoryset repetitions)
+                        catHeight_noReplace.RemoveAt(catHeight_noReplace.Count - 1);        // remove from the list
+                    } else if (mTargetHeightMode == 3) {                                // 3:sequential categories with rnd start
+                        catHeight_randStart++;
+                        if (catHeight_randStart == catHeight.Count) catHeight_randStart = 0;
+                    } else if (mTargetHeightMode == 4) {                                // 4: categories (balanced, randomized repeated categoryset)
+                        catHeight_FullSeq_Randomized.RemoveAt(catHeight_FullSeq_Randomized.Count - 1);  // remove from the list
+                    }
+
+
+
+                }
 
 	        }
 
