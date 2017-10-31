@@ -196,18 +196,18 @@ namespace MultiClicksTask {
 	        // draw the blocks
 	        if (showBlocks) {
 
-		        // set the blockcolor to white
-		        glColor3(1f, 1f, 1f);
-
 		        // loop through the blocks
 		        for (int i = 0; i < mBlocks.Count; ++i) {
 
 			        // skip block which are out of display
-			        if (mBlocks[i].mX + mBlocks[i].mWidth < 0)    	continue;
+			        if (mBlocks[i].mX + mBlocks[i].mWidth < 0)    	    continue;
 			        if (mBlocks[i].mX > getContentWidth())				continue;
 
-			        // bind the texture, also if it is 0
-			        // (could use glEnable(GL_TEXTURE_2D) and glDisable(GL_TEXTURE_2D), but binding to zero for untextured block can be used as well)
+                    // set the blockcolor
+                    glColor3(mBlocks[i].mColorR, mBlocks[i].mColorG, mBlocks[i].mColorB);
+                    
+                    // bind the texture, also if it is 0
+                    // (could use glEnable(GL_TEXTURE_2D) and glDisable(GL_TEXTURE_2D), but binding to zero for untextured block can be used as well)
                     glBindTexture2D(mBlocks[i].mTexture);
                     
 			        // draw the block
@@ -420,8 +420,11 @@ namespace MultiClicksTask {
 		            // set the start position
 		            startX -= widthPixels;
 
-		            // create a block object
-		            MultiClicksBlock block = new MultiClicksBlock(startX, y, widthPixels, height);
+                    // create the color (decomposes the 24-bit integer into seperate RGB components
+                    RGBColorFloat color = new RGBColorFloat((int)inTargets[3][inTargetSequence[i]]);
+                    
+                    // create a block object
+                    MultiClicksBlock block = new MultiClicksBlock(startX, y, widthPixels, height, color.getRed(), color.getGreen() , color.getBlue());
                     
 		            // set the block texture (initialized to 0 = no texture)
 		            if (inTargetSequence[i] < (int)blockTextures.Count)
