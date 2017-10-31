@@ -162,11 +162,11 @@ namespace UNP.Core {
                     Application.EnableVisualStyles();
 
                     // start and run the GUI
-                    try {
+                    //try {
                         Application.Run(gui);
-                    } catch (Exception e) {
-                        logger.Error("Exception in GUI: " + e.Message);
-                    }
+                    //} catch (Exception e) {
+                        //logger.Error("Exception in GUI: " + e.Message);
+                    //}
 
                     // message
                     logger.Info("GUI (thread) stopped");
