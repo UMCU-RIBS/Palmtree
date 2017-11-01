@@ -78,7 +78,7 @@ namespace UNP.Filters {
                 "Time window of past data per buffer that enters into statistic",
                 "", "", "9s");
 
-            parameters.addParameter<string>(
+            parameters.addParameter<string>( 
                 "UpdateTrigger",
                 "Expression (global variables can be used, e.g. [feedback] == 0) on which the offset and gain will be updated, the trigger will occur when the expression result changes from 0 to 1.\nUse empty string for continues update.\n\nNote the variablenames in the expressions are case-sensitive",
                 "", "", "[Feedback]==0");

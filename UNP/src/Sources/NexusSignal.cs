@@ -528,7 +528,7 @@ namespace UNP.Sources {
 	    /**
 	     * Source running thread
 	     */
-        private void run() {
+        private void  run() {
 
             // name this thread
             if (Thread.CurrentThread.Name == null) {
@@ -556,8 +556,7 @@ namespace UNP.Sources {
                     lock(lockStarted) {
 
                         // check if we are started
-                        if (started) {
-
+                        if (started) {  
                             // power mode
                             if (deviceProtocol == 5) {
 
@@ -568,13 +567,13 @@ namespace UNP.Sources {
                                 for (int sample = 0; sample < NEXUS_POWERMODE_SAMPLES_PER_PACKAGE; sample++) {              // should be one sample
                                     for (int channel = 0; channel < NEXUS_POWERMODE_CHANNELS_PER_PACKAGE; channel++) {
 
-                                        // TODO: use same method here as in time?
-                                        // check if this input channel must be distributed (+1 because in GUI channels are 1-based)
+                                        // check if this input channel must be distributed and if so, to which output channels (+1 because in GUI channels are 1-based)
                                         int[] inputCh = Extensions.findIndices(inputChannels, (channel + 1));
-                                        if (inputCh.Length == 0) break;
+                                        if (inputCh.Length != 0) {
 
-                                        // transfer the values, minus one after lookup in output channels, because this is user-input, using 1-based channels
-                                        for(int ch = 0; ch < inputCh.Length; ch++)  retSample[outputChannels[inputCh[ch]]-1] = packet.buffer[sample * NEXUS_POWERMODE_CHANNELS_PER_PACKAGE + channel];
+                                            // transfer the values, minus one after lookup in output channels, because this is user-input, using 1-based channels
+                                            for (int ch = 0; ch < inputCh.Length; ch++) retSample[outputChannels[inputCh[ch]] - 1] = packet.buffer[sample * NEXUS_POWERMODE_CHANNELS_PER_PACKAGE + channel];
+                                        }
                                     }
                                 }
 
@@ -605,10 +604,11 @@ namespace UNP.Sources {
                                     for (int channel = 0; channel < NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE; channel++) {
 
                                         // check if this input channel must be distributed (+1 because in GUI channels are 1-based)
-                                        if (Array.IndexOf(inputChUniq, channel + 1) == -1) break;
+                                        if (Array.IndexOf(inputChUniq, channel + 1) != -1) {
 
-                                        // store in input channel buffer
-                                        inputChBuffers[channel][sample] = nexusBuffer[sample * NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE + channel];
+                                            // store in input channel buffer
+                                            inputChBuffers[channel][sample] = nexusBuffer[sample * NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE + channel];
+                                        }
                                     }
                                 }
 
@@ -616,13 +616,13 @@ namespace UNP.Sources {
                                 for (int channel = 0; channel < NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE; channel++) {
 
                                     // check if this buffer contains data (+1 because in GUI channels are 1-based)
-                                    if (Array.IndexOf(inputChUniq, channel + 1) == -1) break;
+                                    if (Array.IndexOf(inputChUniq, channel + 1) != -1) {
 
                                         // init var
                                         double[] powerSpec = null;
 
                                         if (arFilters[channel] != null) {
-                                            
+
                                             // fill buffer of corresponding ARFilter if ARFilter is allowed to run 
                                             if (arFilters[channel].AllowRun) arFilters[channel].Data = inputChBuffers[channel];
 
@@ -639,6 +639,8 @@ namespace UNP.Sources {
                                             for (int i = 0; i < indices.Length; i++) { retSample[outputChannels[indices[i]] - 1] = powerSpec[i]; }
 
                                         } else { logger.Error("ARFilter for input channel " + channel + " is not initialized. Check code."); }
+
+                                    }
                                     
                                 }
 
