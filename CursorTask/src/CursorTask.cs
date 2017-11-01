@@ -74,7 +74,8 @@ namespace CursorTask {
         private int mTaskFirstRunStartDelay = 0;                                    // the first run start delay in sample blocks
         private int mTaskStartDelay = 0;									        // the run start delay in sample blocks
         private int mCountdownTime = 0;                                             // the time the countdown takes in sample blocks
-        private bool mShowScore = false;
+        private bool mShowScore = false;                                            // show the number of hits during the task
+        private bool mShowScoreAtEnd = false;                                     // show the percentage correct at the end of the task
 
         private double mCursorSize = 1f;
         private RGBColorFloat mCursorColorNeutral = new RGBColorFloat(0.8f, 0.8f, 0f);
@@ -196,8 +197,13 @@ namespace CursorTask {
                     "0", "3", "0", new string[] { "Direct input (0 to 1)", "Direct input (-1 to 1)", "Constant middle", "Added input" });
 
                 parameters.addParameter<bool>(
-                    "TaskShowScore",
-                    "Show the score",
+                    "ShowScore",
+                    "Show the number of targets hit during the task",
+                    "0", "1", "0");
+
+                parameters.addParameter<bool>(
+                    "ShowScoreAtEnd",
+                    "Show the percentage of targets hit at the end",
                     "0", "1", "1");
 
                 parameters.addParameter<double>(
@@ -372,8 +378,9 @@ namespace CursorTask {
                 return false;
             }
 
-            // retrieve the score parameter
-            mShowScore = parameters.getValue<bool>("TaskShowScore");
+            // retrieve the score parameters
+            mShowScore = parameters.getValue<bool>("ShowScore");
+            mShowScoreAtEnd = parameters.getValue<bool>("ShowScoreAtEnd");
 
             // retrieve the input signal type
             mTaskInputSignalType = parameters.getValue<int>("TaskInputSignalType");
@@ -1212,9 +1219,14 @@ namespace CursorTask {
 				    view.setCursorMoving(false);		// only if moving is animated, do just in case
 				    view.setTargetVisible(false);
 
+                    // calculate the percentage correct
+                    int percCorrect = (int)Math.Round(((double)mHitScore / mTargetSequence.Count) * 100);
 
                     // show text
-                    view.setText("Done");
+                    if (mShowScoreAtEnd)
+                        view.setText("Done - " + percCorrect + "% hit");
+                    else
+                        view.setText("Done");
 
                     // set duration for text to be shown at the end (3s)
                     mWaitCounter = (int)(MainThread.getPipelineSamplesPerSecond() * 3.0);
@@ -1607,7 +1619,8 @@ namespace CursorTask {
 
 
             // set the UNP task standard settings
-            mShowScore = true;
+            mShowScore = false;
+            mShowScoreAtEnd = true;
             mTaskInputSignalType = 1;
             mTaskInputChannel = 1;
             mTaskFirstRunStartDelay = 5;
