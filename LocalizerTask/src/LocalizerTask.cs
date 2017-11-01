@@ -330,9 +330,6 @@ namespace LocalizerTask {
             currentStimulus = stimulusCounter = 0;
             currentSequence = 1;
             stimulusRemainingTime = -1;
-
-            // stop sources, filters etc through Mainthread
-            MainThread.stop();
         }
 
         public bool isStarted() {
@@ -461,6 +458,10 @@ namespace LocalizerTask {
                         break;
 
                     case TaskStates.End:
+
+                        // stop sources, filters etc through Mainthread, if these are not already stopped
+                        if (MainThread.isStarted()) MainThread.stop();
+
                         break;
 
                     default:
@@ -554,8 +555,8 @@ namespace LocalizerTask {
                     currentSequence = 1;
                     stimulusRemainingTime = -1;
 
-                    // stop sources, filters etc through Mainthread
-                    MainThread.stop();
+                    //
+                    waitCounter = 10;
 
                     break;
 

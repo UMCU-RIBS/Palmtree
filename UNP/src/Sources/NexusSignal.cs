@@ -207,8 +207,13 @@ namespace UNP.Sources {
 
         public bool configure(out PackageFormat output) {
 
+            // reset numOutputChannels
+            numOutputChannels = 0;
+
             // transfer inputOutput information
             inputOutput = parameters.getValue<double[][]>("InputOutput");
+
+            
 
             // if at least one output is defined, retrieve needed information on input and output channels and get maximal value of defined output channels
             if (inputOutput[0].Length >= 1) {
@@ -230,7 +235,7 @@ namespace UNP.Sources {
             }
 
 
-
+            logger.Info("Outputchannels:" + numOutputChannels);
 
             // create the sampleformat (the nexusfilter - regardless if set to power or time domain - will always give one sample per package, thus 1)
             // therefore, the given samplerate is actually the packagerate here
