@@ -1,4 +1,4 @@
-﻿#define DEBUG_TESTDATA                                             // Output test data instead of data from the Nexus, even when connection with Nexus is timed-out
+﻿//#define DEBUG_TESTDATA                                             // Output test data instead of data from the Nexus, even when connection with Nexus is timed-out
 
 using Microsoft.Win32.SafeHandles;
 using NLog;

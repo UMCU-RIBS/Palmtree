@@ -323,8 +323,8 @@ namespace LocalizerTask {
             // log event task is stopped prematurely by user
             Data.logEvent(2, "TaskStop", CLASS_NAME + ";user");
 
-            // set text to display 
-            view.setText(endText);
+            // set text to display
+            if(!string.IsNullOrEmpty(endText)) view.setText(endText);
 
             // reset all relevant variables in case task is restarted
             currentStimulus = stimulusCounter = 0;

@@ -164,8 +164,11 @@ namespace UNP.Core.Helpers {
                         counter++;
                     }
 
-                    // normalize to the frequency resolution. NOTE: outputResult array holds spectral power. If interested in amplitude, take square root.
+                    // normalize spectral power to frequency resolution
                     powerSpectrum[bin] /= evalInBin;
+
+                    // divide by two and take square root to get amplitudes
+                    powerSpectrum[bin] = Math.Sqrt(powerSpectrum[bin] / 2);
                 }
 
                 // output power spectrum estimation

@@ -8,6 +8,7 @@ using UNP.Core.Events;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
 using System.Linq;
+using System.Threading;
 
 namespace UNP.Core.DataIO {
 
@@ -37,7 +38,8 @@ namespace UNP.Core.DataIO {
         private static string fileName = "";                                                    // file name base, used as basis for all files created during life cycle of program    
         private static bool subDirPerRun = false;                                               // whether or not a sub-directory must be made in the session directory to hold the generated files per run
         private static int run = 0;                                                            // contains number of current run
-        
+
+        private static bool running = false;                                                    // flag whether the data class is running (logging/recording)
         private static bool mCensorLogging = false;                                             // flag whether the logging should be censored (zeros should be written instead)
 
         // event logging
@@ -81,6 +83,7 @@ namespace UNP.Core.DataIO {
         private static BinaryWriter dataStreamWriter = null;                                    // writer that writes values to the .dat file
         private static double[] dataStreamValues = null;                                        // holds the values of all data streams that are registered to be logged 
         private static uint dataSampleCounter = 0;                                              // the current row of values being written to the .dat file, acts as id
+        private static uint dataSampleCurrentlyProcessing = 0;                                   // the sampel that is currently being processed by the pipeline
         private static int dataValuePointer = 0;                                                // the current location in the dataStreamValues array that the incoming value is written to
         private static Stopwatch dataStopWatch = new Stopwatch();                               // creates stopwatch to measure time difference between incoming samples
         private static double dataElapsedTime = 0;                                              // amount of time [ms] elapsed since start of proccesing of previous sample
@@ -757,7 +760,9 @@ namespace UNP.Core.DataIO {
 
             // (re)start the stopwatch here, so the elapsed timestamp of the first sample will be the time from start till the first sample coming in
             if ((mLogPipelineInputStreams || mLogFiltersAndApplicationStreams) && numDataStreams > 0)   dataStopWatch.Restart();
-            
+
+            // flag the data class as running (logging/recording)
+            running = true;
 
         }
 
@@ -786,6 +791,7 @@ namespace UNP.Core.DataIO {
                 dataStreamWriter.Close();
                 dataStreamWriter = null;
                 dataStream = null;
+                
             }
 
 
@@ -831,6 +837,9 @@ namespace UNP.Core.DataIO {
             eventStreamWriters.Clear();
             eventStreams.Clear();
 
+            // flag the data class as stopped (logging/recording)
+            running = false;
+
         }
 
         public static void destroy() {
@@ -851,7 +860,8 @@ namespace UNP.Core.DataIO {
          * Called when a sample is at the beginning of the pipeline (from before the first filter module till after the application module)
          **/
         public static void sampleProcessingStart() {
-            
+            if (!running)   return;
+
             // check if data logging is enabled
             if (mLogPipelineInputStreams || mLogFiltersAndApplicationStreams) {
 
@@ -860,9 +870,7 @@ namespace UNP.Core.DataIO {
 
                 // store the milliseconds past since the last sample and reset the data stopwatch timer
                 dataElapsedTime = dataStopWatch.ElapsedTicks / (Stopwatch.Frequency / 1000.0);
-                //logger.Error(dataElapsedTime);
                 dataStopWatch.Restart();
-
             }
 
             // reset the visualization data stream counter
@@ -874,12 +882,15 @@ namespace UNP.Core.DataIO {
          * Called when a sample is at the end of the pipeline (from before the first filter module till after the application module)
          **/
         public static void sampleProcessingEnd() {
+            if (!running)   return;
 
             // debug, show data values being stored
             //logger.Debug("To .dat file: " + dataSampleCounter + " " + dataElapsedTime + " " + string.Join(" |", dataStreamValues));
 
             // TODO: cutting up files based on the maximum size limit
             // TODO? create function that stores data that can be used for both src and dat?
+
+            //logger.Info("Endingprocessing pipeline");
 
             // check if data logging is enabled
             if (mLogPipelineInputStreams || mLogFiltersAndApplicationStreams) {
@@ -920,7 +931,10 @@ namespace UNP.Core.DataIO {
             // advance sample counter, if gets to max value, reset to 0
             if (++dataSampleCounter == uint.MaxValue) dataSampleCounter = 0;
 
-        
+            // clear the array to 0
+            for (int i = 0; i < dataStreamValues.Length; i++) {
+                dataStreamValues[i] = 0;
+            }
 
             // check if data visualization is enabled
             if (mEnableDataVisualization) {
@@ -954,6 +968,7 @@ namespace UNP.Core.DataIO {
          * 
          **/
         public static void logSourceInputValues(double[] sourceStreamValues) {
+            if (!running)   return;
 
             // get time since last source sample
             sourceElapsedTime = sourceStopWatch.ElapsedMilliseconds;
@@ -963,8 +978,9 @@ namespace UNP.Core.DataIO {
             //logger.Debug("To .src file: " + sourceElapsedTime + " " + sourceSampleCounter + " " + string.Join("|", sourceStreamValues));
 
             // integrity check of collected source values
-            if (sourceStreamValues.Length != expectedSamples) logger.Error("Different amount of samples have been logged (" + sourceStreamValues.Length + ") than have been registered (" + expectedSamples + ") for logging, unreliable .src file, check code.");
-            else {
+            if (sourceStreamValues.Length != expectedSamples) {
+                logger.Error("Different amount of samples have been logged (" + sourceStreamValues.Length + ") than have been registered (" + expectedSamples + ") for logging, unreliable .src file, check code.");
+            } else {
 
                 // check if source logging is enabled
                 if (mLogSourceInput) {
@@ -1108,6 +1124,7 @@ namespace UNP.Core.DataIO {
          * 
          **/
         public static void logStreamValue(double value) {
+            if (!running)   return;
             //Console.WriteLine("LogStreamValue");
 
             // check if data logging is enabled
@@ -1137,6 +1154,7 @@ namespace UNP.Core.DataIO {
          * 
          **/
         public static void logEvent(int level, string text, string value) {
+            if (!running)   return;
 
             // check if event logging of this level is allowed
             if (mLogEvents) {
@@ -1189,6 +1207,7 @@ namespace UNP.Core.DataIO {
        * 
        **/
         public static void logPluginDataValue(double[] values, int pluginId) {
+            if (!running)   return;
 
             // check if data logging is enabled
             if (mLogPluginInput) {
@@ -1273,6 +1292,8 @@ namespace UNP.Core.DataIO {
          * 
          **/
         public static void logVisualizationStreamValue(double value) {
+
+            if (!running)   return;
             if (!mEnableDataVisualization) return;
 
             // check if the counter is within the size of the value array
@@ -1298,6 +1319,8 @@ namespace UNP.Core.DataIO {
          * 
          **/
         public static void logVisualizationEvent(int level, string text, string value) {
+            if (!running)   return;
+            if (!mEnableDataVisualization)  return;
 
             VisualizationEventArgs args = new VisualizationEventArgs();
             args.level = level;

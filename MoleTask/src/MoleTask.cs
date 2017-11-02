@@ -1021,8 +1021,8 @@ namespace MoleTask {
                     view.selectRow(mRowID, true);
 
                     // row has been clicked. Check whether it was on a row that contains a mole or not
-                    if (mRowID * holeColumns < mMoleIndex && (mRowID + 1) * holeColumns > mMoleIndex) Data.logEvent(2, "rowClick ", "1");
-                    else Data.logEvent(2, "rowClick ", "0");
+                    if (mRowID * holeColumns < mMoleIndex && (mRowID + 1) * holeColumns > mMoleIndex) Data.logEvent(2, "RowClick ", "1");
+                    else Data.logEvent(2, "RowClick ", "0");
 
                     // 
                     mWaitCounter = mRowSelectedDelay;
