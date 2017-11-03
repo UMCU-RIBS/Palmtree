@@ -28,7 +28,7 @@ namespace UNP.Sources {
         private const int NEXUS_POWERMODE_CHANNELS_PER_PACKAGE = 4;
         private const int NEXUS_POWERMODE_SIGNALFREQUENCY = 5;
         private const int NEXUS_TIMEMODE_SAMPLES_PER_PACKAGE = 40;
-        private const int NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE = 2;
+        private const int NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE = 3;
         private const int NEXUS_TIMEMODE_SIGNALFREQUENCY = 200;      // frequency of the time domain signal provided by the Nexus
 
         private const int DEFAULT_BAUD = SerialPortNet.CBR_115200;   // default Baud-Rate is 112k
@@ -201,9 +201,8 @@ namespace UNP.Sources {
             return OUTPUT_SAMPLE_RATE;
 
         }
-
-
-        
+		
+		
 
         public bool configure(out PackageFormat output) {
 
@@ -212,8 +211,6 @@ namespace UNP.Sources {
 
             // transfer inputOutput information
             inputOutput = parameters.getValue<double[][]>("InputOutput");
-
-            
 
             // if at least one output is defined, retrieve needed information on input and output channels and get maximal value of defined output channels
             if (inputOutput[0].Length >= 1) {
@@ -233,10 +230,7 @@ namespace UNP.Sources {
                 output = null;
                 return false;
             }
-
-
-            logger.Info("Outputchannels:" + numOutputChannels);
-
+			
             // create the sampleformat (the nexusfilter - regardless if set to power or time domain - will always give one sample per package, thus 1)
             // therefore, the given samplerate is actually the packagerate here
             output = new PackageFormat(numOutputChannels, 1, OUTPUT_SAMPLE_RATE);
@@ -588,12 +582,6 @@ namespace UNP.Sources {
 
                             // time mode
                             if (deviceProtocol == 6) {
-
-                                // HACK
-                                //for (int i = 0; i < numberOfInputValues; i++) {
-                                //    if (packet.buffer[i] == 0) logger.Error("Value is zero");
-                                //    logger.Info("going into filter: " + packet.buffer[i]);
-                                //}
 
                                 // reset output array and cast buffer to doubles to allow ARFilter to work 
                                 double[] retSample = new double[numOutputChannels];
@@ -1002,12 +990,6 @@ namespace UNP.Sources {
                                 // pick the values from the buffer
                                 ushort[] values = new ushort[numberOfInputValues];
                                 Array.Copy(packet.buffer, 0, values, 0, numberOfInputValues);
-
-                                // HACK
-                                //for (int i = 0; i < numberOfInputValues; i++) {
-                                //    if (packet.buffer[i] == 0) logger.Error("Value is zero");
-                                //    logger.Info("going into .src: " + packet.buffer[i]);
-                                //}
 
                                 // log the values as source input before timing correction
                                 Data.logSourceInputValues(values);
