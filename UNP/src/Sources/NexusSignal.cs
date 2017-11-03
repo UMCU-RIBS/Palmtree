@@ -25,7 +25,7 @@ namespace UNP.Sources {
 
         private const double OUTPUT_SAMPLE_RATE = 5;                                      // hold the amount of samples per second that the source outputs (used by the mainthead to convert seconds to number of samples)
         private const int NEXUS_POWERMODE_SAMPLES_PER_PACKAGE = 1;
-        private const int NEXUS_POWERMODE_CHANNELS_PER_PACKAGE = 4;
+        private const int NEXUS_POWERMODE_CHANNELS_PER_PACKAGE = 5;
         private const int NEXUS_POWERMODE_SIGNALFREQUENCY = 5;
         private const int NEXUS_TIMEMODE_SAMPLES_PER_PACKAGE = 40;
         private const int NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE = 3;
