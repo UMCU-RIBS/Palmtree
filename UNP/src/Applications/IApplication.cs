@@ -16,7 +16,6 @@ namespace UNP.Applications {
         void start();
         void stop();
         bool isStarted();
-
         void process(double[] input);
 
         void destroy();

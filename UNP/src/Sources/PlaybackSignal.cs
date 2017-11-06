@@ -628,7 +628,7 @@ namespace UNP.Sources {
                             logger.Info("Playback of the file is finished, calling stop.");
 
                             // send a stop signal to the mainThread
-                            MainThread.stop();
+                            MainThread.stop(false);
 
 
                         } else {

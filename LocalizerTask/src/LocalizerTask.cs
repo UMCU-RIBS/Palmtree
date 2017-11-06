@@ -30,8 +30,8 @@ namespace LocalizerTask {
         private bool mConnectionWasLost = false;						// flag to hold whether the connection has been lost (should be reset after being re-connected)
         private System.Timers.Timer mConnectionLostSoundTimer = null;       // timer to play the connection lost sound on
 
-        private TaskStates taskState = TaskStates.Start;                    // holds current task state
-        private TaskStates previousTaskState = TaskStates.Start;            // holds previous task state
+        private TaskStates taskState = TaskStates.None;                     // holds current task state
+        private TaskStates previousTaskState = TaskStates.None;             // holds previous task state
         private int waitCounter = 0;                                        // counter for task state Start and Wait, used to determine time left in this state
 
         // view
@@ -58,6 +58,7 @@ namespace LocalizerTask {
         private string waitText = "";                                       // text presented to participant during waiting
         private string endText = "";                                        // text presented to participant at end of task
         private enum TaskStates : int {                                     // taskstates
+            None,
             Start,
             Run,
             Wait,
@@ -460,12 +461,17 @@ namespace LocalizerTask {
                     case TaskStates.End:
 
                         // stop sources, filters etc through Mainthread, if these are not already stopped
-                        if (MainThread.isStarted()) MainThread.stop();
+                        if (MainThread.isStarted())     MainThread.stop(false);
+
+                        break;
+
+
+                    case TaskStates.None:
 
                         break;
 
                     default:
-                        logger.Info("Non-existing task state reached. Task will be stopped. Check code.");
+                        logger.Error("Non-existing task state reached. Task will be stopped. Check code.");
                         stop();
                         break;
 

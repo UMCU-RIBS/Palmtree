@@ -1,6 +1,7 @@
 ﻿using NLog;
 using System;
 using UNP.Core;
+using UNP.Core.DataIO;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
 
@@ -342,9 +343,10 @@ namespace UNP.Filters {
 
                     // check if proportion of comparison between keysequence and ringbuffer is met
                     // set the KeySequenceActive global variable accordingly
-                    if ((double)mCompareCounter / mSequence.Length >= mProportionCorrect)
+                    if ((double)mCompareCounter / mSequence.Length >= mProportionCorrect) {
                         Globals.setValue<bool>("KeySequenceActive", "1");
-                    else
+                        Data.logEvent(1, "KeySequenceFound", this.filterName);
+                    } else
                         Globals.setValue<bool>("KeySequenceActive", "0");
 
                     // TODO: setValue is not always necessary, only call setValue if the value (locally stored) changes

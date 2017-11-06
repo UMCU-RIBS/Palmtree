@@ -311,7 +311,7 @@ namespace UNP.GUI {
         private void btnStop_Click(object sender, EventArgs e) {
             
             // stop the system
-            MainThread.stop();
+            MainThread.stop(true);
 
             // update the main information
             updateMainInformation();

@@ -21,7 +21,7 @@ namespace UNP.Sources {
 
         // fundamentals
         private const string CLASS_NAME = "NexusSignal";
-        private const int CLASS_VERSION = 2;
+        private const int CLASS_VERSION = 3;
 
         private const double OUTPUT_SAMPLE_RATE = 5;                                      // hold the amount of samples per second that the source outputs (used by the mainthead to convert seconds to number of samples)
         private const int NEXUS_POWERMODE_SAMPLES_PER_PACKAGE = 1;
@@ -377,7 +377,6 @@ namespace UNP.Sources {
         }
 
         public void initialize() {
-            //Console.WriteLine("init dingen");
             
             // lock for thread safety
             lock (lockSerialPort) {
@@ -523,7 +522,7 @@ namespace UNP.Sources {
 	    public bool isRunning() {
 		    return running;
 	    }
-
+        
 	    /**
 	     * Source running thread
 	     */
@@ -542,17 +541,17 @@ namespace UNP.Sources {
 
                 // lock for thread safety
                 lock (lockSerialPort) {
-
-                    // check if we should start reading (after initialization)
-                    if (readCom) {
-
-                        // read the channels
-                        readChannels(deviceProtocol);
-
-                    }
-
+                    
                     // lock for thread safety
                     lock(lockStarted) {
+
+                        // check if we should start reading (after initialization)
+                        if (readCom) {
+
+                            // read the channels
+                            readChannels(deviceProtocol);
+
+                        }
 
                         // check if we are started
                         if (started) {  
@@ -915,7 +914,6 @@ namespace UNP.Sources {
             // check if the packet timed out or the packet is just finished
             if (nexusPacketTimedOut) {
                 // timed out
-
             
                     // message
                     logger.Warn("Source packet timed out");
@@ -967,33 +965,30 @@ namespace UNP.Sources {
                 // check if the packet was not corrupt
                 if (!packetIsCorrupt) {
                     
-                    // lock for thread safety
-                    lock (lockStarted) {
+                    // check if we are started
+                    if (started) {
+                            
+                        // check if there are input values to log (depends mainly on the device protocol)
+                        if (numberOfInputValues > 0) {
 
-                        // check if we are started
-                        if (started) {
+                            // if in debug mode, inject test data in buffer. If test data is set to random, generate new data for packet. If set to sinus, keep using same packet because the generated signals are repetitive in nature
+                            #if (DEBUG_TESTDATA)
 
-                            // check if there are input values to log (depends mainly on the device protocol)
-                            if (numberOfInputValues > 0) {
+                                if (debSig == DebugSignalType.Rand) {
+                                    testData = genDebugData();
+                                    testDataShort = Array.ConvertAll(testData, x => (ushort)x);
+                                }
+                                Array.Copy(testDataShort, 0, packet.buffer, 0, numberOfInputValues);
 
-                                // if in debug mode, inject test data in buffer. If test data is set to random, generate new data for packet. If set to sinus, keep using same packet because the generated signals are repetitive in nature
-                                #if (DEBUG_TESTDATA)
+                            #endif
 
-                                    if (debSig == DebugSignalType.Rand) {
-                                        testData = genDebugData();
-                                        testDataShort = Array.ConvertAll(testData, x => (ushort)x);
-                                    }
-                                    Array.Copy(testDataShort, 0, packet.buffer, 0, numberOfInputValues);
+                            // pick the values from the buffer
+                            ushort[] values = new ushort[numberOfInputValues];
+                            Array.Copy(packet.buffer, 0, values, 0, numberOfInputValues);
+                            
+                            // log the values as source input before timing correction
+                            Data.logSourceInputValues(values);
 
-                                #endif
-
-                                // pick the values from the buffer
-                                ushort[] values = new ushort[numberOfInputValues];
-                                Array.Copy(packet.buffer, 0, values, 0, numberOfInputValues);
-
-                                // log the values as source input before timing correction
-                                Data.logSourceInputValues(values);
-                            }
                         }
                     }
 
@@ -1039,14 +1034,14 @@ namespace UNP.Sources {
                         Thread.Sleep(200 - (int)time_diff);
 
                     }
-                    
+
                 }
 
             }
 
             // packet finished, set to start-state
             packet.readstate = PACKET_START;
-
+            
         }
 
         /* reads max. <size> bytes from the serial port,

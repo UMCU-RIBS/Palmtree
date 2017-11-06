@@ -31,6 +31,7 @@ namespace UNP.Core {
 
         private static bool running = false;				                        // flag to define if the UNP thread is running (setting to false will stop the experiment thread) 
         private static bool process = false;                                        // flag to define if the thread is allowed to process samples
+        private static bool stopDataDelegateFlag = false;                           // stop data delegate flag (if true will stop the data class in the main loop)
 
         private static bool startupConfigAndInit = false;
         private static bool startupStartRun = false;
@@ -79,7 +80,6 @@ namespace UNP.Core {
             // create a source
             try {
                 source = (ISource)Activator.CreateInstance(sourceType);
-                //Console.WriteLine("Created source instance of " + sourceType.Name);
             } catch (Exception) {
                 logger.Error("Unable to create a source instance of '" + sourceType.Name + "'");
             }
@@ -97,7 +97,6 @@ namespace UNP.Core {
             // create the application
             try {
                 application = (IApplication)Activator.CreateInstance(applicationType);
-                //Console.WriteLine("Created application instance of " + applicationType.Name);
             } catch (Exception e) {
                 logger.Error("Unable to create an application instance of '" + applicationType.Name + "' (" + e.Message + ")");
             }
@@ -297,18 +296,15 @@ namespace UNP.Core {
                 
                 // start the data
                 Data.start();
-
+                
                 // start the plugins
-                for (int i = 0; i < plugins.Count; i++)   plugins[i].start();
+                for (int i = 0; i < plugins.Count; i++)     plugins[i].start();
 
                 // start the application
-                if (application != null)    application.start();
+                if (application != null)                    application.start();
 
                 // start the filters
-                for (int i = 0; i < filters.Count; i++)   filters[i].start();
-                
-                // allow the main loop to process samples
-                process = true;
+                for (int i = 0; i < filters.Count; i++)     filters[i].start();
 
                 // clear the samplesbuffer counter
                 lock (sampleBuffer.SyncRoot) {
@@ -318,14 +314,17 @@ namespace UNP.Core {
                     numSamplesDiscarded = 0;
                 }
 
+                // allow the main loop to process samples
+                process = true;
+
                 // interrupt the 'noproc' waitloop , allowing the loop to continue (in case it was waiting the sample interval)
                 // casing it to fall into the 'proc' loop
                 loopManualResetEvent.Set();
-
+                
                 // start the source
                 // (start last so everything set to receive and process samples)
                 if (source != null)     source.start();
-
+                
                 // flag the system as started
                 started = true;
 
@@ -336,8 +335,8 @@ namespace UNP.Core {
         /**
          * Stop the system (source, filters and application)
          */
-        public static void stop() {
-
+        public static void stop(bool stopDataImmediate) {
+            
             // lock for thread safety
             lock(lockStarted) {
 
@@ -360,8 +359,18 @@ namespace UNP.Core {
                     // stop the plugins
                     for (int i = 0; i < plugins.Count; i++)     plugins[i].stop();
 
-                    // stop the data
-                    Data.stop();
+                    // check if the data class should be stopped immediately or later (by the loop)
+                    if (stopDataImmediate) {
+
+                        // stop the data immediately
+                        Data.stop();
+
+                    } else {
+
+                        // set a flag to stop the data class later
+                        stopDataDelegateFlag = true;
+
+                    }
 
                     // flag the system as stopped
                     started = false;
@@ -371,6 +380,7 @@ namespace UNP.Core {
             }
 
 	    }
+        
 
         /**
          * Returns whether the system is started
@@ -474,11 +484,11 @@ namespace UNP.Core {
                     // check if we are processing samples
                     if (process) {
                         // processing
-
+                        
                         // see if there samples in the queue, pick the sample for processing
                         sample = null;
                         lock(sampleBuffer.SyncRoot) {
-
+                            
                             // performance watch
                             if (Stopwatch.GetTimestamp() > nextOutputTime) {
 
@@ -535,7 +545,7 @@ namespace UNP.Core {
 
                         // check if there is a sample to process
                         if (sample != null) {
-
+                            
                             double[] output = null;
 
                             // Announce the sample at the beginning of the pipeline
@@ -568,10 +578,10 @@ namespace UNP.Core {
                             for (int i = 0; i < plugins.Count; i++) {
                                 plugins[i].postFiltersProcess();
                             }
-
+                            
                             // process the sample (application)
                             if (application != null)    application.process(sample);
-
+                            
                             // Announce the sample at the end of the pipeline
                             Data.sampleProcessingEnd();
                             
@@ -610,12 +620,23 @@ namespace UNP.Core {
 
                     }
                     
+                }   // end lock
+
+                // check if a stop delegate wants the processing to stop
+                if (stopDataDelegateFlag) {
+
+                    // stop the data
+                    Data.stop();
+
+                    // reset flag
+                    stopDataDelegateFlag = false;
+
                 }
 
-            }
+            }   // end loop (running)
 
             // stop the source, filter, view and data (if these were running)
-            stop();
+            stop(true);
 
             // destroy the source
             if (source != null) {
