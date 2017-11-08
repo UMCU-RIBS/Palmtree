@@ -906,7 +906,7 @@ namespace CursorTask {
                             } else {
 
                                 // stop the run, this will also call stopTask()
-                                MainThread.stop();
+                                MainThread.stop(false);
                             }
 
                         } else

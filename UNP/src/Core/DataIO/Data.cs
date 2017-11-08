@@ -803,9 +803,9 @@ namespace UNP.Core.DataIO {
                             // log the data stop event
                             logEvent(1, "DataStop", "");
 
-                            // if the .src and .dat files do not contain equal amount of sample id's
-                            if (sourceSampleCounter != dataSampleCounter) {
-                                logger.Error("source and data sample counter do not match");
+                            // if the .src and .dat files do not contain equal amount of sample id's and we are writing data to src
+                            if ((sourceSampleCounter != dataSampleCounter) & (mLogSourceInput && numSourceInputStreams > 0)) {
+                                // logger.Error("source and data sample counter do not match");
                             }
 
                             // close the data stream file
