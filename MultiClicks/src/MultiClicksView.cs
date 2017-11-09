@@ -203,14 +203,26 @@ namespace MultiClicksTask {
 			        if (mBlocks[i].mX + mBlocks[i].mWidth < 0)    	    continue;
 			        if (mBlocks[i].mX > getContentWidth())				continue;
 
-                    // set the blockcolor
-                    glColor3(mBlocks[i].mColorR, mBlocks[i].mColorG, mBlocks[i].mColorB);
-                    
-                    // bind the texture, also if it is 0
-                    // (could use glEnable(GL_TEXTURE_2D) and glDisable(GL_TEXTURE_2D), but binding to zero for untextured block can be used as well)
-                    glBindTexture2D(mBlocks[i].mTexture);
-                    
-			        // draw the block
+                    // check if there is a texture set
+                    if (mBlocks[i].mTexture == 0) {
+                        // no texture
+
+                        // set the blockcolor
+                        glColor3(mBlocks[i].mColorR, mBlocks[i].mColorG, mBlocks[i].mColorB);
+
+                    } else {
+                        // texture
+
+                        // set the blockcolor
+                        glColor3(1f, 1f, 1f);
+
+                        // bind the texture, also if it is 0
+                        // (could use glEnable(GL_TEXTURE_2D) and glDisable(GL_TEXTURE_2D), but binding to zero for untextured block can be used as well)
+                        glBindTexture2D(mBlocks[i].mTexture);
+
+                    }
+
+                    // draw the block
                     glBeginTriangles();
 	
 				        // vertex 0

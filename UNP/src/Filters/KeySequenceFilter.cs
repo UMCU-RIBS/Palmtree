@@ -19,6 +19,9 @@ namespace UNP.Filters {
         private BoolRingBuffer mDataBuffer = null;                  // a boolean ringbuffer to hold the last samples in
         private int mCompareCounter = 0;
 
+        private bool keySequenceActive = false;
+        private bool keySequenceWasPressed = false;
+
         public KeySequenceFilter(string filterName) {
 
             // set class version
@@ -282,6 +285,8 @@ namespace UNP.Filters {
 
             // set the key-sequence as not active
             Globals.setValue<bool>("KeySequenceActive", "0");
+            keySequenceActive = false;
+            keySequenceWasPressed = false;
 
             // check if the filter is enabled
             if (mEnableFilter) {
@@ -297,7 +302,9 @@ namespace UNP.Filters {
 
             // set the key-sequence as not active
             Globals.setValue<bool>("KeySequenceActive", "0");
-            
+            keySequenceActive = false;
+            keySequenceWasPressed = false;
+
         }
 
         public void stop() {
@@ -343,18 +350,33 @@ namespace UNP.Filters {
 
                     // check if proportion of comparison between keysequence and ringbuffer is met
                     // set the KeySequenceActive global variable accordingly
-                    if ((double)mCompareCounter / mSequence.Length >= mProportionCorrect) {
-                        Globals.setValue<bool>("KeySequenceActive", "1");
-                        Data.logEvent(1, "KeySequence", this.filterName);
-                    } else
-                        Globals.setValue<bool>("KeySequenceActive", "0");
+                    if ((double)mCompareCounter / mSequence.Length >= mProportionCorrect)
+                        keySequenceActive = true;
+                    else
+                        keySequenceActive = false;
 
-                    // TODO: setValue is not always necessary, only call setValue if the value (locally stored) changes
+                    // check if the escapestate has changed
+                    if (keySequenceActive != keySequenceWasPressed) {
+
+                        // set the global
+                        Globals.setValue<bool>("KeySequenceActive", (keySequenceActive ? "1" : "0"));
+
+                        // log if the escapestate has changed
+                        Data.logEvent(1, "KeySequenceChange", (keySequenceActive) ? "1" : "0");
+
+                        // update the flag
+                        keySequenceWasPressed = keySequenceActive;
+
+                    }
+
+                    
 
                 } else {
 
-                    Globals.setValue<bool>("KeySequenceActive", "0");
                     // TODO: setValue is not always necessary, only call setValue if the value (locally stored) changes
+                    Globals.setValue<bool>("KeySequenceActive", "0");
+                    keySequenceActive = false;
+                    keySequenceWasPressed = false;
 
                 }
 
