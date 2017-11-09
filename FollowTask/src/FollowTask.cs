@@ -65,13 +65,8 @@ namespace FollowTask {
         //private int mFullscreenMonitor = 0;
 
         private double mCursorSize = 1f;
-        private int mCursorColorRule = 0;
         private RGBColorFloat mCursorColorMiss = new RGBColorFloat(0.8f, 0f, 0f);
         private RGBColorFloat mCursorColorHit = new RGBColorFloat(0.8f, 0.8f, 0f);
-        private int mCursorColorHitTime = 0;
-        private RGBColorFloat mCursorColorEscape = new RGBColorFloat(0.8f, 0f, 0.8f);
-        private int mCursorColorEscapeTime = 0;
-        private int mCursorColorTimer = 0;
 
 		private int[] fixedTargetSequence = new int[0];				                // the target sequence (input parameter)
 		private int numTargets = 0;
@@ -100,14 +95,11 @@ namespace FollowTask {
         private int mWaitCounter = 0;
         private int mCountdownCounter = 0;											// the countdown timer
         private int mHitScore = 0;												    // the score of the cursor hitting a block (in number of samples)
-        private double wasInput = -1;                                                  // keep track of previous input
 
         private TaskStates taskState = TaskStates.Wait;
         private TaskStates previousTaskState = TaskStates.Wait;
         private int mCurrentBlock = FollowView.noBlock;                             // the current block which is in line with X of the cursor (so the middle)
         private int mPreviousBlock = FollowView.noBlock;                            // the previous block that was in line with X of the cursor
-        //private bool mIsCursorInCurrentBlock = false;                              // whether the cursor is inside the current block
-        //private bool mWasCursorInCurrentBlock = false;                              // whether the cursor was inside the current blockprivate bool mWasCursorInCurrentBlock = false;                              // whether the cursor was inside the current block
 
 
         private float[] storedBlockPositions = null;                                // to store the previous block positions while suspended
@@ -213,12 +205,7 @@ namespace FollowTask {
                 "CursorSize",
                 "Cursor size radius in percentage of the screen height",
                 "0.0", "50.0", "4.0");
-
-            parameters.addParameter<int>(
-                "CursorColorRule",
-                "Cursor color rule",
-                "0", "2", "0", new string[] { "Hitcolor on target hit (normal)", "Hitcolor on input", "Hitcolor on input - Escape color on escape" });
-
+            
             parameters.addParameter<RGBColorFloat>(
                 "CursorColorMiss",
                 "Cursor color when missing",
@@ -233,17 +220,7 @@ namespace FollowTask {
                 "CursorColorHitTime",
                 "Time that the cursor remains in hit color",
                 "0", "", "2s");
-
-            parameters.addParameter<RGBColorFloat>(
-                "CursorColorEscape",
-                "Cursor color when hitting",
-                "", "", "170;0;170");
-
-            parameters.addParameter<double>(
-                "CursorColorEscapeTime",
-                "Time that the cursor remains in escape color",
-                "0", "", "2s");
-
+            
             parameters.addParameter<double[][]>(
                 "Targets",
                 "Target positions and widths in percentage coordinates\n\nY_perc: The y position of the block on the screen (in percentages of the screen height), note that the value specifies where the middle of the block will be.\nHeight_perc: The height of the block on the screen (in percentages of the screen height)\nWidth_secs: The width of the target block in seconds",
@@ -376,13 +353,9 @@ namespace FollowTask {
             
             // retrieve cursor parameters
             mCursorSize = newParameters.getValue<double>("CursorSize");
-            mCursorColorRule = newParameters.getValue<int>("CursorColorRule");
             mCursorColorMiss = newParameters.getValue<RGBColorFloat>("CursorColorMiss");
             mCursorColorHit = newParameters.getValue<RGBColorFloat>("CursorColorHit");
-            mCursorColorHitTime = newParameters.getValueInSamples("CursorColorHitTime");
-            mCursorColorEscape = newParameters.getValue<RGBColorFloat>("CursorColorEscape");
-            mCursorColorEscapeTime = newParameters.getValueInSamples("CursorColorEscapeTime");
-
+            
             // retrieve target settings
             double[][] parTargets = newParameters.getValue<double[][]>("Targets");
             if (parTargets.Length != 3 || parTargets[0].Length < 1) {
@@ -519,12 +492,10 @@ namespace FollowTask {
             view.setFixation(false);                                            // hide the fixation
             view.setCountDown(-1);                                              // hide the countdown
 
-            // check if the cursor rule is set to hitcolor on hit, if so
+            // set the cursor rule to hitcolor on hit, if so
             // then make the color automatically determined in the Scenethread by it's variable 'mCursorInCurrentBlock',
             // this makes the color update quickly, since the scenethread is executed at a higher frequency
-            if (mCursorColorRule == 0) {
-                view.setCursorColorSetting(3);
-            }
+            view.setCursorColorSetting(3);
 
             // start the scene thread
             view.start();
@@ -762,86 +733,6 @@ namespace FollowTask {
 
 			            } else {
 				            // not the end of the task
-
-				            // check if the color is based on input
-				            if (mCursorColorRule == 1 || mCursorColorRule == 2) {
-					            // 1. Hitcolor on input or 
-					            // 2. Hitcolor on input - Escape color on escape
-
-					            // check if there is time on the timer left
-					            if (mCursorColorTimer > 0) {
-
-						            // count back the timer
-						            mCursorColorTimer--;
-
-						            // set the color back to miss if the timer is finished
-						            if (mCursorColorTimer == 0)
-							            view.setCursorColorSetting(0);
-
-					            }
-
-					
-					            // check the color rule
-					            if (mCursorColorRule == 2) {
-						            // 2. Hitcolor on input - Escape color on escape
-
-                                    // only in non UNP-menu tasks
-                                    if (!mUNPMenuTask) {
-                                        
-
-						                // check if a keysequence input comes in or a click input comes in
-						                if (Globals.getValue<bool>("KeySequenceActive")) {
-
-                                            // set the color
-                                            view.setCursorColorSetting(2);
-
-							                // set the timer
-							                if (mCursorColorEscapeTime == 0)	mCursorColorTimer = 1;
-							                else								mCursorColorTimer = mCursorColorEscapeTime;
-
-						                } else {
-
-                                            // log if current state of ball has changed
-                                            if (wasInput != input) Data.logEvent(2, "BallState", input.ToString());
-                                            wasInput = input;
-
-                                            // check if a click was made
-                                            if (input == 1) {
-
-                                                // set the color
-                                                view.setCursorColorSetting(1);
-
-                                                // set the timer
-                                                if (mCursorColorHitTime == 0)	mCursorColorTimer = 1;
-								                else							mCursorColorTimer = mCursorColorHitTime;
-
-							                }
-
-						                }
-                                        
-                                    }
-
-					            } else {
-                                    // 1. Hitcolor on input
-
-                                    // log if current state of ball has changed
-                                    if (wasInput != input) Data.logEvent(2, "BallState", input.ToString());
-                                    wasInput = input;
-
-                                    // check if a click was made
-                                    if (input == 1) {
-						
-							            // set the color
-							            view.setCursorColorSetting(1);
-
-							            // set the timer
-							            if (mCursorColorHitTime == 0)   mCursorColorTimer = 1;
-							            else							mCursorColorTimer = mCursorColorHitTime;
-
-						            }
-					            }
-
-				            }
 
 				            // retrieve the current block and if cursor is in this block
 				            mCurrentBlock = view.getCurrentBlock();
@@ -1496,12 +1387,9 @@ namespace FollowTask {
             newParameters.setValue("TaskFirstRunStartDelay", "2s");
             newParameters.setValue("TaskStartDelay", "2s");
             newParameters.setValue("CursorSize", 4.0);
-            newParameters.setValue("CursorColorRule", 0);
             newParameters.setValue("CursorColorMiss", "204;0;0");
             newParameters.setValue("CursorColorHit", "204;204;0");
             newParameters.setValue("CursorColorHitTime", 0.0);
-            newParameters.setValue("CursorColorEscape", "170;0;170");
-            newParameters.setValue("CursorColorEscapeTime", 0.0);
             newParameters.setValue("NumberTargets", 70);
             newParameters.setValue("TargetSpeed", 120);
             newParameters.setValue("TargetYMode", 3);

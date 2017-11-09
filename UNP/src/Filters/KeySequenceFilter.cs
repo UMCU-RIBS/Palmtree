@@ -345,7 +345,7 @@ namespace UNP.Filters {
                     // set the KeySequenceActive global variable accordingly
                     if ((double)mCompareCounter / mSequence.Length >= mProportionCorrect) {
                         Globals.setValue<bool>("KeySequenceActive", "1");
-                        Data.logEvent(1, "KeySequenceFound", this.filterName);
+                        Data.logEvent(1, "KeySequence", this.filterName);
                     } else
                         Globals.setValue<bool>("KeySequenceActive", "0");
 

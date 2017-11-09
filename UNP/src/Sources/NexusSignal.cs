@@ -89,14 +89,8 @@ namespace UNP.Sources {
 
         // time-power domain transform variables
         private int modelOrder = 0;
-        private int amountofBins = 0;
-        private double lowestBinCenter = 0;
-        private double binWidth = 0;
-        private int evaluationsPerBin = 0;
 
         private double[][] inputOutput = null;
-        double[] testSignal1 = null;
-        double[] testSignal2 = null;
 
         private ARFilter[] arFilters = null;
 

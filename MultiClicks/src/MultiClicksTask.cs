@@ -89,7 +89,7 @@ namespace MultiClicksTask {
         private int mWaitCounter = 0;
         private int mCountdownCounter = 0;											// the countdown timer
         private int mHitScore = 0;												    // the score of the cursor hitting a block (in number of samples)
-        private double wasInput = -1;                                                  // keep track of previous input
+        private bool wasInput = false;                                                  // keep track of previous input
 
         private TaskStates taskState = TaskStates.Wait;
         private TaskStates previousTaskState = TaskStates.Wait;
@@ -97,6 +97,8 @@ namespace MultiClicksTask {
         private int mPreviousBlock = MultiClicksView.noBlock;                            // the previous block that was in line with X of the cursor
         //private bool mIsCursorInCurrentBlock = false;                              // whether the cursor is inside the current block
         //private bool mWasCursorInCurrentBlock = false;                              // whether the cursor was inside the current blockprivate bool mWasCursorInCurrentBlock = false;                              // whether the cursor was inside the current block
+        private bool mKeySequenceActive = false;                        // flag to hold whether the keysequence is active
+        private bool mKeySequenceWasPressed = false;
 
 
         private float[] storedBlockPositions = null;                                // to store the previous block positions while suspended
@@ -795,17 +797,31 @@ namespace MultiClicksTask {
 
 					            }
 
-					
-					            // check the color rule
-					            if (mCursorColorRule == 2) {
-						            // 2. Hitcolor on input - Escape color on escape
+
+                                // log if current clickstate has changed
+                                if (wasInput != (input == 1)) {
+                                    Data.logEvent(2, "ClickChange", (input == 1) ? "1" : "0");
+                                    wasInput = (input == 1);
+                                }
+
+                                // check the color rule
+                                if (mCursorColorRule == 2) {
+                                    // 2. Hitcolor on input - Escape color on escape
 
                                     // only in non UNP-menu tasks
                                     if (!mUNPMenuTask) {
-                                        
 
-						                // check if a keysequence input comes in or a click input comes in
-						                if (Globals.getValue<bool>("KeySequenceActive")) {
+                                        // retrieve the keysequenceactive global
+                                        mKeySequenceActive = Globals.getValue<bool>("KeySequenceActive");
+
+                                        // log if the escapestate has changed
+                                        if (mKeySequenceActive != mKeySequenceWasPressed) {
+                                            Data.logEvent(2, "EscapeChange", (mKeySequenceActive) ? "1" : "0");
+                                            mKeySequenceWasPressed = mKeySequenceActive;
+                                        }
+
+                                        // check if a keysequence input comes in or a click input comes in
+                                        if (mKeySequenceActive) {
 
                                             // set the color
                                             view.setCursorColorSetting(2);
@@ -815,10 +831,6 @@ namespace MultiClicksTask {
 							                else								mCursorColorTimer = mCursorColorEscapeTime;
 
 						                } else {
-
-                                            // log if current state of ball has changed
-                                            if (wasInput != input) Data.logEvent(2, "BallState", input.ToString());
-                                            wasInput = input;
 
                                             // check if a click was made
                                             if (input == 1) {
@@ -838,10 +850,6 @@ namespace MultiClicksTask {
 
 					            } else {
                                     // 1. Hitcolor on input
-
-                                    // log if current state of ball has changed
-                                    if (wasInput != input) Data.logEvent(2, "BallState", input.ToString());
-                                    wasInput = input;
 
                                     // check if a click was made
                                     if (input == 1) {

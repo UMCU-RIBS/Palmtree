@@ -83,7 +83,6 @@ namespace UNP.Core.DataIO {
         private static BinaryWriter dataStreamWriter = null;                                    // writer that writes values to the .dat file
         private static double[] dataStreamValues = null;                                        // holds the values of all data streams that are registered to be logged 
         private static uint dataSampleCounter = 0;                                              // the current row of values being written to the .dat file, acts as id
-        private static uint dataSampleCurrentlyProcessing = 0;                                   // the sampel that is currently being processed by the pipeline
         private static int dataValuePointer = 0;                                                // the current location in the dataStreamValues array that the incoming value is written to
         private static Stopwatch dataStopWatch = new Stopwatch();                               // creates stopwatch to measure time difference between incoming samples
         private static double dataElapsedTime = 0;                                              // amount of time [ms] elapsed since start of proccesing of previous sample
