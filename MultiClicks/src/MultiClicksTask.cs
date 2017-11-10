@@ -1160,6 +1160,19 @@ namespace MultiClicksTask {
                 totalQuantity += mRandomTrialQuantities[i];
             }
 
+            // count the number of rests (= number of trials - 1, but + 1 to have an additional rest in the end after all the trials)
+            int totalRests = totalQuantity;
+
+            // create an array with the rests to be used inbetween the trials and after the last trial
+            int[] arrRestIndices = new int[totalRests];
+            int restCounter = 0;
+            for (int i = 0; i < arrRestIndices.Length; i++) {
+                arrRestIndices[i] = restCounter;
+                restCounter++;
+                if (restCounter == mRandomRests.Length) restCounter = 0;
+            }
+            arrRestIndices.Shuffle();
+
             // create an array the size of the number of trials and fill it with the indices of the trial-combination that should be in there (given the quantity each trial-combination
             int[] arrTrialIndices = new int[totalQuantity];
             int counter = 0;
@@ -1185,14 +1198,14 @@ namespace MultiClicksTask {
                 if (i != arrTrialIndices.Length - 1) {
 
                     // add a random rest (inbetween the trials)
-                    mTargetSequence.Add(mRandomRests[rand.Next(0, mRandomRests.Length)]);
+                    mTargetSequence.Add(mRandomRests[arrRestIndices[i]]);
                     
                 }
 
             }
 
             // add a rest after all the trials
-            //mTargetSequence.Add(mRandomRests[rand.Next(0, mRandomRests.Length)]);
+            mTargetSequence.Add(mRandomRests[arrRestIndices[arrRestIndices.Length - 1]]);
 
 
         }
