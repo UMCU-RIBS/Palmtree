@@ -949,15 +949,17 @@ namespace UNP.Core.DataIO {
 
                 }
 
+                // clear the array to 0
+                for (int i = 0; i < dataStreamValues.Length; i++) {
+                    dataStreamValues[i] = 0;
+                }
+
             }
 
             // advance sample counter, if gets to max value, reset to 0
             if (++dataSampleCounter == uint.MaxValue) dataSampleCounter = 0;
 
-            // clear the array to 0
-            for (int i = 0; i < dataStreamValues.Length; i++) {
-                dataStreamValues[i] = 0;
-            }
+
 
             // check if data visualization is enabled
             if (mEnableDataVisualization) {

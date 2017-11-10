@@ -210,6 +210,9 @@ namespace MultiClicksTask {
                         // set the blockcolor
                         glColor3(mBlocks[i].mColorR, mBlocks[i].mColorG, mBlocks[i].mColorB);
 
+                        // set no texture
+                        glBindTexture2D(0);
+
                     } else {
                         // texture
 
@@ -494,9 +497,9 @@ namespace MultiClicksTask {
 		            blockTexturesToLoad[i] = "";
 
 		            // check the file
-		            string texturePath = inTargetTextures[i];
+		            string texturePath = inTargetTextures[i].Trim();
                     
-		            if (String.IsNullOrEmpty(texturePath))		continue;
+		            if (string.IsNullOrEmpty(texturePath))		continue;
                     if (!File.Exists(texturePath)) {
                         logger.Error("Could not find target texture file (" + texturePath + "), will be empty (white)");
                         continue;

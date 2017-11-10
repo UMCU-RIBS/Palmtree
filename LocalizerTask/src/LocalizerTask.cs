@@ -309,7 +309,7 @@ namespace LocalizerTask {
                 Data.logEvent(2, "TaskStart", CLASS_NAME);
 
                 // feedback to user
-                logger.Info("Task started.");
+                //logger.Debug("Task started.");
 
                 // if a wait before first sequence is required, set state to Start, else to run 
                 if (firstSequenceWait != 0)     setState(TaskStates.Start);
@@ -502,7 +502,7 @@ namespace LocalizerTask {
                     view.setText(startText);
 
                     // feedback to user
-                    logger.Info("Participant is waiting for task to begin.");
+                    //logger.Debug("Participant is waiting for task to begin.");
 
                     // log event participant is waiting
                     Data.logEvent(2, "WaitPresented", CLASS_NAME);
@@ -525,7 +525,7 @@ namespace LocalizerTask {
                     view.setText(waitText);
 
                     // feedback to user
-                    logger.Info("Participant is waiting for next stimulus.");
+                    //logger.Debug("Participant is waiting for next stimulus.");
 
                     // log event participant is waiting
                     Data.logEvent(2, "WaitPresented", CLASS_NAME);
@@ -538,7 +538,7 @@ namespace LocalizerTask {
                     view.setText("Task paused.");
 
                     // feedback to user
-                    logger.Info("Task paused.");
+                    //logger.Debug("Task paused.");
 
                     // log event task is paused
                     Data.logEvent(2, "TaskPause", CLASS_NAME);
@@ -551,7 +551,7 @@ namespace LocalizerTask {
                     view.setText(endText);
 
                     // feedback to user
-                    logger.Info("Task finished.");
+                    //logger.Debug("Task finished.");
 
                     // log event that task is stopped
                     Data.logEvent(2, "TaskStop", CLASS_NAME + ";end");
@@ -561,15 +561,21 @@ namespace LocalizerTask {
                     currentSequence = 1;
                     stimulusRemainingTime = -1;
 
-                    //
-                    waitCounter = 10;
+                    // wait for two seconds
+                    waitCounter = SampleConversion.timeToSamples(2);
 
                     break;
 
                 default:
-                    logger.Info("Non-existing task state selected. Task will be stopped. Check code.");
+
+                    // message
+                    logger.Error("Non-existing task state selected. Task will be stopped. Check code.");
+
+                    // stop the task
                     stop();
+
                     break;
+
             }
         }
 
@@ -613,7 +619,7 @@ namespace LocalizerTask {
             currentStimulus = stimuliSequence[stimulusCounter] - 1;
 
             // feedback to user
-            logger.Info("Presenting stimulus " + (currentStimulus+1) + " (" + stimuli[0][currentStimulus] + ") in sequence " + currentSequence + " for " + stimuli[3][currentStimulus] + " seconds");
+            //logger.Debug("Presenting stimulus " + (currentStimulus+1) + " (" + stimuli[0][currentStimulus] + ") in sequence " + currentSequence + " for " + stimuli[3][currentStimulus] + " seconds");
 
             // log event that stimulus is presented
             Data.logEvent(2, "StimulusPresented", currentStimulus.ToString());
@@ -634,7 +640,9 @@ namespace LocalizerTask {
                     stimulusRemainingTime = (int)Math.Round(samples);
 
                     // give warning if rounding occurs
-                    if (samples != stimulusRemainingTime) logger.Warn("Remaining time for presenting current stimulus (stimulus " + currentStimulus + ") has been rounded from " + samples + " samples to " + stimulusRemainingTime + " samples.");
+                    if (samples != stimulusRemainingTime) {
+                        logger.Warn("Remaining time for presenting current stimulus (stimulus " + currentStimulus + ") has been rounded from " + samples + " samples to " + stimulusRemainingTime + " samples.");
+                    }
 
                 } else {
 
