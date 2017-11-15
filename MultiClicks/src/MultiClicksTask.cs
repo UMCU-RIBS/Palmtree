@@ -44,6 +44,12 @@ namespace MultiClicksTask {
         private System.Timers.Timer mConnectionLostSoundTimer = null;   // timer to play the connection lost sound on
 
         // task input parameters
+
+        // add strings to check labels against
+        private List<string> labelList = new List<string>() {
+            "Click", "DoubleClick","Escape"
+        };
+
         private int mWindowLeft = 0;
         private int mWindowTop = 0;
         private int mWindowWidth = 800;
@@ -424,6 +430,12 @@ namespace MultiClicksTask {
                     logger.Error("RandomTrials parameter must have 3 columns (Label, Target_combo, Quantity) and at least one row in order to generate a random target sequence");
                     return false;
                 }
+
+                // check labels, give error if an unknwon label is used
+                for(int i = 0; i < parRandomTrials[0].Length; i++) {
+                    if (!labelList.Contains(parRandomTrials[0][i])) logger.Error("Unknown label found: " + parRandomTrials[0][i] + ". Expected labels are: " + String.Join(", ", labelList) + ". Check if the unknown label is correct. Execution will continue.");
+                }
+
                 mRandomTrialCombos = new int[parRandomTrials[0].Length][];
                 mRandomTrialQuantities = new int[parRandomTrials[0].Length];
                 int totalQuantity = 0;

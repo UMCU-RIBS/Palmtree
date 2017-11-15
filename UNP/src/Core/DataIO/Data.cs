@@ -794,7 +794,7 @@ namespace UNP.Core.DataIO {
                             sourceStreamWriter = null;
                             sourceStream = null;
                         }
-
+ 
 
                         // stop and close data stream 
                         if (dataStreamWriter != null) {
