@@ -21,7 +21,7 @@ namespace UNP.Sources {
 
         // fundamentals
         private const string CLASS_NAME = "NexusSignal";
-        private const int CLASS_VERSION = 3;
+        private const int CLASS_VERSION = 4;
 
         private const double OUTPUT_SAMPLE_RATE = 5;                                      // hold the amount of samples per second that the source outputs (used by the mainthead to convert seconds to number of samples)
         private const int NEXUS_POWERMODE_SAMPLES_PER_PACKAGE = 1;
@@ -99,7 +99,8 @@ namespace UNP.Sources {
             public byte readstate = PACKET_START;
             public uint extract_pos = 0;
             public byte packetcount = 0;
-            public ushort[] buffer = new ushort[PACKET_BUFFER_SIZE];
+            public ushort[] buffer_ushort = new ushort[PACKET_BUFFER_SIZE];
+            public short[] buffer_short = new short[PACKET_BUFFER_SIZE];
             public byte switches = 0;
             public byte aux = 0;
             public long arrival_time = 0;
@@ -110,6 +111,7 @@ namespace UNP.Sources {
             public uint payload_pos = 0;
         }
         private static NexusPacket packet = new NexusPacket();
+        private int packet_HiLo_value = 0;
 
 
         public NexusSignal() {
@@ -284,7 +286,7 @@ namespace UNP.Sources {
                 if(inputOutput[0].Length >= 1 && inputOutput.Length >= 5) {
 
                     // get the amount of different input channels defined and sort ascending
-                    inputChUniq = Extensions.unique(inputChannels);
+                    inputChUniq = inputChannels.unique();
                     Array.Sort(inputChUniq);
 
                     // create array of ARFilters, equal to maximum id of input channels
@@ -564,7 +566,7 @@ namespace UNP.Sources {
                                         if (inputCh.Length != 0) {
 
                                             // transfer the values, minus one after lookup in output channels, because this is user-input, using 1-based channels
-                                            for (int ch = 0; ch < inputCh.Length; ch++) retSample[outputChannels[inputCh[ch]] - 1] = packet.buffer[sample * NEXUS_POWERMODE_CHANNELS_PER_PACKAGE + channel];
+                                            for (int ch = 0; ch < inputCh.Length; ch++) retSample[outputChannels[inputCh[ch]] - 1] = packet.buffer_ushort[sample * NEXUS_POWERMODE_CHANNELS_PER_PACKAGE + channel];
                                         }
                                     }
                                 }
@@ -578,12 +580,12 @@ namespace UNP.Sources {
 
                                 // reset output array and cast buffer to doubles to allow ARFilter to work 
                                 double[] retSample = new double[numOutputChannels];
-                                double[] nexusBuffer = Array.ConvertAll(packet.buffer, x => (double)x);
+                                double[] nexusBuffer = Array.ConvertAll(packet.buffer_short, x => (double)x);
 
                                 // create buffers for different input channels         
                                 int buffLength = NEXUS_TIMEMODE_SAMPLES_PER_PACKAGE;
                                 double[][] inputChBuffers = new double [NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE][];
-                                for(int ch = 0; ch < NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE; ch++) { inputChBuffers[ch] = new double[buffLength]; }
+                                for(int ch = 0; ch < NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE; ch++)      inputChBuffers[ch] = new double[buffLength];
 
                                 // loop through data coming from Nexus
                                 for (int sample = 0; sample < NEXUS_TIMEMODE_SAMPLES_PER_PACKAGE; sample++) {
@@ -591,9 +593,10 @@ namespace UNP.Sources {
 
                                         // check if this input channel must be distributed (+1 because in GUI channels are 1-based)
                                         if (Array.IndexOf(inputChUniq, channel + 1) != -1) {
-
+                                            
                                             // store in input channel buffer
                                             inputChBuffers[channel][sample] = nexusBuffer[sample * NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE + channel];
+                                            
                                         }
                                     }
                                 }
@@ -610,21 +613,28 @@ namespace UNP.Sources {
                                         if (arFilters[channel] != null) {
 
                                             // fill buffer of corresponding ARFilter if ARFilter is allowed to run 
-                                            if (arFilters[channel].AllowRun) arFilters[channel].Data = inputChBuffers[channel];
+                                            if (arFilters[channel].AllowRun)    arFilters[channel].Data = inputChBuffers[channel];
 
                                             // determine linearModel on data if ARFilter is allowed to run
-                                            if (arFilters[channel].AllowRun) arFilters[channel].createLinPredModel();
+                                            if (arFilters[channel].AllowRun)    arFilters[channel].createLinPredModel();
 
                                             // determine power spectrum if ARFilter is allowed to run
-                                            if (arFilters[channel].AllowRun) powerSpec = arFilters[channel].estimatePowerSpectrum();
+                                            if (arFilters[channel].AllowRun)    powerSpec = arFilters[channel].estimatePowerSpectrum();
 
                                             // find output channels corresponding to bins in powerSpec
                                             int[] indices = Extensions.findIndices(inputChannels, (channel + 1));
 
                                             // transfer values from powerSpec to correct indices in retSample (minus 1 because values in outputChannels are 1-based because user-input)
-                                            for (int i = 0; i < indices.Length; i++) { retSample[outputChannels[indices[i]] - 1] = powerSpec[i]; }
+                                            for (int i = 0; i < indices.Length; i++) {
+                                                retSample[outputChannels[indices[i]] - 1] = powerSpec[i];
+                                            }
 
-                                        } else { logger.Error("ARFilter for input channel " + channel + " is not initialized. Check code."); }
+                                        } else {
+
+                                            // message
+                                            logger.Error("ARFilter for input channel " + channel + " is not initialized. Check code.");
+
+                                        }
 
                                     }
                                     
@@ -816,8 +826,11 @@ namespace UNP.Sources {
             byte[] buf = new byte[1];
 
             // zero the packet buffer
-            for (int i = 0; i < PACKET_BUFFER_SIZE; i++)    packet.buffer[i] = 0;
-
+            for (int i = 0; i < PACKET_BUFFER_SIZE; i++) {
+                packet.buffer_ushort[i] = 0;
+                packet.buffer_short[i] = 0;
+            }
+            
             // determine if the protocol allows for crc check
             packet.check_crc = (protocol == 5 || protocol == 6);
 
@@ -946,8 +959,10 @@ namespace UNP.Sources {
                         Data.logEvent(1, "SourcePacketBadCRC", "");
 
                         // set buffer values to zero
-                        for (int i = 0; i < PACKET_BUFFER_SIZE; i++)
-                            packet.buffer[i] = 0;
+                        for (int i = 0; i < PACKET_BUFFER_SIZE; i++) {
+                            packet.buffer_ushort[i] = 0;
+                            packet.buffer_short[i] = 0;
+                        }
 
                         // flag as corrupt
                         packetIsCorrupt = true;
@@ -976,12 +991,24 @@ namespace UNP.Sources {
 
                             #endif
 
-                            // pick the values from the buffer
-                            ushort[] values = new ushort[numberOfInputValues];
-                            Array.Copy(packet.buffer, 0, values, 0, numberOfInputValues);
-                            
                             // log the values as source input before timing correction
-                            Data.logSourceInputValues(values);
+                            if (protocol == 6) {
+                                
+                                // pick the values from the buffer
+                                short[] values = new short[numberOfInputValues];
+                                Array.Copy(packet.buffer_short, 0, values, 0, numberOfInputValues);
+
+                                Data.logSourceInputValues(values);
+
+                            } else {
+
+                                // pick the values from the buffer
+                                ushort[] values = new ushort[numberOfInputValues];
+                                Array.Copy(packet.buffer_ushort, 0, values, 0, numberOfInputValues);
+
+                                Data.logSourceInputValues(values);
+                            }
+                                
 
                         }
                     }
@@ -1113,9 +1140,9 @@ namespace UNP.Sources {
                     if (packet.extract_pos < 4) {
 
                         if ((packet.extract_pos & 1) == 0)
-                            packet.buffer[packet.extract_pos >> 1] = (ushort)(actbyte * 256);
+                            packet.buffer_ushort[packet.extract_pos >> 1] = (ushort)(actbyte * 256);
                         else 
-                            packet.buffer[packet.extract_pos >> 1] += actbyte;
+                            packet.buffer_ushort[packet.extract_pos >> 1] += actbyte;
 
                         packet.extract_pos++;
 
@@ -1179,9 +1206,9 @@ namespace UNP.Sources {
                     if (packet.extract_pos < 12) {
 
                         if ((packet.extract_pos & 1) == 0)
-                            packet.buffer[packet.extract_pos >> 1] = (ushort)(actbyte*256);
+                            packet.buffer_ushort[packet.extract_pos >> 1] = (ushort)(actbyte*256);
                         else
-                            packet.buffer[packet.extract_pos >> 1] += actbyte;
+                            packet.buffer_ushort[packet.extract_pos >> 1] += actbyte;
 
                         packet.extract_pos++;
 
@@ -1255,9 +1282,9 @@ namespace UNP.Sources {
                 if (packet.extract_pos < 4) {
 
                     if ((packet.extract_pos & 1) == 0)
-                        packet.buffer[packet.extract_pos >> 1] = (ushort)(actbyte*256);
+                        packet.buffer_ushort[packet.extract_pos >> 1] = (ushort)(actbyte*256);
                     else 
-                        packet.buffer[packet.extract_pos >> 1] += actbyte;
+                        packet.buffer_ushort[packet.extract_pos >> 1] += actbyte;
 
                     packet.extract_pos++;
 
@@ -1325,16 +1352,16 @@ namespace UNP.Sources {
 
                         // Power channels 1 to 4
                         if ((packet.extract_pos & 1) == 0)
-                            packet.buffer[packet.extract_pos >> 1] = (ushort)(actbyte * 256);
+                            packet.buffer_ushort[packet.extract_pos >> 1] = (ushort)(actbyte * 256);
                         else
-                            packet.buffer[packet.extract_pos >> 1] += actbyte;
+                            packet.buffer_ushort[packet.extract_pos >> 1] += actbyte;
 
                     }
 
                     if (packet.extract_pos == 8) {
 
                         // Detection Status
-                        packet.buffer[4] = actbyte;
+                        packet.buffer_ushort[4] = actbyte;
 
                         //  *** PACKET ARRIVED ***
                         packet.switches = 0;
@@ -1388,9 +1415,9 @@ namespace UNP.Sources {
 
 				        // Power channels 1 to 4
 				        if ((packet.extract_pos & 1) == 0)
-					        packet.buffer[packet.extract_pos >> 1] = (ushort)(actbyte * 256);
+					        packet.buffer_ushort[packet.extract_pos >> 1] = (ushort)(actbyte * 256);
 				        else
-					        packet.buffer[packet.extract_pos >> 1] += actbyte;
+					        packet.buffer_ushort[packet.extract_pos >> 1] += actbyte;
 
 				        // store data for CRC
 				        packet.data_payload[packet.payload_pos] = actbyte;
@@ -1401,7 +1428,7 @@ namespace UNP.Sources {
 			        if (packet.extract_pos == 8) {
 
 				        // Detection Status
-				        packet.buffer[4] = actbyte;
+				        packet.buffer_ushort[4] = actbyte;
 
 				        // store data for CRC
 				        packet.data_payload[packet.payload_pos] = actbyte;
@@ -1437,10 +1464,8 @@ namespace UNP.Sources {
 
         }  // parse_byte_P5()
 
-
         // parse packet in P6 format (i.e. NEXUS-1 STS Time-Domain)
         private void parse_byte_P6(byte actbyte) {
-            int temp_value = 0;
 
             switch (packet.readstate) {
 
@@ -1458,7 +1483,10 @@ namespace UNP.Sources {
 				        packet.data_payload[0] = actbyte;
 				        packet.payload_pos = 1;
 
-			        }
+                        packet_HiLo_value = 0;
+
+
+                    }
 
 			        break;
 
@@ -1473,21 +1501,36 @@ namespace UNP.Sources {
 
 				        // save data in sequences of ch1ch2ch3ch1ch2ch3... as process() expects it in this order
 				        int buf_pos = (sample_offset * 12) + (curr_sample * 3) + curr_ch;
+
+                        // each sample (per channel) starts with a high-byte followed by a low-byte, creating a 16-bit number
+                        // the 1th bit (and also the next 5 bits) of the hi-byte indicate whether it is a positve or negative number (binary signing)
+                        // the 7th and the 8th bit of the hi-byte and the low-byte then form a 10-bit number to represent the value
                         
-                        //Debug.Assert(buf_pos < PACKET_BUFFER_SIZE - 1);
+                        // check if the low or high byte is coming in
+                        if (!low_byte) {
+                            
+                            // shift the high bytes 8 bits and store in integer
+                            packet_HiLo_value = actbyte << 8;
 
-                        if (!low_byte)
-                            temp_value = actbyte << 8;
+                        } else {
+                            
+                            // low-byte arrived, combine with high-byte
+                            packet_HiLo_value += actbyte;
 
-                        else {
-                            // low-byte arrived, now shift value up by 512 to make an unsigned value
-                            temp_value += actbyte;
-                            temp_value += 512;
-                            packet.buffer[buf_pos] = (ushort)temp_value;
+                            // old method, first 512 is added to shift all values up and in order to store as a ushort.
+                            // Not necessary, direct conversion to short is applied to the whole number
+                            //packet_HiLo_value += 512;
+                            //Console.WriteLine("- " + Convert.ToString(packet_HiLo_value, 2) + "  " + (short)packet_HiLo_value);
+                            
+                            // direct conversion to short can applied to the whole number
+                            packet.buffer_short[buf_pos] = (short)packet_HiLo_value;
+
+                            //Console.WriteLine("- " + Convert.ToString(packet_HiLo_value, 2) + "  " + packet.buffer_short[buf_pos]);
+
                         }
 
-				        // store data for CRC
-				        packet.data_payload[packet.payload_pos] = actbyte;
+                        // store data for CRC
+                        packet.data_payload[packet.payload_pos] = actbyte;
 				        packet.payload_pos++;
 			        }
 
@@ -1495,7 +1538,7 @@ namespace UNP.Sources {
 				        
                         // Detection Status
 				        for (int i = 0; i < 40; i++)
-					        packet.buffer[i*3+2] = actbyte;
+					        packet.buffer_short[i*3+2] = actbyte;
 
 				        // store data for CRC
 				        packet.data_payload[packet.payload_pos] = actbyte;

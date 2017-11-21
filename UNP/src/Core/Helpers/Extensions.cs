@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -24,11 +25,11 @@ namespace UNP.Core.Helpers {
                          .ToArray();
         }
 
-
-        // TODO: use non-Linq statement?
-        public static int[] unique(int[] array) {
-            return array.Distinct().ToArray();
+        public static int[] unique(this int[] arr) {
+            HashSet<int> set = new HashSet<int>(arr);
+            return set.ToArray<int>();
         }
+
 
         public static void Swap<T>(this IList<T> list, int indexA, int indexB) {
             T tmp = list[indexA];

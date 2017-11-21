@@ -1014,8 +1014,8 @@ namespace UNP.Core.DataIO {
                     // check if source logging is enabled
                     if (mLogSourceInput) {
 
-                        // if censorship should be applied, then zero out the array of measured source samples
-                        if (mCensorLogging)    Array.Clear(sourceStreamValues, 0, sourceStreamValues.Length);
+                        // if censorship should be applied, then create an array with zeros instead of values (do not change the input)
+                        if (mCensorLogging)     sourceStreamValues = new double[sourceStreamValues.Length];
 
                         // transform variables that will be stored in .src to binary arrays (except for sourceStreamValues array which is copied directly)
                         byte[] sourceSampleCounterBinary = BitConverter.GetBytes(sourceSampleCounter);
@@ -1032,7 +1032,7 @@ namespace UNP.Core.DataIO {
 
                             // init vars
                             byte[] streamOutTemp = new byte[l1 + l2 + l3];
-                            streamOut = new byte[streamOutTemp.Length * (sourceStreamValues.Length/ numSourceInputStreams)];
+                            streamOut = new byte[streamOutTemp.Length * (sourceStreamValues.Length / numSourceInputStreams)];
                             double[] sourceStreamValuesTemp = new double[numSourceInputStreams];
                             int inputPointer = 0;
                             int binaryBufferPointer = 0;
@@ -1053,6 +1053,7 @@ namespace UNP.Core.DataIO {
                                 // increase pointers
                                 inputPointer += numSourceInputStreams;
                                 binaryBufferPointer += streamOutTemp.Length;
+
                             }
 
 
@@ -1123,6 +1124,18 @@ namespace UNP.Core.DataIO {
                 }
 
             }   // end lock
+        }
+
+        public static void logSourceInputValues(short[] values) {
+
+            // TODO: temp until we have a standard format, we might want to store as short
+            // but for now convert shorts to double and call the double[] overload
+            double[] dblValues = new double[values.Length];
+            for (int i = 0; i < values.Length; i++) {
+                dblValues[i] = values[i];
+            }
+            logSourceInputValues(dblValues);
+
         }
 
         public static void logSourceInputValues(ushort[] values) {
