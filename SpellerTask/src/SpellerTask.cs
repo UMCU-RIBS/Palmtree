@@ -168,7 +168,7 @@ namespace SpellerTask {
             parameters.addParameter<string[][]>(
                 "Cues",
                 "Words or questions that are presented.",
-                "", "", "Aap, Noot, Mies", new string[] { "Cues"});
+                "", "", "Aap,Noot,Mies", new string[] { "Cues"});
 
             parameters.addParameter<string[][]>(
                 "Input",
