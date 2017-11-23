@@ -24,17 +24,13 @@ namespace FollowTask {
         private const int CLASS_VERSION = 2;
         private const string CLASS_NAME = "FollowTask";
         private const string CONNECTION_LOST_SOUND = "sounds\\focuson.wav";
-        
+
         private const string TARGET_MODE_DESC = "For every trial, within every column (so within the y, height.. etc), a option (category) is selected given the Target...Mode.\n\n" +
-                                                "With setting 0 the option is selected sequentially as the order in the target matrix column.\n" +
-                                                "With setting 1 to 4, all the distict options (categories) are indexed for each column.\n" +
-                                                "   - Using setting 1, a random category (with replacement) is selected from the list.\n" +
-                                                "   - Using setting 2, the categoryset is repeated in the total targetsequence while randomization within the categoryset is applied.\n" +
-                                                "   - Using setting 3, options from the categoryset are selected sequentially but the first option is selected at random\n" +
-                                                "   - using setting 4, the categoryset is repeated in the total targetsequence where randomization is applied to the full sequence\n\n" +
-                                                " After the selection of an option within each column (given the selectionMode), a row from the target matrix will be selected which is the combination of all the\n" +
-                                                " seperate options. If that option (as a row in the target matrix) does not exists then randomization is repeated. If a randomization stalemate is produced then\n" +
-                                                " an error will be given and more degrees of freedom should be given (either by extending the target options or choosing different Target..Modes.";
+                                                "To determine which target is used, first the deterministic modes are applied (which are '3. sequential with rnd start' and '4. matrix order').\n" +
+                                                "Then, depending on which modes are set to '2. Randomize categories (balanced'), the unique targets that are left are indexed and balanced out.\n" +
+                                                "Within that selection of unique targets either a target is chosen at random ('1. Randomize categories unbalanced') or just the first ('0. None')\n\n" +
+                                                "If a randomization stalemate is produced then an error will be given and more\n" +
+                                                "degrees of freedom should be given (either by extending the target options or choosing different Target..Modes.";
 
         private static Logger logger = LogManager.GetLogger(CLASS_NAME);                        // the logger object for the view
         private static Parameters parameters = null;
@@ -68,8 +64,8 @@ namespace FollowTask {
         private RGBColorFloat mCursorColorMiss = new RGBColorFloat(0.8f, 0f, 0f);
         private RGBColorFloat mCursorColorHit = new RGBColorFloat(0.8f, 0.8f, 0f);
 
-		private int[] fixedTargetSequence = new int[0];				                // the target sequence (input parameter)
-		private int numTargets = 0;
+		private int[] fixedTrialSequence = new int[0];				                // the trial sequence (input parameter)
+		private int numTrials = 0;
 		private int mTargetSpeed = 0;
 		private int mTargetYMode = 0;
 		private int mTargetWidthMode = 0;
@@ -90,7 +86,7 @@ namespace FollowTask {
 
 
         // task (active) variables
-        private List<int> mTargetSequence = new List<int>(0);					    // the target sequence being used in the task (can either be given by input or generated)
+        private List<int> trialSequence = new List<int>(0);					    // the target sequence being used in the task (can either be given by input or generated)
 
         private int mWaitCounter = 0;
         private int mCountdownCounter = 0;											// the countdown timer
@@ -234,17 +230,17 @@ namespace FollowTask {
             parameters.addParameter<int>(
                 "TargetYMode",
                 "Targets Y mode\n\n" + TARGET_MODE_DESC,
-                "0", "3", "3", new string[] { "0. Target(matrix) order", "1. Randomize categories (unbalanced)", "2. Randomize categories (balanced), randomization within set", "3. Sequential categories with rnd start", "4. Randomize categories (balanced), randomization over full sequence" });
-
-            parameters.addParameter<int>(
-                "TargetWidthMode",
-                "Targets Width mode\n\n" + TARGET_MODE_DESC,
-                "0", "3", "1", new string[] { "0. Target(matrix) order", "1. Randomize categories (unbalanced)", "2. Randomize categories (balanced), randomization within set", "3. Sequential categories with rnd start", "4. Randomize categories (balanced), randomization over full sequence" });
+                "0", "4", "3", new string[] { "0. None", "1. Randomize categories (unbalanced)", "2. Randomize categories (balanced)", "3. Sequential categories with rnd start", "4. Target(matrix) order" });
 
             parameters.addParameter<int>(
                 "TargetHeightMode",
                 "Targets Height mode\n\n" + TARGET_MODE_DESC,
-                "0", "3", "1", new string[] { "0. Target(matrix) order", "1. Randomize categories (unbalanced)", "2. Randomize categories (balanced), randomization within set", "3. Sequential categories with rnd start", "4. Randomize categories (balanced), randomization over full sequence" });
+                "0", "4", "0", new string[] { "0. None", "1. Randomize categories (unbalanced)", "2. Randomize categories (balanced)", "3. Sequential categories with rnd start", "4. Target(matrix) order" });
+
+            parameters.addParameter<int>(
+                "TargetWidthMode",
+                "Targets Width mode\n\n" + TARGET_MODE_DESC,
+                "0", "4", "2", new string[] { "0. None", "1. Randomize categories (unbalanced)", "2. Randomize categories (balanced)", "3. Sequential categories with rnd start", "4. Target(matrix) order" });
 
             parameters.addParameter<int>(
                 "TargetSpeed",
@@ -400,13 +396,13 @@ namespace FollowTask {
 
 
             // retrieve the number of targets and (fixed) target sequence
-            numTargets = newParameters.getValue<int>("NumberTargets");
-            fixedTargetSequence = newParameters.getValue<int[]>("TargetSequence");
-            if (fixedTargetSequence.Length == 0) {
+            numTrials = newParameters.getValue<int>("NumberTargets");
+            fixedTrialSequence = newParameters.getValue<int[]>("TargetSequence");
+            if (fixedTrialSequence.Length == 0) {
                 // no fixed sequence
 
                 // check number of targets
-                if (numTargets < 1) {
+                if (numTrials < 1) {
                     logger.Error("Minimum of 1 target is required");
                     return false;
                 }
@@ -414,15 +410,15 @@ namespace FollowTask {
             } else {
                 // fixed sequence
 
-                numTargets = fixedTargetSequence.Length;
-                for (int i = 0; i < numTargets; ++i) {
+                numTrials = fixedTrialSequence.Length;
+                for (int i = 0; i < numTrials; ++i) {
                     
-                    if (fixedTargetSequence[i] < 0) {
-                        logger.Error("The TargetSequence parameter contains a target index (" + fixedTargetSequence[i] + ") that is below zero, check the TargetSequence");
+                    if (fixedTrialSequence[i] < 0) {
+                        logger.Error("The TargetSequence parameter contains a target index (" + fixedTrialSequence[i] + ") that is below zero, check the TargetSequence");
                         return false;
                     }
-                    if (fixedTargetSequence[i] >= mTargets[0].Count) {
-                        logger.Error("The TargetSequence parameter contains a target index (" + fixedTargetSequence[i] + ") that is out of range, check the Targets parameter. (note that the indexing is 0 based)");
+                    if (fixedTrialSequence[i] >= mTargets[0].Count) {
+                        logger.Error("The TargetSequence parameter contains a target index (" + fixedTrialSequence[i] + ") that is out of range, check the Targets parameter. (note that the indexing is 0 based)");
                         return false;
                     }
                 }
@@ -452,25 +448,25 @@ namespace FollowTask {
                 initializeView();
 
                 // check if a target sequence is set
-                if (fixedTargetSequence.Length == 0) {
+                if (fixedTrialSequence.Length == 0) {
 		            // targetsequence not set in parameters, generate
 		
-		            // Generate targetlist
-		            generateTargetSequence();
+		            // Generate trial list
+		            generateTrialSequence();
 
 	            } else {
 		            // targetsequence is set in parameters
 
 		            // clear the targets
-		            if (mTargetSequence.Count != 0)		mTargetSequence.Clear();
+		            if (trialSequence.Count != 0)		trialSequence.Clear();
                 
 		            // transfer the targetsequence
-                    mTargetSequence = new List<int>(fixedTargetSequence);
+                    trialSequence = new List<int>(fixedTrialSequence);
 
 	            }
 	        
 	            // initialize the target sequence
-	            view.initBlockSequence(mTargetSequence, mTargets);
+	            view.initBlockSequence(trialSequence, mTargets);
 
             }
 
@@ -516,7 +512,7 @@ namespace FollowTask {
             if (!mUNPMenuTask) {
 
                 // store the generated sequence in the output parameter xml
-                Data.adjustXML(CLASS_NAME, "TargetSequence", string.Join(" ", mTargetSequence));
+                Data.adjustXML(CLASS_NAME, "TargetSequence", string.Join(" ", trialSequence));
 
             }
 
@@ -726,7 +722,7 @@ namespace FollowTask {
 			            }
 
 			            // check if it is the end of the task
-			            if (mCurrentBlock == mTargetSequence.Count - 1 && (view.getCurrentBlock() == FollowView.noBlock)) {
+			            if (mCurrentBlock == trialSequence.Count - 1 && (view.getCurrentBlock() == FollowView.noBlock)) {
 				            // end of the task
 
 				            setState(TaskStates.EndText);
@@ -740,7 +736,7 @@ namespace FollowTask {
 
                             // retrieve which block condition the current block is
                             int blockCondition = -1;
-                            if (mCurrentBlock != FollowView.noBlock) blockCondition = mTargetSequence[mCurrentBlock];
+                            if (mCurrentBlock != FollowView.noBlock) blockCondition = trialSequence[mCurrentBlock];
 
                             // log event if the current block has changed and update the previous block placeholder
                             if (mCurrentBlock != mPreviousBlock)     Data.logEvent(2, "Changeblock", (mCurrentBlock.ToString() + ";" + blockCondition.ToString()));
@@ -1004,352 +1000,372 @@ namespace FollowTask {
             setState(TaskStates.Wait);
     
             // initialize the target sequence already for a possible next run
-	        if (fixedTargetSequence.Length == 0) {
+	        if (fixedTrialSequence.Length == 0) {
 
 		        // Generate targetlist
-		        generateTargetSequence();
+		        generateTrialSequence();
 
 	        }
 
             // initialize the target sequence
-	        view.initBlockSequence(mTargetSequence, mTargets);
+	        view.initBlockSequence(trialSequence, mTargets);
 
         }
 
 
-        private void generateTargetSequence() {
-	        
+        private void generateTrialSequence() {
+            int i;
+
 	        // clear the targets
-	        if (mTargetSequence.Count != 0)		mTargetSequence.Clear();
-
+	        if (trialSequence.Count != 0)		trialSequence.Clear();
+            
 	        // create targetsequence array with <NumberTargets>
-            mTargetSequence = new List<int>(new int[numTargets]);
+            trialSequence = new List<int>(new int[numTrials]);
 
-	        // put the row indices of each distinct value (from the rows in the matrix) in an array
-	        // (this is used for the modes which are set to randomization)
-            List<int> catY_unique = new List<int>(0);
-            List<List<int>> catY = new List<List<int>>(0);
-            List<float> catWidth_unique = new List<float>(0);
-            List<List<int>> catWidth = new List<List<int>>(0);
-            List<int> catHeight_unique = new List<int>(0);
-            List<List<int>> catHeight = new List<List<int>>(0);
+            // create a array with all targets (will be reused often, so do it once here and make copies)
+            int[] allTargets = new int[mTargets[0].Count];
+            for (int t = 0; t < mTargets[0].Count; ++t) allTargets[t] = t;
 
-            // 
-            int i = 0;
-            int j = 0;
+            // variables to hold the unique options per column (global because unmodified over loops)
+            List<int> gbl_catY_unique = null;
+            List<List<int>> gbl_catY = null;
+            List<int> gbl_catHeight_unique = null;
+            List<List<int>> gbl_catHeight = null;
+            List<float> gbl_catWidth_unique = null;
+            List<List<int>> gbl_catWidth = null;
 
-            // loop through the target rows
-	        for (i = 0; i < mTargets[0].Count; ++i) {
-
-		        // get the values for the row
-                int valueY = (int)mTargets[0][i];
-		        float valueWidth = mTargets[2][i];
-		        int valueHeight = (int)mTargets[1][i];
-		
-		        // store the unique values and indices
-		        for (j = 0; j < catY_unique.Count; ++j)
-			        if (catY_unique[j] == valueY)	break;
-		        if (j == catY_unique.Count) {
-			        catY_unique.Add(valueY);						// store the unique value at index j
-			        catY.Add(new List<int>(0));				        // store the targets row index in the vector at index j	
-						
-		        }
-		        catY[j].Add(i);
-
-		        for (j = 0; j < catWidth_unique.Count; ++j)
-			        if (catWidth_unique[j] == valueWidth)	break;
-		        if (j == (int)catWidth_unique.Count) {
-			        catWidth_unique.Add(valueWidth);				// store the unique value at index j
-			        catWidth.Add(new List<int>(0));			        // store the targets row index in the vector at index j							
-		        }
-		        catWidth[j].Add(i);
-
-		        for (j = 0; j < catHeight_unique.Count; ++j)
-			        if (catHeight_unique[j] == valueHeight)	break;
-		        if (j == catHeight_unique.Count) {
-			        catHeight_unique.Add(valueHeight);			    // store the unique value at index j
-			        catHeight.Add(new List<int>(0));			    // store the targets row index in the vector at index j							
-		        }
-		        catHeight[j].Add(i);
-
-	        }
+            // list the unique options per column (based on all possible targets)
+            generateTrialSequence_indexTargets(new List<int>(allTargets), out gbl_catY_unique, out gbl_catY, out gbl_catHeight_unique, out gbl_catHeight, out gbl_catWidth_unique, out gbl_catWidth);
 
             // create counters for the targetOrder (in case it is needed)
             int catY_targetOrder = 0;
-            int catWidth_targetOrder = 0;
             int catHeight_targetOrder = 0;
+            int catWidth_targetOrder = 0;
 
-            // create the arrays to handle the no replace randomization (in case it is needed)
-            List<int> catY_noReplace = new List<int>(0);
-            List<int> catWidth_noReplace = new List<int>(0);
-            List<int> catHeight_noReplace = new List<int>(0);
-
-	        // create random start for each categories (in case it is needed)
-	        int catY_randStart = rand.Next(0, catY.Count);
-	        int catWidth_randStart = rand.Next(0, catWidth.Count);
-	        int catHeight_randStart = rand.Next(0, catHeight.Count);
-
-            // create the arrays to handle the randomized full sequence (in case it is needed)
-            List<int> catY_FullSeq_Randomized = new List<int>(numTargets);
-            List<int> catWidth_FullSeq_Randomized = new List<int>(numTargets);
-            List<int> catHeight_FullSeq_Randomized = new List<int>(numTargets);
-            int catYCounter = 0;
-            int catWidthCounter = 0;
-            int catHeightCounter = 0;
-            for (i = 0; i < numTargets; ++i) {
-
-                // add the unique values sequential in the full seq lists
-                catY_FullSeq_Randomized.Add(catYCounter);
-                catWidth_FullSeq_Randomized.Add(catWidthCounter);
-                catHeight_FullSeq_Randomized.Add(catHeightCounter);
-
-                // increase the unique list item counters
-                catYCounter++;
-                if (catYCounter == catY_unique.Count) catYCounter = 0;
-                catWidthCounter++;
-                if (catWidthCounter == catWidth_unique.Count) catWidthCounter = 0;
-                catHeightCounter++;
-                if (catHeightCounter == catHeight_unique.Count) catHeightCounter = 0;
-
-            }
-            catY_FullSeq_Randomized.Shuffle();
-            catWidth_FullSeq_Randomized.Shuffle();
-            catHeight_FullSeq_Randomized.Shuffle();
+            // create random start for each categories (in case it is needed)
+            int catY_randStart = rand.Next(0, gbl_catY.Count);
+	        int catHeight_randStart = rand.Next(0, gbl_catHeight.Count);
+            int catWidth_randStart = rand.Next(0, gbl_catWidth.Count);
 
             // create a target sequence
-            List<int> currentY = new List<int>(0);          // initial value should be overwritten, but just in case
-            List<int> currentWidth = new List<int>(0);
+            List<int> currentY = new List<int>(0);
             List<int> currentHeight = new List<int>(0);
+            List<int> currentWidth = new List<int>(0);
 
-	        // loop <NumberTargets> times to generate each target
-	        int generateSafetyCounter = numTargets + 1000;
+            // variable to store the subset option lists (over loops)
+            Dictionary<string, List<List<int>>> subSelectionOptions = new Dictionary<string, List<List<int>>>();
+
+            // loop <NumberTrials> times to generate each trial
+            int generateSafetyCounter = numTrials + 1000;
             i = 0;
-            while(i < numTargets) {
+            while(i < numTrials) {
 
-		        // count the loops and check for generation
-		        if (generateSafetyCounter-- == 0) {
-                    logger.Error("Error generating random sequence, the generation rules/parameters (TargetYMode, TargetWidthMode, TargetHeightMode and Target) cause a stalemate");
-			        return;
-		        }
+                //
+                // loop safety (no infinite loops)
+                //
 
+                if (generateSafetyCounter-- == 0) {
+                    logger.Error("Error generating random sequence, the generation rules/parameters (TargetYMode, TargetHeightMode, TargetWidthMode and Target) cause a stalemate");
+                    return;
+                }
 
-                // check Y mode
-                if (mTargetYMode == 0) {                // 0: Target(matrix) order
+                // variables to (within this loop) hold unique options
+                List<int> lcl_catY_unique = null;
+                List<List<int>> lcl_catY = null;
+                List<int> lcl_catHeight_unique = null;
+                List<List<int>> lcl_catHeight = null;
+                List<float> lcl_catWidth_unique = null;
+                List<List<int>> lcl_catWidth = null;
 
+                //
+                //
+                // list the unique options per column (first based on all possible targets)
+                generateTrialSequence_indexTargets(new List<int>(allTargets), out lcl_catY_unique, out lcl_catY, out lcl_catHeight_unique, out lcl_catHeight, out lcl_catWidth_unique, out lcl_catWidth);
+
+                //
+                // first limit the choices for the deterministic modes
+                //
+
+                if (mTargetYMode == 3) {                     // 3:sequential categories with rnd start
+                    currentY = lcl_catY[catY_randStart];
+                } else if (mTargetYMode == 4) {                     // 4: Target(matrix) order
                     currentY = new List<int>(1) { catY_targetOrder };
-
-                } else if (mTargetYMode == 1) {         // 1: randomize categories (unbalanced)
-
-                    currentY = catY[rand.Next(0, catY.Count)];
-
-                } else if (mTargetYMode == 2) {         // 2:random categories (balanced, without replacement within categoryset repetitions)
-
-                    // refill the list if needed
-                    if (catY_noReplace.Count == 0) {
-                        catY_noReplace = new List<int>(new int[catY.Count]);
-                        for (j = 0; j < catY_noReplace.Count; ++j) catY_noReplace[j] = j;
-                    }
-
-                    // shuffle (and reshuffle, this might resolve a impossible combination in the loop)
-                    catY_noReplace.Shuffle();
-
-                    // selection the last option
-                    currentY = catY[catY_noReplace[catY_noReplace.Count - 1]];
-
-                } else if (mTargetYMode == 3) {         // 3:sequential categories with rnd start
-
-                    currentY = catY[catY_randStart];
-
-                } else if (mTargetYMode == 4) {         // 4: categories (balanced, randomized repeated categoryset)
-
-                    // shuffle (and reshuffle, this might resolve a impossible combination in the loop)
-                    catY_FullSeq_Randomized.Shuffle();
-
-                    // select the last option
-                    currentY = catY[catY_FullSeq_Randomized[catY_FullSeq_Randomized.Count - 1]];
-
+                } else {
+                    currentY = new List<int>(allTargets);
                 }
 
-
-                // check Width mode
-                if (mTargetWidthMode == 0) {           // 0: Target(matrix) order
-
-                    currentWidth = new List<int>(1) { catWidth_targetOrder };
-
-                } else if (mTargetWidthMode == 1) {    // 1: randomize categories (unbalanced)
-
-                    currentWidth = catWidth[rand.Next(0, catWidth.Count)];
-
-                } else if (mTargetWidthMode == 2) {    // 2:random categories (balanced, without replacement within categoryset repetitions)
-
-                    // refill the list if needed
-                    if (catWidth_noReplace.Count == 0) {
-                        catWidth_noReplace = new List<int>(new int[catWidth.Count]);
-                        for (j = 0; j < catWidth_noReplace.Count; ++j) catWidth_noReplace[j] = j;
-                    }
-
-                    // shuffle (and reshuffle, this might resolve a impossible combination in the loop)
-                    catWidth_noReplace.Shuffle();
-
-                    // selection the last option
-                    currentWidth = catWidth[catWidth_noReplace[catWidth_noReplace.Count - 1]];
-
-                } else if (mTargetWidthMode == 3) {    // 3:sequential categories with rnd start
-
-                    currentWidth = catWidth[catWidth_randStart];
-
-                } else if (mTargetWidthMode == 4) {    // 4: categories (balanced, randomized repeated categoryset)
-
-                    // shuffle (and reshuffle, this might resolve a impossible combination in the loop)
-                    catWidth_FullSeq_Randomized.Shuffle();
-
-                    // select the last option
-                    currentWidth = catWidth[catWidth_FullSeq_Randomized[catWidth_FullSeq_Randomized.Count - 1]];
-
-                }
-
-
-                // check Height mode
-                if (mTargetHeightMode == 0) {           // 0: Target(matrix) order
-
+                if (mTargetHeightMode == 3) {                // 3:sequential categories with rnd start
+                    currentHeight = lcl_catHeight[catHeight_randStart];
+                } else if (mTargetHeightMode == 4) {                // 4: Target(matrix) order
                     currentHeight = new List<int>(1) { catHeight_targetOrder };
-
-                } else if (mTargetHeightMode == 1) {    // 1: randomize categories (unbalanced)
-
-                    currentHeight = catHeight[rand.Next(0, catHeight.Count)];
-
-                } else if (mTargetHeightMode == 2) {    // 2:random categories (balanced, without replacement within categoryset repetitions)
-
-                    // refill the list if needed
-                    if (catHeight_noReplace.Count == 0) {
-                        catHeight_noReplace = new List<int>(new int[catHeight.Count]);
-                        for (j = 0; j < catHeight_noReplace.Count; ++j) catHeight_noReplace[j] = j;
-                    }
-
-                    // shuffle (and reshuffle, this might resolve a impossible combination in the loop)
-                    catHeight_noReplace.Shuffle();
-
-                    // selection the last option
-                    currentHeight = catHeight[catHeight_noReplace[catHeight_noReplace.Count - 1]];
-
-                } else if (mTargetHeightMode == 3) {    // 3:sequential categories with rnd start
-
-                    currentHeight = catHeight[catHeight_randStart];
-
-                } else if (mTargetHeightMode == 4) {    // 4: categories (balanced, randomized repeated categoryset)
-
-                    // shuffle (and reshuffle, this might resolve a impossible combination in the loop)
-                    catHeight_FullSeq_Randomized.Shuffle();
-
-                    // select the last option
-                    currentHeight = catHeight[catHeight_FullSeq_Randomized[catHeight_FullSeq_Randomized.Count - 1]];
-
+                } else {
+                    currentHeight = new List<int>(allTargets);
                 }
 
+                if (mTargetWidthMode == 3) {                 // 3:sequential categories with rnd start
+                    currentWidth = lcl_catWidth[catWidth_randStart];
+                } else if (mTargetWidthMode == 4) {                 // 4: Target(matrix) order
+                    currentWidth = new List<int>(1) { catWidth_targetOrder };
+                } else {
+                    currentWidth = new List<int>(allTargets);
+                }
+                
+                // list the possible targets without the targets that are excluded after applying the deterministic modes
+                List<int> currentTarget = new List<int>(allTargets);
+                generateTargetSequence_remOptions(ref currentTarget, currentY, currentHeight, currentWidth);
 
-                // find a target all modes agree on
-                List<int> currentTarget = new List<int>(new int[mTargets[0].Count]);
-		        for (j = 0; j < currentTarget.Count; ++j)	currentTarget[j] = j;
-                j = 0;
-		        while(j < (int)currentTarget.Count) {
+                // check if no options are available after the deterministic modes
+                if (currentTarget.Count == 0) {
+                    // not targets available any more
 
-			        // clear out all the target indices which are not in the currentY
-			        bool found = false;
-			        for (int k = 0; k < currentY.Count; ++k) {
-				        if (currentTarget[j] == currentY[k]) {
-					        found = true;	break;
-				        }
-			        }
-			        if (!found && j < currentTarget.Count && currentTarget.Count != 0) {
-                        currentTarget.Swap(j, currentTarget.Count - 1);
-                        currentTarget.RemoveAt(currentTarget.Count - 1);
-				        continue;
-			        }
+                    // the current target modes settings 
+                    logger.Error("Error generating random sequence, the generation rules/parameters (TargetYMode, TargetHeightMode, TargetWidthMode and Target) cause a situation where no target is available after applying deterministic modes 3 and 4");
+                    return;
 
-			        // clear out all the target indices which are not in the currentWidth
-			        found = false;
-			        for (int k = 0; k < currentWidth.Count; ++k) {
-				        if (currentTarget[j] == currentWidth[k]) {
-					        found = true;	break;
-				        }
-			        }
-			        if (!found && currentTarget.Count != 0) {
-				        currentTarget.Swap(j, currentTarget.Count - 1);
-				        currentTarget.RemoveAt(currentTarget.Count - 1);
-				        continue;
-			        }
+                }
+                
+                //
+                // second, for this selection of targets (after applying the deterministic modes); if it does not yet exist, create a sequential (balanced) list
+                // of possibilities for the number of trials (trials) that are in this selection of targets.
+                //
 
-			        // clear out all the target indices which are not in the currentHeight
-			        found = false;
-			        for (int k = 0; k < currentHeight.Count; ++k) {
-				        if (currentTarget[j] == currentHeight[k]) {
-					        found = true;	break;
-				        }
-			        }
-			        if (!found && currentTarget.Count != 0) {
-				        currentTarget.Swap(j, currentTarget.Count - 1);
-                        currentTarget.RemoveAt(currentTarget.Count - 1);
-				        continue;
-			        }
+                // generate a storage key for the subselection to hold all (balanced) possibilities
+                string key = string.Join("", currentY) + "_" + string.Join("", currentHeight) + "_" + string.Join("", currentWidth);
 
-			        // go to the next element
-			        j++;
+                // try to retrieve the set of options for this subselection
+                List<List<int>> subSelectionSet = null;
+                if (!subSelectionOptions.TryGetValue(key, out subSelectionSet) || subSelectionSet.Count == 0) {
+                    // set not found or empty
 
-		        }
+                    // if not exists, create the set and add it to the dictionary
+                    if (subSelectionSet == null) {
+                        subSelectionSet = new List<List<int>>();
+                        subSelectionOptions.Add(key, subSelectionSet);
+                    }
 
-		        // check if a (agreeable) target has been found
-		        if (currentTarget.Count != 0) {
-			        // target found, set in sequence
+                    // calculate the number of targets in this subselection
+                    float subNumTrials = numTrials;
+                    if (mTargetYMode == 3)          subNumTrials = subNumTrials / gbl_catY.Count;
+                    if (mTargetHeightMode == 3)     subNumTrials = subNumTrials / gbl_catHeight.Count;
+                    if (mTargetWidthMode == 3) subNumTrials = subNumTrials / gbl_catWidth.Count;
+                    if (mTargetYMode == 4)          subNumTrials = subNumTrials / mTargets[0].Count;
+                    if (mTargetHeightMode == 4)     subNumTrials = subNumTrials / mTargets[0].Count;
+                    if (mTargetWidthMode == 4) subNumTrials = subNumTrials / mTargets[0].Count;
+                    subNumTrials = (int)Math.Ceiling(subNumTrials);
 
-			        // set it in the sequence
-			        mTargetSequence[i] = currentTarget[0];
+                    // create a list of unique combo options per balanced category (or balanced category combination)
+                    Dictionary<string, List<int>> uniqueCombos = new Dictionary<string, List<int>>();
+                    for (int j = 0; j < currentTarget.Count; j++) {
+                        string comboKey = "";
+                        if (mTargetYMode == 2)      comboKey += mTargets[0][currentTarget[j]] + "_";
+                        else                        comboKey += "*_";
 
-			        // continue to generate the next target
-			        i++;
+                        if (mTargetHeightMode == 2) comboKey += mTargets[1][currentTarget[j]] + "_";
+                        else                        comboKey += "*_";
+
+                        if (mTargetWidthMode == 2)  comboKey += mTargets[2][currentTarget[j]];
+                        else                        comboKey += "*";
+
+                        // try to retrieve the set
+                        List<int> uniqueComboSet = null;
+                        if (!uniqueCombos.TryGetValue(comboKey, out uniqueComboSet)) {
+                            // set not found
+
+                            // create the set and add it to the dictionary
+                            uniqueComboSet = new List<int>();
+                            uniqueCombos.Add(comboKey, uniqueComboSet);
+
+                        }
+
+                        // add the option to the unique combo set
+                        uniqueComboSet.Add(currentTarget[j]);
+
+                    }
+                    List<List<int>> arrUniqueCombos = new List<List<int>>(uniqueCombos.Values);
+
+                    // create a sequence of xx long with options from uniquecomboset in the subSelectionSet variable
+                    int comboSetCounter = 0;
+                    for (int j = 0; j < subNumTrials; j++) {
+                        
+                        subSelectionSet.Add(arrUniqueCombos[comboSetCounter]);
+
+                        comboSetCounter++;
+                        if (comboSetCounter == arrUniqueCombos.Count) comboSetCounter = 0;
+
+                    }
+
+                    // check if no options are available after the deterministic modes for this subset
+                    if (subSelectionSet.Count == 0) {
+                        // not targets available any more
+
+                        logger.Error("Error generating random sequence, the generation rules/parameters (TargetYMode, TargetHeightMode, TargetWidthMode and Target) cause a situation where no target is available after applying deterministic modes 3 and 4 in subset '" + key + "'");
+                        return;
+
+                    }
+
+                    // randomize the subSelection set
+                    subSelectionSet.Shuffle();
                     
-                    // progress counters depending on the mode
+                }
 
-                    if (mTargetYMode == 0) {                                            // 0: Target(matrix) order
-                        catY_targetOrder++;
-                        if (catY_targetOrder == mTargets[0].Count) catY_targetOrder = 0;
-                    } else if (mTargetYMode == 2) {                                     // 2:random categories (balanced, without replacement within categoryset repetitions)
-                        catY_noReplace.RemoveAt(catY_noReplace.Count - 1);                  // remove from the list
-                    } else if (mTargetYMode == 3) {                                     // 3:sequential categories with rnd start
-                        catY_randStart++;
-                        if (catY_randStart == catY.Count) catY_randStart = 0;
-                    } else if (mTargetYMode == 4) {                                // 4: categories (balanced, randomized repeated categoryset)
-                        catY_FullSeq_Randomized.RemoveAt(catY_FullSeq_Randomized.Count - 1);    // remove from the list
+                //
+                // Third, apply the unbalanced random modes within the sub-selection set
+                //
+
+                // retrieve the first options
+                List<int> options = subSelectionSet[0];
+
+                // check if random within the options
+                if (mTargetYMode == 1 || mTargetHeightMode == 1 || mTargetWidthMode == 1) {
+                    // random within
+
+                    // set it in the sequence
+                    trialSequence[i] = options[rand.Next(0, options.Count)];
+                    
+                } else {
+                    // pick the first option
+
+                    trialSequence[i] = options[0];
+
+                }
+                
+                // remove the first set of options
+                subSelectionSet.RemoveAt(0);
+
+                // continue to generate the next target
+                i++;
+
+                //
+                // progress counters depending on the mode
+                //
+
+                if (mTargetYMode == 3) {                                                              // 3:sequential categories with rnd start
+                    catY_randStart++;
+                    if (catY_randStart == gbl_catY.Count) catY_randStart = 0;
+                } else if (mTargetYMode == 4) {                                                       // 4: Target(matrix) order
+                    catY_targetOrder++;
+                    if (catY_targetOrder == mTargets[0].Count) catY_targetOrder = 0;
+                }
+
+                if (mTargetHeightMode == 3) {                                                              // 3:sequential categories with rnd start
+                    catHeight_randStart++;
+                    if (catHeight_randStart == gbl_catHeight.Count) catHeight_randStart = 0;
+                } else if (mTargetHeightMode == 4) {                                                       // 4: Target(matrix) order
+                    catHeight_targetOrder++;
+                    if (catHeight_targetOrder == mTargets[0].Count) catHeight_targetOrder = 0;
+                }
+
+                if (mTargetWidthMode == 3) {                                                              // 3:sequential categories with rnd start
+                    catWidth_randStart++;
+                    if (catWidth_randStart == gbl_catWidth.Count) catWidth_randStart = 0;
+                } else if (mTargetWidthMode == 4) {                                                       // 4: Target(matrix) order
+                    catWidth_targetOrder++;
+                    if (catWidth_targetOrder == mTargets[0].Count) catWidth_targetOrder = 0;
+                }
+
+            }   // end while loop
+
+        }
+
+        private void generateTrialSequence_indexTargets(List<int> currentTargets, out List<int> catY_unique, out List<List<int>> catY, out List<int> catHeight_unique, out List<List<int>> catHeight, out List<float> catWidth_unique, out List<List<int>> catWidth) {
+
+            // put the row indices of each distinct value (from the rows in the matrix) in an array
+            // (this is used for the modes which are set to randomization)
+            catY_unique = new List<int>(0);
+            catY = new List<List<int>>(0);
+            catHeight_unique = new List<int>(0);
+            catHeight = new List<List<int>>(0);
+            catWidth_unique = new List<float>(0);
+            catWidth = new List<List<int>>(0);
+
+            // put the row indices of each distinct value (from the rows in the matrix) in an array
+            // (this is used for the modes which are set to randomization)
+            
+            // loop through the target rows
+            int i = 0;
+            int j = 0;
+            for (i = 0; i < currentTargets.Count; ++i) {
+
+                // get the values for the row
+                int valueY = (int)mTargets[0][currentTargets[i]];
+                int valueHeight = (int)mTargets[1][currentTargets[i]];
+                float valueWidth = mTargets[2][currentTargets[i]];
+
+                // store the unique values and indices
+                for (j = 0; j < catY_unique.Count; ++j)
+                    if (catY_unique[j] == valueY) break;
+                if (j == catY_unique.Count) {
+                    catY_unique.Add(valueY);                        // store the unique value at index j
+                    catY.Add(new List<int>(0));                     // store the targets row index in the vector at index j	
+
+                }
+                catY[j].Add(i);
+
+                for (j = 0; j < catHeight_unique.Count; ++j)
+                    if (catHeight_unique[j] == valueHeight) break;
+                if (j == catHeight_unique.Count) {
+                    catHeight_unique.Add(valueHeight);              // store the unique value at index j
+                    catHeight.Add(new List<int>(0));                // store the targets row index in the vector at index j							
+                }
+                catHeight[j].Add(i);
+
+                for (j = 0; j < catWidth_unique.Count; ++j)
+                    if (catWidth_unique[j] == valueWidth) break;
+                if (j == (int)catWidth_unique.Count) {
+                    catWidth_unique.Add(valueWidth);                // store the unique value at index j
+                    catWidth.Add(new List<int>(0));                 // store the targets row index in the vector at index j							
+                }
+                catWidth[j].Add(i);
+
+            }
+        }
+
+        private void generateTargetSequence_remOptions(ref List<int> currentTarget, List<int> currentY, List<int> currentHeight, List<int> currentWidth) {
+
+            int j = 0;
+            while (j < currentTarget.Count) {
+                bool found = false;
+
+                found = false;
+                for (int k = 0; k < currentY.Count; ++k) {
+                    if (currentTarget[j] == currentY[k]) {
+                        found = true; break;
                     }
+                }
+                if (!found && j < currentTarget.Count && currentTarget.Count != 0) {
+                    currentTarget.Swap(j, currentTarget.Count - 1);
+                    currentTarget.RemoveAt(currentTarget.Count - 1);
+                    continue;
+                }
 
-                    // progress counters depending on the mode
-                    if (mTargetWidthMode == 0) {                                            // 0: Target(matrix) order
-                        catWidth_targetOrder++;
-                        if (catWidth_targetOrder == mTargets[1].Count) catWidth_targetOrder = 0;
-                    } else if (mTargetWidthMode == 2) {                                // 2:random categories (balanced, without replacement within categoryset repetitions)
-                        catWidth_noReplace.RemoveAt(catWidth_noReplace.Count - 1);        // remove from the list
-                    } else if (mTargetWidthMode == 3) {                                // 3:sequential categories with rnd start
-                        catWidth_randStart++;
-                        if (catWidth_randStart == catWidth.Count) catWidth_randStart = 0;
-                    } else if (mTargetWidthMode == 4) {                                // 4: categories (balanced, randomized repeated categoryset)
-                        catWidth_FullSeq_Randomized.RemoveAt(catWidth_FullSeq_Randomized.Count - 1);  // remove from the list
+                found = false;
+                for (int k = 0; k < currentHeight.Count; ++k) {
+                    if (currentTarget[j] == currentHeight[k]) {
+                        found = true; break;
                     }
+                }
+                if (!found && currentTarget.Count != 0) {
+                    currentTarget.Swap(j, currentTarget.Count - 1);
+                    currentTarget.RemoveAt(currentTarget.Count - 1);
+                    continue;
+                }
 
-                    // progress counters depending on the mode
-                    if (mTargetHeightMode == 0) {                                            // 0: Target(matrix) order
-                        catHeight_targetOrder++;
-                        if (catHeight_targetOrder == mTargets[1].Count) catHeight_targetOrder = 0;
-                    } else if (mTargetHeightMode == 2) {                                // 2:random categories (balanced, without replacement within categoryset repetitions)
-                        catHeight_noReplace.RemoveAt(catHeight_noReplace.Count - 1);        // remove from the list
-                    } else if (mTargetHeightMode == 3) {                                // 3:sequential categories with rnd start
-                        catHeight_randStart++;
-                        if (catHeight_randStart == catHeight.Count) catHeight_randStart = 0;
-                    } else if (mTargetHeightMode == 4) {                                // 4: categories (balanced, randomized repeated categoryset)
-                        catHeight_FullSeq_Randomized.RemoveAt(catHeight_FullSeq_Randomized.Count - 1);  // remove from the list
+                found = false;
+                for (int k = 0; k < currentWidth.Count; ++k) {
+                    if (currentTarget[j] == currentWidth[k]) {
+                        found = true; break;
                     }
+                }
+                if (!found && currentTarget.Count != 0) {
+                    currentTarget.Swap(j, currentTarget.Count - 1);
+                    currentTarget.RemoveAt(currentTarget.Count - 1);
+                    continue;
+                }
 
-		        }
+                // go to the next element
+                j++;
 
-	        }
+            }
 
         }
 
@@ -1475,7 +1491,7 @@ namespace FollowTask {
                 initializeView();
                 
                 // (re-) initialize the block sequence
-		        view.initBlockSequence(mTargetSequence, mTargets);
+		        view.initBlockSequence(trialSequence, mTargets);
                 
             }
 

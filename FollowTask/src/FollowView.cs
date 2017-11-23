@@ -386,7 +386,7 @@ namespace FollowTask {
 
         }
 
-        public void initBlockSequence(List<int> inTargetSequence, List<List<float>> inTargets) {
+        public void initBlockSequence(List<int> inTrialSequence, List<List<float>> inTargets) {
             
             // wait until the textures are loaded before continuing
             while (doLoadTextures > 0) Thread.Sleep(50);
@@ -405,16 +405,16 @@ namespace FollowTask {
 	            mCurrentBlock = noBlock;
 	            mCursorInCurrentBlock = false;
 
-	            // loop through the targets in the sequence
+	            // loop through the trials in the sequence
 	            float startX = 0;
-	            for (i = 0; i < inTargetSequence.Count; ++i) {
+	            for (i = 0; i < inTrialSequence.Count; ++i) {
 
 		            // calculate the block height and y position (based on percentages)
-		            float height = getContentHeight() * (inTargets[1][inTargetSequence[i]] / 100.0f);
-		            float y = getContentHeight() * (inTargets[0][inTargetSequence[i]] / 100.0f) - height / 2.0f;
+		            float height = getContentHeight() * (inTargets[1][inTrialSequence[i]] / 100.0f);
+		            float y = getContentHeight() * (inTargets[0][inTrialSequence[i]] / 100.0f) - height / 2.0f;
 
 		            // calculate the block width (based on sec)
-		            float widthSec = inTargets[2][inTargetSequence[i]];
+		            float widthSec = inTargets[2][inTrialSequence[i]];
 		            float widthPixels = (float)getContentWidth() / ((float)getContentWidth() / blockSpeed) * widthSec;
 
 		            // set the start position
@@ -424,8 +424,8 @@ namespace FollowTask {
 		            FollowBlock block = new FollowBlock(startX, y, widthPixels, height);
                     
 		            // set the block texture (initialized to 0 = no texture)
-		            if (inTargetSequence[i] < (int)blockTextures.Count)
-			            block.mTexture = blockTextures[inTargetSequence[i]];
+		            if (inTrialSequence[i] < (int)blockTextures.Count)
+			            block.mTexture = blockTextures[inTrialSequence[i]];
 
 		            // add block for display
 		            mBlocks.Add(block);
