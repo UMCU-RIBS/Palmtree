@@ -69,7 +69,7 @@ namespace MoleTask {
         private int mColumnSelectedDelay = 0;
         private int configHoleRows = 0;
         private int configHoleColumns = 0;
-        private int[] fixedTargetSequence = new int[0];					            // target sequence (input parameter)
+        private int[] fixedTrialSequence = new int[0];					            // target sequence (input parameter)
 
 
         // task (active) variables
@@ -82,12 +82,12 @@ namespace MoleTask {
         private int holeColumns = 0;
         private int mRowID = 0;
         private int mColumnID = 0;
-        private int numTargets = 1;
-        private List<int> mTargetSequence = new List<int>(0);		// the target sequence being used in the task (can either be given by input or generated)
-        private int mMoleIndex = -1;							        // specify the position of the mole (grid index)
-        private int mTargetIndex = 0;						        // specify the position in the random sequence of targets
-        private int mCountdownCounter = 0;					        // the countdown timer
-        private int score = 0;						            // the score of the user hitting a mole
+        private int numberOfTrials = 1;
+        private List<int> mTrialSequence = new List<int>(0);		            // the trial sequence being used in the task (can either be given by input or generated)
+        private int currentMoleIndex = -1;							            // specify the position of the mole (grid index)
+        private int currentTrialIndex = 0;						                // specify the position in the random sequence of trials
+        private int mCountdownCounter = 0;					                    // the countdown timer
+        private int score = 0;						                            // the score of the user hitting a mole
         private int mRowLoopCounter = 0;
 
 
@@ -209,13 +209,13 @@ namespace MoleTask {
                 "0", "", "1s");
 
             parameters.addParameter<int>(
-                "NumberTargets",
-                "Number of targets",
+                "NumberOfTrials",
+                "Number of trials",
                 "1", "", "10");
 
             parameters.addParameter<int[]>(
-                "TargetSequence",
-                "Fixed sequence in which targets should be presented (leave empty for random). \nNote. the 'NumberTargets' parameter will be overwritten with the amount of values entered here",
+                "TrialSequence",
+                "Fixed sequence in which targets should be presented (leave empty for random). \nNote. the 'NumberOfTrials' parameter will be overwritten with the amount of values entered here",
                 "0", "", "");
 
         }
@@ -327,23 +327,23 @@ namespace MoleTask {
             }
 
             // retrieve the number of targets
-            numTargets = newParameters.getValue<int>("NumberTargets");
-            if (numTargets < 1) {
+            numberOfTrials = newParameters.getValue<int>("NumberOfTrials");
+            if (numberOfTrials < 1) {
                 logger.Error("Minimum of 1 target is required");
                 return false;
             }
 
-            // retrieve (fixed) target sequence
-            fixedTargetSequence = newParameters.getValue<int[]>("TargetSequence");
-            if (fixedTargetSequence.Length > 0) {
+            // retrieve (fixed) trial sequence
+            fixedTrialSequence = newParameters.getValue<int[]>("TrialSequence");
+            if (fixedTrialSequence.Length > 0) {
                 int numHoles = configHoleRows * configHoleColumns;
-                for (int i = 0; i < fixedTargetSequence.Length; ++i) {
-                    if (fixedTargetSequence[i] < 0) {
-                        logger.Error("The TargetSequence parameter contains a target index (" + fixedTargetSequence[i] + ") that is below zero, check the TargetSequence");
+                for (int i = 0; i < fixedTrialSequence.Length; ++i) {
+                    if (fixedTrialSequence[i] < 0) {
+                        logger.Error("The TrialSequence parameter contains a target index (" + fixedTrialSequence[i] + ") that is below zero, check the TrialSequence");
                         return false;
                     }
-                    if (fixedTargetSequence[i] >= numHoles) {
-                        logger.Error("The TargetSequence parameter contains a target index (" + fixedTargetSequence[i] + ") that is out of range, check the HoleRows and HoleColumns parameters. (note that the indexing is 0 based)");
+                    if (fixedTrialSequence[i] >= numHoles) {
+                        logger.Error("The TrialSequence parameter contains a target index (" + fixedTrialSequence[i] + ") that is out of range, check the HoleRows and HoleColumns parameters. (note that the indexing is 0 based)");
                         return false;
                     }
                     // TODO: check if the mole is not on an empty spot
@@ -385,20 +385,20 @@ namespace MoleTask {
                 initializeView();
 
                 // check if a target sequence is set
-	            if (fixedTargetSequence.Length == 0) {
-		            // targetsequence not set in parameters, generate
+	            if (fixedTrialSequence.Length == 0) {
+		            // trialSequence not set in parameters, generate
 		            
 		            // Generate targetlist
-		            generateTargetSequence();
+		            generateTrialSequence();
 
 	            } else {
-		            // targetsequence is set in parameters
+		            // trialsequence is set in parameters
 
-                    // clear the targets
-		            if (mTargetSequence.Count != 0)		mTargetSequence.Clear();
+                    // clear the trials
+		            if (mTrialSequence.Count != 0)		mTrialSequence.Clear();
                 
-		            // transfer the targetsequence
-                    mTargetSequence = new List<int>(fixedTargetSequence);
+		            // transfer the fixed trial sequence
+                    mTrialSequence = new List<int>(fixedTrialSequence);
 
 	            }
 	            
@@ -438,7 +438,7 @@ namespace MoleTask {
             if (!mUNPMenuTask) {
                 
                 // store the generated sequence in the output parameter xml
-                Data.adjustXML(CLASS_NAME, "TargetSequence", string.Join(" ", mTargetSequence));
+                Data.adjustXML(CLASS_NAME, "TrialSequence", string.Join(" ", mTrialSequence));
                 
             }
 
@@ -617,9 +617,9 @@ namespace MoleTask {
 				            // hide the countdown counter
 				            view.setCountDown(-1);
 
-				            // Begin at first target and set the mole at the right position
-				            mTargetIndex = 0;
-				            setMole(mTargetSequence[mTargetIndex]);
+				            // Begin at first trial and set the mole at the right position
+				            currentTrialIndex = 0;
+				            setMole(mTrialSequence[currentTrialIndex]);
 
 				            // Show hole grid
 				            view.showGrid(true);
@@ -664,7 +664,7 @@ namespace MoleTask {
                                 if (mRowID == 0) {
                                     Data.logEvent(2, "BlankRow ", mRowID.ToString());
 
-                                } else if (mRowID * holeColumns < mMoleIndex && (mRowID + 1) * holeColumns > mMoleIndex) {
+                                } else if (mRowID * holeColumns < currentMoleIndex && (mRowID + 1) * holeColumns > currentMoleIndex) {
                                     Data.logEvent(2, "MoleRow ", mRowID.ToString());
 
                                 } else {
@@ -689,7 +689,7 @@ namespace MoleTask {
 
 				            // Start selecting columns from the top if it is the right row
 				            // OR start selecting columns if it is the first row with exit button
-				            if(mRowID == (int)Math.Floor(((double)mMoleIndex / holeColumns)) || ( mRowID == 0 && mAllowExit))
+				            if(mRowID == (int)Math.Floor(((double)currentMoleIndex / holeColumns)) || ( mRowID == 0 && mAllowExit))
 					            setState(TaskStates.ColumnSelect);
 				            else
 					            setState(TaskStates.RowSelect);
@@ -725,7 +725,7 @@ namespace MoleTask {
 
                                 // log event that column is highlighted, and whether the column is empty (no mole), blank (no mole and no pile of dirt), or contains a mole
                                 if (mColumnID == 0 || mRowID == 0) Data.logEvent(2, "BlankColumn ", mColumnID.ToString());
-                                else if (mMoleIndex == holeColumns * mRowID + mColumnID) Data.logEvent(2, "MoleColumn ", mColumnID.ToString());
+                                else if (currentMoleIndex == holeColumns * mRowID + mColumnID) Data.logEvent(2, "MoleColumn ", mColumnID.ToString());
                                 else Data.logEvent(2, "EmptyColumn ", mColumnID.ToString());
 
                                 // check if there has been looped more than two times in the row with exit button
@@ -775,18 +775,18 @@ namespace MoleTask {
                                 // exit was not allowed nor selected
 
                                 // Check if mole is selected
-                                if (mMoleIndex == holeColumns * mRowID + mColumnID) {
+                                if (currentMoleIndex == holeColumns * mRowID + mColumnID) {
                                     // hit
 
                                     // add one to the score and display
                                     score++;
                                     view.setScore(score);
 
-                                    // go to next target in the sequence and set mole
-                                    mTargetIndex++;
+                                    // go to next trial in the sequence and set mole
+                                    currentTrialIndex++;
 
-                                    // check whether at the end of targetsequence
-                                    if (mTargetIndex == mTargetSequence.Count) {
+                                    // check whether at the end of trial sequence
+                                    if (currentTrialIndex == mTrialSequence.Count) {
 
                                         // show end text
                                         setState(TaskStates.EndText);
@@ -794,7 +794,7 @@ namespace MoleTask {
                                     } else {
 
                                         // set mole at next location
-                                        setMole(mTargetSequence[mTargetIndex]);
+                                        setMole(mTrialSequence[currentTrialIndex]);
 
                                         // Start again selecting rows from the top
                                         setState(TaskStates.RowSelect);
@@ -922,7 +922,7 @@ namespace MoleTask {
 			
 			    // show the grid and set the mole
 			    view.showGrid(true);
-			    setMole(mTargetSequence[mTargetIndex]);
+			    setMole(mTrialSequence[currentTrialIndex]);
 
 			    // show the score
 			    view.setScore(score);
@@ -1013,7 +1013,7 @@ namespace MoleTask {
 
                     // log event that row is highlighted, and whether the row is empty (no mole), blank (no mole and no pile of dirt), or contains a mole
                     if (mRowID == 0) Data.logEvent(2, "BlankRow ", mRowID.ToString());
-                    else if (mRowID * holeColumns < mMoleIndex && (mRowID + 1) * holeColumns > mMoleIndex) Data.logEvent(2, "MoleRow ", mRowID.ToString());
+                    else if (mRowID * holeColumns < currentMoleIndex && (mRowID + 1) * holeColumns > currentMoleIndex) Data.logEvent(2, "MoleRow ", mRowID.ToString());
                     else Data.logEvent(2, "EmptyRow ", mRowID.ToString());
 
                     // 
@@ -1028,7 +1028,7 @@ namespace MoleTask {
                     view.selectRow(mRowID, true);
 
                     // row has been clicked. Check whether it was on a row that contains a mole or not
-                    if (mRowID * holeColumns < mMoleIndex && (mRowID + 1) * holeColumns > mMoleIndex) Data.logEvent(2, "RowClick ", "1");
+                    if (mRowID * holeColumns < currentMoleIndex && (mRowID + 1) * holeColumns > currentMoleIndex) Data.logEvent(2, "RowClick ", "1");
                     else Data.logEvent(2, "RowClick ", "0");
 
                     // 
@@ -1047,7 +1047,7 @@ namespace MoleTask {
 
                     // log event that column is highlighted, and whether the column is empty(no mole), blank(no mole and no pile of dirt), or contains a mole
                     if (mColumnID == 0 || mRowID == 0) Data.logEvent(2, "BlankColumn ", mColumnID.ToString());
-                    else if (mMoleIndex == holeColumns * mRowID + mColumnID) Data.logEvent(2, "MoleColumn ", mColumnID.ToString());
+                    else if (currentMoleIndex == holeColumns * mRowID + mColumnID) Data.logEvent(2, "MoleColumn ", mColumnID.ToString());
                     else Data.logEvent(2, "EmptyColumn ", mColumnID.ToString());
 
                     // reset how often there was looped in this row
@@ -1066,7 +1066,7 @@ namespace MoleTask {
 			        view.selectCell(mRowID, mColumnID, true);
 
                     // log cell click event
-                    if (mMoleIndex == holeColumns * mRowID + mColumnID) Data.logEvent(2, "CellClick", "1");
+                    if (currentMoleIndex == holeColumns * mRowID + mColumnID) Data.logEvent(2, "CellClick", "1");
                     else                                                Data.logEvent(2, "CellClick", "0");
 
                     // set wait time before advancing
@@ -1103,27 +1103,27 @@ namespace MoleTask {
             setState(TaskStates.Wait);
 
             // check if there is no fixed target sequence
-	        if (fixedTargetSequence.Length == 0) {
+	        if (fixedTrialSequence.Length == 0) {
 
 		        // generate new targetlist
-		        generateTargetSequence();
+		        generateTrialSequence();
 
 	        }
 
         }
 
-        private void generateTargetSequence() {
+        private void generateTrialSequence() {
 		
 	        // clear the targets
-	        if (mTargetSequence.Count != 0)		mTargetSequence.Clear();
+	        if (mTrialSequence.Count != 0)		mTrialSequence.Clear();
 
-            // create targetsequence array with <numTargets>
-            mTargetSequence = new List<int>(new int[numTargets]);
+            // create trial sequence array with <numTrials>
+            mTrialSequence = new List<int>(new int[numberOfTrials]);
 
 	        // create a random sequence
 	        int i = 0;
 	        List<int> numberSet = new List<int>(0); 
-	        while(i < numTargets) {
+	        while(i < numberOfTrials) {
 
 		        // check if the numberset is empty
 		        if (numberSet.Count == 0) {
@@ -1135,13 +1135,13 @@ namespace MoleTask {
                     
 			        // shuffle the set (and, if needed, reshuffle until the conditions are met, which are: not on the same spot, ...)
                     numberSet.Shuffle();
-			        while(i > 0 && numberSet.Count != 1 && mTargetSequence[i - 1] == numberSet[(numberSet.Count - 1)])
+			        while(i > 0 && numberSet.Count != 1 && mTrialSequence[i - 1] == numberSet[(numberSet.Count - 1)])
 				        numberSet.Shuffle();
 
 		        }
 
 		        // use the last number in the numberset and remove the last number from the numberset
-		        mTargetSequence[i] = numberSet[(numberSet.Count - 1)];
+		        mTrialSequence[i] = numberSet[(numberSet.Count - 1)];
                 numberSet.RemoveAt(numberSet.Count - 1);
 
 		        // go to the next position
@@ -1154,7 +1154,7 @@ namespace MoleTask {
         private void setMole(int index) {
 	
 	        // set mole index to variable
-	        mMoleIndex = index;
+	        currentMoleIndex = index;
 
 	        // hide moles
 	        for(int i = 0; i < holes.Count; i++) {
@@ -1163,8 +1163,8 @@ namespace MoleTask {
 	        }
 
 	        // set mole (if not -1)
-	        if(mMoleIndex != -1)
-		        holes[mMoleIndex].mType = MoleCell.CellType.Mole;
+	        if(currentMoleIndex != -1)
+		        holes[currentMoleIndex].mType = MoleCell.CellType.Mole;
 
         }
 
@@ -1207,8 +1207,8 @@ namespace MoleTask {
             newParameters.setValue("RowSelectedDelay", 5.0);
             newParameters.setValue("ColumnSelectDelay", 12.0);
             newParameters.setValue("ColumnSelectedDelay", 5.0);
-            newParameters.setValue("NumberTargets", 10);
-            newParameters.setValue("TargetSequence", "");
+            newParameters.setValue("NumberOfTrials", 10);
+            newParameters.setValue("TrialSequence", "");
 
             // get parameter values from app.config
             // cycle through app.config parameter values and try to set the parameter

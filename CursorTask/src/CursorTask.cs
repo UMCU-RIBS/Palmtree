@@ -97,8 +97,8 @@ namespace CursorTask {
         };
 
         // task (active) variables
-        private List<int> trialSequence = new List<int>(0);					    // the target sequence being used in the task (can either be given by input or generated)
-        private double mCursorSpeedY = 1;                                              // 
+        private List<int> trialSequence = new List<int>(0);					        // the target sequence being used in the task (can either be given by input or generated)
+        private double mCursorSpeedY = 1;                                           // 
 
         private int mWaitCounter = 0;
         private int mCountdownCounter = 0;											// the countdown timer
@@ -107,8 +107,8 @@ namespace CursorTask {
 
         private TaskStates taskState = TaskStates.Wait;
         private TaskStates previousTaskState = TaskStates.Wait;
-        private TrialStates mTrialState = TrialStates.PreTrial;								// the state of the trial
-        private int mCurrentTarget = 0;                                     // the target/trial in the targetsequence that is currently done
+        private TrialStates mTrialState = TrialStates.PreTrial;						// the state of the trial
+        private int mCurrentTrial = 0;                                              // the trial in the trial sequence that is currently done
         
 
 
@@ -278,13 +278,13 @@ namespace CursorTask {
                     "", "", "255;0;0");
 
                 parameters.addParameter<int>(
-                    "NumberTargets",
-                    "Number of targets",
+                    "NumberOfTrials",
+                    "Number of trials",
                     "1", "", "70");
 
                 parameters.addParameter<int[]>(
-                    "TargetSequence",
-                    "Fixed sequence in which targets should be presented (leave empty for random)\nNote. indexing is 0 based (so a value of 0 will be the first row from the 'Targets' parameter",
+                    "TrialSequence",
+                    "Fixed trial sequence in which targets should be presented (leave empty for random)\nNote. indexing is 0 based (so a value of 0 will be the first row from the 'Targets' parameter",
                     "0", "", "");
 
 
@@ -444,14 +444,14 @@ namespace CursorTask {
             mTargetColorMiss = parameters.getValue<RGBColorFloat>("TargetColorMiss");
 
             // retrieve the number of targets and (fixed) trial sequence
-            numTrials = parameters.getValue<int>("NumberTargets");
-            fixedTrialSequence = parameters.getValue<int[]>("TargetSequence");
+            numTrials = parameters.getValue<int>("NumberOfTrials");
+            fixedTrialSequence = parameters.getValue<int[]>("TrialSequence");
             if (fixedTrialSequence.Length == 0) {
                 // no fixed sequence
 
-                // check number of targets
+                // check number of trials
                 if (numTrials < 1) {
-                    logger.Error("Minimum of 1 target is required");
+                    logger.Error("Minimum of 1 trial is required");
                     return false;
                 }
 
@@ -462,11 +462,11 @@ namespace CursorTask {
                 for (int i = 0; i < numTrials; ++i) {
 
                     if (fixedTrialSequence[i] < 0) {
-                        logger.Error("The TargetSequence parameter contains a target index (" + fixedTrialSequence[i] + ") that is below zero, check the TargetSequence");
+                        logger.Error("The TrialSequence parameter contains a target index (" + fixedTrialSequence[i] + ") that is below zero, check the TrialSequence");
                         return false;
                     }
                     if (fixedTrialSequence[i] >= mTargets[0].Count) {
-                        logger.Error("The TargetSequence parameter contains a target index (" + fixedTrialSequence[i] + ") that is out of range, check the Targets parameter. (note that the indexing is 0 based)");
+                        logger.Error("The TrialSequence parameter contains a target index (" + fixedTrialSequence[i] + ") that is out of range, check the Targets parameter. (note that the indexing is 0 based)");
                         return false;
                     }
                 }
@@ -488,20 +488,20 @@ namespace CursorTask {
                 // initialize the view
                 initializeView();
 
-                // check if a target sequence is set
+                // check if a trial sequence is set
                 if (fixedTrialSequence.Length == 0) {
-                    // targetsequence not set in parameters, generate
+                    // TrialSequence not set in parameters, generate
 
                     // Generate targetlist
                     generateTrialSequence();
 
                 } else {
-                    // targetsequence is set in parameters
+                    // TrialSequence is set in parameters
 
-                    // clear the targets
+                    // clear the trial sequence
                     if (trialSequence.Count != 0) trialSequence.Clear();
 
-                    // transfer the targetsequence
+                    // transfer the targets in the trial sequence
                     trialSequence = new List<int>(fixedTrialSequence);
 
                 }
@@ -549,7 +549,7 @@ namespace CursorTask {
             if (!mUNPMenuTask) {
 
                 // store the generated sequence in the output parameter xml
-                Data.adjustXML(CLASS_NAME, "TargetSequence", string.Join(" ", trialSequence));
+                Data.adjustXML(CLASS_NAME, "TrialSequence", string.Join(" ", trialSequence));
 
             }
 
@@ -728,7 +728,7 @@ namespace CursorTask {
                             view.setCountDown(-1);
 
                             // set the current target/trial to the first target/trial
-                            mCurrentTarget = 0;
+                            mCurrentTrial = 0;
                             setTarget();
 
                             // reset the score
@@ -862,7 +862,7 @@ namespace CursorTask {
                                 if (mWaitCounter == 0) {
 
                                     // check if this was the last target/trial
-                                    if (mCurrentTarget == trialSequence.Count - 1) {
+                                    if (mCurrentTrial == trialSequence.Count - 1) {
                                         // end of the task
 
                                         // set the state to end
@@ -918,7 +918,7 @@ namespace CursorTask {
         private void startPreTrial() {
 
             // log event pre-feedback is started
-            Data.logEvent(2, "PreFeedbackStart", mCurrentTarget.ToString() + ";" + trialSequence[mCurrentTarget].ToString());
+            Data.logEvent(2, "PreFeedbackStart", mCurrentTrial.ToString() + ";" + trialSequence[mCurrentTrial].ToString());
 
             // check if there is a pre-trial duration
             if (mPreTrialDuration == 0) {
@@ -947,10 +947,10 @@ namespace CursorTask {
 
             // set feedback as true
             Globals.setValue<bool>("Feedback", "1");
-            Globals.setValue<int>("Target", trialSequence[mCurrentTarget].ToString());
+            Globals.setValue<int>("Target", trialSequence[mCurrentTrial].ToString());
 
             // log event feedback is started
-            Data.logEvent(2, "FeedbackStart", mCurrentTarget.ToString() + ";" + trialSequence[mCurrentTarget].ToString());
+            Data.logEvent(2, "FeedbackStart", mCurrentTrial.ToString() + ";" + trialSequence[mCurrentTrial].ToString());
 
             // set the trial state to trial
             setTrialState(TrialStates.Trial);
@@ -964,7 +964,7 @@ namespace CursorTask {
                 // no post-trial duration
 
                 // check if this was the last target/trial
-                if (mCurrentTarget == trialSequence.Count - 1) {
+                if (mCurrentTrial == trialSequence.Count - 1) {
                     // end of the task
 
                     // set the state to end
@@ -998,7 +998,7 @@ namespace CursorTask {
             Data.logEvent(2, "ITIStart", "");
 
             // goto the next target/trial
-            mCurrentTarget++;
+            mCurrentTrial++;
             setTarget();
 
             // check if a inter-trial interval was set
@@ -1027,8 +1027,8 @@ namespace CursorTask {
             view.centerCursorY();
 
             // set the target
-            int currentTargetY = (int)mTargets[0][trialSequence[mCurrentTarget]];
-            int currentTargetHeight = (int)mTargets[1][trialSequence[mCurrentTarget]];
+            int currentTargetY = (int)mTargets[0][trialSequence[mCurrentTrial]];
+            int currentTargetHeight = (int)mTargets[1][trialSequence[mCurrentTrial]];
             view.setTarget(currentTargetY, currentTargetHeight);
 
         }
@@ -1343,7 +1343,7 @@ namespace CursorTask {
 	        // clear the targets
 	        if (trialSequence.Count != 0)		trialSequence.Clear();
             
-	        // create targetsequence array with <NumberTargets>
+	        // create a trial sequence array with <NumberOfTrials>
             trialSequence = new List<int>(new int[numTrials]);
 
             // create a array with all targets (will be reused often, so do it once here and make copies)
@@ -1421,7 +1421,7 @@ namespace CursorTask {
                 
                 // list the possible targets without the targets that are excluded after applying the deterministic modes
                 List<int> currentTarget = new List<int>(allTargets);
-                generateTargetSequence_remOptions(ref currentTarget, currentY, currentHeight);
+                generateTrialSequence_remOptions(ref currentTarget, currentY, currentHeight);
 
                 // check if no options are available after the deterministic modes
                 if (currentTarget.Count == 0) {
@@ -1605,7 +1605,7 @@ namespace CursorTask {
             }
         }
 
-        private void generateTargetSequence_remOptions(ref List<int> currentTarget, List<int> currentY, List<int> currentHeight) {
+        private void generateTrialSequence_remOptions(ref List<int> currentTarget, List<int> currentY, List<int> currentHeight) {
 
             int j = 0;
             while (j < currentTarget.Count) {
@@ -1655,20 +1655,18 @@ namespace CursorTask {
                 return;
             }
 
-            // set the parameter set as not visible (for GUI configuration)
-            //parameters.ParamSetVisible = false;
+            // create a new parameter object and define this task's parameters
+            Parameters newParameters = new Parameters("CursorTask", Parameters.ParamSetTypes.Application);
+            //defineParameters(ref newParameters);
 
-            // transfer the window settings
-            mWindowRedrawFreqMax = parentParameters.getValue<int>("WindowRedrawFreqMax");      // the view update frequency (in maximum fps)
-            //mWindowed = true;
-            mWindowWidth = parentParameters.getValue<int>("WindowWidth"); ;
-            mWindowHeight = parentParameters.getValue<int>("WindowHeight"); ;
-            mWindowLeft = parentParameters.getValue<int>("WindowLeft"); ;
-            mWindowTop = parentParameters.getValue<int>("WindowTop"); ;
-            //mFullscreenMonitor = 0;
+            // transfer some parameters from the parent
+            newParameters.setValue("WindowRedrawFreqMax", parentParameters.getValue<int>("WindowRedrawFreqMax"));
+            newParameters.setValue("WindowWidth", parentParameters.getValue<int>("WindowWidth"));
+            newParameters.setValue("WindowHeight", parentParameters.getValue<int>("WindowHeight"));
+            newParameters.setValue("WindowLeft", parentParameters.getValue<int>("WindowLeft"));
+            newParameters.setValue("WindowTop", parentParameters.getValue<int>("WindowTop"));
 
-
-            // set the UNP task standard settings
+            // set UNP task standard settings
             mShowScore = false;
             mShowScoreAtEnd = true;
             mTaskInputSignalType = 1;

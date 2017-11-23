@@ -248,13 +248,13 @@ namespace FollowTask {
                 "0", "", "120");
 
             parameters.addParameter<int>(
-                "NumberTargets",
-                "Number of targets",
+                "NumberOfTrials",
+                "Number of trials",
                 "1", "", "70");
 
             parameters.addParameter<int[]>(
-                "TargetSequence",
-                "Fixed sequence in which targets should be presented (leave empty for random)\nNote. indexing is 0 based (so a value of 0 will be the first row from the 'Targets' parameter",
+                "TrialSequence",
+                "Fixed trial sequence in which targets should be presented (leave empty for random)\nNote. indexing is 0 based (so a value of 0 will be the first row from the 'Targets' parameter",
                 "0", "", "");
 
         }
@@ -396,14 +396,14 @@ namespace FollowTask {
 
 
             // retrieve the number of targets and (fixed) target sequence
-            numTrials = newParameters.getValue<int>("NumberTargets");
-            fixedTrialSequence = newParameters.getValue<int[]>("TargetSequence");
+            numTrials = newParameters.getValue<int>("NumberOfTrials");
+            fixedTrialSequence = newParameters.getValue<int[]>("TrialSequence");
             if (fixedTrialSequence.Length == 0) {
                 // no fixed sequence
 
-                // check number of targets
+                // check number of trials
                 if (numTrials < 1) {
-                    logger.Error("Minimum of 1 target is required");
+                    logger.Error("Minimum of 1 trial is required");
                     return false;
                 }
 
@@ -414,11 +414,11 @@ namespace FollowTask {
                 for (int i = 0; i < numTrials; ++i) {
                     
                     if (fixedTrialSequence[i] < 0) {
-                        logger.Error("The TargetSequence parameter contains a target index (" + fixedTrialSequence[i] + ") that is below zero, check the TargetSequence");
+                        logger.Error("The TrialSequence parameter contains a target index (" + fixedTrialSequence[i] + ") that is below zero, check the TrialSequence");
                         return false;
                     }
                     if (fixedTrialSequence[i] >= mTargets[0].Count) {
-                        logger.Error("The TargetSequence parameter contains a target index (" + fixedTrialSequence[i] + ") that is out of range, check the Targets parameter. (note that the indexing is 0 based)");
+                        logger.Error("The TrialSequence parameter contains a target index (" + fixedTrialSequence[i] + ") that is out of range, check the Targets parameter. (note that the indexing is 0 based)");
                         return false;
                     }
                 }
@@ -447,25 +447,25 @@ namespace FollowTask {
                 // initialize the view
                 initializeView();
 
-                // check if a target sequence is set
+                // check if a fixed trial sequence is set
                 if (fixedTrialSequence.Length == 0) {
-		            // targetsequence not set in parameters, generate
-		
-		            // Generate trial list
-		            generateTrialSequence();
+                    // TrialSequence not set in parameters, generate
+
+                    // Generate trial list
+                    generateTrialSequence();
 
 	            } else {
-		            // targetsequence is set in parameters
+                    // fixed TrialSequence is set in parameters
 
-		            // clear the targets
-		            if (trialSequence.Count != 0)		trialSequence.Clear();
+                    // clear the trials
+                    if (trialSequence.Count != 0)		trialSequence.Clear();
                 
-		            // transfer the targetsequence
+		            // transfer the trial sequence targets
                     trialSequence = new List<int>(fixedTrialSequence);
 
 	            }
 	        
-	            // initialize the target sequence
+	            // initialize the trials sequence
 	            view.initBlockSequence(trialSequence, mTargets);
 
             }
@@ -512,7 +512,7 @@ namespace FollowTask {
             if (!mUNPMenuTask) {
 
                 // store the generated sequence in the output parameter xml
-                Data.adjustXML(CLASS_NAME, "TargetSequence", string.Join(" ", trialSequence));
+                Data.adjustXML(CLASS_NAME, "TrialSequence", string.Join(" ", trialSequence));
 
             }
 
@@ -1016,10 +1016,10 @@ namespace FollowTask {
         private void generateTrialSequence() {
             int i;
 
-	        // clear the targets
+	        // clear the trial sequence
 	        if (trialSequence.Count != 0)		trialSequence.Clear();
-            
-	        // create targetsequence array with <NumberTargets>
+
+            // create a trial sequence array with <NumberOfTrials>
             trialSequence = new List<int>(new int[numTrials]);
 
             // create a array with all targets (will be reused often, so do it once here and make copies)
@@ -1112,7 +1112,7 @@ namespace FollowTask {
                 
                 // list the possible targets without the targets that are excluded after applying the deterministic modes
                 List<int> currentTarget = new List<int>(allTargets);
-                generateTargetSequence_remOptions(ref currentTarget, currentY, currentHeight, currentWidth);
+                generateTriaSequence_remOptions(ref currentTarget, currentY, currentHeight, currentWidth);
 
                 // check if no options are available after the deterministic modes
                 if (currentTarget.Count == 0) {
@@ -1320,7 +1320,7 @@ namespace FollowTask {
             }
         }
 
-        private void generateTargetSequence_remOptions(ref List<int> currentTarget, List<int> currentY, List<int> currentHeight, List<int> currentWidth) {
+        private void generateTriaSequence_remOptions(ref List<int> currentTarget, List<int> currentY, List<int> currentHeight, List<int> currentWidth) {
 
             int j = 0;
             while (j < currentTarget.Count) {
@@ -1406,14 +1406,14 @@ namespace FollowTask {
             newParameters.setValue("CursorColorMiss", "204;0;0");
             newParameters.setValue("CursorColorHit", "204;204;0");
             newParameters.setValue("CursorColorHitTime", 0.0);
-            newParameters.setValue("NumberTargets", 70);
+            newParameters.setValue("NumberOfTrials", 70);
             newParameters.setValue("TargetSpeed", 120);
             newParameters.setValue("TargetYMode", 3);
             newParameters.setValue("TargetWidthMode", 1);
             newParameters.setValue("TargetHeightMode", 1);
             newParameters.setValue("Targets", "25,25,25,75,75,75;50,50,50,50,50,50;2,2,2,3,5,7");
             newParameters.setValue("TargetTextures", "images\\sky.bmp,images\\sky.bmp,images\\sky.bmp,images\\grass.bmp,images\\grass.bmp,images\\grass.bmp");
-            newParameters.setValue("TargetSequence", "");
+            newParameters.setValue("TrialSequence", "");
 
             // get parameter values from app.config
             // cycle through app.config parameter values and try to set the parameter

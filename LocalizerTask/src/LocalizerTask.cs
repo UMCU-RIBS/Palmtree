@@ -46,14 +46,14 @@ namespace LocalizerTask {
 
         // task specific
         private string[][] stimuli = null;                                  // matrix with stimulus information per stimulus: text, sound, image, length
-        private int[] stimuliSequence = null;                               // sequence of stimuli, referring to stimuli by index in stimuli matrix 
+        private int[] stimuliSequence = null;                                 // sequence of stimuli, referring to stimuli by index in stimuli matrix 
         private int currentStimulus = 0;                                    // stimulus currently being presented, referred to by index in stimuli matrix
         private int stimulusCounter = 0;                                    // stimulus pointer, indicating which stimulus of sequence is currently being presented
         private int stimulusRemainingTime = -1;                             // remaining time to present current stimulus, in samples
-        private int amountSequences = 0;                                    // amount of stimuli sequences that will be presented
-        private int currentSequence = 1;                                    // the current sequence being presented
-        private int firstSequenceWait = 0;                                  // time to wait at start of task before first stimulus is presented, in samples
-        private int sequenceWait = 0;                                       // time to wait between end of sequence and start of next sequence, in samples
+        private int numberOfRepetitions = 0;                                // amount of times a stimuli sequence will be presented
+        private int currentRepetition = 1;                                  // the current stimuli sequence repetition
+        private int firstSequenceWait = 0;                                  // time to wait at start of task before first sequence is presented, in samples
+        private int betweenSequenceWait = 0;                                // time to wait between end of sequence and start of next sequence, in samples
         private string startText = "";                                      // text presented to participant at beginning of task
         private string waitText = "";                                       // text presented to participant during waiting
         private string endText = "";                                        // text presented to participant at end of task
@@ -112,17 +112,17 @@ namespace LocalizerTask {
 
                 parameters.addParameter<string[][]>(
                     "Stimuli",
-                    "Stimuli available for use in sequence and their corresponding duration in seconds. Stimuli can be either text, images, or sounds, or any combination of these modalities.\n Each row represents a stimulus.",
+                    "Stimuli available for use in a stimuli sequence and their corresponding duration in seconds. Stimuli can be either text, images, or sounds, or any combination of these modalities.\n Each row represents a stimulus.",
                     "", "", "Rust;;;10", new string[] { "Text", "Image", "Sound", "Duration [s]" });
 
                 parameters.addParameter<int[]>(
                     "StimuliSequence",
                     "",
-                    "Sequence of presented stimuli.", "", "", "1");
+                    "Sequence of one or more stimuli.", "", "", "1");
 
                 parameters.addParameter<int>(
-                    "AmountOfSequences",
-                    "Number of sequences that will be presented consecutively.",
+                    "NumberOfRepetitions",
+                    "Number of times a stimuli sequence will be repeated.",
                     "1", "", "2");
 
                 parameters.addParameter<int>(
@@ -131,7 +131,7 @@ namespace LocalizerTask {
                     "0", "", "5s");
 
                 parameters.addParameter<int>(
-                    "SequenceWait",
+                    "BetweenSequenceWait",
                     "Amount of time between end of sequence and start of subsequent sequence.",
                     "0", "", "10s");
 
@@ -180,9 +180,9 @@ namespace LocalizerTask {
             // transfer task specific values
             stimuli = parameters.getValue<string[][]>("Stimuli");
             stimuliSequence = parameters.getValue<int[]>("StimuliSequence");
-            amountSequences = parameters.getValue<int>("AmountOfSequences");
+            numberOfRepetitions = parameters.getValue<int>("NumberOfRepetitions");
             firstSequenceWait = parameters.getValueInSamples("FirstSequenceWait");
-            sequenceWait = parameters.getValueInSamples("SequenceWait");
+            betweenSequenceWait = parameters.getValueInSamples("BetweenSequenceWait");
             startText = parameters.getValue<string>("StartText");
             waitText = parameters.getValue<string>("WaitText");
             endText = parameters.getValue<string>("EndText");
@@ -219,7 +219,7 @@ namespace LocalizerTask {
 
             // check if stimulus sequence is defined
             if(stimuliSequence.Length <= 0) {
-                logger.Error("No stimulus sequence given.");
+                logger.Error("No stimuli sequence given.");
                 return false;
             }
 
@@ -231,13 +231,13 @@ namespace LocalizerTask {
 
             // check if there are stimuli defined that are not included in stimuli definition
             if(stimMax > stimuli[0].Length) {
-                logger.Error("In stimulus sequence, stimulus " + stimMax + " is defined. This stimulus can not be found in stimuli definition, as there are only " + stimuli[0].Length + " stimuli defined.");
+                logger.Error("In stimuli sequence, stimulus " + stimMax + " is defined. This stimulus can not be found in stimuli definition, as there are only " + stimuli[0].Length + " stimuli defined.");
                 return false;
             }
 
-            // check if amount of sequences is higher than 0
-            if (amountSequences <= 0) {
-                logger.Error("Amount of sequences should be a positive integer.");
+            // check if amount of repetitions is higher than 0
+            if (numberOfRepetitions <= 0) {
+                logger.Error("Amount of repetitions should be a positive integer.");
                 return false;
             }
 
@@ -248,7 +248,7 @@ namespace LocalizerTask {
             }
 
             // check if sequence wait is not smaller than 0
-            if (sequenceWait < 0) {
+            if (betweenSequenceWait < 0) {
                 logger.Error("The time to wait before the start of the subsequent sequence can not be lower than 0.");
                 return false;
             }
@@ -329,7 +329,7 @@ namespace LocalizerTask {
 
             // reset all relevant variables in case task is restarted
             currentStimulus = stimulusCounter = 0;
-            currentSequence = 1;
+            currentRepetition = 1;
             stimulusRemainingTime = -1;
         }
 
@@ -431,10 +431,10 @@ namespace LocalizerTask {
                             // if we reached end of stimulus sequence, set stimulus pointer to 0, and move to next sequence
                             if (stimulusCounter >= stimuliSequence.Length) {
                                 stimulusCounter = 0;
-                                currentSequence++;
+                                currentRepetition++;
 
-                                if (currentSequence > amountSequences)      setState(TaskStates.End);       // if we have presented all sequences, go to task state End
-                                else if (sequenceWait != 0) {               waitCounter = sequenceWait;     // if there are sequences to present and there is a time to wait, set waiting time and go to state Wait
+                                if (currentRepetition > numberOfRepetitions)      setState(TaskStates.End);       // if we have presented all sequences, go to task state End
+                                else if (betweenSequenceWait != 0) {               waitCounter = betweenSequenceWait;     // if there are sequences to present and there is a time to wait, set waiting time and go to state Wait
                                                                             setState(TaskStates.Wait); } 
                                 else                                        setStimulus();                  // if there are sequences to present and we do not have to wait, set next stimulus
 
@@ -558,7 +558,7 @@ namespace LocalizerTask {
 
                     // reset all relevant variables in case task is restarted
                     currentStimulus = stimulusCounter = 0;
-                    currentSequence = 1;
+                    currentRepetition = 1;
                     stimulusRemainingTime = -1;
 
                     // wait for two seconds
@@ -716,9 +716,9 @@ namespace LocalizerTask {
             // set task specific variables
             stimuli = new string[][] { new string[] {"Rust","Concentreer"}, new string[] { "","" }, new string[] { "", "" }, new string[] { "10", "5" } };
             stimuliSequence = new int[] { 1, 2, 1};
-            amountSequences = 2;
+            numberOfRepetitions = 2;
             firstSequenceWait = 10 * (int)MainThread.getPipelineSamplesPerSecond();
-            sequenceWait = 5 * (int)MainThread.getPipelineSamplesPerSecond();
+            betweenSequenceWait = 5 * (int)MainThread.getPipelineSamplesPerSecond();
             startText = "Task will begin shortly";
             waitText = "Wait";
             endText = "End task";

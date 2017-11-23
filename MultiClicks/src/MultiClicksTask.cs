@@ -62,7 +62,7 @@ namespace MultiClicksTask {
         private int mCursorColorEscapeTime = 0;
         private int mCursorColorTimer = 0;
 
-		private int[] fixedTargetSequence = new int[0];				                // the target sequence (input parameter)
+		private int[] fixedTrialSequence = new int[0];				                // the fixed trial sequence (input parameter)
 		private int mTargetSpeed = 0;
         private List<List<float>> mTargets = new List<List<float>>() {              // the block/target definitions (1ste dimention are respectively Ys, Heights, Widths; 2nd dimension blocks options) 
             new List<float>(0), 
@@ -84,7 +84,7 @@ namespace MultiClicksTask {
 
 
         // task (active) variables
-        private List<int> mTargetSequence = new List<int>(0);					    // the target sequence being used in the task (can either be given by input or generated)
+        private List<int> mTrialSequence = new List<int>(0);					    // the trial sequence being used in the task (can either be given by input or generated)
 
         private int mWaitCounter = 0;
         private int mCountdownCounter = 0;											// the countdown timer
@@ -253,7 +253,7 @@ namespace MultiClicksTask {
             parameters.addParameter<string[][]>(
                 "RandomTrials",
                 "The trials that are generated into the target sequence. Each row defines a trial, where each trial is composed of single target or series of targets.\nTargets are specified by the row number as they appear in the Target parameter (zero-based; e.g. double click could be '1 0 1')\nThe quantity column defines how often a trial will occur in the target sequence, as a result, the length of the entire sequence is defined by the RandomTrials and RandomRestTime parameters.",
-                "", "", "Click,DblClick;1,2 0 2;2,3", new string[] { "Label", "Target_combo", "Quantity" });
+                "", "", "Click,DblClick;1,2 0 2;2,3", new string[] { "Label", "Trial_combo", "Quantity" });
             
             parameters.addParameter<int>(
                 "TargetSpeed",
@@ -261,8 +261,8 @@ namespace MultiClicksTask {
                 "0", "", "120");
 
             parameters.addParameter<int[]>(
-                "TargetSequence",
-                "Fixed sequence in which targets should be presented (leave empty for random)\nNote. indexing is 0 based (so a value of 0 will be the first row from the 'Targets' parameter",
+                "TrialSequence",
+                "Fixed sequence in which trials should be presented (leave empty for random)\nNote. indexing is 0 based (so a value of 0 will be the first row from the 'Targets' parameter",
                 "0", "", "");
 
         }
@@ -406,22 +406,22 @@ namespace MultiClicksTask {
                 return false;
             }
 
-            // retrieve the number of targets and (fixed) target sequence
-            fixedTargetSequence = newParameters.getValue<int[]>("TargetSequence");
-            if (fixedTargetSequence.Length == 0) {
+            // retrieve the number of trials and (fixed) trial sequence
+            fixedTrialSequence = newParameters.getValue<int[]>("TrialSequence");
+            if (fixedTrialSequence.Length == 0) {
                 // no fixed sequence
 
                 // retrieve randomRestTime settings
                 mRandomRests = newParameters.getValueInSamples<int[]>("RandomRests");
                 if (mRandomRests.Length == 0) {
-                    logger.Error("At least one random rest target should be given in order to generate a random target sequence");
+                    logger.Error("At least one random rest target should be given in order to generate a random trial sequence");
                     return false;
                 }
 
                 // retrieve random trials settings
                 string[][] parRandomTrials = newParameters.getValue<string[][]>("RandomTrials");
                 if (parRandomTrials.Length != 3 || parRandomTrials[0].Length == 0) {
-                    logger.Error("RandomTrials parameter must have 3 columns (Label, Target_combo, Quantity) and at least one row in order to generate a random target sequence");
+                    logger.Error("RandomTrials parameter must have 3 columns (Label, Trial_combo, Quantity) and at least one row in order to generate a random trial sequence");
                     return false;
                 }
 				
@@ -431,7 +431,7 @@ namespace MultiClicksTask {
                 for (int i = 0; i < parRandomTrials[0].Length; i++) {
                     string[] trTargets = parRandomTrials[1][i].Split(Parameters.ArrDelimiters, StringSplitOptions.RemoveEmptyEntries);
                     if (trTargets.Length == 0) {
-                        logger.Error("Invalid or empty target_combo '" + parRandomTrials[1][i] + "'");
+                        logger.Error("Invalid or empty Trial_combo '" + parRandomTrials[1][i] + "'");
                         return false;
                     }
 
@@ -439,11 +439,11 @@ namespace MultiClicksTask {
                     for (int j = 0; j < trTargets.Length; j++) {
                         int targetValue = 0;
                         if (!int.TryParse(trTargets[j], out targetValue)) {
-                            logger.Error("Cannot interpret all values in the target_combo '" + parRandomTrials[1][i] + "', invalid targets");
+                            logger.Error("Cannot interpret all values in the Trial_combo '" + parRandomTrials[1][i] + "', invalid targets");
                             return false;
                         }
                         if (targetValue < 0 || targetValue >= mTargets[0].Count) {
-                            logger.Error("The value '" + targetValue + "' in target_combo '" + parRandomTrials[1][i] + "' is an invalid target index");
+                            logger.Error("The value '" + targetValue + "' in Trial_combo '" + parRandomTrials[1][i] + "' is an invalid target index");
                             return false;
                         }
                         mRandomTrialCombos[i][j] = targetValue;
@@ -466,14 +466,14 @@ namespace MultiClicksTask {
                 // fixed sequence
 
                 // loop through the targets in the sequence
-                for (int i = 0; i < fixedTargetSequence.Length; ++i) {
+                for (int i = 0; i < fixedTrialSequence.Length; ++i) {
                     
-                    if (fixedTargetSequence[i] < 0) {
-                        logger.Error("The TargetSequence parameter contains a target index (" + fixedTargetSequence[i] + ") that is below zero, check the TargetSequence");
+                    if (fixedTrialSequence[i] < 0) {
+                        logger.Error("The TrialSequence parameter contains a target index (" + fixedTrialSequence[i] + ") that is below zero, check the TrialSequence");
                         return false;
                     }
-                    if (fixedTargetSequence[i] >= mTargets[0].Count) {
-                        logger.Error("The TargetSequence parameter contains a target index (" + fixedTargetSequence[i] + ") that is out of range, check the Targets parameter. (note that the indexing is 0 based)");
+                    if (fixedTrialSequence[i] >= mTargets[0].Count) {
+                        logger.Error("The TrialSequence parameter contains a target index (" + fixedTrialSequence[i] + ") that is out of range, check the Targets parameter. (note that the indexing is 0 based)");
                         return false;
                     }
                 }
@@ -497,25 +497,25 @@ namespace MultiClicksTask {
                 initializeView();
 
                 // check if a target sequence is set
-                if (fixedTargetSequence.Length == 0) {
-		            // targetsequence not set in parameters, generate
+                if (fixedTrialSequence.Length == 0) {
+		            // fixed sequence not set in parameters, generate
 		
-		            // Generate targetlist
-		            generateTargetSequence();
+		            // Generate trial sequence
+		            generateTrialSequence();
 
 	            } else {
-		            // targetsequence is set in parameters
+		            // fixed sequence is set in parameters
 
-		            // clear the targets
-		            if (mTargetSequence.Count != 0)		mTargetSequence.Clear();
+		            // clear the trials
+		            if (mTrialSequence.Count != 0)		mTrialSequence.Clear();
                 
-		            // transfer the targetsequence
-                    mTargetSequence = new List<int>(fixedTargetSequence);
+		            // transfer the fixed trial sequence
+                    mTrialSequence = new List<int>(fixedTrialSequence);
 
 	            }
 	        
-	            // initialize the target sequence
-	            view.initBlockSequence(mTargetSequence, mTargets);
+	            // initialize the trial sequence
+	            view.initBlockSequence(mTrialSequence, mTargets);
 
             }
 
@@ -563,7 +563,7 @@ namespace MultiClicksTask {
             if (!mUNPMenuTask) {
 
                 // store the generated sequence in the output parameter xml
-                Data.adjustXML(CLASS_NAME, "TargetSequence", string.Join(" ", mTargetSequence));
+                Data.adjustXML(CLASS_NAME, "TrialSequence", string.Join(" ", mTrialSequence));
 
             }
 
@@ -773,7 +773,7 @@ namespace MultiClicksTask {
 			            }
 
 			            // check if it is the end of the task
-			            if (mCurrentBlock == mTargetSequence.Count - 1 && (view.getCurrentBlock() == MultiClicksView.noBlock)) {
+			            if (mCurrentBlock == mTrialSequence.Count - 1 && (view.getCurrentBlock() == MultiClicksView.noBlock)) {
 				            // end of the task
 
 				            setState(TaskStates.EndText);
@@ -873,7 +873,7 @@ namespace MultiClicksTask {
 
                             // retrieve which block condition the current block is
                             int blockCondition = -1;
-                            if (mCurrentBlock != MultiClicksView.noBlock) blockCondition = mTargetSequence[mCurrentBlock];
+                            if (mCurrentBlock != MultiClicksView.noBlock) blockCondition = mTrialSequence[mCurrentBlock];
 
                             // log event if the current block has changed and update the previous block placeholder
                             if (mCurrentBlock != mPreviousBlock)     Data.logEvent(2, "Changeblock", (mCurrentBlock.ToString() + ";" + blockCondition.ToString()));
@@ -1137,23 +1137,23 @@ namespace MultiClicksTask {
             setState(TaskStates.Wait);
     
             // initialize the target sequence already for a possible next run
-	        if (fixedTargetSequence.Length == 0) {
+	        if (fixedTrialSequence.Length == 0) {
 
 		        // Generate targetlist
-		        generateTargetSequence();
+		        generateTrialSequence();
 
 	        }
 
             // initialize the target sequence
-	        view.initBlockSequence(mTargetSequence, mTargets);
+	        view.initBlockSequence(mTrialSequence, mTargets);
 
         }
 
 
-        private void generateTargetSequence() {
+        private void generateTrialSequence() {
 	        
 	        // clear the targets
-	        if (mTargetSequence.Count != 0)		mTargetSequence.Clear();
+	        if (mTrialSequence.Count != 0)		mTrialSequence.Clear();
 
             // count the number of trials
             int totalQuantity = 0;
@@ -1192,21 +1192,21 @@ namespace MultiClicksTask {
 
                 // add the combination to the target sequence
                 for (int j = 0; j < mRandomTrialCombos[arrTrialIndices[i]].Length; j++) {
-                    mTargetSequence.Add(mRandomTrialCombos[arrTrialIndices[i]][j]);
+                    mTrialSequence.Add(mRandomTrialCombos[arrTrialIndices[i]][j]);
                 }
 
                 // check if this is not the last item
                 if (i != arrTrialIndices.Length - 1) {
 
                     // add a random rest (inbetween the trials)
-                    mTargetSequence.Add(mRandomRests[arrRestIndices[i]]);
+                    mTrialSequence.Add(mRandomRests[arrRestIndices[i]]);
                     
                 }
 
             }
 
             // add a rest after all the trials
-            mTargetSequence.Add(mRandomRests[arrRestIndices[arrRestIndices.Length - 1]]);
+            mTrialSequence.Add(mRandomRests[arrRestIndices[arrRestIndices.Length - 1]]);
 
 
         }
@@ -1252,7 +1252,7 @@ namespace MultiClicksTask {
             newParameters.setValue("CursorColorEscape", "170;0;170");
             newParameters.setValue("CursorColorEscapeTime", 0.0);
             newParameters.setValue("TargetSpeed", 120);
-            newParameters.setValue("TargetSequence", "");
+            newParameters.setValue("TrialSequence", "");
 
             // get parameter values from app.config
             // cycle through app.config parameter values and try to set the parameter
@@ -1330,7 +1330,7 @@ namespace MultiClicksTask {
                 initializeView();
                 
                 // (re-) initialize the block sequence
-		        view.initBlockSequence(mTargetSequence, mTargets);
+		        view.initBlockSequence(mTrialSequence, mTargets);
                 
             }
 
