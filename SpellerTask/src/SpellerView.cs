@@ -1,4 +1,18 @@
-﻿using NLog;
+﻿/**
+ * The SpellerView class
+ * 
+ * ...
+ * 
+ * 
+ * Copyright (C) 2017:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Author(s):           Benny van der Vijgh         (benny@vdvijgh.nl)
+ * 
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or (at your option) any later version. This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details. You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+using NLog;
 using System;
 using System.Collections.Generic;
 using UNP.Core;
@@ -6,7 +20,12 @@ using UNP.Views;
 
 namespace SpellerTask {
 
-    class SpellerView : OpenTKView, IView {
+    /// <summary>
+    /// The <c>SpellerView</c> class.
+    /// 
+    /// ...
+    /// </summary>
+    public class SpellerView : OpenTKView, IView {
 
         // fundamentals
         private static Logger logger = LogManager.GetLogger("SpellerView");             // the logger object for the view

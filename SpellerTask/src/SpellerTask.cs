@@ -1,4 +1,19 @@
-﻿using NLog;
+﻿/**
+ * The SpellerTask class
+ * 
+ * ...
+ * 
+ * 
+ * Copyright (C) 2017:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Concept:             UNP Team                    (neuroprothese@umcutrecht.nl)
+ * Author(s):           Benny van der Vijgh         (benny@vdvijgh.nl)
+ * 
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or (at your option) any later version. This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details. You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+using NLog;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -11,6 +26,11 @@ using System.Collections.Specialized;
 
 namespace SpellerTask {
 
+    /// <summary>
+    /// The <c>SpellerTask</c> class.
+    /// 
+    /// ...
+    /// </summary>
     public class SpellerTask : IApplication, IApplicationUNP {
 
         // fundamentals
@@ -751,10 +771,6 @@ namespace SpellerTask {
                                     else MainThread.stop(false);                                                         // stop the run, this will also call stopTask()
                                 }
 
-                                // debug
-                                logger.Debug("Clicked on cell type: " + activeCell.cellType);
-                                logger.Debug("New target: " + currentTarget + " at index: " + currentTargetIndex);
-
                                 // if cue is completed (word is spelled)
                                 if (wordSpelled) {
 
@@ -777,13 +793,14 @@ namespace SpellerTask {
                                     if (cueCounter == cues.Count) setState(TaskStates.EndText);
                                     else {
 
-                                        // set new cue and target, and reset wordSpelled flag
-                                        view.setCueText(cues[cueCounter]);
-                                        currentTarget = cues[cueCounter].Substring(0, 1);
+                                        // set new cue and target, and reset cue-dependent variables
+                                        view.setCueText(cues[cueCounter]);     
                                         currentTargetIndex = 0;
+                                        currentTarget = cues[cueCounter].Substring(currentTargetIndex, 1);
                                         wordSpelled = false;
                                         correctClicks = 0;
                                         totalClicks = 0;
+                                        backSpacesNeeded = 0;
 
                                         // wait the interstimulus interval before presenting next stimulus
                                         waitCounter = isi;
@@ -793,7 +810,11 @@ namespace SpellerTask {
 
                                 } else setState(TaskStates.RowSelect);
 
-                            // if we are using questions as cues
+                                // debug
+                                logger.Debug("Clicked on cell type: " + activeCell.cellType);
+                                logger.Debug("New target: " + currentTarget + " at index: " + currentTargetIndex);
+
+                                // if we are using questions as cues
                             } else {
 
                                 // check whether input, backspace, or exit was clicked; if empty or backspace, do nothing, otherwise either exit or store input and proceed to next question
@@ -1112,7 +1133,7 @@ namespace SpellerTask {
 
         // update the current target, based on the user input
         private void updateTarget(string input) {
-            
+
             // get current cue
             string cue = cues[cueCounter];
 

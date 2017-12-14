@@ -1,13 +1,31 @@
-﻿using System;
-using System.Collections.Generic;
+﻿/**
+ * The frmMain class
+ * 
+ * ...
+ * 
+ * 
+ * Copyright (C) 2017:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Author(s):           Benny van der Vijgh         (benny@vdvijgh.nl)
+ *                      Max van den Boom            (info@maxvandenboom.nl)
+ * 
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 3 of the License, or (at your option) any later version. This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details. You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+using System;
 using System.IO;
-using System.Text;
 using System.Windows.Forms;
 using UNP.Core.DataIO;
 using UNP.Core.Helpers;
 
 namespace UNPLogReader {
 
+    /// <summary>
+    /// The <c>frmMain</c> class.
+    /// 
+    /// ...
+    /// </summary>
     public partial class frmMain : Form {
 
         private long readStep = 100;
