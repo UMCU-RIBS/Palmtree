@@ -8,7 +8,7 @@
  * Concept:             UNP Team                    (neuroprothese@umcutrecht.nl)
  * Author(s):           Max van den Boom            (info@maxvandenboom.nl)
  * 
- * Adapted from:        BCI2000 (Schalk Lab, www.schalklab.org) and Erik Aarnoutse (E.J.Aarnoutse@umcutrecht.nl)
+ * Adapted from:        Erik Aarnoutse and Patrik Andersson (E.J.Aarnoutse@umcutrecht.nl)
  * 
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or (at your option) any later version. This program is distributed in the hope that it will be useful, but
