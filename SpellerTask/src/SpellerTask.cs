@@ -77,6 +77,7 @@ namespace SpellerTask {
         private int holeRows = 0;
         private int holeColumns = 0;
         private bool ToTopOnIncorrectRow = false;                               // whether to return to top row when an incorrect row is selected.
+        private bool showScore = false;                                         // whether or not to show score
         private string[][] inputArray = null;
         private string backspaceCode = "";
         private string[] inputs = null;
@@ -203,6 +204,11 @@ namespace SpellerTask {
             parameters.addParameter<bool>(
                 "ToTopOnIncorrectRow",
                 "If selected, the cursor returns to the top and starts selecting rows again whenever an incorrect row is selected.",
+                "0");
+
+            parameters.addParameter<bool>(
+                "showScore",
+                "If selected, show score.",
                 "0");
 
             parameters.addParameter<double>(
@@ -388,6 +394,7 @@ namespace SpellerTask {
 
             // retrieve selection delays and settings
             ToTopOnIncorrectRow = newParameters.getValue<bool>("ToTopOnIncorrectRow");
+            showScore = newParameters.getValue<bool>("showScore");
             rowSelectDelay = newParameters.getValueInSamples("RowSelectDelay");
             rowSelectedDelay = newParameters.getValueInSamples("RowSelectedDelay");
             columnSelectDelay = newParameters.getValueInSamples("ColumnSelectDelay");
@@ -452,6 +459,7 @@ namespace SpellerTask {
             view.setFixation(false);                                            // hide the fixation
             view.setCountDown(-1);                                              // hide the countdown                                                                    
             view.setLongestCue(longestCue());                                   // get longest cue and transfer to view class
+            view.setShowScore(showScore);                                       // wheteher to show the score or not
 
             // initialize the holes for the scene
             view.initGridPositions(holes, holeRows, holeColumns, 10);
@@ -484,18 +492,19 @@ namespace SpellerTask {
 
                 // init vars: reset score, initialize countdown and wait timers and set fixation
                 score = 0;
-                cueCounter = 0;
+                cueCounter = 0;             
+                currentTargetIndex = 0;
+                correctClicks = 0;
+                totalClicks = 0;
+                backSpacesNeeded = 0;
+                wordSpelled = false;
                 countdownCounter = countdownTime;
                 waitCounter = taskFirstRunStartDelay;
                 view.setFixation(true);
                 waitText = "";
 
-                // if cues are words, set first target and targetIndex
-                if (cueType == 0) {
-                    currentTargetIndex = 0;
-                    currentTarget = cues[cueCounter].Substring(0, 1);
-                }
-
+                if (cueType == 0)   currentTarget = cues[cueCounter].Substring(currentTargetIndex, 1);
+                
                 // set state to wait and countdown after that
                 setState(TaskStates.Wait);
                 afterWait = TaskStates.CountDown;
@@ -686,9 +695,17 @@ namespace SpellerTask {
 
                     // row was selected
                     case TaskStates.RowSelected:
-			            
-			            if(waitCounter == 0)    setState(TaskStates.ColumnSelect);
-                        else                    waitCounter--;
+
+                        // wait duration of delay, after that proceed to selecting row or columns
+                        if (waitCounter == 0) {
+
+                            // if incorrect row is selected and parameter to return to top row is true, return to top row
+                            if (!targetInRow(rowID) && ToTopOnIncorrectRow) {
+                                totalClicks++;                          // update total number of clicks
+                                setState(TaskStates.RowSelect);         // return to selecting rows from top
+                            } else setState(TaskStates.ColumnSelect);
+
+                        } else waitCounter--;
 
 			            break;
 
@@ -759,13 +776,17 @@ namespace SpellerTask {
                                 // debug
                                 logger.Debug("Current target: " + currentTarget + " at index: " + currentTargetIndex);
 
-                                // check whether input, backspace, or exit was clicked; if empty, do nothing, otherwise either exit, or update input text and next target and check if this results in a spelled word
+                                // check whether backspace, input, empty or exit was clicked
+                                // if empty, do nothing except for counting it as a correct click in case parameter 'ToTopOnIncorrectRow'is not active, because in this case it is otherwise not possible to get back to the top row without making an additional wrong click, 
+                                // otherwise either exit, or update input text and next target and check if this results in a spelled word
                                 if (activeCell.cellType == SpellerCell.CellType.Backspace) {
                                     view.updateInputText("", true);
                                     updateTarget(activeCell.content);
                                 } else if (activeCell.cellType == SpellerCell.CellType.Input) {
                                     view.updateInputText(activeCell.content, false);
                                     updateTarget(activeCell.content);
+                                } else if(activeCell.cellType == SpellerCell.CellType.Empty && !ToTopOnIncorrectRow) {
+                                    correctClicks++;
                                 } else if (activeCell.cellType == SpellerCell.CellType.Exit && allowExit) {
                                     if (unpMenuTask) UNP_stop();                                                    // stop the task (UNP)
                                     else MainThread.stop(false);                                                         // stop the run, this will also call stopTask()
@@ -788,9 +809,9 @@ namespace SpellerTask {
                                     // reset input text
                                     view.resetInputText();
 
-                                    // update cue counter, if all cues have been shown, show end text
+                                    // update cue counter and go to wait state. Set state after that based on whether all cues have been shown
                                     cueCounter++;
-                                    if (cueCounter == cues.Count) setState(TaskStates.EndText);
+                                    if (cueCounter == cues.Count) afterWait = TaskStates.EndText;
                                     else {
 
                                         // set new cue and target, and reset cue-dependent variables
@@ -802,11 +823,13 @@ namespace SpellerTask {
                                         totalClicks = 0;
                                         backSpacesNeeded = 0;
 
-                                        // wait the interstimulus interval before presenting next stimulus
-                                        waitCounter = isi;
+                                        // start again
                                         afterWait = TaskStates.RowSelect;
-                                        setState(TaskStates.Wait);
                                     }
+
+                                    // wait the interstimulus interval before presenting next stimulus
+                                    waitCounter = isi;
+                                    setState(TaskStates.Wait);
 
                                 } else setState(TaskStates.RowSelect);
 
@@ -1033,26 +1056,19 @@ namespace SpellerTask {
                 // row was selected 
                 case TaskStates.RowSelected:
 
+                    // highlight row
+                    view.selectRow(rowID, true);
+
                     // if we are using words as cues, check if target is in current row and throw event accordingly, if using questions as cues (no target), throw generic event
                     if (cueType == 0) {
 
-                        // check whether selected row contains target
-                        bool inRow = targetInRow(rowID);
-
                         // if the incorrect row is selected and the setting is to return to the top row, set state to selecting rows again, otherwise, start selecting cells in this row
-                        if (inRow) {
-                            Data.logEvent(2, "RowClick", "1");
-                            view.selectRow(rowID, true);
-                        } else {
-                            Data.logEvent(2, "RowClick", "0");
-                            if (ToTopOnIncorrectRow) {
-                                totalClicks++;                          // update total number of clicks
-                                setState(TaskStates.RowSelect);         // return to selecting rows from top
-                            }
-                        }
+                        if (targetInRow(rowID)) Data.logEvent(2, "RowClick", "1");    
+                        else Data.logEvent(2, "RowClick", "0");
+                            
                     } else Data.logEvent(2, "RowClick", "");
 
-                    //
+                    // set waitcounter
                     waitCounter = rowSelectedDelay;
 
 			        break;
@@ -1102,7 +1118,8 @@ namespace SpellerTask {
 
                 case TaskStates.EndText:
 
-                    // remove cue
+                    // remove cue and countdown
+                    view.setCountDown(-1);
                     view.setCueText("");
 			
 			        // hide hole grid

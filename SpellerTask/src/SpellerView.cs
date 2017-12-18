@@ -34,6 +34,7 @@ namespace SpellerTask {
 
         // task specific
         private int score = -1;									                        // the score that is being shown (-1 = do not show score)
+        private bool showScore = false;
 
         // visual elements
 		private int exitTexture = 0;
@@ -266,7 +267,7 @@ namespace SpellerTask {
 
             // TODO, use bool instead of value to determine whether to draw
             // write the score text
-            if (score > -1) {
+            if (score > -1 && showScore) {
 
 		        glColor3(1f, 1f, 1f);
                 scoreFont.printLine(getContentWidth() - scoreFont.height * 9, 5, ("Score: " + score));
@@ -375,6 +376,10 @@ namespace SpellerTask {
             if (!String.IsNullOrEmpty(cueText)) cueTextWidth = textFont.getTextWidth(cueText);
         }
 
+        public void setShowScore(bool show) {
+            showScore = show;
+        }
+
         // update the current input text
         public void updateInputText(string text, bool backspace) {
 
@@ -462,19 +467,20 @@ namespace SpellerTask {
 	        this.holeColumns = holeColumns;
 	        this.spacing = spacing;
 
-	        // Calculate maximum possible size of holes
-	        holeOffsetX = 0; holeOffsetY = 0;
-	        if  ( getContentWidth() / holeColumns > getContentHeight() / holeRows )
-		        holeSize = (int)Math.Floor((double)(( getContentHeight() - (spacing * (holeRows + 1)) ) / holeRows));
+            // Calculate maximum possible size of holes, using 0.7 of total height for grid, first 0.3 part of height is reserved for cue and input
+            holeOffsetX = 0; holeOffsetY = 0;
+	        if  ( getContentWidth() / holeColumns > (0.7 * getContentHeight()) / holeRows )
+		        holeSize = (int)Math.Floor((double)(( (0.7 * getContentHeight()) - (spacing * (holeRows + 1)) ) / holeRows));
 	        else
 		        holeSize = (int)Math.Floor((double)(( getContentWidth() - (spacing * (holeColumns + 1)) ) / holeColumns));
 
-	        // set the x and y offset
+	        // set the x and y offset. x offset is determined by centering the holes around the horizontal center, y offset is determined by the fact that the first 0.3 part of height is reserved for cue and input, so grid starts here
 	        holeOffsetX =  (getContentWidth() - holeColumns * holeSize - spacing * (holeColumns+1)) / 2;
-	        holeOffsetY =  (getContentHeight() - holeRows * holeSize - spacing * (holeRows+1)) / 2;
-	
-	        // Loop through the holes
-	        for(int i = 0; i < cells.Count; i++) {
+            //holeOffsetY =  getContentHeight() - holeRows * holeSize - spacing * (holeRows+1);
+            holeOffsetY = (int)(0.3 * getContentHeight());
+
+            // Loop through the holes
+            for (int i = 0; i < cells.Count; i++) {
 
 		        // calculate the row and column index (0 based)
 		        int row = (int)Math.Floor((double)(i / holeColumns));
