@@ -113,7 +113,7 @@
     <Compile Include="src\Core\Events\VisualizationEventArgs.cs" />
     <Compile Include="src\Core\Events\VisualizationValuesArgs.cs" />
     <Compile Include="src\Core\Helpers\ARFilter.cs" />
-    <Compile Include="src\Core\Helpers\DebugHelper.cs" />
+    <Compile Include="src\Core\Helpers\SignalHelper.cs" />
     <Compile Include="src\Core\Helpers\DoubleConverter.cs" />
     <Compile Include="src\Core\Helpers\ListMessageBox.cs">
       <SubType>Form</SubType>

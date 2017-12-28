@@ -1,5 +1,5 @@
 ﻿/**
- * The DebugHelper class
+ * The SignalHelper class
  * 
  * ...
  * 
@@ -17,11 +17,11 @@ using System;
 namespace UNP.Core.Helpers {
 
     /// <summary>
-    /// The <c>DebugHelper</c> class.
+    /// The <c>SignalHelper</c> class.
     /// 
     /// ...
     /// </summary>
-    public class DebugHelper {
+    public class SignalHelper {
 
         // whether the test data is random or based on sinusoids
         public enum DebugSignalType : int {
