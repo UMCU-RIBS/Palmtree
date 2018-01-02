@@ -91,6 +91,7 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.Management" />
     <Reference Include="System.Numerics" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -120,8 +121,8 @@
     </Compile>
     <Compile Include="src\Core\Helpers\Polynomial.cs" />
     <Compile Include="src\Core\Helpers\RationalPolynomial.cs" />
-    <Compile Include="src\Core\Helpers\Sound.cs" />
-    <Compile Include="src\Core\Helpers\EnergyHelper.cs" />
+    <Compile Include="src\Core\Helpers\SoundHelper.cs" />
+    <Compile Include="src\Core\Helpers\MonitorHelper.cs" />
     <Compile Include="src\Core\Params\ParamFileString.cs" />
     <Compile Include="src\Filters\RedistributionFilter.cs" />
     <Compile Include="src\GUI\GUIMore.cs">

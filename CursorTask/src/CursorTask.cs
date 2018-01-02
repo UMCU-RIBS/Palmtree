@@ -47,7 +47,7 @@ namespace CursorTask {
             ITI                 // inter trial interval (both the cursor and the target are hidden)
         };
 
-        private const int CLASS_VERSION = 1;
+        private const int CLASS_VERSION = 2;
         private const string CLASS_NAME = "CursorTask";
         private const string CONNECTION_LOST_SOUND = "sounds\\focuson.wav";
 
@@ -74,7 +74,6 @@ namespace CursorTask {
 
         private bool mConnectionLost = false;							// flag to hold whether the connection is lost
         private bool mConnectionWasLost = false;						// flag to hold whether the connection has been lost (should be reset after being re-connected)
-        private System.Timers.Timer mConnectionLostSoundTimer = null;   // timer to play the connection lost sound on
 
         // task input parameters
         private int mWindowLeft = 0;
@@ -609,8 +608,8 @@ namespace CursorTask {
 
         public void stop() {
 
-            // log event task is stopped
-            Data.logEvent(2, "TaskStop", CLASS_NAME + ";user");
+            // stop the connection lost sound from playing
+            SoundHelper.stopContinuous();
 
             // lock for thread safety
             lock (lockView) {
@@ -663,19 +662,8 @@ namespace CursorTask {
                         // show the lost connection warning
                         view.setConnectionLost(true);
 
-                        // play the connection lost sound
-                        Sound.Play(CONNECTION_LOST_SOUND);
-
-                        // setup and start a timer to play the connection lost sound every 2 seconds
-                        mConnectionLostSoundTimer = new System.Timers.Timer(2000);
-                        mConnectionLostSoundTimer.Elapsed += delegate (object source, System.Timers.ElapsedEventArgs e) {
-
-                            // play the connection lost sound
-                            Sound.Play(CONNECTION_LOST_SOUND);
-
-                        };
-                        mConnectionLostSoundTimer.AutoReset = true;
-                        mConnectionLostSoundTimer.Start();
+                        // play the connection lost sound continuously every 2 seconds
+                        SoundHelper.playContinuousAtInterval(CONNECTION_LOST_SOUND, 2000);
 
                     }
 
@@ -685,11 +673,8 @@ namespace CursorTask {
                 } else if (mConnectionWasLost && !mConnectionLost) {
                     // if the connection was lost and is not lost anymore
 
-                    // stop and clear the connection lost timer
-                    if (mConnectionLostSoundTimer != null) {
-                        mConnectionLostSoundTimer.Stop();
-                        mConnectionLostSoundTimer = null;
-                    }
+                    // stop the connection lost sound from playing
+                    SoundHelper.stopContinuous();
 
                     // hide the lost connection warning
                     view.setConnectionLost(false);
@@ -1069,12 +1054,6 @@ namespace CursorTask {
                 // destroy the view
                 destroyView();
 
-                // stop and clear the connection lost timer
-                if (mConnectionLostSoundTimer != null) {
-                    mConnectionLostSoundTimer.Stop();
-                    mConnectionLostSoundTimer = null;
-                }
-
             }
 
             // destroy/Cursor more task variables
@@ -1343,6 +1322,9 @@ namespace CursorTask {
 
             // log event feedback is stopped
             Data.logEvent(2, "FeedbackStop", "user");
+            
+            // log event task is stopped
+            Data.logEvent(2, "TaskStop", CLASS_NAME + ";user");
 
             // set state to wait
             setState(TaskStates.Wait);

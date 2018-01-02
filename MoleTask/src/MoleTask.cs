@@ -46,7 +46,7 @@ namespace MoleTask {
 			EndText
 		};
 
-        private const int CLASS_VERSION = 1;
+        private const int CLASS_VERSION = 2;
         private const string CLASS_NAME = "MoleTask";
         private const string CONNECTION_LOST_SOUND = "sounds\\focuson.wav";
 
@@ -66,7 +66,6 @@ namespace MoleTask {
 
         private bool mConnectionLost = false;							// flag to hold whether the connection is lost
         private bool mConnectionWasLost = false;						// flag to hold whether the connection has been lost (should be reset after being re-connected)
-        private System.Timers.Timer mConnectionLostSoundTimer = null;   // timer to play the connection lost sound on
 
         // task input parameters
         private int mWindowLeft = 0;
@@ -499,9 +498,12 @@ namespace MoleTask {
         }
 
         public void stop() {
+            
+            // stop the connection lost sound from playing
+            SoundHelper.stopContinuous();
 
             // lock for thread safety
-            lock(lockView) {
+            lock (lockView) {
 
                 // stop the task
                 stopTask();
@@ -551,19 +553,8 @@ namespace MoleTask {
 			            // show the lost connection warning
 			            view.setConnectionLost(true);
 
-                        // play the connection lost sound
-                        Sound.Play(CONNECTION_LOST_SOUND);
-
-                        // setup and start a timer to play the connection lost sound every 2 seconds
-                        mConnectionLostSoundTimer = new System.Timers.Timer(2000);
-                        mConnectionLostSoundTimer.Elapsed += delegate (object source, System.Timers.ElapsedEventArgs e) {
-
-                            // play the connection lost sound
-                            Sound.Play(CONNECTION_LOST_SOUND);
-
-                        };
-                        mConnectionLostSoundTimer.AutoReset = true;
-                        mConnectionLostSoundTimer.Start();
+                        // play the connection lost sound continuously every 2 seconds
+                        SoundHelper.playContinuousAtInterval(CONNECTION_LOST_SOUND, 2000);
 
                     }
 
@@ -573,11 +564,8 @@ namespace MoleTask {
                 } else if (mConnectionWasLost && !mConnectionLost) {
                     // if the connection was lost and is not lost anymore
 
-                    // stop and clear the connection lost timer
-                    if (mConnectionLostSoundTimer != null) {
-                        mConnectionLostSoundTimer.Stop();
-                        mConnectionLostSoundTimer = null;
-                    }
+                    // stop the connection lost sound from playing
+                    SoundHelper.stopContinuous();
 
                     // hide the lost connection warning
                     view.setConnectionLost(false);
@@ -897,12 +885,6 @@ namespace MoleTask {
                 // destroy the view
                 destroyView();
 
-                // stop and clear the connection lost timer
-                if (mConnectionLostSoundTimer != null) {
-                    mConnectionLostSoundTimer.Stop();
-                    mConnectionLostSoundTimer = null;
-                }
-
             }
 
             // destroy/empty more task variables
@@ -1116,7 +1098,7 @@ namespace MoleTask {
 
         // Stop the task
         private void stopTask() {
-            if (view == null) return;
+            if (view == null)   return;
 
             // log that user ended task prematurely
             Data.logEvent(2, "TaskStop", CLASS_NAME + ";user");

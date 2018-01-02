@@ -15,6 +15,7 @@
 using NLog;
 using System;
 using System.IO;
+using System.Timers;
 
 namespace UNP.Core.Helpers {
 
@@ -23,11 +24,12 @@ namespace UNP.Core.Helpers {
     /// 
     /// ...
     /// </summary>
-    public static class Sound {
+    public static class SoundHelper {
 
         private static Logger logger = LogManager.GetLogger("Sound");
+        private static Timer soundTimer = null;                    // timer to play the sound intervalled on
 
-        public static void Play(string filename) {
+        public static void play(string filename) {
 
             // check if the file exists
             if (!File.Exists(filename)) {
@@ -42,6 +44,35 @@ namespace UNP.Core.Helpers {
                 logger.Error("Could not play soundfile '" + filename + "'");
                 return;
             }
+        }
+
+        public static void playContinuousAtInterval(string filename, int ms) {
+
+            stopContinuous();
+
+            // play the connection lost sound
+            play(filename);
+
+            // setup and start a timer to play the connection lost sound every 2 seconds
+            soundTimer = new System.Timers.Timer(ms);
+            soundTimer.Elapsed += delegate (object source, System.Timers.ElapsedEventArgs e) {
+
+                // play the connection lost sound
+                play(filename);
+
+            };
+            soundTimer.AutoReset = true;
+            soundTimer.Start();
+        }
+
+        public static void stopContinuous() {
+
+            // stop and clear the connection lost timer
+            if (soundTimer != null) {
+                soundTimer.Stop();
+                soundTimer = null;
+            }
+
         }
 
     }

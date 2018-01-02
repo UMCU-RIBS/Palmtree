@@ -80,9 +80,14 @@ namespace UNP.Views {
 
         private MouseState mouseState = new MouseState();
         private KeyboardState keyboardState = new KeyboardState();
-        protected Point mouseInWindowPos = new Point(0, 0);
-        protected bool tappedState = false;
-        protected Point tapInWindowPos = new Point(0, 0);
+
+        protected Point mouseInWindowPos = new Point(0, 0);         // variable that holds most up-to-date coordinates of the mouse in the winow (updates real-time, not dependent on polling)
+
+        protected bool leftClickedState = false;                    // flag to hold whether a left click was made since the last time it was checked (resets upon polling)
+        protected bool rightClickedState = false;                   // flag to hold whether a right click was made since the last time it was checked (resets upon polling)
+        protected Point clickedInWindowPos = new Point(0, 0);       // variable that holds the coordinates of clicked location in the winow (updates upon tapping)
+        protected bool tappedState = false;                         // flag to hold whether a tap was made since the last time it was checked (resets upon polling)
+        protected Point tappedInWindowPos = new Point(0, 0);        // variable that holds the coordinates of tapped location in the winow (updates upon tapping)
 
         // pure abstract functions that are required to be implemented by the deriving class
         protected abstract void load();
@@ -502,16 +507,35 @@ namespace UNP.Views {
         }
 
         private void glControl_MouseDown(object sender, System.Windows.Forms.MouseEventArgs e) {
-            
+
+            // retrieve the mouse event source
             MouseEventSource mouseEventSource = GetMouseEventSource();
-            if (mouseEventSource == MouseEventSource.Mouse)     logger.Error("muis");
-            if (mouseEventSource == MouseEventSource.Pen) {
+
+            // check if the source
+            if (mouseEventSource == MouseEventSource.Mouse) {
+                // mouse
+
+                if (e.Button == MouseButtons.Left) {
+                    leftClickedState = true;
+                    clickedInWindowPos = e.Location;
+
+                } else if (e.Button == MouseButtons.Right) {
+                    rightClickedState = true;
+                    clickedInWindowPos = e.Location;
+                }
+
+            } else if (mouseEventSource == MouseEventSource.Pen) {
+                // pen
+
                 tappedState = true;
-                tapInWindowPos = e.Location;
-            }
-            if (mouseEventSource == MouseEventSource.Touch) {
+                tappedInWindowPos = e.Location;
+
+            } else if (mouseEventSource == MouseEventSource.Touch) {
+                // touch
+
                 tappedState = true;
-                tapInWindowPos = e.Location;
+                tappedInWindowPos = e.Location;
+
             }
             
         }
@@ -520,9 +544,24 @@ namespace UNP.Views {
             
         }
 
+        // returns whether the screen was tapped since the last call to this function (poll)
         public bool isTapped() {
             bool returnValue = tappedState;
             tappedState = false;
+            return returnValue;
+        }
+
+        // returns whether the screen was left-clicked since the last call to this function (poll)
+        public bool isLeftClicked() {
+            bool returnValue = leftClickedState;
+            leftClickedState = false;
+            return returnValue;
+        }
+
+        // returns whether the screen was right-clicked since the last call to this function (poll)
+        public bool isRightClicked() {
+            bool returnValue = rightClickedState;
+            rightClickedState = false;
             return returnValue;
         }
 

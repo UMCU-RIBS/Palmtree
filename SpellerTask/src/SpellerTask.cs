@@ -51,7 +51,6 @@ namespace SpellerTask {
         private TaskStates afterWait = TaskStates.CountDown;                    // the task state to go to after a wait
         private TaskStates taskState = TaskStates.Wait;
         private TaskStates previousTaskState = TaskStates.Wait;
-        private System.Timers.Timer connectionLostSoundTimer = null;            // timer to play the connection lost sound on
 
         // view
         private SpellerView view = null;
@@ -348,8 +347,11 @@ namespace SpellerTask {
             } else {
                 cues.Clear();                       // reset cues list before adding new cues
                 for(int cue = 0; cue < cuesMatrix[0].Length; cue++) {
-                    if (cuesMatrix[0][cue] != " ") { cues.Add(cuesMatrix[0][cue]); } 
-                    else { logger.Warn("Skipped cue " + (cue + 1) + " because cue was empty."); }
+                    if (cuesMatrix[0][cue] != " ") {
+                        cues.Add(cuesMatrix[0][cue]);
+                    } else {
+                        logger.Warn("Skipped cue " + (cue + 1) + " because cue was empty.");
+                    }
                 }
                 if (cues.Count == 0) {
                     logger.Error("All cues are empty.");
@@ -429,15 +431,19 @@ namespace SpellerTask {
 
                 // fill cell array
                 for (int i = 0; i < numHoles; i++) {
-                    if (i == 0 && allowExit) holes.Add(new SpellerCell(0, 0, 0, 0, SpellerCell.CellType.Exit, ""));
-                    else if (i < holeColumns && allowExit) holes.Add(new SpellerCell(0, 0, 0, 0, SpellerCell.CellType.Empty, ""));
+                    if (i == 0 && allowExit)                    holes.Add(new SpellerCell(0, 0, 0, 0, SpellerCell.CellType.Exit, ""));
+                    else if (i < holeColumns && allowExit)      holes.Add(new SpellerCell(0, 0, 0, 0, SpellerCell.CellType.Empty, ""));
                     else {
                         if (inputs[counter] == backspaceCode) {
                             holes.Add(new SpellerCell(0, 0, 0, 0, SpellerCell.CellType.Backspace, inputs[counter]));
                             backspacePresent = true;
-                        } else if (string.IsNullOrWhiteSpace(inputs[counter])) holes.Add(new SpellerCell(0, 0, 0, 0, SpellerCell.CellType.Empty, inputs[counter]));
-                        else { holes.Add(new SpellerCell(0, 0, 0, 0, SpellerCell.CellType.Input, inputs[counter])); }
+                        } else if (string.IsNullOrWhiteSpace(inputs[counter])) {
+                            holes.Add(new SpellerCell(0, 0, 0, 0, SpellerCell.CellType.Empty, inputs[counter]));
+                        } else {
+                            holes.Add(new SpellerCell(0, 0, 0, 0, SpellerCell.CellType.Input, inputs[counter]));
+                        }
                         counter++;
+
                     }
                 }
 
@@ -486,9 +492,9 @@ namespace SpellerTask {
                 if (view == null)   return;
 
                 // log event task is started, including type of cues used
-                if(cueType == 0)        Data.logEvent(2, "TaskStart", CLASS_NAME + ";Words");
-                else if(cueType == 1)   Data.logEvent(2, "TaskStart", CLASS_NAME + ";Questions");
-                else                    Data.logEvent(2, "TaskStart", CLASS_NAME + ";Unknown");
+                if (cueType == 0)           Data.logEvent(2, "TaskStart", CLASS_NAME + ";Words");
+                else if (cueType == 1)      Data.logEvent(2, "TaskStart", CLASS_NAME + ";Questions");
+                else                        Data.logEvent(2, "TaskStart", CLASS_NAME + ";Unknown");
 
                 // init vars: reset score, initialize countdown and wait timers and set fixation
                 score = 0;
@@ -503,7 +509,8 @@ namespace SpellerTask {
                 view.setFixation(true);
                 waitText = "";
 
-                if (cueType == 0)   currentTarget = cues[cueCounter].Substring(currentTargetIndex, 1);
+                if (cueType == 0)
+                    currentTarget = cues[cueCounter].Substring(currentTargetIndex, 1);
                 
                 // set state to wait and countdown after that
                 setState(TaskStates.Wait);
@@ -512,9 +519,12 @@ namespace SpellerTask {
         }
 
         public void stop() {
+            
+            // stop the connection lost sound from playing
+            SoundHelper.stopContinuous();
 
             // lock for thread safety
-            lock(lockView) {
+            lock (lockView) {
 
                 // stop the task
                 stopTask();
@@ -565,19 +575,8 @@ namespace SpellerTask {
 			            // show the lost connection warning
 			            view.setConnectionLost(true);
 
-                        // play the connection lost sound
-                        Sound.Play(CONNECTION_LOST_SOUND);
-
-                        // setup and start a timer to play the connection lost sound every 2 seconds
-                        connectionLostSoundTimer = new System.Timers.Timer(2000);
-                        connectionLostSoundTimer.Elapsed += delegate (object source, System.Timers.ElapsedEventArgs e) {
-
-                            // play the connection lost sound
-                            Sound.Play(CONNECTION_LOST_SOUND);
-
-                        };
-                        connectionLostSoundTimer.AutoReset = true;
-                        connectionLostSoundTimer.Start();
+                        // play the connection lost sound continuously every 2 seconds
+                        SoundHelper.playContinuousAtInterval(CONNECTION_LOST_SOUND, 2000);
 
                     }
 
@@ -587,11 +586,8 @@ namespace SpellerTask {
                 } else if (connectionWasLost && !connectionLost) {
                     // if the connection was lost and is not lost anymore
 
-                    // stop and clear the connection lost timer
-                    if (connectionLostSoundTimer != null) {
-                        connectionLostSoundTimer.Stop();
-                        connectionLostSoundTimer = null;
-                    }
+                    // stop the connection lost sound from playing
+                    SoundHelper.stopContinuous();
 
                     // hide the lost connection warning
                     view.setConnectionLost(false);
@@ -667,7 +663,8 @@ namespace SpellerTask {
 		            case TaskStates.RowSelect:
 
                         // if clicked, select row, otherwise continue
-			            if (click) setState(TaskStates.RowSelected);
+			            if (click)
+                            setState(TaskStates.RowSelected);
                         else {
 
 				            if(waitCounter == 0) {
@@ -681,9 +678,9 @@ namespace SpellerTask {
 
                                 // check whether selected row contains target, if using words as cues
                                 if (cueType == 0) {
-                                    if (targetInRow(rowID)) Data.logEvent(2, "TargetRow", rowID.ToString());
-                                    else                    Data.logEvent(2, "NonTargetRow", rowID.ToString());
-                                } else                      Data.logEvent(2, "Row", rowID.ToString());
+                                    if (targetInRow(rowID))     Data.logEvent(2, "TargetRow", rowID.ToString());
+                                    else                        Data.logEvent(2, "NonTargetRow", rowID.ToString());
+                                } else                          Data.logEvent(2, "Row", rowID.ToString());
 
                                 // reset the timer
                                 waitCounter = rowSelectDelay;
@@ -811,11 +808,13 @@ namespace SpellerTask {
 
                                     // update cue counter and go to wait state. Set state after that based on whether all cues have been shown
                                     cueCounter++;
-                                    if (cueCounter == cues.Count) afterWait = TaskStates.EndText;
-                                    else {
+                                    if (cueCounter == cues.Count) {
+                                        afterWait = TaskStates.EndText;
+
+                                    } else {
 
                                         // set new cue and target, and reset cue-dependent variables
-                                        view.setCueText(cues[cueCounter]);     
+                                        view.setCueText(cues[cueCounter]);
                                         currentTargetIndex = 0;
                                         currentTarget = cues[cueCounter].Substring(currentTargetIndex, 1);
                                         wordSpelled = false;
@@ -858,8 +857,9 @@ namespace SpellerTask {
 
                                     // update cue counter, if all cues have been shown, show end text
                                     cueCounter++;
-                                    if (cueCounter == cues.Count) setState(TaskStates.EndText);
-                                    else {
+                                    if (cueCounter == cues.Count) {
+                                        setState(TaskStates.EndText);
+                                    } else {
 
                                         // set new cue and wait the interstimulus interval before presenting next cue
                                         view.setCueText(cues[cueCounter]);
@@ -867,9 +867,12 @@ namespace SpellerTask {
                                         afterWait = TaskStates.RowSelect;
                                         setState(TaskStates.Wait);
                                     }
+
                                 } else if (activeCell.cellType == SpellerCell.CellType.Exit && allowExit) {
+
                                     if (unpMenuTask)    UNP_stop();                                                                     // stop the task (UNP)
                                     else                MainThread.stop(false);                                                         // stop the run, this will also call stopTask()
+
                                 }
 
                                 // debug
@@ -917,12 +920,6 @@ namespace SpellerTask {
 
                 // destroy the view
                 destroyView();
-
-                // stop and clear the connection lost timer
-                if (connectionLostSoundTimer != null) {
-                    connectionLostSoundTimer.Stop();
-                    connectionLostSoundTimer = null;
-                }
 
             }
         }
@@ -1023,8 +1020,10 @@ namespace SpellerTask {
                     view.setFixation(false);
 
                     // set countdown
-                    if (countdownCounter > 0)   view.setCountDown((int)Math.Floor((countdownCounter - 1) / MainThread.getPipelineSamplesPerSecond()) + 1);
-                    else                        view.setCountDown(-1);
+                    if (countdownCounter > 0)
+                        view.setCountDown((int)Math.Floor((countdownCounter - 1) / MainThread.getPipelineSamplesPerSecond()) + 1);
+                    else
+                        view.setCountDown(-1);
 
                     break;
 
@@ -1044,9 +1043,14 @@ namespace SpellerTask {
 
                     // check whether selected row contains target and throw event, checking for targets if used cues are words
                     if (cueType == 0) {
-                        if (targetInRow(rowID)) Data.logEvent(2, "TargetRow", rowID.ToString());
-                        else                    Data.logEvent(2, "NonTargetRow", rowID.ToString());
-                    } else                      Data.logEvent(2, "Row", rowID.ToString());
+
+                        Data.logEvent(2, targetInRow(rowID) ? "TargetRow" : "NonTargetRow", rowID.ToString());
+
+                    } else {
+
+                        Data.logEvent(2, "Row", rowID.ToString());
+
+                    }
 
                     // 
                     waitCounter = rowSelectDelay;
@@ -1063,10 +1067,13 @@ namespace SpellerTask {
                     if (cueType == 0) {
 
                         // if the incorrect row is selected and the setting is to return to the top row, set state to selecting rows again, otherwise, start selecting cells in this row
-                        if (targetInRow(rowID)) Data.logEvent(2, "RowClick", "1");    
-                        else Data.logEvent(2, "RowClick", "0");
-                            
-                    } else Data.logEvent(2, "RowClick", "");
+                        Data.logEvent(2, "RowClick", targetInRow(rowID) ? "1" : "0");
+
+                    } else {
+
+                        Data.logEvent(2, "RowClick", "");
+
+                    }
 
                     // set waitcounter
                     waitCounter = rowSelectedDelay;
@@ -1145,6 +1152,7 @@ namespace SpellerTask {
 
             // Set state to Wait
             setState(TaskStates.EndText);
+
         }
 
 
@@ -1161,18 +1169,30 @@ namespace SpellerTask {
                 correctClicks++;
 
                 // if a backspace is correctly selected, decrease the amount of neede backspaces if an input other than backspace is correctly provided, increase currentIndexTarget
-                if (input == backspaceCode) backSpacesNeeded--;  
-                else currentTargetIndex++;
+                if (input == backspaceCode)     backSpacesNeeded--;  
+                else                            currentTargetIndex++;
 
                 // if no more backspaces are needed, determine next target based on cue, otherwise new target is backspace if the current input was not a backspace
                 if (backSpacesNeeded == 0) {
-                    if (currentTargetIndex == cue.Length) {         wordSpelled = true;                                         // if reached end of cue, word is spelled
-                                                                    currentTarget = null;                                       // set target to null
-                    } else                                          currentTarget = cue.Substring(currentTargetIndex, 1);       // if not at end of cue, select next target in cue
-                } else                                              currentTarget = backspaceCode;      
+
+                    if (currentTargetIndex == cue.Length) {
+                        wordSpelled = true;                                         // if reached end of cue, word is spelled
+                        currentTarget = null;                                       // set target to null
+
+                    } else {
+                        currentTarget = cue.Substring(currentTargetIndex, 1);       // if not at end of cue, select next target in cue
+
+                    }
+
+                } else {
+                    currentTarget = backspaceCode;
+
+                }
+
             } else if (backspacePresent & input != backspaceCode) {
-                                                                    currentTarget = backspaceCode;                              // if incorrectly selected, if a backspace is avaialable for the user, this becomes the next target. If no backspace is available, do nothing, target stays the same. 
-                                                                    backSpacesNeeded++;                                         // increase the amount of backspaces needed
+                currentTarget = backspaceCode;                              // if incorrectly selected, if a backspace is avaialable for the user, this becomes the next target. If no backspace is available, do nothing, target stays the same. 
+                backSpacesNeeded++;                                         // increase the amount of backspaces needed
+
             }
         }
 
@@ -1194,7 +1214,10 @@ namespace SpellerTask {
 
             int cueLength = -1;
 
-            if (cues != null) for(int cue = 0; cue < cues.Count; cue++) { cueLength = Math.Max(cueLength, cues[cue].Length); }
+            if (cues != null)
+                for (int cue = 0; cue < cues.Count; cue++) {
+                    cueLength = Math.Max(cueLength, cues[cue].Length);
+                }
 
             return cueLength;
         }

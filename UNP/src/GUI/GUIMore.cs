@@ -16,6 +16,7 @@ using NLog;
 using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
+using UNP.Core.Helpers;
 using UNP.Core.Params;
 
 namespace UNP.GUI {
@@ -78,6 +79,8 @@ namespace UNP.GUI {
 
         }
 
-
+        private void btnGammaStandard_Click(object sender, EventArgs e) {
+            MonitorHelper.setGamma(120);
+        }
     }
 }

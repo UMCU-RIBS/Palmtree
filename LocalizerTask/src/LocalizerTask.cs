@@ -34,7 +34,7 @@ namespace LocalizerTask {
     public class LocalizerTask : IApplication {
 
         // fundamentals
-        private const int CLASS_VERSION = 1;                                // class version
+        private const int CLASS_VERSION = 2;                                // class version
         private const string CLASS_NAME = "LocalizerTask";                  // class name
         private const string CONNECTION_LOST_SOUND = "sounds\\focuson.wav";
 
@@ -48,7 +48,6 @@ namespace LocalizerTask {
 
         private bool mConnectionLost = false;							// flag to hold whether the connection is lost
         private bool mConnectionWasLost = false;						// flag to hold whether the connection has been lost (should be reset after being re-connected)
-        private System.Timers.Timer mConnectionLostSoundTimer = null;       // timer to play the connection lost sound on
 
         private TaskStates taskState = TaskStates.None;                     // holds current task state
         private TaskStates previousTaskState = TaskStates.None;             // holds previous task state
@@ -341,11 +340,14 @@ namespace LocalizerTask {
 
         public void stop() {
 
+            // stop the connection lost sound from playing
+            SoundHelper.stopContinuous();
+
             // log event task is stopped prematurely by user
             Data.logEvent(2, "TaskStop", CLASS_NAME + ";user");
 
             // set text to display
-            if(!string.IsNullOrEmpty(endText)) view.setText(endText);
+            if(!string.IsNullOrEmpty(endText))      view.setText(endText);
 
             // reset all relevant variables in case task is restarted
             currentStimulus = stimulusCounter = 0;
@@ -384,19 +386,8 @@ namespace LocalizerTask {
                         // show the lost connection warning
                         view.setConnectionLost(true);
 
-                        // play the connection lost sound
-                        Sound.Play(CONNECTION_LOST_SOUND);
-
-                        // setup and start a timer to play the connection lost sound every 2 seconds
-                        mConnectionLostSoundTimer = new System.Timers.Timer(2000);
-                        mConnectionLostSoundTimer.Elapsed += delegate (object source, System.Timers.ElapsedEventArgs e) {
-
-                            // play the connection lost sound
-                            Sound.Play(CONNECTION_LOST_SOUND);
-
-                        };
-                        mConnectionLostSoundTimer.AutoReset = true;
-                        mConnectionLostSoundTimer.Start();
+                        // play the connection lost sound continuously every 2 seconds
+                        SoundHelper.playContinuousAtInterval(CONNECTION_LOST_SOUND, 2000);
 
                     }
 
@@ -406,11 +397,8 @@ namespace LocalizerTask {
                 } else if (mConnectionWasLost && !mConnectionLost) {
                     // if the connection was lost and is not lost anymore
 
-                    // stop and clear the connection lost timer
-                    if (mConnectionLostSoundTimer != null) {
-                        mConnectionLostSoundTimer.Stop();
-                        mConnectionLostSoundTimer = null;
-                    }
+                    // stop the connection lost sound from playing
+                    SoundHelper.stopContinuous();
 
                     // hide the lost connection warning
                     view.setConnectionLost(false);
@@ -453,17 +441,28 @@ namespace LocalizerTask {
                                 stimulusCounter = 0;
                                 currentRepetition++;
 
-                                if (currentRepetition > numberOfRepetitions)      setState(TaskStates.End);       // if we have presented all sequences, go to task state End
-                                else if (betweenSequenceWait != 0) {               waitCounter = betweenSequenceWait;     // if there are sequences to present and there is a time to wait, set waiting time and go to state Wait
-                                                                            setState(TaskStates.Wait); } 
-                                else                                        setStimulus();                  // if there are sequences to present and we do not have to wait, set next stimulus
+                                if (currentRepetition > numberOfRepetitions) {
+                                    setState(TaskStates.End);       // if we have presented all sequences, go to task state End
+
+                                } else if (betweenSequenceWait != 0) {
+                                    waitCounter = betweenSequenceWait;     // if there are sequences to present and there is a time to wait, set waiting time and go to state Wait
+                                    setState(TaskStates.Wait);
+
+                                } else {
+                                    setStimulus();                  // if there are sequences to present and we do not have to wait, set next stimulus
+
+                                }
+
+                            } else {        // if we are not at end of sequence, present next stimulus 
+                                setStimulus();
 
                             }
-                            // if we are not at end of sequence, present next stimulus 
-                            else                                            setStimulus();
 
                         // if time is not up, decrease remaining time
-                        } else stimulusRemainingTime--;
+                        } else {
+                            stimulusRemainingTime--;
+
+                        }
 
                         break;
 
@@ -616,23 +615,6 @@ namespace LocalizerTask {
             setState(previousTaskState);
         }
 
-        public static void playSound(string filename) {
-
-            // check if the file exists
-            if (!File.Exists(filename)) {
-                logger.Error("Could not play soundfile '" + filename + "'");
-                return;
-            }
-
-            // play the file
-            try {
-                new System.Media.SoundPlayer(filename).Play();
-            } catch (Exception) {
-                logger.Error("Could not play soundfile '" + filename + "'");
-                return;
-            }
-        }
-
         private void setStimulus() {
 
             // determine current stimulus based on stimulus sequence (-1 because 0-based)
@@ -687,12 +669,6 @@ namespace LocalizerTask {
 
                 // destroy the view
                 destroyView();
-
-                // stop and clear the connection lost timer
-                if (mConnectionLostSoundTimer != null) {
-                    mConnectionLostSoundTimer.Stop();
-                    mConnectionLostSoundTimer = null;
-                }
 
             }
 
@@ -784,7 +760,7 @@ namespace LocalizerTask {
                 mConnectionLost = unpConnectionLost;
 
                 // process the input (if the task is not suspended)
-                if (!unpMenuTaskSuspended) process(input);
+                if (!unpMenuTaskSuspended)      process(input);
 
             }
 

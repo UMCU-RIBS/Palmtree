@@ -24,6 +24,7 @@
         /// </summary>
         private void InitializeComponent() {
             this.btnPrintParamInfo = new System.Windows.Forms.Button();
+            this.btnGammaStandard = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // btnPrintParamInfo
@@ -37,10 +38,21 @@
             this.btnPrintParamInfo.UseVisualStyleBackColor = true;
             this.btnPrintParamInfo.Click += new System.EventHandler(this.btnPrintParamInfo_Click);
             // 
+            // btnGammaStandard
+            // 
+            this.btnGammaStandard.Location = new System.Drawing.Point(27, 64);
+            this.btnGammaStandard.Name = "btnGammaStandard";
+            this.btnGammaStandard.Size = new System.Drawing.Size(305, 36);
+            this.btnGammaStandard.TabIndex = 1;
+            this.btnGammaStandard.Text = "Set gamma to default (120)";
+            this.btnGammaStandard.UseVisualStyleBackColor = true;
+            this.btnGammaStandard.Click += new System.EventHandler(this.btnGammaStandard_Click);
+            // 
             // GUIMore
             // 
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None;
             this.ClientSize = new System.Drawing.Size(358, 383);
+            this.Controls.Add(this.btnGammaStandard);
             this.Controls.Add(this.btnPrintParamInfo);
             this.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
@@ -57,5 +69,6 @@
         #endregion
 
         private System.Windows.Forms.Button btnPrintParamInfo;
+        private System.Windows.Forms.Button btnGammaStandard;
     }
 }
