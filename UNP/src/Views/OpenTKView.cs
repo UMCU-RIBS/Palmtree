@@ -21,6 +21,7 @@ using System.Windows.Forms;
 using System.Drawing;
 using NLog;
 using OpenTK.Input;
+using System.Runtime.InteropServices;
 
 namespace UNP.Views {
 
@@ -31,10 +32,22 @@ namespace UNP.Views {
     /// </summary>
     public abstract partial class OpenTKView : Form, IOpenGLFunctions {
 
+
+        // The sources of the input event that is raised and is generally recognized as mouse events
+        public enum MouseEventSource {
+            Mouse,          // Events raised by the mouse
+            Pen,            // Events raised by a stylus
+            Touch           // Events raised by touching the screen
+        }
+
         private static Logger logger = LogManager.GetLogger("View");
 
         //private const bool showFPS = true;
         private const bool vsync = true;
+
+        // API's
+        [DllImport("user32.dll")]
+        private static extern uint GetMessageExtraInfo();
 
         protected IntPtr windowHandle = IntPtr.Zero;    // handle to the window
         private bool started = false;                   // flag whether the view is starting or started
@@ -68,6 +81,8 @@ namespace UNP.Views {
         private MouseState mouseState = new MouseState();
         private KeyboardState keyboardState = new KeyboardState();
         protected Point mouseInWindowPos = new Point(0, 0);
+        protected bool tappedState = false;
+        protected Point tapInWindowPos = new Point(0, 0);
 
         // pure abstract functions that are required to be implemented by the deriving class
         protected abstract void load();
@@ -486,6 +501,31 @@ namespace UNP.Views {
             
         }
 
+        private void glControl_MouseDown(object sender, System.Windows.Forms.MouseEventArgs e) {
+            
+            MouseEventSource mouseEventSource = GetMouseEventSource();
+            if (mouseEventSource == MouseEventSource.Mouse)     logger.Error("muis");
+            if (mouseEventSource == MouseEventSource.Pen) {
+                tappedState = true;
+                tapInWindowPos = e.Location;
+            }
+            if (mouseEventSource == MouseEventSource.Touch) {
+                tappedState = true;
+                tapInWindowPos = e.Location;
+            }
+            
+        }
+
+        private void glControl_KeyDown(object sender, KeyEventArgs e) {
+            
+        }
+
+        public bool isTapped() {
+            bool returnValue = tappedState;
+            tappedState = false;
+            return returnValue;
+        }
+
         public bool isLeftMouseDown() {
             return mouseState.IsButtonDown(MouseButton.Left);
         }
@@ -497,12 +537,14 @@ namespace UNP.Views {
         public bool isKeyDown(System.Windows.Forms.Keys key) {
 
             // TODO: something smarter to convert a generic key value (now System.Windows.Forms.Keys) to a OpenTK specific key value (OpenTK.Input.Key)
+            /*
             if (key == Keys.A)                                  return keyboardState.IsKeyDown(OpenTK.Input.Key.A);
             if (key == Keys.Escape)                             return keyboardState.IsKeyDown(OpenTK.Input.Key.Escape);
             if (key == Keys.D1 || key == Keys.NumPad1)          return keyboardState.IsKeyDown(OpenTK.Input.Key.Number1);
             if (key == Keys.D2 || key == Keys.NumPad2)          return keyboardState.IsKeyDown(OpenTK.Input.Key.Number2);
             if (key == Keys.LControlKey)                        return keyboardState.IsKeyDown(OpenTK.Input.Key.ControlLeft);
             if (key == Keys.RControlKey)                        return keyboardState.IsKeyDown(OpenTK.Input.Key.ControlRight);
+            */
 
             return false;
 
@@ -515,12 +557,14 @@ namespace UNP.Views {
         public bool isKeyUp(System.Windows.Forms.Keys key) {
 
             // TODO: something smarter to convert a generic key value (now System.Windows.Forms.Keys) to a OpenTK specific key value (OpenTK.Input.Key)
+            /*
             if (key == Keys.A)                                  return keyboardState.IsKeyUp(OpenTK.Input.Key.A);
             if (key == Keys.Escape)                             return keyboardState.IsKeyUp(OpenTK.Input.Key.Escape);
             if (key == Keys.D1 || key == Keys.NumPad1)          return keyboardState.IsKeyUp(OpenTK.Input.Key.Number1);
             if (key == Keys.D2 || key == Keys.NumPad2)          return keyboardState.IsKeyUp(OpenTK.Input.Key.Number2);
             if (key == Keys.LControlKey)                        return keyboardState.IsKeyUp(OpenTK.Input.Key.ControlLeft);
             if (key == Keys.RControlKey)                        return keyboardState.IsKeyUp(OpenTK.Input.Key.ControlRight);
+            */
 
             return false;
 
@@ -774,6 +818,25 @@ namespace UNP.Views {
             }
 
         }
+        
+        /// <summary>
+        /// Determines what input device triggered the mouse event.
+        /// </summary>
+        /// <returns>
+        /// A result indicating whether the last mouse event was triggered by a touch, pen or the mouse.
+        /// </returns>
+        public static MouseEventSource GetMouseEventSource() {
+            uint extra = GetMessageExtraInfo();
+            bool isTouchOrPen = ((extra & 0xFFFFFF00) == 0xFF515700);
+
+            if (!isTouchOrPen)
+                return MouseEventSource.Mouse;
+
+            bool isTouch = ((extra & 0x00000080) == 0x00000080);
+
+            return isTouch ? MouseEventSource.Touch : MouseEventSource.Pen;
+        }
 
     }
+
 }

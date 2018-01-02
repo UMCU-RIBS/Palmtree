@@ -428,6 +428,11 @@ namespace UNP.Views {
 
         }
 
+        public bool isTapped() {
+            // TODO: implement
+            return false;
+        }
+
         public bool isLeftMouseDown() {
             // TODO: implement
             return false;

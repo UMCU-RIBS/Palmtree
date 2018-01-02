@@ -56,8 +56,8 @@
     </StartupObject>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Expressive, Version=1.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\ExpressiveParser.1.1.1\lib\Net40\Expressive.dll</HintPath>
+    <Reference Include="Expressive, Version=1.2.1.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\ExpressiveParser.1.2.1\lib\Net40\Expressive.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="NLog, Version=4.0.0.0, Culture=neutral, PublicKeyToken=5120e14c03d0593c, processorArchitecture=MSIL">
@@ -121,6 +121,7 @@
     <Compile Include="src\Core\Helpers\Polynomial.cs" />
     <Compile Include="src\Core\Helpers\RationalPolynomial.cs" />
     <Compile Include="src\Core\Helpers\Sound.cs" />
+    <Compile Include="src\Core\Helpers\EnergyHelper.cs" />
     <Compile Include="src\Core\Params\ParamFileString.cs" />
     <Compile Include="src\Filters\RedistributionFilter.cs" />
     <Compile Include="src\GUI\GUIMore.cs">

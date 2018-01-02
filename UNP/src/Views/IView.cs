@@ -45,6 +45,7 @@ namespace UNP.Views {
 
         bool isStarted();
 
+        bool isTapped();
         bool isLeftMouseDown();
         bool isRightMouseDown();
 
