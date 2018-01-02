@@ -60,6 +60,7 @@ namespace UNP.Core {
             //args = new string[] { "-parameterfile", "UNPMenu_nexus.prm", "-source", "NexusSignal", "-startupConfigAndInit", "-startupStart" };
             //args = new string[] { "-parameterfile", "test_UNPMENU.prm", "-source", "KeypressSignal", "-startupConfigAndInit", "-startupStartRun" };
             //args = new string[] { "-source", "KeypressSignal", "-startupConfigAndInit", "-startupStart" };
+            //args = new string[] { "-source", "KeypressSignal"};
 
             // process startup arguments
             for (int i = 0; i < args.Length; i++) {
