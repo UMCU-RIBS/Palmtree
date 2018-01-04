@@ -22,24 +22,24 @@ namespace MultiClicksTask {
     /// </summary>
     public class MultiClicksBlock {
 
-        public float mX;
-        public float mY;
-        public float mWidth;
-        public float mHeight;
-        public float mColorR;
-        public float mColorG;
-        public float mColorB;
-        public int mTexture;
+        public float x;
+        public float y;
+        public float width;
+        public float height;
+        public float colorR;
+        public float colorG;
+        public float colorB;
+        public int texture;
 
         public MultiClicksBlock(float x, float y, float width, float height, float colorR, float colorG, float colorB) {
-	        mX = x;
-	        mY = y;
-	        mWidth = width;
-	        mHeight = height;
-	        mTexture = 0;
-            mColorR = colorR;
-            mColorG = colorG;
-            mColorB = colorB;
+	        this.x = x;
+	        this.y = y;
+	        this.width = width;
+	        this.height = height;
+	        texture = 0;
+            this.colorR = colorR;
+            this.colorG = colorG;
+            this.colorB = colorB;
         }
     
     }

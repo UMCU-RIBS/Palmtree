@@ -15,7 +15,6 @@
  */
 using NLog;
 using System;
-using System.IO;
 
 using UNP.Core;
 using UNP.Applications;
@@ -44,17 +43,17 @@ namespace LocalizerTask {
         // status 
         private bool unpMenuTask = false;                                   // flag whether the task is created by the UNPMenu
         private bool unpMenuTaskRunning = false;                            // flag to hold whether the task is running as UNP task
-        private bool unpMenuTaskSuspended = false;                         // flag to hold whether the task (when running as UNP task) is suspended          
+        private bool unpMenuTaskSuspended = false;                          // flag to hold whether the task (when running as UNP task) is suspended          
 
-        private bool mConnectionLost = false;							// flag to hold whether the connection is lost
-        private bool mConnectionWasLost = false;						// flag to hold whether the connection has been lost (should be reset after being re-connected)
+        private bool connectionLost = false;							    // flag to hold whether the connection is lost
+        private bool connectionWasLost = false;						        // flag to hold whether the connection has been lost (should be reset after being re-connected)
 
         private TaskStates taskState = TaskStates.None;                     // holds current task state
         private TaskStates previousTaskState = TaskStates.None;             // holds previous task state
         private int waitCounter = 0;                                        // counter for task state Start and Wait, used to determine time left in this state
 
         // view
-        private LocalizerView view = null;                           // view for task
+        private LocalizerView view = null;                                  // view for task
         private Object lockView = new Object();                             // threadsafety lock for all event on the view
         private int windowLeft = 0;                                         // position of window from left of screen
         private int windowTop = 0;                                          // position of windo from top of screen
@@ -65,7 +64,7 @@ namespace LocalizerTask {
 
         // task specific
         private string[][] stimuli = null;                                  // matrix with stimulus information per stimulus: text, sound, image, length
-        private int[] stimuliSequence = null;                                 // sequence of stimuli, referring to stimuli by index in stimuli matrix 
+        private int[] stimuliSequence = null;                               // sequence of stimuli, referring to stimuli by index in stimuli matrix 
         private int currentStimulus = 0;                                    // stimulus currently being presented, referred to by index in stimuli matrix
         private int stimulusCounter = 0;                                    // stimulus pointer, indicating which stimulus of sequence is currently being presented
         private int stimulusRemainingTime = -1;                             // remaining time to present current stimulus, in samples
@@ -342,10 +341,7 @@ namespace LocalizerTask {
 
             // stop the connection lost sound from playing
             SoundHelper.stopContinuous();
-
-            // log event task is stopped prematurely by user
-            Data.logEvent(2, "TaskStop", CLASS_NAME + ";user");
-
+            
             // set text to display
             if(!string.IsNullOrEmpty(endText))      view.setText(endText);
 
@@ -353,6 +349,10 @@ namespace LocalizerTask {
             currentStimulus = stimulusCounter = 0;
             currentRepetition = 1;
             stimulusRemainingTime = -1;
+
+            // log event app is stopped
+            Data.logEvent(2, "AppStopped", CLASS_NAME);
+
         }
 
         public bool isStarted() {
@@ -360,6 +360,16 @@ namespace LocalizerTask {
         }
 
         public void process(double[] input) {
+
+            // retrieve the connectionlost global
+            connectionLost = Globals.getValue<bool>("ConnectionLost");
+
+            // process input
+            process();
+
+        }
+
+        public void process() {
 
             // lock for thread safety
             lock (lockView) {
@@ -371,14 +381,14 @@ namespace LocalizerTask {
                 ////////////////////////
 
                 // check if connection is lost, or was lost
-                if (mConnectionLost) {
+                if (connectionLost) {
 
                     // check if it was just discovered if the connection was lost
-                    if (!mConnectionWasLost) {
+                    if (!connectionWasLost) {
                         // just discovered it was lost
 
                         // set the connection as was lost (this also will make sure the lines in this block willl only run once)
-                        mConnectionWasLost = true;
+                        connectionWasLost = true;
 
                         // pauze the task
                         pauzeTask();
@@ -394,7 +404,7 @@ namespace LocalizerTask {
                     // do not process any further
                     return;
 
-                } else if (mConnectionWasLost && !mConnectionLost) {
+                } else if (connectionWasLost && !connectionLost) {
                     // if the connection was lost and is not lost anymore
 
                     // stop the connection lost sound from playing
@@ -407,7 +417,7 @@ namespace LocalizerTask {
                     resumeTask();
 
                     // reset connection lost variables
-                    mConnectionWasLost = false;
+                    connectionWasLost = false;
 
                 }
 
@@ -479,14 +489,17 @@ namespace LocalizerTask {
 
                     case TaskStates.End:
 
-                        // stop sources, filters etc through Mainthread, if these are not already stopped
-                        if (MainThread.isStarted())     MainThread.stop(false);
+                        // log event that task is stopped
+                        Data.logEvent(2, "TaskStop", CLASS_NAME + ";end");
+
+                        // stop the run
+                        // this will also call stop(), and as a result stopTask()
+                        if (unpMenuTask)        UNP_stop();
+                        else                    MainThread.stop(false);
 
                         break;
 
-
                     case TaskStates.None:
-
                         break;
 
                     default:
@@ -571,9 +584,6 @@ namespace LocalizerTask {
 
                     // feedback to user
                     //logger.Debug("Task finished.");
-
-                    // log event that task is stopped
-                    Data.logEvent(2, "TaskStop", CLASS_NAME + ";end");
 
                     // reset all relevant variables in case task is restarted
                     currentStimulus = stimulusCounter = 0;
@@ -757,10 +767,10 @@ namespace LocalizerTask {
             if (unpMenuTaskRunning) {
 
                 // transfer connection lost
-                mConnectionLost = unpConnectionLost;
+                connectionLost = unpConnectionLost;
 
                 // process the input (if the task is not suspended)
-                if (!unpMenuTaskSuspended)      process(input);
+                if (!unpMenuTaskSuspended)      process();
 
             }
 

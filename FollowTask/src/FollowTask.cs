@@ -59,16 +59,16 @@ namespace FollowTask {
         private int inputChannels = 0;
         private FollowView view = null;
 
-        Random rand = new Random(Guid.NewGuid().GetHashCode());
-        private Object lockView = new Object();                         // threadsafety lock for all event on the view
-        private bool mTaskPauzed = false;								// flag to hold whether the task is pauzed (view will remain active, e.g. connection lost)
+        private Random rand = new Random(Guid.NewGuid().GetHashCode());
+        private Object lockView = new Object();                                     // threadsafety lock for all event on the view
+        private bool taskPauzed = false;								            // flag to hold whether the task is pauzed (view will remain active, e.g. connection lost)
 
-        private bool mUNPMenuTask = false;								// flag whether the task is created by the UNPMenu
-        private bool mUNPMenuTaskRunning = false;						// flag to hold whether the task should is running (setting this to false is also used to notify the UNPMenu that the task is finished)
-        private bool mUNPMenuTaskSuspended = false;						// flag to hold whether the task is suspended (view will be destroyed/re-initiated)
+        private bool unpMenuTask = false;								            // flag whether the task is created by the UNPMenu
+        private bool unpMenuTaskRunning = false;						            // flag to hold whether the task should is running (setting this to false is also used to notify the UNPMenu that the task is finished)
+        private bool unpMenuTaskSuspended = false;						            // flag to hold whether the task is suspended (view will be destroyed/re-initiated)
 
-        private bool mConnectionLost = false;							// flag to hold whether the connection is lost
-        private bool mConnectionWasLost = false;						// flag to hold whether the connection has been lost (should be reset after being re-connected)
+        private bool connectionLost = false;							            // flag to hold whether the connection is lost
+        private bool connectionWasLost = false;						                // flag to hold whether the connection has been lost (should be reset after being re-connected)
 
         // task input parameters
         private int mWindowLeft = 0;
@@ -106,16 +106,16 @@ namespace FollowTask {
 
 
         // task (active) variables
-        private List<int> trialSequence = new List<int>(0);					    // the target sequence being used in the task (can either be given by input or generated)
+        private List<int> trialSequence = new List<int>(0);					        // the target sequence being used in the task (can either be given by input or generated)
 
-        private int mWaitCounter = 0;
-        private int mCountdownCounter = 0;											// the countdown timer
-        private int mHitScore = 0;												    // the score of the cursor hitting a block (in number of samples)
+        private int waitCounter = 0;
+        private int countdownCounter = 0;											// the countdown timer
+        private int hitScore = 0;												    // the score of the cursor hitting a block (in number of samples)
 
         private TaskStates taskState = TaskStates.Wait;
         private TaskStates previousTaskState = TaskStates.Wait;
-        private int mCurrentBlock = FollowView.noBlock;                             // the current block which is in line with X of the cursor (so the middle)
-        private int mPreviousBlock = FollowView.noBlock;                            // the previous block that was in line with X of the cursor
+        private int currentBlock = FollowView.noBlock;                             // the current block which is in line with X of the cursor (so the middle)
+        private int previousBlock = FollowView.noBlock;                            // the previous block that was in line with X of the cursor
 
 
         private float[] storedBlockPositions = null;                                // to store the previous block positions while suspended
@@ -124,10 +124,10 @@ namespace FollowTask {
         public FollowTask(bool UNPMenuTask) {
 
             // transfer the UNP menu task flag
-            mUNPMenuTask = UNPMenuTask;
+            unpMenuTask = UNPMenuTask;
 
             // check if the task is standalone (not unp menu)
-            if (!mUNPMenuTask) {
+            if (!unpMenuTask) {
             
                 // create a parameter set for the task
                 parameters = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Application);
@@ -529,7 +529,7 @@ namespace FollowTask {
         public void start() {
 
             // check if the task is standalone (not unp menu)
-            if (!mUNPMenuTask) {
+            if (!unpMenuTask) {
 
                 // store the generated sequence in the output parameter xml
                 Data.adjustXML(CLASS_NAME, "TrialSequence", string.Join(" ", trialSequence));
@@ -545,10 +545,10 @@ namespace FollowTask {
                 Data.logEvent(2, "TaskStart", CLASS_NAME);
 
                 // reset the score
-                mHitScore = 0;
+                hitScore = 0;
 
                 // reset countdown to the countdown time
-                mCountdownCounter = mCountdownTime;
+                countdownCounter = mCountdownTime;
 
                 if (mTaskStartDelay != 0 || mTaskFirstRunStartDelay != 0) {
 		            // wait
@@ -582,6 +582,9 @@ namespace FollowTask {
 
             }
 
+            // log event app is stopped
+            Data.logEvent(2, "AppStopped", CLASS_NAME);
+
         }
 
         public bool isStarted() {
@@ -591,7 +594,7 @@ namespace FollowTask {
         public void process(double[] input) {
             
             // retrieve the connectionlost global
-            mConnectionLost = Globals.getValue<bool>("ConnectionLost");
+            connectionLost = Globals.getValue<bool>("ConnectionLost");
             
             // process input
             process(input[mTaskInputChannel - 1]);
@@ -610,14 +613,14 @@ namespace FollowTask {
                 ////////////////////////
 
                 // check if connection is lost, or was lost
-                if (mConnectionLost) {
+                if (connectionLost) {
 
                     // check if it was just discovered if the connection was lost
-                    if (!mConnectionWasLost) {
+                    if (!connectionWasLost) {
                         // just discovered it was lost
 
                         // set the connection as was lost (this also will make sure the lines in this block willl only run once)
-                        mConnectionWasLost = true;
+                        connectionWasLost = true;
 
                         // pauze the task
                         pauzeTask();
@@ -633,7 +636,7 @@ namespace FollowTask {
                     // do not process any further
                     return;
 
-                } else if (mConnectionWasLost && !mConnectionLost) {
+                } else if (connectionWasLost && !connectionLost) {
                     // if the connection was lost and is not lost anymore
 
                     // stop the connection lost sound from playing
@@ -646,7 +649,7 @@ namespace FollowTask {
                     resumeTask();
 
                     // reset connection lost variables
-                    mConnectionWasLost = false;
+                    connectionWasLost = false;
 
                 }
 
@@ -656,7 +659,7 @@ namespace FollowTask {
 
 
 	            // check if the task is pauzed, do not process any further if this is the case
-	            if (mTaskPauzed)		    return;
+	            if (taskPauzed)		    return;
                 
 	            // use the task state
 	            switch (taskState) {
@@ -664,13 +667,13 @@ namespace FollowTask {
 		            case TaskStates.Wait:
 			            // starting, pauzed or waiting
 			
-			            if(mWaitCounter == 0) {
+			            if(waitCounter == 0) {
 
 				            // set the state to countdown
 				            setState(TaskStates.CountDown);
 
 			            } else
-				            mWaitCounter--;
+				            waitCounter--;
 
 			            break;
 
@@ -678,15 +681,15 @@ namespace FollowTask {
 			            // Countdown before start of task
 			
 			            // check if the task is counting down
-			            if (mCountdownCounter > 0) {
+			            if (countdownCounter > 0) {
 
 				            // still counting down
 
                             // display the countdown
-                            view.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.getPipelineSamplesPerSecond()) + 1);
+                            view.setCountDown((int)Math.Floor((countdownCounter - 1) / MainThread.getPipelineSamplesPerSecond()) + 1);
 
                             // reduce the countdown timer
-                            mCountdownCounter--;
+                            countdownCounter--;
 
                         } else {
                             // done counting down
@@ -695,10 +698,10 @@ namespace FollowTask {
                             view.setCountDown(-1);
 
                             // set the current block to no block
-                            mCurrentBlock = FollowView.noBlock;
+                            currentBlock = FollowView.noBlock;
 
 				            // reset the score
-				            mHitScore = 0;
+				            hitScore = 0;
 
 				            // set the state to task
 				            setState(TaskStates.Task);
@@ -728,7 +731,7 @@ namespace FollowTask {
 			            }
 
 			            // check if it is the end of the task
-			            if (mCurrentBlock == trialSequence.Count - 1 && (view.getCurrentBlock() == FollowView.noBlock)) {
+			            if (currentBlock == trialSequence.Count - 1 && (view.getCurrentBlock() == FollowView.noBlock)) {
 				            // end of the task
 
 				            setState(TaskStates.EndText);
@@ -737,31 +740,22 @@ namespace FollowTask {
 				            // not the end of the task
 
 				            // retrieve the current block and if cursor is in this block
-				            mCurrentBlock = view.getCurrentBlock();
+				            currentBlock = view.getCurrentBlock();
                             bool mIsCursorInCurrentBlock = view.getCursorInCurrentBlock();
 
                             // retrieve which block condition the current block is
                             int blockCondition = -1;
-                            if (mCurrentBlock != FollowView.noBlock) blockCondition = trialSequence[mCurrentBlock];
+                            if (currentBlock != FollowView.noBlock) blockCondition = trialSequence[currentBlock];
 
                             // log event if the current block has changed and update the previous block placeholder
-                            if (mCurrentBlock != mPreviousBlock)     Data.logEvent(2, "Changeblock", (mCurrentBlock.ToString() + ";" + blockCondition.ToString()));
-                            mPreviousBlock = mCurrentBlock;
-
-                            // log event if cursor entered or left the current block
-                            //if (mIsCursorInCurrentBlock != mWasCursorInCurrentBlock) {
-                            //    if (mIsCursorInCurrentBlock) { Data.logEvent(2, "CursorEnter", mCurrentBlock.ToString()); }
-                            //    else { Data.logEvent(2, "CursorExit", mCurrentBlock.ToString()); }
-                            //}
-
-                            // update whether cursor was in current block 
-                            //mWasCursorInCurrentBlock = mIsCursorInCurrentBlock;
-
+                            if (currentBlock != previousBlock)     Data.logEvent(2, "Changeblock", (currentBlock.ToString() + ";" + blockCondition.ToString()));
+                            previousBlock = currentBlock;
+                            
                             // add to score if cursor hits the block
-                            if (mIsCursorInCurrentBlock) mHitScore++;
+                            if (mIsCursorInCurrentBlock) hitScore++;
 
 				            // update the score for display
-				            if (mShowScore)     view.setScore(mHitScore);
+				            if (mShowScore)     view.setScore(hitScore);
 
 			            }
 
@@ -770,25 +764,18 @@ namespace FollowTask {
 		            case TaskStates.EndText:
 			            // end text
 
-			            if(mWaitCounter == 0) {
+			            if(waitCounter == 0) {
 
                             // log event task is stopped
                             Data.logEvent(2, "TaskStop", CLASS_NAME + ";end");
 
-                            // check if we are running from the UNPMenu
-                            if (mUNPMenuTask) {
+                            // stop the task
+                            // this will also call stop(), and as a result stopTask()
+                            if (unpMenuTask)        UNP_stop();
+                            else                    MainThread.stop(false);
 
-                                // stop the task (UNP)
-                                UNP_stop();
-
-                            } else {
-
-                                // stop the run, this will also call stopTask()
-                                MainThread.stop(false);
-                            }
-
-			            } else
-				            mWaitCounter--;
+                        } else
+				            waitCounter--;
 
 			            break;
 	            }
@@ -843,7 +830,7 @@ namespace FollowTask {
             Data.logEvent(2, "TaskPause", CLASS_NAME);
 
             // set task as pauzed
-            mTaskPauzed = true;
+            taskPauzed = true;
 
 	        // store the previous state
 	        previousTaskState = taskState;
@@ -879,7 +866,7 @@ namespace FollowTask {
 	        setState(previousTaskState);
 
 	        // set task as not longer pauzed
-	        mTaskPauzed = false;
+	        taskPauzed = false;
 
         }
 
@@ -910,10 +897,10 @@ namespace FollowTask {
 
                     // Set wait counter to startdelay
                     if (mTaskFirstRunStartDelay != 0) {
-                        mWaitCounter = mTaskFirstRunStartDelay;
+                        waitCounter = mTaskFirstRunStartDelay;
                         mTaskFirstRunStartDelay = 0;
                     } else
-			            mWaitCounter = mTaskStartDelay;
+			            waitCounter = mTaskStartDelay;
 
 			        break;
 
@@ -930,8 +917,8 @@ namespace FollowTask {
 				    view.setFixation(false);
 
 				    // set countdown
-                    if (mCountdownCounter > 0)
-                        view.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.getPipelineSamplesPerSecond()) + 1);
+                    if (countdownCounter > 0)
+                        view.setCountDown((int)Math.Floor((countdownCounter - 1) / MainThread.getPipelineSamplesPerSecond()) + 1);
                     else
                         view.setCountDown(-1);
 
@@ -953,7 +940,7 @@ namespace FollowTask {
                     view.setCountDown(-1);
 
 				    // set the score for display
-				    if (mShowScore)		view.setScore(mHitScore);
+				    if (mShowScore)		view.setScore(hitScore);
 
 				    // reset the cursor position
 				    view.centerCursor();
@@ -981,7 +968,7 @@ namespace FollowTask {
 				    view.setText("Done");
 
                     // set duration for text to be shown at the end (3s)
-                    mWaitCounter = (int)(MainThread.getPipelineSamplesPerSecond() * 3.0);
+                    waitCounter = (int)(MainThread.getPipelineSamplesPerSecond() * 3.0);
 
                     break;
 
@@ -993,11 +980,8 @@ namespace FollowTask {
         private void stopTask() {
             if (view == null)   return;
 
-            // log event task is stopped
-            Data.logEvent(2, "TaskStop", CLASS_NAME + ";user");
-
             // set the current block to no block
-            mCurrentBlock = FollowView.noBlock;
+            currentBlock = FollowView.noBlock;
 
             // set state to wait
             setState(TaskStates.Wait);
@@ -1380,7 +1364,7 @@ namespace FollowTask {
         public void UNP_start(Parameters parentParameters) {
 
             // UNP entry point can only be used if initialized as UNPMenu
-            if (!mUNPMenuTask) {
+            if (!unpMenuTask) {
                 logger.Error("Using UNP entry point while the task was not initialized as UNPMenu task, check parameters used to call the task constructor");
                 return;
             }
@@ -1443,14 +1427,14 @@ namespace FollowTask {
 	        start();
 
             // set the task as running
-            mUNPMenuTaskRunning = true;
+            unpMenuTaskRunning = true;
 
         }
 
         public void UNP_stop() {
             
             // UNP entry point can only be used if initialized as UNPMenu
-            if (!mUNPMenuTask) {
+            if (!unpMenuTask) {
                 logger.Error("Using UNP entry point while the task was not initialized as UNPMenu task, check parameters used to call the task constructor");
                 return;
             }
@@ -1462,24 +1446,24 @@ namespace FollowTask {
             destroy();
 
             // flag the task as no longer running (setting this to false is also used to notify the UNPMenu that the task is finished)
-            mUNPMenuTaskRunning = false;
+            unpMenuTaskRunning = false;
 
         }
 
         public bool UNP_isRunning() {
-            return mUNPMenuTaskRunning;
+            return unpMenuTaskRunning;
         }
 
         public void UNP_process(double[] input, bool connectionLost) {
 
 	        // check if the task is running
-	        if (mUNPMenuTaskRunning) {
+	        if (unpMenuTaskRunning) {
 
 		        // transfer connection lost
-		        mConnectionLost = connectionLost;
+		        this.connectionLost = connectionLost;
 
 		        // process the input
-		        if (!mUNPMenuTaskSuspended)		process(input);
+		        if (!unpMenuTaskSuspended)		process(input);
 
 	        }
 
@@ -1502,14 +1486,14 @@ namespace FollowTask {
 	        resumeTask();
 
 	        // flag task as no longer suspended
-	        mUNPMenuTaskSuspended = false;
+	        unpMenuTaskSuspended = false;
 
         }
 
         public void UNP_suspend() {
 
             // flag task as suspended
-            mUNPMenuTaskSuspended = true;
+            unpMenuTaskSuspended = true;
 
             // pauze the task
             pauzeTask();

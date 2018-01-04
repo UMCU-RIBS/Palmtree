@@ -22,18 +22,18 @@ namespace FollowTask {
     /// </summary>
     public class FollowBlock {
 
-        public float mX;
-        public float mY;
-        public float mWidth;
-        public float mHeight;
-        public int mTexture;
+        public float x;
+        public float y;
+        public float width;
+        public float height;
+        public int texture;
 
         public FollowBlock(float x, float y, float width, float height) {
-	        mX = x;
-	        mY = y;
-	        mWidth = width;
-	        mHeight = height;
-	        mTexture = 0;
+	        this.x = x;
+	        this.y = y;
+	        this.width = width;
+	        this.height = height;
+	        texture = 0;
         }
     
     }

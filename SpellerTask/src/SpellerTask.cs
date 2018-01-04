@@ -531,6 +531,9 @@ namespace SpellerTask {
 
             }
 
+            // log event app is stopped
+            Data.logEvent(2, "AppStopped", CLASS_NAME);
+
         }
 
         public bool isStarted() {
@@ -779,14 +782,24 @@ namespace SpellerTask {
                                 if (activeCell.cellType == SpellerCell.CellType.Backspace) {
                                     view.updateInputText("", true);
                                     updateTarget(activeCell.content);
+
                                 } else if (activeCell.cellType == SpellerCell.CellType.Input) {
                                     view.updateInputText(activeCell.content, false);
                                     updateTarget(activeCell.content);
+
                                 } else if(activeCell.cellType == SpellerCell.CellType.Empty && !ToTopOnIncorrectRow) {
                                     correctClicks++;
+
                                 } else if (activeCell.cellType == SpellerCell.CellType.Exit && allowExit) {
-                                    if (unpMenuTask) UNP_stop();                                                    // stop the task (UNP)
-                                    else MainThread.stop(false);                                                         // stop the run, this will also call stopTask()
+
+                                    // log event task is stopped
+                                    Data.logEvent(2, "TaskStop", CLASS_NAME + ";user");
+
+                                    // stop the task
+                                    // this will also call stop(), and as a result stopTask()
+                                    if (unpMenuTask)        UNP_stop();
+                                    else                    MainThread.stop(false);
+
                                 }
 
                                 // if cue is completed (word is spelled)
@@ -824,13 +837,17 @@ namespace SpellerTask {
 
                                         // start again
                                         afterWait = TaskStates.RowSelect;
+
                                     }
 
                                     // wait the interstimulus interval before presenting next stimulus
                                     waitCounter = isi;
                                     setState(TaskStates.Wait);
 
-                                } else setState(TaskStates.RowSelect);
+                                } else {
+                                    setState(TaskStates.RowSelect);
+
+                                }
 
                                 // debug
                                 logger.Debug("Clicked on cell type: " + activeCell.cellType);
@@ -859,6 +876,7 @@ namespace SpellerTask {
                                     cueCounter++;
                                     if (cueCounter == cues.Count) {
                                         setState(TaskStates.EndText);
+
                                     } else {
 
                                         // set new cue and wait the interstimulus interval before presenting next cue
@@ -866,12 +884,18 @@ namespace SpellerTask {
                                         waitCounter = isi;
                                         afterWait = TaskStates.RowSelect;
                                         setState(TaskStates.Wait);
+
                                     }
 
                                 } else if (activeCell.cellType == SpellerCell.CellType.Exit && allowExit) {
 
-                                    if (unpMenuTask)    UNP_stop();                                                                     // stop the task (UNP)
-                                    else                MainThread.stop(false);                                                         // stop the run, this will also call stopTask()
+                                    // log event task is stopped
+                                    Data.logEvent(2, "TaskStop", CLASS_NAME + ";user");
+
+                                    // stop the task
+                                    // this will also call stop(), and as a result stopTask()
+                                    if (unpMenuTask)        UNP_stop();
+                                    else                    MainThread.stop(false);
 
                                 }
 
@@ -893,9 +917,10 @@ namespace SpellerTask {
                             // log event task is stopped
                             Data.logEvent(2, "TaskStop", CLASS_NAME + ";end");
 
-                            // stop the run, this will also call stopTask(), either from Mainthread or through UNPMenu if we are running as UNP Task.
-                            if (unpMenuTask)    UNP_stop();
-                            else                MainThread.stop(false);                                 
+                            // stop the run
+                            // this will also call stop(), and as a result stopTask()
+                            if (unpMenuTask)        UNP_stop();
+                            else                    MainThread.stop(false);
 
                         } else  waitCounter--;
 
@@ -1146,10 +1171,7 @@ namespace SpellerTask {
         // Stop the task
         private void stopTask() {
             if (view == null) return;
-
-            // log event if user ended task
-            if(taskState != TaskStates.EndText) Data.logEvent(2, "TaskStop", CLASS_NAME + ";user");
-
+            
             // Set state to Wait
             setState(TaskStates.EndText);
 

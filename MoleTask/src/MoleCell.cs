@@ -28,18 +28,18 @@ namespace MoleTask {
 			Exit
 		};
 
-        public int mX;
-        public int mY;
-        public int mWidth;
-        public int mHeight;
-        public CellType mType;
+        public int x;
+        public int y;
+        public int width;
+        public int height;
+        public CellType type;
 
         public MoleCell(int x, int y, int width, int height, CellType type) {
-	        mX = x;
-	        mY = y;
-	        mWidth = width;
-	        mHeight = height;
-            mType = type;
+	        this.x = x;
+	        this.y = y;
+	        this.width = width;
+	        this.height = height;
+            this.type = type;
         }
 
     }

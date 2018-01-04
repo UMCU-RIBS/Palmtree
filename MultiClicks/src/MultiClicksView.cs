@@ -33,19 +33,19 @@ namespace MultiClicksTask {
 
         public const int noBlock = -1;
 
-        private static Logger logger = LogManager.GetLogger("MultiClicksView");                        // the logger object for the view
+        private static Logger logger = LogManager.GetLogger("MultiClicksView");         // the logger object for the view
 
         private Object textureLock = new Object();                                      // threadsafety lock for texture events
 	    
 		private byte doLoadTextures = 0;								                // load textures in the loop thread (flag to check for new textures. Numeric because while textures are being loaded, the thread can make multiple function calls to load)
 		private List<string> blockTexturesToLoad = new List<string>(0);                 // array with block textures filepath that should be loaded (from the loop thread)
 		private List<int> blockTextures = new List<int>(0);	                            // array with possible block textures
-		private List<MultiClicksBlock> mBlocks = new List<MultiClicksBlock>(0);	                // block objects
-		private bool mBlocksMove = false;								                // enable/disable block movement
+		private List<MultiClicksBlock> blocks = new List<MultiClicksBlock>(0);	        // block objects
+		private bool blocksMove = false;								                // enable/disable block movement
 		private float blockSpeed = 0;									                // the speed of the movement of the block (in pixels per second)
 		private bool showBlocks = false;								                // show the blocks
-		private int mCurrentBlock = noBlock;							                // the current block which is in line with X of the cursor (so the middle)
-		private bool mCursorInCurrentBlock = false;						                // hold whether the cursor is inside of the current block
+		private int currentBlock = noBlock;							                    // the current block which is in line with X of the cursor (so the middle)
+		private bool cursorInCurrentBlock = false;						                // hold whether the cursor is inside of the current block
 		
 		private int cursorRadius = 40;									                // the cursor radius
 		private bool showCursor = false;								                // show the cursor
@@ -58,7 +58,7 @@ namespace MultiClicksTask {
 
 		private int showCountDown = -1;									                // whether the countdown should be shown (-1 = off, 1..3 = count)
 		private bool showFixation = false;								                // whether the fixation should be shown
-		private long score = -1;									                        // the score that is being shown (-1 = do not show score)
+		private long score = -1;									                    // the score that is being shown (-1 = do not show score)
 
         private glFreeTypeFont scoreFont = new glFreeTypeFont();
         private glFreeTypeFont countdownFont = new glFreeTypeFont();
@@ -134,8 +134,8 @@ namespace MultiClicksTask {
 	            blockTexturesToLoad.Clear();
 
 	            // clear all block information
-	            for (int i = 0; i < (int)mBlocks.Count; ++i)  mBlocks[i].mTexture = 0;
-	            mBlocks.Clear();
+	            for (int i = 0; i < (int)blocks.Count; ++i)  blocks[i].texture = 0;
+	            blocks.Clear();
 
 	            // clear all textures
 	            for (int i = 0; i < (int)blockTextures.Count; ++i)
@@ -153,23 +153,23 @@ namespace MultiClicksTask {
         protected override void update(double secondsElapsed) {
 
 	        // check if the blocks should move
-	        if (mBlocksMove) {
+	        if (blocksMove) {
 
 		        // loop through the blocks
 		        bool isInBlock = false;
-		        for (int i = 0; i < mBlocks.Count; ++i) {
+		        for (int i = 0; i < blocks.Count; ++i) {
 
 			        // set the new block position
-			        mBlocks[i].mX = mBlocks[i].mX + blockSpeed * (float)secondsElapsed;
+			        blocks[i].x = blocks[i].x + blockSpeed * (float)secondsElapsed;
 
 			        // check which block is current (in line with the X cursor position)
-			        if (!isInBlock && cursorX >= mBlocks[i].mX && cursorX <= mBlocks[i].mX + mBlocks[i].mWidth) {
+			        if (!isInBlock && cursorX >= blocks[i].x && cursorX <= blocks[i].x + blocks[i].width) {
 
 				        // set as current block
-				        mCurrentBlock = i;
+				        currentBlock = i;
 
 				        // check whether the cursor is in the current block
-				        mCursorInCurrentBlock = (cursorY >= mBlocks[i].mY && cursorY <= mBlocks[i].mY + mBlocks[i].mHeight);
+				        cursorInCurrentBlock = (cursorY >= blocks[i].y && cursorY <= blocks[i].y + blocks[i].height);
 
 				        // set the inblock flag
 				        isInBlock = true;
@@ -179,7 +179,7 @@ namespace MultiClicksTask {
 		        }
 
 		        // if no block was hit, set the current block to no block
-		        if (!isInBlock)		mCurrentBlock = noBlock;
+		        if (!isInBlock)		currentBlock = noBlock;
 
             }
         }
@@ -216,18 +216,18 @@ namespace MultiClicksTask {
 	        if (showBlocks) {
 
 		        // loop through the blocks
-		        for (int i = 0; i < mBlocks.Count; ++i) {
+		        for (int i = 0; i < blocks.Count; ++i) {
 
 			        // skip block which are out of display
-			        if (mBlocks[i].mX + mBlocks[i].mWidth < 0)    	    continue;
-			        if (mBlocks[i].mX > getContentWidth())				continue;
+			        if (blocks[i].x + blocks[i].width < 0)    	    continue;
+			        if (blocks[i].x > getContentWidth())				continue;
 
                     // check if there is a texture set
-                    if (mBlocks[i].mTexture == 0) {
+                    if (blocks[i].texture == 0) {
                         // no texture
 
                         // set the blockcolor
-                        glColor3(mBlocks[i].mColorR, mBlocks[i].mColorG, mBlocks[i].mColorB);
+                        glColor3(blocks[i].colorR, blocks[i].colorG, blocks[i].colorB);
 
                         // set no texture
                         glBindTexture2D(0);
@@ -240,7 +240,7 @@ namespace MultiClicksTask {
 
                         // bind the texture, also if it is 0
                         // (could use glEnable(GL_TEXTURE_2D) and glDisable(GL_TEXTURE_2D), but binding to zero for untextured block can be used as well)
-                        glBindTexture2D(mBlocks[i].mTexture);
+                        glBindTexture2D(blocks[i].texture);
 
                     }
 
@@ -249,23 +249,23 @@ namespace MultiClicksTask {
 	
 				        // vertex 0
 				        glTexCoord2(1.0f, 1.0f);
-				        glVertex3( mBlocks[i].mX + mBlocks[i].mWidth,	mBlocks[i].mY + mBlocks[i].mHeight,    	0.0f);
+				        glVertex3( blocks[i].x + blocks[i].width,	blocks[i].y + blocks[i].height,    	0.0f);
 
 				        glTexCoord2(1.0f, 0.0f);
-				        glVertex3( mBlocks[i].mX + mBlocks[i].mWidth,	mBlocks[i].mY,							0.0f);
+				        glVertex3( blocks[i].x + blocks[i].width,	blocks[i].y,							0.0f);
 			
 				        glTexCoord2(0.0f, 0.0f);
-				        glVertex3( mBlocks[i].mX,						mBlocks[i].mY,							0.0f);
+				        glVertex3( blocks[i].x,						blocks[i].y,							0.0f);
 
 				        //vertex 1
 				        glTexCoord2(0.0f, 1.0f);
-				        glVertex3( mBlocks[i].mX,						mBlocks[i].mY + mBlocks[i].mHeight,	0.0f);
+				        glVertex3( blocks[i].x,						blocks[i].y + blocks[i].height,	0.0f);
 
 				        glTexCoord2(1.0f, 1.0f);
-				        glVertex3( mBlocks[i].mX + mBlocks[i].mWidth,	mBlocks[i].mY + mBlocks[i].mHeight,	0.0f);
+				        glVertex3( blocks[i].x + blocks[i].width,	blocks[i].y + blocks[i].height,	0.0f);
 
 				        glTexCoord2(0.0f, 0.0f);
-				        glVertex3( mBlocks[i].mX,						mBlocks[i].mY,							0.0f);
+				        glVertex3( blocks[i].x,						blocks[i].y,							0.0f);
 
 			        glEnd();
 
@@ -279,7 +279,7 @@ namespace MultiClicksTask {
 		        // set the cursor color, no texture
 		        if (cursorColorSetting == 2)																	// manual escape
 			        glColor3(cursorEscapeColor.getRed(), cursorEscapeColor.getGreen(), cursorEscapeColor.getBlue());
-		        else if ((cursorColorSetting == 1) || (cursorColorSetting == 3 && mCursorInCurrentBlock))		// manual hit or automatic
+		        else if ((cursorColorSetting == 1) || (cursorColorSetting == 3 && cursorInCurrentBlock))		// manual hit or automatic
 			        glColor3(cursorHitColor.getRed(), cursorHitColor.getGreen(), cursorHitColor.getBlue());
 		        else																							// other (manual miss)
 			        glColor3(cursorMissColor.getRed(), cursorMissColor.getGreen(), cursorMissColor.getBlue());
@@ -385,8 +385,8 @@ namespace MultiClicksTask {
             lock(textureLock) {
             
 	            // clear all the texture references in the block array
-	            for (int i = 0; i < mBlocks.Count; ++i)
-                    mBlocks[i].mTexture = 0;
+	            for (int i = 0; i < blocks.Count; ++i)
+                    blocks[i].texture = 0;
                 
 	            // delete existing textures, clear the array and resize to fit the new ones
 	            for (int i = 0; i < blockTextures.Count; ++i)
@@ -432,12 +432,12 @@ namespace MultiClicksTask {
                 int i = 0;
 
 	            // clear all block sequence information
-	            for (i = 0; i < mBlocks.Count; ++i)   mBlocks[i].mTexture = 0;
-	            mBlocks.Clear();
+	            for (i = 0; i < blocks.Count; ++i)   blocks[i].texture = 0;
+	            blocks.Clear();
 
 	            // set the block variables nothing
-	            mCurrentBlock = noBlock;
-	            mCursorInCurrentBlock = false;
+	            currentBlock = noBlock;
+	            cursorInCurrentBlock = false;
 
 	            // loop through the targets in the sequence
 	            float startX = 0;
@@ -462,17 +462,17 @@ namespace MultiClicksTask {
                     
 		            // set the block texture (initialized to 0 = no texture)
 		            if (inTargetSequence[i] < (int)blockTextures.Count)
-			            block.mTexture = blockTextures[inTargetSequence[i]];
+			            block.texture = blockTextures[inTargetSequence[i]];
 
 		            // add block for display
-		            mBlocks.Add(block);
+		            blocks.Add(block);
 
 	            }
             }
         }
 
         public void setBlocksMove(bool move) {
-	        mBlocksMove = move;
+	        blocksMove = move;
         }
 
         public void setBlocksVisible(bool show) {
@@ -484,11 +484,11 @@ namespace MultiClicksTask {
         }
 
         public int getCurrentBlock() {
-	        return mCurrentBlock;
+	        return currentBlock;
         }
 
         public bool getCursorInCurrentBlock() {
-	        return mCursorInCurrentBlock;
+	        return cursorInCurrentBlock;
         }
 
         public int getCursorY() {
@@ -619,8 +619,8 @@ namespace MultiClicksTask {
 
         public float[] getBlockPositions() {
 
-            float[] blockPositions = new float[mBlocks.Count];
-	        for (int i = 0; i < mBlocks.Count; ++i)     blockPositions[i] = mBlocks[i].mX;
+            float[] blockPositions = new float[blocks.Count];
+	        for (int i = 0; i < blocks.Count; ++i)     blockPositions[i] = blocks[i].x;
             return blockPositions;
 
         }
@@ -628,7 +628,7 @@ namespace MultiClicksTask {
         public void setBlockPositions(float[] blockPositions) {
 	
 	        // set stored block positions
-	        for (int i = 0; i < mBlocks.Count; ++i)     mBlocks[i].mX = blockPositions[i];
+	        for (int i = 0; i < blocks.Count; ++i)     blocks[i].x = blockPositions[i];
 
         }
 

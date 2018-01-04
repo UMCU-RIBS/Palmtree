@@ -64,16 +64,16 @@ namespace CursorTask {
         private int inputChannels = 0;
         private CursorView view = null;
 
-        Random rand = new Random(Guid.NewGuid().GetHashCode());
-        private Object lockView = new Object();                         // threadsafety lock for all event on the view
-        private bool mTaskPauzed = false;								// flag to hold whether the task is pauzed (view will remain active, e.g. connection lost)
+        private Random rand = new Random(Guid.NewGuid().GetHashCode());
+        private Object lockView = new Object();                                     // threadsafety lock for all event on the view
+        private bool taskPauzed = false;								            // flag to hold whether the task is pauzed (view will remain active, e.g. connection lost)
 
-        private bool mUNPMenuTask = false;								// flag whether the task is created by the UNPMenu
-        private bool mUNPMenuTaskRunning = false;						// flag to hold whether the task should is running (setting this to false is also used to notify the UNPMenu that the task is finished)
-        private bool mUNPMenuTaskSuspended = false;						// flag to hold whether the task is suspended (view will be destroyed/re-initiated)
+        private bool unpMenuTask = false;								            // flag whether the task is created by the UNPMenu
+        private bool unpMenuTaskRunning = false;						            // flag to hold whether the task should is running (setting this to false is also used to notify the UNPMenu that the task is finished)
+        private bool unpMenuTaskSuspended = false;						            // flag to hold whether the task is suspended (view will be destroyed/re-initiated)
 
-        private bool mConnectionLost = false;							// flag to hold whether the connection is lost
-        private bool mConnectionWasLost = false;						// flag to hold whether the connection has been lost (should be reset after being re-connected)
+        private bool connectionLost = false;							            // flag to hold whether the connection is lost
+        private bool connectionWasLost = false;						                // flag to hold whether the connection has been lost (should be reset after being re-connected)
 
         // task input parameters
         private int mWindowLeft = 0;
@@ -91,7 +91,7 @@ namespace CursorTask {
         private int mTaskStartDelay = 0;									        // the run start delay in sample blocks
         private int mCountdownTime = 0;                                             // the time the countdown takes in sample blocks
         private bool mShowScore = false;                                            // show the number of hits during the task
-        private bool mShowScoreAtEnd = false;                                     // show the percentage correct at the end of the task
+        private bool mShowScoreAtEnd = false;                                       // show the percentage correct at the end of the task
 
         private double mCursorSize = 1f;
         private RGBColorFloat mCursorColorNeutral = new RGBColorFloat(0.8f, 0.8f, 0f);
@@ -118,17 +118,17 @@ namespace CursorTask {
 
         // task (active) variables
         private List<int> trialSequence = new List<int>(0);					        // the target sequence being used in the task (can either be given by input or generated)
-        private double mCursorSpeedY = 1;                                           // 
+        private double cursorSpeedY = 1;                                            // 
 
-        private int mWaitCounter = 0;
-        private int mCountdownCounter = 0;											// the countdown timer
-        private int mCursorCounter = 0; 								            // cursor movement counter when the cursor is moved by the signal
-        private int mHitScore = 0;                                                  // the score of the cursor hitting a block (in number of samples)
+        private int waitCounter = 0;
+        private int countdownCounter = 0;											// the countdown timer
+        private int cursorCounter = 0; 								                // cursor movement counter when the cursor is moved by the signal
+        private int hitScore = 0;                                                   // the score of the cursor hitting a block (in number of samples)
 
         private TaskStates taskState = TaskStates.Wait;
         private TaskStates previousTaskState = TaskStates.Wait;
-        private TrialStates mTrialState = TrialStates.PreTrial;						// the state of the trial
-        private int mCurrentTrial = 0;                                              // the trial in the trial sequence that is currently done
+        private TrialStates trialState = TrialStates.PreTrial;						// the state of the trial
+        private int currentTrial = 0;                                               // the trial in the trial sequence that is currently done
         
 
 
@@ -136,10 +136,10 @@ namespace CursorTask {
         public CursorTask(bool UNPMenuTask) {
             
             // transfer the UNP menu task flag
-            mUNPMenuTask = UNPMenuTask;
+            unpMenuTask = UNPMenuTask;
 
             // check if the task is standalone (not unp menu)
-            if (!mUNPMenuTask) {
+            if (!unpMenuTask) {
             
                 // create a parameter set for the task
                 parameters = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Application);
@@ -424,7 +424,7 @@ namespace CursorTask {
             }
             // check if the type is added input
             if (mTaskInputSignalType == 3) {
-                mCursorSpeedY = 1.0 / parameters.getValueInSamples("TrialDuration");
+                cursorSpeedY = 1.0 / parameters.getValueInSamples("TrialDuration");
                 //mCursorSpeedY = 1.0 / parameters.getValueInSamples("TrialDuration") / 2.0;
             }
 
@@ -566,7 +566,7 @@ namespace CursorTask {
         public void start() {
 
             // check if the task is standalone (not unp menu)
-            if (!mUNPMenuTask) {
+            if (!unpMenuTask) {
 
                 // store the generated sequence in the output parameter xml
                 Data.adjustXML(CLASS_NAME, "TrialSequence", string.Join(" ", trialSequence));
@@ -582,10 +582,10 @@ namespace CursorTask {
                 Data.logEvent(2, "TaskStart", CLASS_NAME);
 
                 // reset the score
-                mHitScore = 0;
+                hitScore = 0;
 
                 // reset countdown to the countdown time
-                mCountdownCounter = mCountdownTime;
+                countdownCounter = mCountdownTime;
 
                 if (mTaskStartDelay != 0 || mTaskFirstRunStartDelay != 0) {
 		            // wait
@@ -619,6 +619,9 @@ namespace CursorTask {
 
             }
 
+            // log event app is stopped
+            Data.logEvent(2, "AppStopped", CLASS_NAME);
+
         }
 
         public bool isStarted() {
@@ -628,7 +631,7 @@ namespace CursorTask {
         public void process(double[] input) {
 
             // retrieve the connectionlost global
-            mConnectionLost = Globals.getValue<bool>("ConnectionLost");
+            connectionLost = Globals.getValue<bool>("ConnectionLost");
 
             // process input
             process(input[mTaskInputChannel - 1]);
@@ -647,14 +650,14 @@ namespace CursorTask {
                 ////////////////////////
 
                 // check if connection is lost, or was lost
-                if (mConnectionLost) {
+                if (connectionLost) {
 
                     // check if it was just discovered if the connection was lost
-                    if (!mConnectionWasLost) {
+                    if (!connectionWasLost) {
                         // just discovered it was lost
 
                         // set the connection as was lost (this also will make sure the lines in this block willl only run once)
-                        mConnectionWasLost = true;
+                        connectionWasLost = true;
 
                         // pauze the task
                         pauzeTask();
@@ -670,7 +673,7 @@ namespace CursorTask {
                     // do not process any further
                     return;
 
-                } else if (mConnectionWasLost && !mConnectionLost) {
+                } else if (connectionWasLost && !connectionLost) {
                     // if the connection was lost and is not lost anymore
 
                     // stop the connection lost sound from playing
@@ -683,7 +686,7 @@ namespace CursorTask {
                     resumeTask();
 
                     // reset connection lost variables
-                    mConnectionWasLost = false;
+                    connectionWasLost = false;
 
                 }
 
@@ -694,7 +697,7 @@ namespace CursorTask {
 
 
                 // check if the task is pauzed, do not process any further if this is the case
-                if (mTaskPauzed)		    return;
+                if (taskPauzed)		    return;
 
 
                 // use the task state
@@ -703,13 +706,13 @@ namespace CursorTask {
                     case TaskStates.Wait:
                         // starting, pauzed or waiting
 
-                        if (mWaitCounter == 0) {
+                        if (waitCounter == 0) {
 
                             // set the state to countdown
                             setState(TaskStates.CountDown);
 
                         } else
-                            mWaitCounter--;
+                            waitCounter--;
 
                         break;
 
@@ -717,15 +720,15 @@ namespace CursorTask {
                         // Countdown before start of task
 
                         // check if the task is counting down
-                        if (mCountdownCounter > 0) {
+                        if (countdownCounter > 0) {
 
                             // still counting down
 
                             // display the countdown
-                            view.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.getPipelineSamplesPerSecond()) + 1);
+                            view.setCountDown((int)Math.Floor((countdownCounter - 1) / MainThread.getPipelineSamplesPerSecond()) + 1);
 
                             // reduce the countdown timer
-                            mCountdownCounter--;
+                            countdownCounter--;
 
                         } else {
                             // done counting down
@@ -734,11 +737,11 @@ namespace CursorTask {
                             view.setCountDown(-1);
 
                             // set the current target/trial to the first target/trial
-                            mCurrentTrial = 0;
+                            currentTrial = 0;
                             setTarget();
 
                             // reset the score
-                            mHitScore = 0;
+                            hitScore = 0;
 
                             // set the state to task
                             setState(TaskStates.Task);
@@ -753,29 +756,29 @@ namespace CursorTask {
                     case TaskStates.Task:
 
 
-                        switch (mTrialState) {
+                        switch (trialState) {
 
                             case TrialStates.ITI:
 
-                                if (mWaitCounter == 0) {
+                                if (waitCounter == 0) {
 
                                     // start pre-trial
                                     startPreTrial();
 
                                 } else
-                                    mWaitCounter--;
+                                    waitCounter--;
 
                                 break;
 
                             case TrialStates.PreTrial:
 
-                                if (mWaitCounter == 0) {
+                                if (waitCounter == 0) {
 
                                     // start the trial
                                     startTrial();
 
                                 } else
-                                    mWaitCounter--;
+                                    waitCounter--;
 
                                 break;
 
@@ -786,11 +789,11 @@ namespace CursorTask {
                                     // movement of the cursor on incoming signal
 
                                     // package came in, so raise the cursor counter
-                                    mCursorCounter++;
-                                    if (mCursorCounter > mTrialDuration) mCursorCounter = (int)mTrialDuration;
+                                    cursorCounter++;
+                                    if (cursorCounter > mTrialDuration) cursorCounter = (int)mTrialDuration;
 
                                     // set the X position
-                                    view.setCursorNormX(mCursorCounter / mTrialDuration, true);
+                                    view.setCursorNormX(cursorCounter / mTrialDuration, true);
 
                                 }
 
@@ -819,7 +822,7 @@ namespace CursorTask {
                                     //logger.Error("input: " + input);
                                     //logger.Error("mCursorSpeedY: " + mCursorSpeedY);
                                     //logger.Error("y: " + y);
-                                    y += mCursorSpeedY * input;
+                                    y += cursorSpeedY * input;
                                     //logger.Error("after y: " + y);
                                     view.setCursorNormY(y);
                                     //view.setCursorY(y);
@@ -843,10 +846,10 @@ namespace CursorTask {
                                         view.setCursorNormX(1, true);
 
                                         // add to score if cursor hits the block
-                                        mHitScore++;
+                                        hitScore++;
 
                                         // update the score for display
-                                        if (mShowScore) view.setScore(mHitScore);
+                                        if (mShowScore) view.setScore(hitScore);
 
                                     } else {
                                         // miss
@@ -865,10 +868,10 @@ namespace CursorTask {
 
                             case TrialStates.PostTrial:
 
-                                if (mWaitCounter == 0) {
+                                if (waitCounter == 0) {
 
                                     // check if this was the last target/trial
-                                    if (mCurrentTrial == trialSequence.Count - 1) {
+                                    if (currentTrial == trialSequence.Count - 1) {
                                         // end of the task
 
                                         // set the state to end
@@ -883,7 +886,7 @@ namespace CursorTask {
                                     }
 
                                 } else
-                                    mWaitCounter--;
+                                    waitCounter--;
 
                                 break;
 
@@ -894,25 +897,18 @@ namespace CursorTask {
                     case TaskStates.EndText:
                         // end text
 
-                        if (mWaitCounter == 0) {
+                        if (waitCounter == 0) {
 
                             // log event task is stopped
                             Data.logEvent(2, "TaskStop", CLASS_NAME + ";end");
 
-                            // check if we are running from the UNPMenu
-                            if (mUNPMenuTask) {
-
-                                // stop the task (UNP)
-                                UNP_stop();
-
-                            } else {
-
-                                // stop the run, this will also call stopTask()
-                                MainThread.stop(false);
-                            }
+                            // stop the task
+                            // this will also call stop(), and as a result stopTask()
+                            if (unpMenuTask)        UNP_stop();
+                            else                    MainThread.stop(false);
 
                         } else
-                            mWaitCounter--;
+                            waitCounter--;
 
                         break;
                 }
@@ -924,7 +920,7 @@ namespace CursorTask {
         private void startPreTrial() {
 
             // log event pre-feedback is started
-            Data.logEvent(2, "PreFeedbackStart", mCurrentTrial.ToString() + ";" + trialSequence[mCurrentTrial].ToString());
+            Data.logEvent(2, "PreFeedbackStart", currentTrial.ToString() + ";" + trialSequence[currentTrial].ToString());
 
             // check if there is a pre-trial duration
             if (mPreTrialDuration == 0) {
@@ -937,7 +933,7 @@ namespace CursorTask {
                 // pre-trial duration
 
                 // set the pre trial duration
-                mWaitCounter = mPreTrialDuration;
+                waitCounter = mPreTrialDuration;
 
                 // set the trial state to beginning trial
                 setTrialState(TrialStates.PreTrial);
@@ -949,14 +945,14 @@ namespace CursorTask {
         private void startTrial() {
 
             // set the cursorcounter to 0 (is only used of the cursor is updated by the signal)
-            mCursorCounter = 0;
+            cursorCounter = 0;
 
             // set feedback as true
             Globals.setValue<bool>("Feedback", "1");
-            Globals.setValue<int>("Target", trialSequence[mCurrentTrial].ToString());
+            Globals.setValue<int>("Target", trialSequence[currentTrial].ToString());
 
             // log event feedback is started
-            Data.logEvent(2, "FeedbackStart", mCurrentTrial.ToString() + ";" + trialSequence[mCurrentTrial].ToString());
+            Data.logEvent(2, "FeedbackStart", currentTrial.ToString() + ";" + trialSequence[currentTrial].ToString());
 
             // set the trial state to trial
             setTrialState(TrialStates.Trial);
@@ -970,7 +966,7 @@ namespace CursorTask {
                 // no post-trial duration
 
                 // check if this was the last target/trial
-                if (mCurrentTrial == trialSequence.Count - 1) {
+                if (currentTrial == trialSequence.Count - 1) {
                     // end of the task
 
                     // set the state to end
@@ -988,7 +984,7 @@ namespace CursorTask {
                 // posttrial duration
 
                 // set the wait after the trial
-                mWaitCounter = mPostTrialDuration;
+                waitCounter = mPostTrialDuration;
 
                 // set to trial post state
                 setTrialState(TrialStates.PostTrial);
@@ -1004,7 +1000,7 @@ namespace CursorTask {
             Data.logEvent(2, "ITIStart", "");
 
             // goto the next target/trial
-            mCurrentTrial++;
+            currentTrial++;
             setTarget();
 
             // check if a inter-trial interval was set
@@ -1018,7 +1014,7 @@ namespace CursorTask {
                 // ITI duration
 
                 // set the duration of the inter-trial-interval
-                mWaitCounter = mITIDuration;
+                waitCounter = mITIDuration;
 
                 // set the trial state to inter-trial-interval
                 setTrialState(TrialStates.ITI);
@@ -1033,8 +1029,8 @@ namespace CursorTask {
             view.centerCursorY();
 
             // set the target
-            int currentTargetY = (int)mTargets[0][trialSequence[mCurrentTrial]];
-            int currentTargetHeight = (int)mTargets[1][trialSequence[mCurrentTrial]];
+            int currentTargetY = (int)mTargets[0][trialSequence[currentTrial]];
+            int currentTargetHeight = (int)mTargets[1][trialSequence[currentTrial]];
             view.setTarget(currentTargetY, currentTargetHeight);
 
         }
@@ -1086,7 +1082,7 @@ namespace CursorTask {
             // TODO: should log FeedbackSttop event, in case the task is within the trial
 
             // set task as pauzed
-            mTaskPauzed = true;
+            taskPauzed = true;
 
 	        // store the previous state
 	        previousTaskState = taskState;
@@ -1115,7 +1111,7 @@ namespace CursorTask {
             setState(previousTaskState);
 
 	        // set task as not longer pauzed
-	        mTaskPauzed = false;
+	        taskPauzed = false;
 
             // TODO: should be using setTrialState
 
@@ -1149,10 +1145,10 @@ namespace CursorTask {
 
                     // Set wait counter to startdelay
                     if (mTaskFirstRunStartDelay != 0) {
-                        mWaitCounter = mTaskFirstRunStartDelay;
+                        waitCounter = mTaskFirstRunStartDelay;
                         mTaskFirstRunStartDelay = 0;
                     } else
-                        mWaitCounter = mTaskStartDelay;
+                        waitCounter = mTaskStartDelay;
 
                     break;
 
@@ -1175,8 +1171,8 @@ namespace CursorTask {
                     view.setTargetVisible(false);
 
                     // set countdown
-                    if (mCountdownCounter > 0)
-                        view.setCountDown((int)Math.Floor((mCountdownCounter - 1) / MainThread.getPipelineSamplesPerSecond()) + 1);
+                    if (countdownCounter > 0)
+                        view.setCountDown((int)Math.Floor((countdownCounter - 1) / MainThread.getPipelineSamplesPerSecond()) + 1);
                     else
                         view.setCountDown(-1);
 
@@ -1199,7 +1195,7 @@ namespace CursorTask {
                     view.setBoundaryVisible(true);
 
                     // set the score for display
-                    if (mShowScore) view.setScore(mHitScore);
+                    if (mShowScore) view.setScore(hitScore);
 
                     break;
 
@@ -1216,7 +1212,7 @@ namespace CursorTask {
 				    view.setTargetVisible(false);
 
                     // calculate the percentage correct
-                    int percCorrect = (int)Math.Round(((double)mHitScore / trialSequence.Count) * 100);
+                    int percCorrect = (int)Math.Round(((double)hitScore / trialSequence.Count) * 100);
 
                     // show text
                     if (mShowScoreAtEnd)
@@ -1225,7 +1221,7 @@ namespace CursorTask {
                         view.setText("Done");
 
                     // set duration for text to be shown at the end (3s)
-                    mWaitCounter = (int)(MainThread.getPipelineSamplesPerSecond() * 3.0);
+                    waitCounter = (int)(MainThread.getPipelineSamplesPerSecond() * 3.0);
 
 
 			        break;
@@ -1237,9 +1233,9 @@ namespace CursorTask {
         private void setTrialState(TrialStates state) {
 
 	        // Set state
-	        mTrialState = state;
+	        trialState = state;
             
-	        switch (mTrialState) {
+	        switch (trialState) {
 		        case TrialStates.PreTrial:
                     // rest before trial (cursor is hidden, target is shown)
 
@@ -1322,9 +1318,6 @@ namespace CursorTask {
 
             // log event feedback is stopped
             Data.logEvent(2, "FeedbackStop", "user");
-            
-            // log event task is stopped
-            Data.logEvent(2, "TaskStop", CLASS_NAME + ";user");
 
             // set state to wait
             setState(TaskStates.Wait);
@@ -1653,7 +1646,7 @@ namespace CursorTask {
         public void UNP_start(Parameters parentParameters) {
 
             // UNP entry point can only be used if initialized as UNPMenu
-            if (!mUNPMenuTask) {
+            if (!unpMenuTask) {
                 logger.Error("Using UNP entry point while the task was not initialized as UNPMenu task, check parameters used to call the task constructor");
                 return;
             }
@@ -1701,14 +1694,14 @@ namespace CursorTask {
             start();
 
             // set the task as running
-            mUNPMenuTaskRunning = true;
+            unpMenuTaskRunning = true;
 
         }
 
         public void UNP_stop() {
 
             // UNP entry point can only be used if initialized as UNPMenu
-            if (!mUNPMenuTask) {
+            if (!unpMenuTask) {
                 logger.Error("Using UNP entry point while the task was not initialized as UNPMenu task, check parameters used to call the task constructor");
                 return;
             }
@@ -1720,26 +1713,26 @@ namespace CursorTask {
             destroy();
 
             // flag the task as no longer running (setting this to false is also used to notify the UNPMenu that the task is finished)
-            mUNPMenuTaskRunning = false;
+            unpMenuTaskRunning = false;
 
         }
 
 
         public bool UNP_isRunning() {
-            return mUNPMenuTaskRunning;
+            return unpMenuTaskRunning;
         }
 
 
         public void UNP_process(double[] input, bool connectionLost) {
             
             // check if the task is running
-            if (mUNPMenuTaskRunning) {
+            if (unpMenuTaskRunning) {
 
                 // transfer connection lost
-                mConnectionLost = connectionLost;
+                this.connectionLost = connectionLost;
 
                 // process the input
-                if (!mUNPMenuTaskSuspended) process(input);
+                if (!unpMenuTaskSuspended)     process(input);
 
             }
             
@@ -1760,14 +1753,14 @@ namespace CursorTask {
             resumeTask();
 
             // flag task as no longer suspended
-            mUNPMenuTaskSuspended = false;
+            unpMenuTaskSuspended = false;
             
         }
 
         public void UNP_suspend() {
 
             // flag task as suspended
-            mUNPMenuTaskSuspended = true;
+            unpMenuTaskSuspended = true;
 
             // pauze the task
             pauzeTask();

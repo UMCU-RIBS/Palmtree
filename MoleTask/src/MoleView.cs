@@ -49,8 +49,8 @@ namespace MoleTask {
 		private int holeColumns = 0;
 		private int holeOffsetX = 0;
 		private int holeOffsetY = 0;
-		private bool mSelected = false;
-		private bool mShowGrid = false;
+		private bool selected = false;
+		private bool showGrid = false;
 		private bool showFixation = false;								    // whether the fixation should be shown
 		private int showCountDown = -1;									    // whether the countdown should be shown (-1 = off, 1..3 = count)
 
@@ -177,7 +177,7 @@ namespace MoleTask {
 	        }
 	
 	        // Check if we should draw grid
-	        if(mShowGrid) {
+	        if(showGrid) {
                 
 		        // loop through the holes	
 		        for (int i = 0; i < taskCells.Count; i++) {
@@ -185,15 +185,15 @@ namespace MoleTask {
 			        // retrieve hole reference
 			        MoleCell cell = taskCells[i];
                     
-			        if (cell.mType == MoleCell.CellType.Hole || cell.mType == MoleCell.CellType.Mole || cell.mType == MoleCell.CellType.Exit ) {
+			        if (cell.type == MoleCell.CellType.Hole || cell.type == MoleCell.CellType.Mole || cell.type == MoleCell.CellType.Exit ) {
 
 				        // set white color for drawing
 				        glColor3(1f, 1f, 1f);
 
 				        // set texture
-				        if (cell.mType == MoleCell.CellType.Hole)
+				        if (cell.type == MoleCell.CellType.Hole)
                             glBindTexture2D(holeTexture);
-				        else if (cell.mType == MoleCell.CellType.Exit)
+				        else if (cell.type == MoleCell.CellType.Exit)
 					        glBindTexture2D(exitTexture);
 				        else
 					        glBindTexture2D(moleTexture);
@@ -203,23 +203,23 @@ namespace MoleTask {
 	
 					        // vertex 0
 				            glTexCoord2(1.0f, 1.0f);
-				            glVertex3(cell.mX + cell.mWidth,	cell.mY + cell.mHeight,	    0.0f);
+				            glVertex3(cell.x + cell.width,	cell.y + cell.height,	    0.0f);
 
 				            glTexCoord2(1.0f, 0.0f);
-				            glVertex3(cell.mX + cell.mWidth,	cell.mY,					0.0f);
+				            glVertex3(cell.x + cell.width,	cell.y,					0.0f);
 
 				            glTexCoord2(0.0f, 0.0f);
-				            glVertex3(cell.mX,					cell.mY,					0.0f);
+				            glVertex3(cell.x,					cell.y,					0.0f);
 
 					        //vertex 1
 				            glTexCoord2(0.0f, 1.0f);
-				            glVertex3(cell.mX,					cell.mY + cell.mHeight,	    0.0f);
+				            glVertex3(cell.x,					cell.y + cell.height,	    0.0f);
 
 				            glTexCoord2(1.0f, 1.0f);
-				            glVertex3(cell.mX + cell.mWidth,	cell.mY + cell.mHeight,	    0.0f);
+				            glVertex3(cell.x + cell.width,	cell.y + cell.height,	    0.0f);
 
 				            glTexCoord2(0.0f, 0.0f);
-				            glVertex3(cell.mX,					cell.mY,					0.0f);
+				            glVertex3(cell.x,					cell.y,					0.0f);
 
 				        glEnd();
 
@@ -232,7 +232,7 @@ namespace MoleTask {
 		
 			        // set the color
 			        float colorR = 1, colorG = 0, colorB = 0;
-			        if (mSelected)			colorG = 1;
+			        if (selected)			colorG = 1;
                     
 			        // draw selection
 			        drawRectangle(	selectionX, 
@@ -330,9 +330,8 @@ namespace MoleTask {
         }
 
 
-
-        public void showGrid(bool visible) {
-	        mShowGrid = visible;	
+        public void setGrid(bool visible) {
+	        showGrid = visible;	
         }
 
         public void selectRow(int rowID, bool selected) {
@@ -352,7 +351,7 @@ namespace MoleTask {
 		        selectionWidth = holeColumns * (holeSize + spacing);
 		        selectionHeight = holeSize + spacing; 
 
-		        mSelected = selected;
+		        this.selected = selected;
 
 	        }
 		
@@ -376,7 +375,7 @@ namespace MoleTask {
 		        selectionWidth = holeSize + spacing;
 		        selectionHeight = holeSize + spacing;
 
-		        mSelected = selected;
+		        this.selected = selected;
 
 	        }
 	
@@ -414,11 +413,11 @@ namespace MoleTask {
 		        MoleCell cell = cells[i];
 		
 		        // Set position and size
-		        cell.mX = holeOffsetX + spacing + column * (holeSize + spacing);
-		        cell.mY = holeOffsetY + spacing + row * (holeSize + spacing);
+		        cell.x = holeOffsetX + spacing + column * (holeSize + spacing);
+		        cell.y = holeOffsetY + spacing + row * (holeSize + spacing);
 
-		        cell.mHeight = holeSize;
-		        cell.mWidth = holeSize;
+		        cell.height = holeSize;
+		        cell.width = holeSize;
 
 	        }	
 	
