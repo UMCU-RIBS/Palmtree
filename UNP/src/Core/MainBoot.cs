@@ -14,6 +14,7 @@
  */
 using NLog;
 using System;
+using System.Globalization;
 using System.Threading;
 using System.Windows.Forms;
 using UNP.Core.Helpers;
@@ -61,6 +62,8 @@ namespace UNP.Core {
             //args = new string[] { "-parameterfile", "test_UNPMENU.prm", "-source", "KeypressSignal", "-startupConfigAndInit", "-startupStartRun" };
             //args = new string[] { "-source", "KeypressSignal", "-startupConfigAndInit", "-startupStart" };
             //args = new string[] { "-source", "KeypressSignal"};
+            //args = new string[] { "-source", "KeypressSignal"};
+            //args = new string[] { "-source", "KeypressSignal", "-language", "en" };
 
             // process startup arguments
             for (int i = 0; i < args.Length; i++) {
@@ -99,6 +102,36 @@ namespace UNP.Core {
                     }
 
                 }
+
+                // check if the language is given
+                if (argument == "-language") {
+
+                    // the next element should be the parameter file, try to retrieve
+                    if (args.Length >= i + 1 && !string.IsNullOrEmpty(args[i + 1])) {
+
+                        try {
+
+                            // set the default culture (and thus the resource file) for every future thread
+                            CultureInfo.DefaultThreadCurrentCulture = new CultureInfo(args[i + 1]);
+                            CultureInfo.DefaultThreadCurrentUICulture = new CultureInfo(args[i + 1]);
+
+                            // message
+                            logger.Info("Language/culture set to '" + args[i + 1] + "'");
+
+                        } catch (Exception) {
+
+                            // message
+                            logger.Error("Language argument given but unknown culture, using the local culture (language)");
+
+                        }
+
+                    }
+
+                }
+
+
+
+
 
             }
 
