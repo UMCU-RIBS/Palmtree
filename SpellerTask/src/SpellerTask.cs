@@ -80,10 +80,13 @@ namespace SpellerTask {
         private string[][] inputArray = null;
         private string backspaceCode = "";
         private string[] inputs = null;
+        private string[] answers = null;                                        // targets (answers) in case of question mode
+        private int cueInputDelay = 0;                                          // time between presentation of cue and inputs, in samples
         private List<string> cues = new List<string>(0);
         private bool backspacePresent = false;                                  // whether or not a backspace button is present in the input options
         private int isi = 0;                                                    // inter stimulus interval, in samples
         private int cueType = 0;
+        private int maxRowLoop = 0;                                             // maximal amount of times a row is looped over before it returns to the top row
 
         // task specific variables
         private int waitCounter = 0;
@@ -104,6 +107,7 @@ namespace SpellerTask {
         private enum TaskStates : int {
             Wait,
             CountDown,
+            InitialCue,
             RowSelect,
             RowSelected,
             ColumnSelect,
@@ -190,9 +194,14 @@ namespace SpellerTask {
                 "Words or questions that are presented.",
                 "", "", "Aap,Noot,Mies", new string[] { "Cues"});
 
+            parameters.addParameter<double>(
+                "CueInputDelay",
+                "Amount of time between presentation of cue and inputs.",
+                "0", "", "2s");
+
             parameters.addParameter<string[][]>(
                 "Input",
-                "Specifies which letters will be available to spell, and in what configuration. Use the defined backspace code to create a backspace key and an underscore '_' as space.",
+                "Specifies what input will be available, and in what configuration. Use the defined backspace code to create a backspace key and an underscore '_' as space.",
                 "", "", "Q;W;E;R;T;Y");
 
             parameters.addParameter<string>(
@@ -209,6 +218,11 @@ namespace SpellerTask {
                 "showScore",
                 "If selected, show score.",
                 "0");
+
+            parameters.addParameter<int>(
+                "MaxRowLoops",
+                "Maximal amount of times columns in a row are looped over before highlighting of rows starts again.",
+                "0", "", "2");
 
             parameters.addParameter<double>(
                 "RowSelectDelay",
@@ -359,6 +373,13 @@ namespace SpellerTask {
                 }
             }
 
+            // retrieve time between cues and inputs
+            cueInputDelay = newParameters.getValueInSamples("CueInputDelay");
+            if (cueInputDelay < 0) {
+                logger.Error("Cue input delay cannot be less than 0");
+                return false;
+            }
+
             // retrieve matrix with input options
             inputArray = parameters.getValue<string[][]>("Input");
 
@@ -397,12 +418,13 @@ namespace SpellerTask {
             // retrieve selection delays and settings
             ToTopOnIncorrectRow = newParameters.getValue<bool>("ToTopOnIncorrectRow");
             showScore = newParameters.getValue<bool>("showScore");
+            maxRowLoop = newParameters.getValue<int>("MaxRowLoops");
             rowSelectDelay = newParameters.getValueInSamples("RowSelectDelay");
             rowSelectedDelay = newParameters.getValueInSamples("RowSelectedDelay");
             columnSelectDelay = newParameters.getValueInSamples("ColumnSelectDelay");
             columnSelectedDelay = newParameters.getValueInSamples("ColumnSelectedDelay");
-            if (rowSelectDelay < 1 || rowSelectedDelay < 1 || columnSelectDelay < 1 || columnSelectedDelay < 1) {
-                logger.Error("The 'RowSelectDelay', 'RowSelectedDelay', 'ColumnSelectDelay', 'ColumnSelectedDelay' parameters should not be less than 1");
+            if (maxRowLoop < 1 || rowSelectDelay < 1 || rowSelectedDelay < 1 || columnSelectDelay < 1 || columnSelectedDelay < 1) {
+                logger.Error("The 'MaxRowLoops', 'RowSelectDelay', 'RowSelectedDelay', 'ColumnSelectDelay', 'ColumnSelectedDelay' parameters should not be less than 1");
                 return false;
             }
 
@@ -657,10 +679,18 @@ namespace SpellerTask {
                             Data.logEvent(2, "TrialStart ", CLASS_NAME);
 
                             // begin task
-                            setState(TaskStates.RowSelect);
+                            setState(TaskStates.InitialCue);
 			            }
 
 			            break;
+
+
+                    case TaskStates.InitialCue:
+
+                        if (waitCounter > 0)    waitCounter--;
+                        else                    setState(TaskStates.RowSelect);
+
+                        break;
 
                     // highlighting a row
 		            case TaskStates.RowSelect:
@@ -699,11 +729,15 @@ namespace SpellerTask {
                         // wait duration of delay, after that proceed to selecting row or columns
                         if (waitCounter == 0) {
 
-                            // if incorrect row is selected and parameter to return to top row is true, return to top row
-                            if (!targetInRow(rowID) && ToTopOnIncorrectRow) {
-                                totalClicks++;                          // update total number of clicks
-                                setState(TaskStates.RowSelect);         // return to selecting rows from top
-                            } else setState(TaskStates.ColumnSelect);
+                            // update total number of clicks
+                            totalClicks++;
+
+                            // if row contains target, update number of correct clicks
+                            if (targetInRow(rowID)) correctClicks++;
+
+                            // if incorrect row is selected and parameter to return to top row is true, return to highlighting rows from top (do not do so in questionmode when no answers are provided). Otherwise, start highlighting columns 
+                            if (!targetInRow(rowID) && ToTopOnIncorrectRow && !(cueType == 1 && answers==null) )    setState(TaskStates.RowSelect);                         
+                            else                                                                                    setState(TaskStates.ColumnSelect);
 
                         } else waitCounter--;
 
@@ -712,7 +746,7 @@ namespace SpellerTask {
                     // highlighting a column
                     case TaskStates.ColumnSelect:
                         
-                        // if clicked
+                        // if clicked, go to ColumnSelected state, else,remain in this state
                         if (click)  setState(TaskStates.ColumnSelected);
                         else {
                             
@@ -732,21 +766,25 @@ namespace SpellerTask {
 						            rowLoopCounter++;
 					            }
 
-                                // get selected cell
-                                SpellerCell activeCell = holes[holeColumns * rowID + columnID];
-
-                                // log event that column is highlighted, and the type and content of the cell
-                                Data.logEvent(2, activeCell.cellType.ToString() + "Column", columnID.ToString() + ";" + activeCell.content);
-
-                                // check if there has been looped more than two times in the row with exit button
-                                if (rowLoopCounter > 1 && rowID == 0 && allowExit) {
+                                // check if there has been looped more than the defined maximal times
+                                if (rowLoopCounter >= maxRowLoop) {
 						
 						            // start from the top
 						            setState(TaskStates.RowSelect);
 
 					            } else {
-						            // select the cell in the scene
-						            view.selectCell(rowID, columnID, false);
+
+                                    // get selected cell
+                                    SpellerCell activeCell = holes[holeColumns * rowID + columnID];
+
+                                    // log event that column is highlighted, and the type and content of the cell
+                                    if (cueType == 0) {
+                                        if (activeCell.content == currentTarget) Data.logEvent(2, activeCell.cellType.ToString() + "Column", columnID.ToString() + ";" + activeCell.content + ";" + "1");
+                                        else    Data.logEvent(2, activeCell.cellType.ToString() + "Column", columnID.ToString() + ";" + activeCell.content + ";" + "0");
+                                    } else      Data.logEvent(2, activeCell.cellType.ToString() + "Column", columnID.ToString() + ";" + activeCell.content);
+
+                                    // select the cell in the scene
+                                    view.selectCell(rowID, columnID, false);
 						
 						            // reset the timer
 						            waitCounter = columnSelectDelay;
@@ -777,7 +815,7 @@ namespace SpellerTask {
                                 logger.Debug("Current target: " + currentTarget + " at index: " + currentTargetIndex);
 
                                 // check whether backspace, input, empty or exit was clicked
-                                // if empty, do nothing except for counting it as a correct click in case parameter 'ToTopOnIncorrectRow'is not active, because in this case it is otherwise not possible to get back to the top row without making an additional wrong click, 
+                                // if empty, do nothing except for counting it as a correct click in case target is not in the current row, because in this case it is otherwise not possible to get back to the top row without making an additional wrong click, 
                                 // otherwise either exit, or update input text and next target and check if this results in a spelled word
                                 if (activeCell.cellType == SpellerCell.CellType.Backspace) {
                                     view.updateInputText("", true);
@@ -787,7 +825,7 @@ namespace SpellerTask {
                                     view.updateInputText(activeCell.content, false);
                                     updateTarget(activeCell.content);
 
-                                } else if(activeCell.cellType == SpellerCell.CellType.Empty && !ToTopOnIncorrectRow) {
+                                } else if(activeCell.cellType == SpellerCell.CellType.Empty && !targetInRow(rowID)) {
                                     correctClicks++;
 
                                 } else if (activeCell.cellType == SpellerCell.CellType.Exit && allowExit) {
@@ -836,7 +874,7 @@ namespace SpellerTask {
                                         backSpacesNeeded = 0;
 
                                         // start again
-                                        afterWait = TaskStates.RowSelect;
+                                        afterWait = TaskStates.InitialCue;
 
                                     }
 
@@ -853,15 +891,15 @@ namespace SpellerTask {
                                 logger.Debug("Clicked on cell type: " + activeCell.cellType);
                                 logger.Debug("New target: " + currentTarget + " at index: " + currentTargetIndex);
 
-                                // if we are using questions as cues
+                            // if we are using questions as cues
                             } else {
 
-                                // check whether input, backspace, or exit was clicked; if empty or backspace, do nothing, otherwise either exit or store input and proceed to next question
+                                // check type of cell that was clicked. If input type, store input and proceed to next question; if exit, exit application. Other tpyes, return to highlighting rows.
                                 if (activeCell.cellType == SpellerCell.CellType.Input) {
 
                                     // update view
                                     view.updateInputText(activeCell.content, false);
-                                    
+
                                     // log event question answered
                                     Data.logEvent(2, "QuestionAnswered", cues[cueCounter] + ";" + activeCell.content);
 
@@ -882,7 +920,7 @@ namespace SpellerTask {
                                         // set new cue and wait the interstimulus interval before presenting next cue
                                         view.setCueText(cues[cueCounter]);
                                         waitCounter = isi;
-                                        afterWait = TaskStates.RowSelect;
+                                        afterWait = TaskStates.InitialCue;
                                         setState(TaskStates.Wait);
 
                                     }
@@ -894,9 +932,13 @@ namespace SpellerTask {
 
                                     // stop the task
                                     // this will also call stop(), and as a result stopTask()
-                                    if (unpMenuTask)        UNP_stop();
-                                    else                    MainThread.stop(false);
+                                    if (unpMenuTask)    UNP_stop();
+                                    else                MainThread.stop(false);
 
+                                } else {
+                                    
+                                    // if other type than input or exit, start highlighting rows again 
+                                    setState(TaskStates.RowSelect);
                                 }
 
                                 // debug
@@ -1052,6 +1094,16 @@ namespace SpellerTask {
 
                     break;
 
+                // intitial presentation of cue
+                case TaskStates.InitialCue:
+
+                    // set waitcounter to delay between cue and input, show cue, but not inputs
+                    waitCounter = cueInputDelay;
+                    view.gridVisible(false);
+                    view.setCueText(cues[cueCounter]);
+
+                    break;
+
                 case TaskStates.RowSelect:
 
                     // show cue, score and grid
@@ -1063,22 +1115,20 @@ namespace SpellerTask {
                     rowID = 0;
 			        columnID = 0;
 
-			        // select row
-			        view.selectRow(rowID, false);
-
                     // check whether selected row contains target and throw event, checking for targets if used cues are words
                     if (cueType == 0) {
-
                         Data.logEvent(2, targetInRow(rowID) ? "TargetRow" : "NonTargetRow", rowID.ToString());
-
                     } else {
-
                         Data.logEvent(2, "Row", rowID.ToString());
-
                     }
 
-                    // 
-                    waitCounter = rowSelectDelay;
+                    // if there is only one row, directly go to state where columns can be selected, otherwise highlight current row and set waitcounter
+                    if (holeRows == 1) {
+                        setState(TaskStates.ColumnSelect);
+                    } else {
+                        view.selectRow(rowID, false);
+                        waitCounter = rowSelectDelay;
+                    }
 
 			        break;
 
@@ -1150,12 +1200,13 @@ namespace SpellerTask {
 
                 case TaskStates.EndText:
 
-                    // remove cue and countdown
+                    // remove cue, countdown and input text
                     view.setCountDown(-1);
                     view.setCueText("");
-			
-			        // hide hole grid
-			        view.gridVisible(false);
+                    view.resetInputText();
+
+                    // hide hole grid
+                    view.gridVisible(false);
 
 			        // show text
 				    view.setInstructionText("Done");
