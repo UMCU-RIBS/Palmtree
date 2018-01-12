@@ -874,6 +874,9 @@ namespace CursorTask {
                                     if (currentTrial == trialSequence.Count - 1) {
                                         // end of the task
 
+                                        // log event task score
+                                        Data.logEvent(2, "TaskScore", hitScore + ";" + trialSequence.Count);
+
                                         // set the state to end
                                         setState(TaskStates.EndText);
 
@@ -900,7 +903,7 @@ namespace CursorTask {
                         if (waitCounter == 0) {
 
                             // log event task is stopped
-                            Data.logEvent(2, "TaskStop", CLASS_NAME + ";end;" + hitScore);
+                            Data.logEvent(2, "TaskStop", CLASS_NAME + ";end");
 
                             // stop the task
                             // this will also call stop(), and as a result stopTask()
