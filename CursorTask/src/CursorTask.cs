@@ -900,7 +900,7 @@ namespace CursorTask {
                         if (waitCounter == 0) {
 
                             // log event task is stopped
-                            Data.logEvent(2, "TaskStop", CLASS_NAME + ";end");
+                            Data.logEvent(2, "TaskStop", CLASS_NAME + ";end;" + hitScore);
 
                             // stop the task
                             // this will also call stop(), and as a result stopTask()
@@ -1221,7 +1221,7 @@ namespace CursorTask {
                         view.setText("Done");
 
                     // set duration for text to be shown at the end (3s)
-                    waitCounter = (int)(MainThread.getPipelineSamplesPerSecond() * 3.0);
+                    waitCounter = (int)(MainThread.getPipelineSamplesPerSecond() * 5.0);
 
 
 			        break;
