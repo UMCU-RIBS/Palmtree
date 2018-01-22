@@ -32,14 +32,14 @@ namespace CursorTask {
         private const int taskBoundaryLineWidth = 2;
         private const int targetWidth = 20;
 
-        private static Logger logger = LogManager.GetLogger("CursorView");                        // the logger object for the view
+        private static Logger logger = LogManager.GetLogger("CursorView");  // the logger object for the view
         public enum ColorStates {
             Neutral,
             Hit,
             Miss
         };
 
-        private Object textureLock = new Object();                                      // threadsafety lock for texture events
+        private Object textureLock = new Object();                          // threadsafety lock for texture events
 
         private bool showBoundary = false;
         private int boundarySize = 0;
@@ -55,37 +55,41 @@ namespace CursorTask {
         private double cursorSpeedTotalTrialTime = 0;                       // cursorspeed in total time per trial
         private double cursorSpeed = 0;                                     // cursorspeed in pixels per second
         private ColorStates cursorColorState = ColorStates.Neutral;
-        private float cursorNeutralColorR = 0;                            // cursor color when moving
-        private float cursorNeutralColorG = 0;                            // 
-        private float cursorNeutralColorB = 0;                            // 
-        private float cursorHitColorR = 0;                                // cursor color when target is hit
-        private float cursorHitColorG = 0;                                // 
-        private float cursorHitColorB = 0;                                //
-        private float cursorMissColorR = 0;                               // cursor color when target is missed
-        private float cursorMissColorG = 0;                               // 
-        private float cursorMissColorB = 0;                               //
+        private float cursorNeutralColorR = 0;                              // cursor color when moving
+        private float cursorNeutralColorG = 0;                              // 
+        private float cursorNeutralColorB = 0;                              // 
+        private float cursorHitColorR = 0;                                  // cursor color when target is hit
+        private float cursorHitColorG = 0;                                  // 
+        private float cursorHitColorB = 0;                                  //
+        private float cursorMissColorR = 0;                                 // cursor color when target is missed
+        private float cursorMissColorG = 0;                                 // 
+        private float cursorMissColorB = 0;                                 //
 
         private bool showTarget = false;
         private float targetY = 0;
         private float targetHeight = 0;
         private ColorStates targetColorState = ColorStates.Neutral;
-        private float targetNeutralColorR = 0;                            // target color when cursor is moving
-        private float targetNeutralColorG = 0;                            // 
-        private float targetNeutralColorB = 0;                            //
-        private float targetHitColorR = 0;                                // target color when target is hit
-        private float targetHitColorG = 0;                                // 
-        private float targetHitColorB = 0;                                //
-        private float targetMissColorR = 0;                               // cursor color when target is missed
-        private float targetMissColorG = 0;                               // 
-        private float targetMissColorB = 0;								//
+        private float targetNeutralColorR = 0;                              // target color when cursor is moving
+        private float targetNeutralColorG = 0;                              // 
+        private float targetNeutralColorB = 0;                              //
+        private float targetHitColorR = 0;                                  // target color when target is hit
+        private float targetHitColorG = 0;                                  // 
+        private float targetHitColorB = 0;                                  //
+        private float targetMissColorR = 0;                                 // cursor color when target is missed
+        private float targetMissColorG = 0;                                 // 
+        private float targetMissColorB = 0;								    //
 
-        private int showCountDown = -1;                                                 // whether the countdown should be shown (-1 = off, 1..3 = count)
-        private bool showFixation = false;                                              // whether the fixation should be shown
-        private int score = -1;									                        // the score that is being shown (-1 = do not show score)
+        private int showCountDown = -1;                                     // whether the countdown should be shown (-1 = off, 1..3 = count)
+        private bool showFixation = false;                                  // whether the fixation should be shown
+        private int score = -1;									            // the score that is being shown (-1 = do not show score)
+        private string showCueText = "";                                    // whether the cue text should be shown and what the text is ("" = off, .. = show text)
 
+        private glFreeTypeFont cueFont = new glFreeTypeFont();
         private glFreeTypeFont scoreFont = new glFreeTypeFont();
         private glFreeTypeFont countdownFont = new glFreeTypeFont();
         private glFreeTypeFont fixationFont = new glFreeTypeFont();
+        
+
 
         // general UNP variables
         private bool showConnectionLost = false;
@@ -115,16 +119,15 @@ namespace CursorTask {
 
 
         protected override void load() {
-
-            // initialize the text font
+            
+            // initialize the UNP font
             textFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 20), "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.- 0123456789%");
 
-            // initialize the countdown and fixation fonts
+            // initialize the taks fonts
+            cueFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 30), "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,- 0123456789()");
+            scoreFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 30), "Score: 0123456789");
             countdownFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 7), "1234567890");
             fixationFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 10), "+");
-
-            // initialize the score font
-            scoreFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 30), "Score: 0123456789");
 
             // lock for textures events (thread safety)
             lock (textureLock) {
@@ -166,11 +169,12 @@ namespace CursorTask {
         }
 
         protected override void unload() {
-
-            // clear the text font
+            
+            // clear the UNP font
             textFont.clean();
 
-            // clear the fonts
+            // clear the task fonts
+            cueFont.clean();
             scoreFont.clean();
             fixationFont.clean();
             countdownFont.clean();
@@ -311,6 +315,12 @@ namespace CursorTask {
 							        
 
 	        }
+
+            // write the cue text
+            if (!string.IsNullOrEmpty(showCueText)) {
+                glColor3(1f, 1f, 1f);
+                cueFont.printLine(boundaryX + taskBoundaryLineWidth, (getContentHeight() - cueFont.height) / 2, showCueText);
+            }
 
 	        // draw the cursor
 	        if (showCursor) {
@@ -585,6 +595,7 @@ namespace CursorTask {
 	        targetMissColorG = green;
 	        targetMissColorB = blue;
         }
+
         public void setTargetMissColor(RGBColorFloat color) {
             targetMissColorR = color.getRed();
             targetMissColorG = color.getGreen();
@@ -593,6 +604,11 @@ namespace CursorTask {
 
         public bool isTargetHit() {
 	        return (cursorY > targetY && cursorY < targetY + targetHeight);
+        }
+
+
+        public void setCueText(string text) {
+            showCueText = text;
         }
 
         public bool resourcesLoaded() {

@@ -102,6 +102,8 @@ namespace CursorTask {
         private RGBColorFloat mTargetColorMiss = new RGBColorFloat(1f, 0f, 0f);
 
         private bool mUpdateCursorOnSignal = false;                                 // update the cursor only on signal (or on smooth animation if false)
+        private bool mPreTrialCues = false;                                          // whether pre-trial cue texts should be presented
+        private string[] mPreTrialCueTexts = new string[0];                          // string array holding the configured pre-trial cue texts
         private int mPreTrialDuration = 0;  								        // 
         private double mTrialDuration = 0;  								        // the total trial time (in seconds if animated, in samples if the cursor is updated by incoming signal)
         private int mPostTrialDuration = 0;  								        // 
@@ -221,6 +223,16 @@ namespace CursorTask {
                     "ShowScoreAtEnd",
                     "Show the percentage of targets hit at the end",
                     "0", "1", "1");
+
+                parameters.addParameter<bool>(
+                    "PreTrialCues",
+                    "Present cue texts during pre-trial duration (target and cue are shown before the cursor appears)",
+                    "0", "1", "0");
+
+                parameters.addParameter<string[][]>(
+                    "PreTrialCueTexts",
+                    "Cue texts that are displayed sequentially",
+                    "", "", "cue1,cue2", new string[] { "Text" });
 
                 parameters.addParameter<double>(
                     "PreTrialDuration",
@@ -408,7 +420,17 @@ namespace CursorTask {
             mCursorColorMiss                = parameters.getValue<RGBColorFloat>("CursorColorMiss");
             mUpdateCursorOnSignal           = parameters.getValue<bool>("UpdateCursorOnSignal");
 
-            // retrieve the trial pre-duration parameters
+            // retrieve the pre-trial cue parameters
+            mPreTrialCues = parameters.getValue<bool>("PreTrialCues");
+            string[][] cuesTexts = parameters.getValue<string[][]>("PreTrialCueTexts");
+            if (cuesTexts.Length != 0 && cuesTexts.Length != 1) {
+                logger.Error("PreTrialCueTexts parameter must have 1 column (Texts)");
+                return false;
+            }
+            mPreTrialCueTexts = new string[0];
+            if (cuesTexts.Length > 0)   mPreTrialCueTexts = cuesTexts[0];
+
+            // retrieve the pre-trial duration parameter
             mPreTrialDuration = parameters.getValueInSamples("PreTrialDuration");
             if (mPreTrialDuration < 0) {
                 logger.Error("The pre-trial duration parameter cannot be smaller than 0");
@@ -1130,8 +1152,11 @@ namespace CursorTask {
                 case TaskStates.Wait:
                     // starting, pauzed or waiting
 
-				    // hide text if present
-				    view.setText("");
+                    // hide the cue text
+                    view.setCueText("");
+
+                    // hide text if present
+                    view.setText("");
 
                     // hide the fixation and countdown
                     view.setFixation(false);
@@ -1160,6 +1185,9 @@ namespace CursorTask {
 
                     // log event countdown is started
                     Data.logEvent(2, "CountdownStarted ", "");
+
+                    // hide the cue text
+                    view.setCueText("");
 
                     // hide text if present
                     view.setText("");
@@ -1203,13 +1231,16 @@ namespace CursorTask {
                     break;
 
 		        case TaskStates.EndText:
-			        // show text
+                    // show text
 
-				    // stop the blocks from moving
-				    //view.setBlocksMove(false);
+                    // stop the blocks from moving
+                    //view.setBlocksMove(false);
 
-				    // hide the boundary, target and cursor
-				    view.setBoundaryVisible(false);
+                    // hide the cue text
+                    view.setCueText("");
+
+                    // hide the boundary, target and cursor
+                    view.setBoundaryVisible(false);
 				    view.setCursorVisible(false);
 				    view.setCursorMoving(false);		// only if moving is animated, do just in case
 				    view.setTargetVisible(false);
@@ -1253,10 +1284,19 @@ namespace CursorTask {
 				    view.setTargetVisible(true);
 				    view.setTargetColor(CursorView.ColorStates.Neutral);
 
+                    // set the cue text
+                    if (mPreTrialCueTexts.Length > 0) {
+                        string cueText = mPreTrialCueTexts[(currentTrial % mPreTrialCueTexts.Length)];
+                        view.setCueText(cueText);
+                    }
+
 			        break;
 
 		        case TrialStates.Trial:
 			    // trial (cursor is shown and moving)
+
+                    // hide the cue text
+                    view.setCueText("");
 
 				    // make the cursor visible and make the cursor color neutral
 				    view.setCursorVisible(true);
@@ -1273,10 +1313,13 @@ namespace CursorTask {
 			        break;
 
 		        case TrialStates.PostTrial:
-			        // post trial (cursor will stay at the end)
+                    // post trial (cursor will stay at the end)
 
-				    // make the cursor visible
-				    view.setCursorVisible(true);
+                    // hide the cue text
+                    view.setCueText("");
+
+                    // make the cursor visible
+                    view.setCursorVisible(true);
 
 				    // show the target
 				    view.setTargetVisible(true);
@@ -1299,8 +1342,11 @@ namespace CursorTask {
 			        break;
 
                 case TrialStates.ITI:
-                    // rest before trial (cursor and target are hidden)
-                    
+                    // rest before trial (cue, cursor and target are hidden)
+
+                    // hide the cue text
+                    view.setCueText("");
+
                     // hide the cursor
                     view.setCursorVisible(false);
 
@@ -1673,7 +1719,9 @@ namespace CursorTask {
             mTaskFirstRunStartDelay = 5;
             mTaskStartDelay = 10;
 	        mUpdateCursorOnSignal = true;
-	        mPreTrialDuration = (int)(MainThread.getPipelineSamplesPerSecond() * 1.0);             // 
+            mPreTrialCues = false;
+            mPreTrialCueTexts = new string[0];
+            mPreTrialDuration = (int)(MainThread.getPipelineSamplesPerSecond() * 1.0);             // 
             mTrialDuration = (int)(MainThread.getPipelineSamplesPerSecond() * 2.0); ;              // depends on 'mUpdateCursorOnSignal', now set to packages
             mPostTrialDuration = (int)(MainThread.getPipelineSamplesPerSecond() * 1.0); ;          // 
             mITIDuration = (int)(MainThread.getPipelineSamplesPerSecond() * 2.0); ;                // 
