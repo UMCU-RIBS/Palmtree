@@ -102,8 +102,8 @@ namespace CursorTask {
         private RGBColorFloat mTargetColorMiss = new RGBColorFloat(1f, 0f, 0f);
 
         private bool mUpdateCursorOnSignal = false;                                 // update the cursor only on signal (or on smooth animation if false)
-        private bool mPreTrialCues = false;                                          // whether pre-trial cue texts should be presented
-        private string[] mPreTrialCueTexts = new string[0];                          // string array holding the configured pre-trial cue texts
+        private bool mPreTrialCues = false;                                         // whether pre-trial cue texts should be presented
+        private string[] mPreTrialCueTexts = new string[0];                         // string array holding the configured pre-trial cue texts
         private int mPreTrialDuration = 0;  								        // 
         private double mTrialDuration = 0;  								        // the total trial time (in seconds if animated, in samples if the cursor is updated by incoming signal)
         private int mPostTrialDuration = 0;  								        // 
@@ -838,16 +838,9 @@ namespace CursorTask {
                                 } else if (mTaskInputSignalType == 3) {
                                     // Added input
 
-                                    //logger.Error("----");
-                                    //double y = view.getCursorY();
                                     double y = view.getCursorNormY();
-                                    //logger.Error("input: " + input);
-                                    //logger.Error("mCursorSpeedY: " + mCursorSpeedY);
-                                    //logger.Error("y: " + y);
                                     y += cursorSpeedY * input;
-                                    //logger.Error("after y: " + y);
                                     view.setCursorNormY(y);
-                                    //view.setCursorY(y);
 
                                 }
 
@@ -896,8 +889,11 @@ namespace CursorTask {
                                     if (currentTrial == trialSequence.Count - 1) {
                                         // end of the task
 
+                                        // calculate the percentage correct
+                                        int percCorrect = (int)Math.Round(((double)hitScore / trialSequence.Count) * 100);
+
                                         // log event task score
-                                        Data.logEvent(2, "TaskScore", hitScore + ";" + trialSequence.Count);
+                                        Data.logEvent(2, "TaskScore", hitScore + ";" + trialSequence.Count + ";" + percCorrect);
 
                                         // set the state to end
                                         setState(TaskStates.EndText);
@@ -1283,9 +1279,9 @@ namespace CursorTask {
 				    // show the target and make the target color neutral
 				    view.setTargetVisible(true);
 				    view.setTargetColor(CursorView.ColorStates.Neutral);
-
+                    
                     // set the cue text
-                    if (mPreTrialCueTexts.Length > 0) {
+                    if (mPreTrialCues && mPreTrialCueTexts.Length > 0) {
                         string cueText = mPreTrialCueTexts[(currentTrial % mPreTrialCueTexts.Length)];
                         view.setCueText(cueText);
                     }
