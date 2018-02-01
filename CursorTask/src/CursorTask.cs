@@ -47,7 +47,7 @@ namespace CursorTask {
             ITI                 // inter trial interval (both the cursor and the target are hidden)
         };
 
-        private const int CLASS_VERSION = 3;
+        private const int CLASS_VERSION = 4;
         private const string CLASS_NAME = "CursorTask";
         private const string CONNECTION_LOST_SOUND = "sounds\\focuson.wav";
 
