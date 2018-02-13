@@ -326,7 +326,7 @@ namespace CursorTask {
             }
 
             // message
-            logger.Info("Application created (version " + CLASS_VERSION + ")");
+            logger.Info("Application " + CLASS_NAME + " created (version " + CLASS_VERSION + ")");
 
         }
 

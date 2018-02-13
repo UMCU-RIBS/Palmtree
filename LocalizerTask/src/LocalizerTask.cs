@@ -169,6 +169,9 @@ namespace LocalizerTask {
                     "", "", "Task is finished.");
 
             }
+
+            // message
+            logger.Info("Application " + CLASS_NAME + " created (version " + CLASS_VERSION + ")");
         }
 
         public Parameters getParameters() {
