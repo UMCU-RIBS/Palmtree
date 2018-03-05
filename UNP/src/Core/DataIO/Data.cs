@@ -837,13 +837,17 @@ namespace UNP.Core.DataIO {
                         // stop and close all plugin data streams
                         for (int i = 0; i < pluginStreams.Count; i++) {
 
-                            // log the plugin log stop event
-                            logEvent(1, "PluginLogStop", "plugin id: " + i);
+                            // if plugin data stream exists
+                            if (pluginStreamWriters[i] != null) {
+                             
+                                // log the plugin log stop event
+                                logEvent(1, "PluginLogStop", "plugin id: " + i);
 
-                            // close the plugin stream file
-                            pluginStreamWriters[i].Close();
-                            pluginStreamWriters[i] = null;
-                            pluginStreams[i] = null;
+                                // close the plugin stream file
+                                pluginStreamWriters[i].Close();
+                                pluginStreamWriters[i] = null;
+                                pluginStreams[i] = null;
+                            }
 
                         }
 

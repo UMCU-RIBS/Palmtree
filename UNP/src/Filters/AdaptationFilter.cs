@@ -15,6 +15,7 @@
  */
 using NLog;
 using System;
+using UNP.Core.DataIO;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
 
@@ -36,14 +37,16 @@ namespace UNP.Filters {
 
         private double[] mInitialMeans = null;				// the initial mean to adapt the signal to
         private double[] mInitialStds = null;				// the initial std to adapt the signal to
-        private double[] mExcludeStdThreshold = null;		// the std threshold (on a standard normal distribution) above which a sample will be excluded from buffering
+        private double[] mExcludeStdThreshold = null;       // the std threshold (on a standard normal distribution) above which a sample will be excluded from buffering
 
-        private double[] mCalcMeans = null;                 // the calculated mean to adapt the signal to
-        private double[] mCalcStds = null;                  // the calcuted stds to adapt the signal to
-        private RingBuffer[] mDataBuffers = null;           // holds the data for each channel (for the size of buffer)
-        private bool mAdaptationOnMessage = false;
+        private RingBuffer[] dataBuffers = null;           // holds the data for each channel (for the size of buffer)
+        private bool[] statSet = null;                      // whether the statistics for this channel have been calculated
+        private double[] statMeans = null;                  // the calculated mean to adapt the signal to
+        private double[] statStds = null;                   // the calcuted stds to adapt the signal to
+        private bool[] statStopUpdate = null;               // whether the statistics per channel should not be updated each incoming sample (used in the adaptTofirst to stop calculating if the buffer is full)
+        private bool adaptationOnMessage = false;
 
-        private const double emptyCalcValue = 9999.9999;
+        
 
         public enum AdaptationTypes : int {
             none = 0,
@@ -412,19 +415,25 @@ namespace UNP.Filters {
             if (mEnableFilter) {
 
                 // create the data buffers
-                mDataBuffers = new RingBuffer[inputChannels];
-                for (uint i = 0; i < inputChannels; i++) mDataBuffers[i] = new RingBuffer((uint)mBufferSize);
+                dataBuffers = new RingBuffer[inputChannels];
+                for (uint i = 0; i < inputChannels; i++) dataBuffers[i] = new RingBuffer((uint)mBufferSize);
 
-                // initialize the means and stds to empty values
-                mCalcMeans = new double[inputChannels];
-                for (uint i = 0; i < inputChannels; i++) mCalcMeans[i] = emptyCalcValue;
-                mCalcStds = new double[inputChannels];
-                for (uint i = 0; i < inputChannels; i++) mCalcStds[i] = emptyCalcValue;
+                // initialize statistic variables
+                statSet = new bool[inputChannels];
+                statMeans = new double[inputChannels];
+                statStds = new double[inputChannels];
+                statStopUpdate = new bool[inputChannels];
+                for (uint i = 0; i < inputChannels; i++) {
+                    statSet[i] = false;
+                    statMeans[i] = 0;
+                    statStds[i] = 0;
+                    statStopUpdate[i] = false;
+                }
 
                 // no message has been shown
-                mAdaptationOnMessage = false;
-
-		    }
+                adaptationOnMessage = false;
+                
+            }
 
         }
 
@@ -448,55 +457,42 @@ namespace UNP.Filters {
             // check if the filter is enabled
             if (mEnableFilter) {
                 // filter enabled
-
-                //bool anyChannelDiscardFirst = true;
-                //bool anyChannelDoAdapt = false;
-                //bool anyChannelAddedToBuffer = false;
-
-			    // loop through every channel
-			    for(int channel = 0; channel < inputChannels; ++channel ) {
+                
+                // loop through every channel
+                for (int channel = 0; channel < inputChannels; ++channel ) {
 				
 				    // check whether the samples should be discarded
 				    if (mBufferDiscardFirst == 0) {
 					    // do not (or stop) discarding first samples
 
-					    // flag as not discarding samples (any more, or at the start)
-					    //anyChannelDiscardFirst = false;
-
 					    // check
 					    // if adaptation is set to 2: to first samples, and the buffer is not yet full
 					    // or there should be a continues updating of samples in the buffer (3: to lastest samples)
-                        if ((mAdaptation[channel] == (int)AdaptationTypes.rawToFirstSamples && !mDataBuffers[channel].IsFull()) ||
+                        if ((mAdaptation[channel] == (int)AdaptationTypes.rawToFirstSamples && !dataBuffers[channel].IsFull()) ||
 						     mAdaptation[channel] == (int)AdaptationTypes.rawToLatestSamples) {
 
-						    // check if no calc values are available
-						    if (mCalcMeans[channel] == emptyCalcValue) {
-							    // no calc values available
-
-							    // flag as added to buffer
-							    //anyChannelAddedToBuffer = true;
+						    // check if statistical values are available
+						    if (!statSet[channel]) {
+							    // no statistical values are set
 
 							    // add to the buffer
-							    mDataBuffers[channel].Put(input[channel]);
+							    dataBuffers[channel].Put(input[channel]);
 
 						    } else {
-							    // calc values available
+                                // statistical values are set
 
-							    // calculate z-score for input sample
-							    double zscore;
-							    if (mCalcStds[channel] == 0)
-                                    zscore = (input[channel] - mCalcMeans[channel]);
+                                // calculate z-score for input sample
+                                double zscore;
+							    if (statStds[channel] == 0)
+                                    zscore = (input[channel] - statMeans[channel]);
 							    else
-                                    zscore = (input[channel] - mCalcMeans[channel]) / mCalcStds[channel];
+                                    zscore = (input[channel] - statMeans[channel]) / statStds[channel];
 
 							    // check the threshold
 							    if (zscore <= mExcludeStdThreshold[channel]) {
 
-								    // flag as added to buffer
-								    //anyChannelAddedToBuffer = true;
-
 								    // add to the buffer
-                                    mDataBuffers[channel].Put(input[channel]);
+                                    dataBuffers[channel].Put(input[channel]);
 
 							    } else {
 
@@ -526,63 +522,54 @@ namespace UNP.Filters {
 
 				    }
 
-				    // produce the output
-				    if (mAdaptation[channel] == (uint)AdaptationTypes.none) {
+                    // check if the statistics should be updated
+                    if (    (mAdaptation[channel] == (int)AdaptationTypes.rawToFirstSamples && !statStopUpdate[channel]) ||
+                             mAdaptation[channel] == (int)AdaptationTypes.rawToLatestSamples) {
+
+                        // Update the channel's calculated values
+                        updateStats(channel);
+                        
+                    }
+
+                    // check if the adaptation is set to first samples and the number of first samples will not change anymore (buffer is full and statistics are calculated)
+                    if (mAdaptation[channel] == (int)AdaptationTypes.rawToFirstSamples && statSet[channel] && dataBuffers[channel].IsFull() && !statStopUpdate[channel]) {
+
+                        // flag to stop updating the statistics for this channel
+                        statStopUpdate[channel] = true;
+                        
+                        // message
+                        logger.Debug("Calculated mean and sd for channel " + channel + ", based on first samples: " + statMeans[channel] + " and " + statStds[channel]);
+
+                        // log stop
+                        Data.logEvent(2, "stopStatUpdate", (channel + ";" + statMeans[channel] + ";" + statStds[channel]));
+
+                    }
+
+                    // produce the output
+                    if (mAdaptation[channel] == (uint)AdaptationTypes.none) {
 					    output[channel] = input[channel];
 
 				    } else if (mAdaptation[channel] == (int)AdaptationTypes.rawToInitial) {
-
-					    // mark as applying adaption
-					    //anyChannelDoAdapt = true;
-
-					    /*
-					    // write the applied mean and std for the sample
-					    if (channel == 0) {
-						    State("Log_AF_Ch0_AppliedMean_f").AsFloat() = (float)mInitialMeans[channel];
-						    State("Log_AF_Ch0_AppliedStd_f").AsFloat() = (float)mInitialStds[channel];
-					    } else if (channel == 1) {
-						    State("Log_AF_Ch1_AppliedMean_f").AsFloat() = (float)mInitialMeans[channel];
-						    State("Log_AF_Ch1_AppliedStd_f").AsFloat() = (float)mInitialStds[channel];
-					    }
-					    */
-
 
 					    // set the output
 					    output[channel] = (input[channel] - mInitialMeans[channel]) / mInitialStds[channel];
 
 				    } else if (mAdaptation[channel] == (int)AdaptationTypes.rawToFirstSamples || mAdaptation[channel] == (int)AdaptationTypes.rawToLatestSamples) {
 				
-					    if (mCalcMeans[channel] == emptyCalcValue)
+					    if (!statSet[channel])
 						    output[channel] = 0;
 					    else {
 
-						    // mark as applying adaption
-						    //anyChannelDoAdapt = true;
-
-						    /*
-						    // write the applied mean and std for the sample
-						    if (channel == 0) {
-							    State("Log_AF_Ch0_AppliedMean_f").AsFloat() = (float)mCalcMeans[channel];
-							    State("Log_AF_Ch0_AppliedStd_f").AsFloat() = (float)mCalcStds[channel];
-						    } else if (channel == 1) {
-							    State("Log_AF_Ch1_AppliedMean_f").AsFloat() = (float)mCalcMeans[channel];
-							    State("Log_AF_Ch1_AppliedStd_f").AsFloat() = (float)mCalcStds[channel];
-						    }
-						    */
-
 						    // set the output
-						    output[channel] = (input[channel] - mCalcMeans[channel]) / mCalcStds[channel];
+						    output[channel] = (input[channel] - statMeans[channel]) / statStds[channel];
                             
 					    }
 
-					    //bciout << "- " << "in " << inputSerial[channel, sample] << "  mCalcMeans[channel] " << mCalcMeans[channel] << "  mCalcStds[channel] " << mCalcStds[channel] << "  out " << outputSerial[channel][sample] << endl;
-
 				    }
 
-			    }
+                }
 
-                // Update the calculated values
-                update();
+                
 
             } else {
                 // filter disabled
@@ -597,37 +584,35 @@ namespace UNP.Filters {
 
         }
 
-        private void update() {
-
-	        for(int channel = 0; channel < inputChannels; ++channel ) {
-		        if (mAdaptation[channel] == (int)AdaptationTypes.rawToFirstSamples || mAdaptation[channel] == (int)AdaptationTypes.rawToLatestSamples) {
-
-			        // retrieve the buffer
-                    double[] data = mDataBuffers[channel].Data();
-                    uint dataLength = mDataBuffers[channel].Fill();
-			        double bufferSum = 0;
+        private void updateStats(int channel) {
+            
+            // retrieve the buffer
+            double[] data = dataBuffers[channel].Data();
+            uint dataLength = dataBuffers[channel].Fill();
+			double bufferSum = 0;
 			
-			        // check if the minimum number of samples is reached before calculating
-			        if (dataLength >= mAdaptationMinimalLength) {
-				
-				        // message
-				        if (!mAdaptationOnMessage) {
-                            logger.Debug("Minimum adaptation length (" + mAdaptationMinimalLength + " samples) reached, applying adaptation from now on");
-					        mAdaptationOnMessage = true;
-				        }
+			// check if the minimum number of samples is reached before calculating
+			if (dataLength >= mAdaptationMinimalLength) {
+                
+                // message
+                if (!adaptationOnMessage) {
+                    logger.Debug("Minimum adaptation length (" + mAdaptationMinimalLength + " samples) reached, applying adaptation from now on");
+					adaptationOnMessage = true;
+				}
 
-				        // calculate and store the mean
-				        for(uint i = 0; i < dataLength; ++i )       bufferSum += data[i];
-                        mCalcMeans[channel] = bufferSum / dataLength;
+				// calculate and store the mean
+				for(uint i = 0; i < dataLength; ++i )       bufferSum += data[i];
+                statMeans[channel] = bufferSum / dataLength;
 				
-				        // calculate the SSQ and std, store the std
-				        double SSQ = 0.0;
-				        for(uint i = 0; i < dataLength; ++i )       SSQ += (data[i] - mCalcMeans[channel]) * (data[i] - mCalcMeans[channel]);
-                        mCalcStds[channel] = Math.Sqrt(SSQ / dataLength);
+				// calculate the SSQ and std, store the std
+				double SSQ = 0.0;
+				for(uint i = 0; i < dataLength; ++i )       SSQ += (data[i] - statMeans[channel]) * (data[i] - statMeans[channel]);
+                statStds[channel] = Math.Sqrt(SSQ / dataLength);
 
-			        }
-		        }
-	        }
+                // flag the statistics for this channel as set
+                statSet[channel] = true;
+
+            }
 
         }
 

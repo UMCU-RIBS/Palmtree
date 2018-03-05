@@ -319,8 +319,8 @@ namespace UNPLogReader {
             header.sampleRate = info.samplingRate;
 
             // write header
-            DataWriter.writeBinaryHeader(dataStreamWriter, header);
-
+            if (dataStreamWriter != null)
+                DataWriter.writeBinaryHeader(dataStreamWriter, header);
 
             // write data
             uint dataSampleCounter = 0;
@@ -348,7 +348,8 @@ namespace UNPLogReader {
                 Buffer.BlockCopy(dataStreamValues, 0, streamOut, l1 + l2, l3);
 
                 // write data to file
-                dataStreamWriter.Write(streamOut);
+                if (dataStreamWriter != null)
+                    dataStreamWriter.Write(streamOut);
 
                 // increase sample counter
                 dataSampleCounter++;
