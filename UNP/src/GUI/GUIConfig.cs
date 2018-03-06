@@ -37,7 +37,6 @@ namespace UNP.GUI {
         private const int itemTopPadding = 10;
         private const int itemBottomPadding = 10;
 
-        public static CultureInfo NumberCulture = CultureInfo.CreateSpecificCulture("en-US");
         private static Logger logger = LogManager.GetLogger("GUIConfig");
 
         private struct ParamControl {
@@ -353,7 +352,7 @@ namespace UNP.GUI {
                 newGrid.AllowUserToResizeRows = false;
                 newGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
                 newGrid.RowHeadersVisible = false;
-                newGrid.DefaultCellStyle.FormatProvider = NumberCulture;
+                newGrid.DefaultCellStyle.FormatProvider = Parameters.NumberCulture;
                 newGrid.AllowUserToOrderColumns = (param.Options.Length == 0);
                 panel.Controls.Add(newGrid);
 
@@ -899,13 +898,13 @@ namespace UNP.GUI {
                 }
                 if (param is ParamIntMat) {
                     for (int r = 0; r < intValues[c].Length; r++) {
-                        grd[c, r].Value = (intValues[c][r].ToString(NumberCulture) + (units[c][r] == Parameters.Units.Seconds ? "s" : ""));
+                        grd[c, r].Value = (intValues[c][r].ToString(Parameters.NumberCulture) + (units[c][r] == Parameters.Units.Seconds ? "s" : ""));
 
                     }
                 }
                 if (param is ParamDoubleMat) {
                     for (int r = 0; r < dblValues[c].Length; r++) {
-                        grd[c, r].Value = (dblValues[c][r].ToString(NumberCulture) + (units[c][r] == Parameters.Units.Seconds ? "s" : ""));
+                        grd[c, r].Value = (dblValues[c][r].ToString(Parameters.NumberCulture) + (units[c][r] == Parameters.Units.Seconds ? "s" : ""));
                     }
                 }
                 if (param is ParamStringMat) {

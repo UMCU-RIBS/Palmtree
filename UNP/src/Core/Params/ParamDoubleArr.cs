@@ -33,7 +33,7 @@ namespace UNP.Core.Params {
             string strRet = "";
             for (int i = 0; i < this.values.Length; i++) {
                 if (i != 0)     strRet += Parameters.ArrDelimiters[0];
-                strRet += this.values[i].ToString(Parameters.NumberCulture);
+                strRet += this.values[i].ToString();
                 strRet += (this.units[i] == Parameters.Units.Seconds ? "s" : "");
             }
             return strRet;

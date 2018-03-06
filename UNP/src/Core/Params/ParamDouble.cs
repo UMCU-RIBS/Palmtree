@@ -30,7 +30,7 @@ namespace UNP.Core.Params {
         public ParamDouble(string name, string group, Parameters parentSet, string desc, string stdValue, string[] options) : base(name, group, parentSet, desc, stdValue, options) { }
 
         public string getValue() {
-            return this.value.ToString(Parameters.NumberCulture) + (this.unit == Parameters.Units.Seconds ? "s" : "");
+            return this.value.ToString() + (this.unit == Parameters.Units.Seconds ? "s" : "");
         }
 
         public T getValue<T>() {

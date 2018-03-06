@@ -35,7 +35,7 @@ namespace UNP.Core.Params {
                 if (c != 0) strRet += Parameters.MatColumnDelimiters[0];
                 for (int r = 0; r < values[c].Length; r++) {
                     if (r != 0) strRet += Parameters.MatRowDelimiters[0];
-                    strRet += values[c][r].ToString(Parameters.NumberCulture);
+                    strRet += values[c][r].ToString();
                     strRet += (units[c][r] == Parameters.Units.Seconds ? "s" : "");
                 }
             }

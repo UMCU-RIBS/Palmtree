@@ -422,11 +422,11 @@ namespace UNP.Filters {
                 string strGains = "";
                 for(int i = 0; i < mOffsets.Length; i++) {
 					if (i != 0)	strOffsets += " ";
-                    strOffsets += mOffsets[i].ToString(Parameters.NumberCulture);
+                    strOffsets += mOffsets[i].ToString();
                 }
 				for(int i = 0; i < mGains.Length; i++) {
 					if (i != 0)	strGains += " ";
-					strGains += " " + mGains[i].ToString(Parameters.NumberCulture);
+					strGains += " " + mGains[i].ToString();
 				}
 
                 // update parameters

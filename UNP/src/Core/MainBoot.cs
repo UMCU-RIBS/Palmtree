@@ -51,6 +51,9 @@ namespace UNP.Core {
             // TODO: check if all dependencies exists
             // TODO: also 32/64 bit (freetype or other dlls)
 
+            // retrieve the current thread's culture as the initial culture
+            CultureInfo culture = (CultureInfo)Thread.CurrentThread.CurrentCulture.Clone();
+
             // startup argument variables
             bool nogui = false;
             bool startupConfigAndInit = false;
@@ -64,6 +67,7 @@ namespace UNP.Core {
             //args = new string[] { "-source", "KeypressSignal"};
             //args = new string[] { "-source", "KeypressSignal"};
             //args = new string[] { "-source", "KeypressSignal", "-language", "en" };
+            //args = new string[] { "-language", "en-us" };
 
             // process startup arguments
             for (int i = 0; i < args.Length; i++) {
@@ -106,19 +110,23 @@ namespace UNP.Core {
                 // check if the language is given
                 if (argument == "-language") {
 
-                    // the next element should be the parameter file, try to retrieve
+                    // the next element should contain the culture name
                     if (args.Length >= i + 1 && !string.IsNullOrEmpty(args[i + 1])) {
 
                         try {
 
-                            // set the default culture (and thus the resource file) for every future thread
-                            CultureInfo.DefaultThreadCurrentCulture = new CultureInfo(args[i + 1]);
-                            CultureInfo.DefaultThreadCurrentUICulture = new CultureInfo(args[i + 1]);
+                            // overwrite the culture with the given argument, this will cause the respective language 
+                            // resource file to be used (unless it does not exists, then it will revert to english)
+                            culture = new CultureInfo(args[i + 1]);
 
                             // message
                             logger.Info("Language/culture set to '" + args[i + 1] + "'");
 
                         } catch (Exception) {
+
+                            // with an exception the original culture object is ruined
+                            // therefore re(clone) the current culture from the thread
+                            culture = (CultureInfo)Thread.CurrentThread.CurrentCulture.Clone();
 
                             // message
                             logger.Error("Language argument given but unknown culture, using the local culture (language)");
@@ -129,11 +137,18 @@ namespace UNP.Core {
 
                 }
 
-
-
-
-
             }
+
+            // adjust decimal seperator and group seperator
+            culture.NumberFormat.NumberDecimalSeparator = ".";
+            culture.NumberFormat.NumberGroupSeparator = "";
+            culture.NumberFormat.NumberGroupSizes = new int[] { 0 };
+
+            // set the culture for every future thread and the current thread
+            CultureInfo.DefaultThreadCurrentCulture = culture;
+            CultureInfo.DefaultThreadCurrentUICulture = culture;
+            Thread.CurrentThread.CurrentCulture = culture;
+            Thread.CurrentThread.CurrentUICulture = culture;
 
             // check if a source is given as argument
             if (!string.IsNullOrEmpty(source)) {

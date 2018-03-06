@@ -16,6 +16,7 @@ using NLog;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Threading;
 using UNP.Core.Helpers;
 
 namespace UNP.Core.Params {
@@ -30,7 +31,7 @@ namespace UNP.Core.Params {
         public static Char[] ArrDelimiters = new Char[] { ' ', ',', ';', '\n' };
         public static Char[] MatColumnDelimiters = new Char[] { ';', '\n' };
         public static Char[] MatRowDelimiters = new Char[] { ',' };
-        public static CultureInfo NumberCulture = CultureInfo.CreateSpecificCulture("en-US");
+        public static CultureInfo NumberCulture = (CultureInfo)Thread.CurrentThread.CurrentCulture.Clone();
 
         private static Logger logger = LogManager.GetLogger("Parameters");
 
