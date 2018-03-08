@@ -1528,6 +1528,7 @@ namespace UNP.Sources {
                         // each sample (per channel) starts with a high-byte followed by a low-byte, creating a 16-bit number
                         // the 1th bit (and also the next 5 bits) of the hi-byte indicate whether it is a positve or negative number (binary signing)
                         // the 7th and the 8th bit of the hi-byte and the low-byte then form a 10-bit number to represent the value
+                        // Because 1 bit is used for signing (positive or negative) and 10 bits for the value, so the value can be between -1023 and 1023
                         
                         // check if the low or high byte is coming in
                         if (!low_byte) {

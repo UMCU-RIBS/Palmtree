@@ -129,8 +129,8 @@ namespace UNP.Core.Helpers {
             string[][] newOptions = new string[options.Length][];
             for (int i = 0; i < newOptions.Length; i++) {
                 newOptions[i] = new string[2];
+                newOptions[i][0] = options[i];
                 newOptions[i][1] = options[i];
-                newOptions[i][2] = options[i];
             }
 
             return ShowSingle(title, newOptions);
@@ -140,8 +140,8 @@ namespace UNP.Core.Helpers {
             string[][] newOptions = new string[options.Length][];
             for (int i = 0; i < newOptions.Length; i++) {
                 newOptions[i] = new string[2];
+                newOptions[i][0] = options[i];
                 newOptions[i][1] = options[i];
-                newOptions[i][2] = options[i];
             }
 
             return ShowMultiple(title, newOptions);
