@@ -81,33 +81,32 @@ namespace UNP.Filters {
 
             parameters.addParameter <int[]>     (
                 "Adaptation",
-                "",
+                "The adaptation type for each incoming channel, use one of the following options:\n0: no adaptation\n1: to initial params\n2: to first samples\n3: to lastest samples (sliding window)\n\nE.g. if there are three incoming channels, then setting this parameter to '0 3 1' would leave the first incoming channel\nunmodified, adapt the second channel to the lastest samples and adapt the third to a fixed mean and standard deviation\n\nNote: make sure that a value exists in this parameter for each incoming channel.",
                 "0", "3", "0",
                 new string[]{   "No adaptation",
                                 "To initial parameters",
                                 "To first samples",
                                 "To lastest samples",
-                                //"Meer adaptatie, meer beter...",
                             });
 
             parameters.addParameter <double[]>  (
                 "InitialChannelMeans",
-                "Initial channel means",
+                "The initial channel mean for each incoming channel (only used\nwhen the adaptation parameter for the channel is set to 1).\n\nNote: make sure that a value exists in this parameter for each incoming channel.",
                 "", "", "0");
 
             parameters.addParameter <double[]>  (
                 "InitialChannelStds",
-                "Initial channel standard deviations",
+				"The initial standard deviation for each incoming channel (only used\nwhen the adaptation parameter for the channel is set to 1).\n\nNote: make sure that a value exists in this parameter for each incoming channel.",
                 "", "", "1");
 
             parameters.addParameter <int>       (
                 "BufferLength",
-                "Time window of past data per buffer that enters into statistic (in samples or seconds)",
+                "Time window of past data that enters into statistic (in samples or seconds)",
                 "0", "", "9s");
 
             parameters.addParameter <double>       (
                 "BufferDiscardFirst",
-                "The amount of time at the start where samples should not be put in the buffer (in samples or seconds). 0 is off.",
+                "The amount of time at the start where samples should not be put in the channel buffer (in samples or seconds). 0 is off.",
                 "0", "", "1s");
 
             parameters.addParameter <int>       (
@@ -117,7 +116,7 @@ namespace UNP.Filters {
 
             parameters.addParameter <double[]>  (
                 "ExcludeStdThreshold",
-                "The threshold (on a standard normal distribution) above which a sample will be excluded from buffering",
+                "The threshold for each incoming channel (on a standard normal distribution) above which a sample will be excluded from buffering\n\nNote: make sure that a value exists in this parameter for each incoming channel.",
                 "", "", "2.7");
 
             // message
