@@ -35,7 +35,7 @@ namespace LocalizerTask {
         // fundamentals
         private const int CLASS_VERSION = 2;                                // class version
         private const string CLASS_NAME = "LocalizerTask";                  // class name
-        private const string CONNECTION_LOST_SOUND = "sounds\\focuson.wav";
+        private const string CONNECTION_LOST_SOUND = "sounds\\connectionLost.wav";
 
         private static Logger logger = LogManager.GetLogger(CLASS_NAME);    // the logger object for the view
         private static Parameters parameters = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Application);        // parameters

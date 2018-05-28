@@ -36,7 +36,7 @@ namespace SpellerTask {
         // fundamentals
         private const int CLASS_VERSION = 0;
         private const string CLASS_NAME = "SpellerTask";
-        private const string CONNECTION_LOST_SOUND = "sounds\\focuson.wav";
+        private const string CONNECTION_LOST_SOUND = "sounds\\connectionLost.wav";
         private static Logger logger = LogManager.GetLogger(CLASS_NAME);                        // the logger object for the view
         private static Parameters parameters = null;
         private int inputChannels = 0;

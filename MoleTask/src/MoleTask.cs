@@ -48,7 +48,7 @@ namespace MoleTask {
 
         private const int CLASS_VERSION = 2;
         private const string CLASS_NAME = "MoleTask";
-        private const string CONNECTION_LOST_SOUND = "sounds\\focuson.wav";
+        private const string CONNECTION_LOST_SOUND = "sounds\\connectionLost.wav";
 
         private static Logger logger = LogManager.GetLogger(CLASS_NAME);            // the logger object for the view
         private static Parameters parameters = null;

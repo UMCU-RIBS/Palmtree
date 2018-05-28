@@ -960,6 +960,9 @@ namespace UNP.Sources {
             } else {
                 // packet finished
 
+                // if connection was previously lost, log that connection is restored
+                if(Globals.getValue<bool>("ConnectionLost")) Data.logEvent(1, "SourcePacketTimeoutRestored", "");
+
                 // set the connection lost flag to false
                 Globals.setValue<bool>("ConnectionLost", "0");
 

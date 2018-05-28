@@ -537,7 +537,7 @@ namespace UNP.Filters {
                         statStopUpdate[channel] = true;
                         
                         // message
-                        logger.Debug("Calculated mean and sd for channel " + channel + ", based on first samples: " + statMeans[channel] + " and " + statStds[channel]);
+                        logger.Debug("Calculated mean and sd for calibration of channel " + channel + ", based on first samples: " + statMeans[channel] + " and " + statStds[channel]);
 
                         // log stop
                         Data.logEvent(2, "stopStatUpdate", (channel + ";" + statMeans[channel] + ";" + statStds[channel]));

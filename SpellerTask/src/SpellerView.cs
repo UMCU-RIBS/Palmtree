@@ -250,8 +250,8 @@ namespace SpellerTask {
 		        if (selectionWidth != 0 && selectionHeight != 0 ) {
 		
 			        // set the color
-			        float colorR = 1, colorG = 0, colorB = 0;
-			        if (mSelected)			colorG = 1;
+			        float colorR = 1, colorG = 1, colorB = 0;
+			        if (mSelected)			colorG = 0;
                     
 			        // draw selection
 			        drawRectangle(	selectionX, 

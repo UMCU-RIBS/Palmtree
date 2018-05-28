@@ -44,7 +44,7 @@ namespace FollowTask {
 
         private const int CLASS_VERSION = 2;
         private const string CLASS_NAME = "FollowTask";
-        private const string CONNECTION_LOST_SOUND = "sounds\\focuson.wav";
+        private const string CONNECTION_LOST_SOUND = "sounds\\connectionLost.wav";
 
         private const string TARGET_MODE_DESC = "For every trial, within every column (so within the y, height.. etc), a option (category) is selected given the Target...Mode.\n\n" +
                                                 "To determine which target is used, first the deterministic modes are applied (which are '3. sequential with rnd start' and '4. matrix order').\n" +
