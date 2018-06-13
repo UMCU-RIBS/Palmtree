@@ -319,6 +319,8 @@ namespace UNP.Filters {
 
         }
 
+
+
         public void initialize() {
 
             // check if the filter is enabled
@@ -356,6 +358,24 @@ namespace UNP.Filters {
 
         public bool isStarted() {
             return false;
+        }
+
+        // set or unset refractory period
+        public void setRefractoryPeriod(bool on) {
+
+            if (on) {                                   // set refractory period on
+                active_state = false;
+                clickRefractoryCounter = clickRefractoryPeriod;
+                keySequenceRefractoryCounter = keySequenceRefractoryPeriod;    
+            } else {                                    // set refractory period off
+                active_state = true;
+                clickRefractoryCounter = 0;
+                keySequenceRefractoryCounter = 0;
+            }
+
+            logger.Error("Set refractory period " + on);
+            printLocalConfiguration();
+
         }
 
         public void process(double[] input, out double[] output) {
@@ -456,7 +476,7 @@ namespace UNP.Filters {
             // handle the data logging of the output (both to file and for visualization)
             processOutputLogging(output);
 
-        }
+    }
 
         public void destroy() {
 

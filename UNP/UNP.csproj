@@ -121,8 +121,8 @@
     </Compile>
     <Compile Include="src\Core\Helpers\Polynomial.cs" />
     <Compile Include="src\Core\Helpers\RationalPolynomial.cs" />
-    <Compile Include="src\Core\Helpers\SoundHelper.cs" />
     <Compile Include="src\Core\Helpers\MonitorHelper.cs" />
+    <Compile Include="src\Core\Helpers\SoundHelper.cs" />
     <Compile Include="src\Core\Params\ParamFileString.cs" />
     <Compile Include="src\Filters\RedistributionFilter.cs" />
     <Compile Include="src\GUI\GUIMore.cs">
