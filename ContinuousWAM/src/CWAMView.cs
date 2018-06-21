@@ -78,7 +78,9 @@ namespace continuousWAM {
         private glFreeTypeFont scoreFont = new glFreeTypeFont();
 		private glFreeTypeFont fixationFont = new glFreeTypeFont();
 		private glFreeTypeFont countdownFont = new glFreeTypeFont();
-		private int score = 0;									            
+		private int score = 0;
+        private int scoreEscape = 0;
+        private bool seperateEscapes = false;
 
         // general UNP variables
         private bool showConnectionLost = false;
@@ -118,7 +120,7 @@ namespace continuousWAM {
             fixationFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 10), "+");
 
             // initialize the score font
-            scoreFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 30), "Score: 0123456789%");
+            scoreFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 30), "EscapeScore: 0123456789%");
 
             // lock for textures events (thread safety)
             lock(textureLock) {
@@ -306,72 +308,81 @@ namespace continuousWAM {
 
             if(showScore) {
 
-                // print score (accuracy)
+                // print score (accuracy) and escpae score if required
                 glColor3(1f, 1f, 1f);
-                scoreFont.printLine(getContentWidth() - scoreFont.height * 9, 5, ("Score: " + score + "%"));
+                scoreFont.printLine(getContentWidth() - scoreFont.height * 10, 5, ("Score: " + score + "%"));
+                if(seperateEscapes) scoreFont.printLine(scoreFont.height * 2, 5, ("EscapeScore: " + scoreEscape + "%"));
 
                 // get offsets
                 int x = scoreGridOffsetX;
                 int y = scoreGridOffsetY;
 
+                // create new list from posAndNegs list (to prevent referencing the same object), remove true negatives (we don't want to plot these), and use this list for plotting
+                List<continuousWAM.scoreTypes> scoreList = new List<continuousWAM.scoreTypes>(posAndNegs);
+                scoreList.RemoveAll(item => item == continuousWAM.scoreTypes.TrueNegative);
+
                 // determine at which index to begin plotting the scores (it is possible that there are more scores than can fit on screen (scoreRows * scoreCellsPerRow fit on screen), so when screen is full, only new scores are plotted
-                int index = (int)Math.Floor(posAndNegs.Count / (double)totalScoresOnScreen) * totalScoresOnScreen;
+                int index = (int)Math.Floor(scoreList.Count / (double)totalScoresOnScreen) * totalScoresOnScreen;
 
                 // loop through the scores and plot
-                for (int i = index; i < posAndNegs.Count; i++) {
+                for (int i = index; i < scoreList.Count; i++) {
 
-                    // to determine if was false or true
-                    bool correct = false;
+                    // plot anything but true negatives
+                    if (scoreList[i] != continuousWAM.scoreTypes.TrueNegative) {
 
-                    // set white color for drawing
-                    glColor3(1f, 1f, 1f);
+                        // to determine if was false or true
+                        bool correct = false;
 
-                    // set texture
-                    if (posAndNegs[i] == continuousWAM.scoreTypes.FalseNegative)            glBindTexture2D(moleLaughTexture);
-                    else if (posAndNegs[i] == continuousWAM.scoreTypes.FalsePositive)       glBindTexture2D(holeTexture);
-                    else if (posAndNegs[i] == continuousWAM.scoreTypes.TruePositive)        { glBindTexture2D(moleWhackedTexture); correct = true; }
-                    else if (posAndNegs[i] == continuousWAM.scoreTypes.TruePositiveEscape)  { glBindTexture2D(escapeTexture); correct = true; } 
-                    else if (posAndNegs[i] == continuousWAM.scoreTypes.FalseNegativeEscape) glBindTexture2D(escapeTexture);
+                        // set white color for drawing
+                        glColor3(1f, 1f, 1f);
 
-                    else return;
+                        // set texture
+                        if (scoreList[i] == continuousWAM.scoreTypes.FalseNegative) glBindTexture2D(moleLaughTexture);
+                        else if (scoreList[i] == continuousWAM.scoreTypes.FalsePositive) glBindTexture2D(holeTexture);
+                        else if (scoreList[i] == continuousWAM.scoreTypes.TruePositive) { glBindTexture2D(moleWhackedTexture); correct = true; } 
+                        else if (scoreList[i] == continuousWAM.scoreTypes.TruePositiveEscape) { glBindTexture2D(escapeTexture); correct = true; } 
+                        else if (scoreList[i] == continuousWAM.scoreTypes.FalseNegativeEscape) glBindTexture2D(escapeTexture);
+                        else return;
 
-                    // draw hole
-                    glBeginTriangles();
+                        // draw hole
+                        glBeginTriangles();
 
-                        // vertex 0
-                        glTexCoord2(1.0f, 1.0f);
-                        glVertex3(x + scoreCellWidth, y + scoreCellHeight, 0.0f);
+                            // vertex 0
+                            glTexCoord2(1.0f, 1.0f);
+                            glVertex3(x + scoreCellWidth, y + scoreCellHeight, 0.0f);
 
-                        glTexCoord2(1.0f, 0.0f);
-                        glVertex3(x + scoreCellWidth, y, 0.0f);
+                            glTexCoord2(1.0f, 0.0f);
+                            glVertex3(x + scoreCellWidth, y, 0.0f);
 
-                        glTexCoord2(0.0f, 0.0f);
-                        glVertex3(x, y, 0.0f);
+                            glTexCoord2(0.0f, 0.0f);
+                            glVertex3(x, y, 0.0f);
 
-                        //vertex 1
-                        glTexCoord2(0.0f, 1.0f);
-                        glVertex3(x, y + scoreCellHeight, 0.0f);
+                            //vertex 1
+                            glTexCoord2(0.0f, 1.0f);
+                            glVertex3(x, y + scoreCellHeight, 0.0f);
 
-                        glTexCoord2(1.0f, 1.0f);
-                        glVertex3(x + scoreCellWidth, y + scoreCellHeight, 0.0f);
+                            glTexCoord2(1.0f, 1.0f);
+                            glVertex3(x + scoreCellWidth, y + scoreCellHeight, 0.0f);
 
-                        glTexCoord2(0.0f, 0.0f);
-                        glVertex3(x, y, 0.0f);
+                            glTexCoord2(0.0f, 0.0f);
+                            glVertex3(x, y, 0.0f);
 
-                    glEnd();
+                        glEnd();
 
-                    // set color for border, indicating false of true positive or negative
-                    float colorR = 1, colorG = 0, colorB = 0;
-                    if (correct) { colorR = 0; colorG = 1; colorB = 0; }
+                        // set color for border, indicating false of true positive or negative
+                        float colorR = 1, colorG = 0, colorB = 0;
+                        if (correct) { colorR = 0; colorG = 1; colorB = 0; }
 
-                    // draw colored border
-                    drawRectangle(x, y, (x + scoreCellWidth), (y + scoreCellHeight), 5, colorR, colorG, colorB);
+                        // draw colored border
+                        drawRectangle(x, y, (x + scoreCellWidth), (y + scoreCellHeight), 5, colorR, colorG, colorB);
 
-                    // update x and y coordinates for plotting next scoreItem
-                    x = x + scoreCellWidth + spacing;
-                        if( (x + scoreCellWidth + spacing) > getContentWidth()) {
+                        // update x and y coordinates for plotting next scoreItem
+                        x = x + scoreCellWidth + spacing;
+                        if ((x + scoreCellWidth + spacing) > getContentWidth()) {
                             y = y + scoreCellHeight + spacing;
                             x = scoreGridOffsetX;
+                        }
+
                     }
 
                 }
@@ -458,9 +469,10 @@ namespace continuousWAM {
 	        showGrid = visible;	
         }
 
-        public void setScore(List<continuousWAM.scoreTypes> posAndNegs, int score) {
+        public void setScore(List<continuousWAM.scoreTypes> posAndNegs, int score, int scoreEscape) {
             this.posAndNegs = posAndNegs;
             this.score = score;
+            this.scoreEscape = scoreEscape;
         }
 
         public void setEscape(bool visible) {
@@ -533,10 +545,11 @@ namespace continuousWAM {
 
 	        // set the x and y offset
 	        holeOffsetX =  (getContentWidth() - holeColumns * holeSize - spacing * (holeColumns+1)) / 2;
-	        holeOffsetY =  (getContentHeight() - holeRows * holeSize - spacing * (holeRows+1)) / 2;
-	
-	        // Loop through the holes
-	        for(int i = 0; i < cells.Count; i++) {
+            //holeOffsetY =  (getContentHeight() - holeRows * holeSize - spacing * (holeRows+1)) / 2;
+            holeOffsetY = (int)Math.Ceiling(getContentHeight() / 4.0);
+
+            // Loop through the holes
+            for (int i = 0; i < cells.Count; i++) {
 
 		        // calculate the row and column index (0 based)
 		        int row = (int)Math.Floor((double)(i / holeColumns));
@@ -564,21 +577,16 @@ namespace continuousWAM {
             
             // calculate the max height of the cells, and set max width equal to this height:
             // height of the viewport minus height of mole cell divided by two gives space underneath mole grid. Minus spacing needed and divided by max amount of rows gives maximum cell height
-            maxScoreCellHeight = (int)Math.Round((((getContentHeight() - holes[0].height) / 2.0) - ((maxScoreRows + 1) * spacing)) / maxScoreRows);
+            //maxScoreCellHeight = (int)Math.Round((((getContentHeight() - holes[0].height) / 2.0) - ((maxScoreRows + 1) * spacing)) / maxScoreRows);
+            maxScoreCellHeight = (int)Math.Round(((getContentHeight() / 2.0) - (((maxScoreRows + 1) * spacing)) + 3*spacing) / maxScoreRows);
             maxScoreCellWidth = maxScoreCellHeight;
 
             // calculate the amount of rows, making score cells as large as possible for readability.
             // expect amount of score cells to be equal to two times the amount of moles, to allow space for each TP and FN to be logged, and an expected equal amount of FP's
             scoreRows = Math.Min(maxScoreRows, (int)Math.Ceiling(((spacing + maxScoreCellWidth) * ((numberOfMoles + numberOfEscapes) * 2.0)) / (getContentWidth() - (spacing * maxScoreRows))));
 
-
-            // calculate score cells per row and total amount that fit on screen
+            // calculate desired amount of score cells per row 
             scoreCellsPerRow = (int)Math.Ceiling(((numberOfMoles + numberOfEscapes) * 2.0) / scoreRows);
-            
-
-
-
-            
 
             // calculate final width and height of cell, based on amount of scoreRows
             scoreCellWidth = (int)Math.Floor((getContentWidth() - ((scoreCellsPerRow + 1.0) * spacing)) / scoreCellsPerRow);
@@ -602,7 +610,8 @@ namespace continuousWAM {
 
             // set offsets
             scoreGridOffsetX = spacing;
-            scoreGridOffsetY = (int)Math.Ceiling(((getContentHeight() + holes[0].height) / 2.0) +spacing);
+            //scoreGridOffsetY = (int)Math.Ceiling(((getContentHeight() + holes[0].height) / 2.0) +spacing);
+            scoreGridOffsetY = (int)Math.Ceiling(getContentHeight() /2.0) + 3*spacing;
         }
 
         public void viewScore(bool show) {
@@ -620,6 +629,10 @@ namespace continuousWAM {
 	        showCountDown = count;
         }
 
+        public void setSeperateEscScore(bool show) {
+            seperateEscapes = show;
+        }
+        
         public bool resourcesLoaded() {
             return isStarted();		    // in this task resources are loaded upon initialization of the scene (not on the fly during the scene loop), so this suffices
         }

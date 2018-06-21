@@ -49,6 +49,7 @@ namespace continuousWAM {
             TruePositive,
             FalsePositive,
             FalseNegative,
+            TrueNegative,
             TruePositiveEscape,
             FalseNegativeEscape
         };
@@ -118,6 +119,9 @@ namespace continuousWAM {
         private int currentCueIndex = 0;						                    // specify the position in the random sequence of trials
         private int countdownCounter = 0;					                        // the countdown timer
         private int score = 0;						                                // the score of the user hitting a mole
+        private int scoreEscape = 0;						                        // the score of the user creating escapes
+        private int scoreType = 0;
+        private bool seperateEscapes = false;
         private List<scoreTypes> posAndNegs = new List<scoreTypes>(0);                  // list holding the different scores aggregated
 
         // computer help mode
@@ -136,7 +140,7 @@ namespace continuousWAM {
         private scoreTypes decreaseType = scoreTypes.FalseNegative;
         private dynamic localParamCopy = null;
         private int addInfo = 0;
-        private int stopAfterCorrect = 0;
+        private int stopOrUpdateAfterCorrect = 0;
         private int currentCorrect = 0;
         private double stepSize = 0;                                                // stepsize with which the dynamic parameter is being adjusted per step
 
@@ -219,8 +223,8 @@ namespace continuousWAM {
                 "0", "", "5");
 
             parameters.addParameter<int>(
-               "StopAfterCorrect",
-               "Only in Dynamic Mode: after how many correct responses in a row the task will end. Set to 0 to not end task based on amount of correct responses",
+               "StopOrUpdateAfterCorrect",
+               "Only in Dynamic Mode: for dynamic parameters 1-4 this parameter determines after how many correct responses in a row the task will end. Set to 0 to not end task based on amount of correct responses. \n For parameter 5, this parameter determines after how many consecutive true positives or false negatives the parameter is adjusted. Setting to 0 is not allowed in this case.",
                "0", "", "1");
 
             parameters.addParameter<int>(
@@ -291,6 +295,16 @@ namespace continuousWAM {
             parameters.addParameter<bool>(
                 "ShowScore",
                 "Enable/disable showing of scoring",
+                "1");
+
+            parameters.addParameter<int>(
+                "ScoreType",
+                "Type of scoring used. 1: Score = TP/(TP+FP+FN) 2: Score = (TP+TN)/(TP+TN+FP+FN)",
+                "1", "", "1");
+
+            parameters.addParameter<bool>(
+                "ShowEscapeScoreSeperate",
+                "If enabled, shows scores for presented escapes seperately/",
                 "1");
 
         }
@@ -428,8 +442,14 @@ namespace continuousWAM {
                 return false;
             }
 
-            // retrieve whether to show score
+            // retrieve whether to show score, how to calculate score, and whether to show the escape score seperate
             showScore = newParameters.getValue<bool>("ShowScore");
+            scoreType = newParameters.getValue<int>("ScoreType");
+            if (!(scoreType == 1 || scoreType == 2)) {
+                logger.Error("Only score types 1 and 2 can be used.");
+                return false;
+            }
+            seperateEscapes = newParameters.getValue<bool>("ShowEscapeScoreSeperate");
 
             // retrieve (fixed) trial sequence
             fixedTrialSequence = newParameters.getValue<int[]>("TrialSequence");
@@ -471,19 +491,22 @@ namespace continuousWAM {
             // retrieve parameters for dynamic mode 
             dynamicParameter = newParameters.getValue<int>("DynamicParameter");
             stepSize = newParameters.getValue<double>("Stepsize");
-            stopAfterCorrect = newParameters.getValue<int>("StopAfterCorrect");
+            stopOrUpdateAfterCorrect = newParameters.getValue<int>("StopOrUpdateAfterCorrect");
 
             // perform checks on parameters for dynamic mode, if mode is set to dynamic mode
             if (taskMode == 3) {
 
                 // amount of correct responses should be positive, but less than total amount of moles presented         
-                if (stopAfterCorrect < 0 || stopAfterCorrect > numberOfMoles) {
+                if (stopOrUpdateAfterCorrect < 0 || stopOrUpdateAfterCorrect > numberOfMoles) {
                     logger.Error("The required amount of correct responses to end the task needs to be larger than 0, and less than the total amount of moles presented.");
+                    return false;
+                } else if (stopOrUpdateAfterCorrect == 0 && taskMode == 3 && dynamicParameter == 5) {
+                    logger.Error("When adjusting parameter 5 in dynamic mode, the parameter stopOrUpdateAfterCorrect can not be 0, as this would result in never updating the parameter.");
                     return false;
                 }
 
-                // stepsize needs to be positive, but below 100%
-                if (stepSize < 1 || stepSize > 100) {
+                    // stepsize needs to be positive, but below 100%
+                    if (stepSize < 1 || stepSize > 100) {
                     logger.Error("Stepsize can not be below 0% or above 100%");
                     return false;
                 }
@@ -571,6 +594,7 @@ namespace continuousWAM {
             view.setFixation(false);                                            // hide the fixation
             view.setCountDown(-1);                                              // hide the countdown
             view.viewScore(showScore);                                          // show/hide score according to parameter setting
+            view.setSeperateEscScore(seperateEscapes);                          // whether escape score is presented seperately
 
             // initialize the holes for the scene
             view.initGridPositions(holes, holeRows, holeColumns, 10);
@@ -609,11 +633,12 @@ namespace continuousWAM {
                 // log event task is started
                 Data.logEvent(2, "TaskStart", CLASS_NAME);
 
-                // reset the score
+                // reset the score, and positive and negative list
                 score = 0;
-
-	            // reset countdown to the countdown time
-	            countdownCounter = countdownTime;
+                posAndNegs.Clear();
+                
+                // set countdown to the countdown time
+                countdownCounter = countdownTime;
 
 	            if(taskStartDelay != 0 || taskFirstRunStartDelay != 0) {
 
@@ -793,7 +818,7 @@ namespace continuousWAM {
                         // if in computer help mode and we are not moving on to next column, combine click with computer help (no-)click
                         if (taskMode == 2 && waitCounter != 0) {
 
-                            logger.Info("At sample " + waitCounter + " in this column the click is: " + click);
+                            
 
                             // get computer help click or no click
                             bool helpclick = helpClickVector[columnSelectDelay - waitCounter];
@@ -809,10 +834,11 @@ namespace continuousWAM {
                                 else            clickTranslator.setRefractoryPeriod(false);
                             }
 
+                            logger.Info("At sample " + waitCounter + " in this column the click is: " + click + "and is adjusted to: " + newClick);
+
                             // set click to adjusted click
                             click = newClick;
-
-                            logger.Info("and is adjusted to: " + click);
+                            
                         }
 
                         // if clicked
@@ -839,8 +865,11 @@ namespace continuousWAM {
                                     // if in dynamic mode, adjust dynamic parameter and check if we need to stop task because enough correct responses have been given
                                     if (taskMode == 3) updateParameter();
 
-                                // if no mole was missed, go to next cell and reset time 
+                                // if no mole was missed, store a true negative, go to next cell and reset time 
                                 } else {
+
+                                    // store true negative
+                                    posAndNegs.Add(scoreTypes.TrueNegative);
 
                                     // advance to next cell
                                     currentColumnID++;
@@ -1048,12 +1077,12 @@ namespace continuousWAM {
             scoreTypes lastScore = posAndNegs[posAndNegs.Count - 1];
 
             // check if we need to end task because enough correct responses have been given
-            if (dynamicParameter != 5 && stopAfterCorrect != 0) {
+            if (dynamicParameter != 5 && stopOrUpdateAfterCorrect != 0) {
 
-                if (lastScore == scoreTypes.TruePositive)                                                   currentCorrect++;
-                else if (lastScore == scoreTypes.FalsePositive || lastScore == scoreTypes.FalseNegative)    currentCorrect = 0;
+                if (lastScore == increaseType)                                                   currentCorrect++;
+                else if (lastScore == scoreTypes.FalsePositive || lastScore == decreaseType)    currentCorrect = 0;
 
-                if (currentCorrect >= stopAfterCorrect) {
+                if (currentCorrect >= stopOrUpdateAfterCorrect) {
                     setState(TaskStates.EndText);
                     logger.Info("Ending task because set amount of correct responses in a row have been reached.");
                     return;
@@ -1108,26 +1137,33 @@ namespace continuousWAM {
 
                         break;
 
-                    default:
-                        if (dynamicParameter != 5) {
-                            logger.Error("Non-existing dynamic parameter ID encountered. Check code.");
-                            return;
-                        }
+                    // dynamic parameter: columnSelectDelay
+                    case 5:
+                        filter = "";
+                        param = "ColumnSelectDelay";
+                        paramType = "int";
+                        increaseType = scoreTypes.FalseNegative;
+                        decreaseType = scoreTypes.TruePositive;
 
+                        break;
+
+                    default:
+                        logger.Error("Non-existing dynamic parameter ID encountered. Check code.");
+                                             
                         break;
                 }
 
-                // if there is a filter to update
-                if (filter != "") {
-
+                // if there is a parameter to update, retrieve current value for this parameter from filter (except for columnSelectDelay, which is stored locally)
+                if (param != "" && dynamicParameter != 5) {
+                    
                     // retrieve parameter set from given filter
                     dynamicParameterSet = MainThread.getFilterParametersClone(filter);
-                    
+
                     // retrieve value for given parameter and store local copy    
-                    if      (paramType == "double")     localParamCopy = dynamicParameterSet.getValue<double>(param);
+                    if (paramType == "double")          localParamCopy = dynamicParameterSet.getValue<double>(param);
                     else if (paramType == "double[]")   localParamCopy = dynamicParameterSet.getValue<double[]>(param);
                     else if (paramType == "double[][]") localParamCopy = dynamicParameterSet.getValue<double[][]>(param);
-                    else if (paramType == "samples")    localParamCopy = dynamicParameterSet.getValueInSamples(param);   
+                    else if (paramType == "samples")    localParamCopy = dynamicParameterSet.getValueInSamples(param);               
                 }
 
                 // prevent from retrieving value from parameter set again
@@ -1166,16 +1202,20 @@ namespace continuousWAM {
                 logger.Info("localVar:" + localParamCopy);
             }
 
-            // update dynamic paramter 5 if needed, is done seperately, because it is a local variable
+            // update dynamic parameter 5 if needed, is done seperately, because it is a local variable
             if (dynamicParameter == 5) {
 
+                logger.Info(param + " " + columnSelectDelay);
 
-                logger.Info("ColumnSelectDelay" + columnSelectDelay);
-
-                if      (lastScore == scoreTypes.FalseNegative) columnSelectDelay = (int)Math.Round(columnSelectDelay * (1 + (stepSize / 100)));
-                else if (lastScore == scoreTypes.TruePositive)  columnSelectDelay = (int)Math.Round(columnSelectDelay * (1 - (stepSize / 100)));
-
-                logger.Info("ColumnSelectDelay" + columnSelectDelay);
+                if (lastScore == scoreTypes.FalseNegative) columnSelectDelay = (int)Math.Round(columnSelectDelay * (1 + (stepSize / 100)));
+                else if (lastScore == scoreTypes.TruePositive) {
+                    currentCorrect++;
+                    if (currentCorrect >= 3) {
+                        columnSelectDelay = (int)Math.Round(columnSelectDelay * (1 - (stepSize / 100)));
+                        currentCorrect = 0;
+                    }
+                }
+                logger.Info(param + " " + columnSelectDelay);
             }
         }
 
@@ -1186,20 +1226,38 @@ namespace continuousWAM {
             double tp = 0;
             double fp = 0;
             double fn = 0;
+            double tn = 0;
+            double tpEsc = 0;
+            double fnEsc = 0;
 
             // cycle through list and count (true and false) positives and negatives
             for(int i=0; i < posAndNegs.Count; i++) {
-                if (posAndNegs[i] == scoreTypes.TruePositive || posAndNegs[i] == scoreTypes.TruePositiveEscape) tp++;
+                if      (posAndNegs[i] == scoreTypes.TruePositive) tp++;
                 else if (posAndNegs[i] == scoreTypes.FalsePositive) fp++;
-                else if (posAndNegs[i] == scoreTypes.FalseNegative || posAndNegs[i] == scoreTypes.FalseNegativeEscape) fn++;
+                else if (posAndNegs[i] == scoreTypes.TrueNegative) tn++;
+                else if (posAndNegs[i] == scoreTypes.FalseNegative) fn++;
+                else if (posAndNegs[i] == scoreTypes.TruePositiveEscape) tpEsc++;
+                else if (posAndNegs[i] == scoreTypes.FalseNegativeEscape) fnEsc++;
             }
 
-            // calculate score
-            if (tp + fp + fn > 0) score = (int)Math.Floor((tp / (tp + fp + fn)) * 100.0);
+            // if we are not using seperate escape scoring, we also count tpEsc and fnEsc as tp's and fn's, respectively
+            if (!seperateEscapes) {
+                tp = tp + tpEsc;
+                fn = fn + fnEsc;
+            }
+
+            // calculate score, based on required scoreType
+            if (scoreType == 1)         if (tp + fp + fn > 0)       score = (int)Math.Floor((tp / (tp + fp + fn)) * 100.0);
+            else if (scoreType == 2)    if (tp + tn + fp + fn > 0)  score = (int)Math.Floor(((tp + tn) / (tp + tn + fp + fn)) * 100.0);
+            else                        logger.Error("Undefined score type, check code");
+
+            // calculate escapeScore
+            if (tpEsc + fnEsc > 0)      scoreEscape = (int)Math.Floor((tpEsc / (tpEsc + fnEsc)) * 100.0);
 
             // push to view
-            view.setScore(posAndNegs, score);
-        }
+            view.setScore(posAndNegs, score, scoreEscape);
+
+        } 
 
         private void setState(TaskStates state) {
 
@@ -1223,6 +1281,7 @@ namespace continuousWAM {
 			        // hide countdown, selection, mole and score
                     view.selectRow(-1, false);
                     view.setGrid(false);
+                    view.viewScore(false);
 
                     // Set wait counter to startdelay
                     if (taskFirstRunStartDelay != 0) {
@@ -1274,29 +1333,47 @@ namespace continuousWAM {
 
                         // create empty click vector, length equal to the amount of samples a column is selected, all default to no-click (false)
                         helpClickVector = new List<bool>(new bool[columnSelectDelay]);
-                        
-                        // temp vars to hold amount of clicks and no-clicks
-                        int amountHelpClicks = 0;
-                        int amountHelpNoClicks = 0;
 
-                        // determine amount of help clicks and help no-clicks
-                        if (containsMole) {
-                            amountHelpClicks = (int)Math.Floor(columnSelectDelay * (posHelpPercentage / 100.0));
-                            amountHelpNoClicks = columnSelectDelay - amountHelpClicks;
-                        } else {
+                        // create negative help vector
+                        if (!containsMole) {
+
+                            // temp vars to hold amount of clicks and no-clicks
+                            int amountHelpClicks = 0;
+                            int amountHelpNoClicks = 0;
+
+                            // determine amount of help clicks and help no-clicks
                             amountHelpNoClicks = (int)Math.Floor(columnSelectDelay * (negHelpPercentage / 100.0));
                             amountHelpClicks = columnSelectDelay - amountHelpNoClicks;
+
+                            logger.Error("helpClicks: " + amountHelpClicks + "helpNoClicks" + amountHelpNoClicks);
+
+                            // adjust the help click vector by inserting the amount of clicks needed 
+                            for (int i = Math.Max(0, amountHelpNoClicks); i < columnSelectDelay; i++) helpClickVector[i] = true;
+
+                            // shuffle the vector to create new semi-random, semi-evenly divided vector
+                            shuffleHelpVector(false);
+
+                        } else {
+
+                            // create linearly increasing help vector
+                            Random rng = new Random();
+                            for (int i = 0; i < columnSelectDelay; i++) {
+
+                                // create increasing threshold, to level of helppercentage
+                                double thresh = ((double)i / (double)(columnSelectDelay-1)) * (double)posHelpPercentage;
+
+                                // create random number between 1 and 100 
+                                int p = rng.Next(1, 100);
+
+                                logger.Info("Threhsold: " + thresh + " and p: " + p);
+
+                                // if number is smaller than threshold, set help to true
+                                if (p < thresh) helpClickVector[i] = true;
+                               
+                            }
+
                         }
-
-                        logger.Error("helpClicks: " + amountHelpClicks + "helpNoClicks" + amountHelpNoClicks);
-
-                        // adjust the help click vector by inserting the amount of clicks needed 
-                        for (int i = Math.Max(0, amountHelpNoClicks); i < columnSelectDelay; i++) helpClickVector[i] = true;
-
-                        // shuffle the vector to create new semi-random, semi-evenly divided vector, or increasingly in the case of containsMole (to prevent the help to click early)
-                        if (containsMole)   shuffleHelpVector(true);
-                        else                shuffleHelpVector(false);
-
+                        
                         // debug
                         String helpClStr = "";
                         for(int i = 0; i < helpClickVector.Count; i++) {
@@ -1354,6 +1431,9 @@ namespace continuousWAM {
         private void stopTask() {
             if (view == null)   return;
 
+            // give feedback on final value of dynamic parameter when in dynamic mode
+            if (taskMode == 3 && localParamCopy != null) logger.Info("Final value " + param + ": " + localParamCopy);
+            
             // Set state to Wait
             setState(TaskStates.Wait);
 
