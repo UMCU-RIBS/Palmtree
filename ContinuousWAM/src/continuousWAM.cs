@@ -855,6 +855,9 @@ namespace continuousWAM {
                                     // store false negative
                                     posAndNegs.Add(scoreTypes.FalseNegative);
 
+                                    // sotre as event
+                                    Data.logEvent(2, "FalseNegative", CLASS_NAME);
+
                                     // increase cue index
                                     currentCueIndex++;
 
@@ -868,8 +871,10 @@ namespace continuousWAM {
                                 // if no mole was missed, store a true negative, go to next cell and reset time 
                                 } else {
 
-                                    // store true negative
+                                    // store true negative and event
                                     posAndNegs.Add(scoreTypes.TrueNegative);
+                                    Data.logEvent(2, "TrueNegative", CLASS_NAME);
+
 
                                     // advance to next cell
                                     currentColumnID++;
@@ -895,8 +900,9 @@ namespace continuousWAM {
                             // if mole is selected, store true positive
                             if (currentMoleIndex == holeColumns * currentRowID + currentColumnID) {
 
-                                // store true positive
+                                // store true positive and log event
                                 posAndNegs.Add(scoreTypes.TruePositive);
+                                Data.logEvent(2, "TruePositive", CLASS_NAME);
 
                                 // go to next trial in the sequence and set mole and selectionbox
                                 currentCueIndex++;
@@ -922,8 +928,9 @@ namespace continuousWAM {
                             // no hit, store false positive
                             } else {
 
-                                // store false positive
+                                // store false positive and event
                                 posAndNegs.Add(scoreTypes.FalsePositive);
+                                Data.logEvent(2, "FalsePositive", CLASS_NAME);
 
                                 // start again selecting rows from the top
                                 setState(TaskStates.ColumnSelect);
@@ -943,9 +950,14 @@ namespace continuousWAM {
                         // if escape cue has been presented for the complete duration, log false negative and go to next mole or escape
                         if (waitCounter == 0 || keySequenceActive) {
 
-                            // store or true positive or false negative depending on whether an escape sequence was made
-                            if (keySequenceActive)  posAndNegs.Add(scoreTypes.TruePositiveEscape);
-                            else                    posAndNegs.Add(scoreTypes.FalseNegativeEscape);
+                            // store or true positive or false negative depending on whether an escape sequence was made, and store events
+                            if (keySequenceActive) {
+                                posAndNegs.Add(scoreTypes.TruePositiveEscape);
+                                Data.logEvent(2, "TruePositiveEscape", CLASS_NAME);
+                            } else {
+                                posAndNegs.Add(scoreTypes.FalseNegativeEscape);
+                                Data.logEvent(2, "FalseNegativeEscape", CLASS_NAME);
+                            }
 
                             // remove escape cue
                             view.setEscape(false);
@@ -1319,7 +1331,7 @@ namespace continuousWAM {
 
                     logger.Info("In state escape");
 
-                    Data.logEvent(2, "Escape presented", "");
+                    // Data.logEvent(2, "Escape presented", "");
                     waitCounter = escapeDuration;
 
                     break;
@@ -1389,8 +1401,8 @@ namespace continuousWAM {
                     view.selectCell(currentRowID, currentColumnID, false);
 
                     // log event that column is highlighted, and whether the column is empty(no mole), blank(no mole and no pile of dirt), or contains a mole
-                    if(containsMole)    Data.logEvent(2, "MoleColumn ", currentColumnID.ToString());
-                    else                Data.logEvent(2, "EmptyColumn ", currentColumnID.ToString());
+                    //if(containsMole)    Data.logEvent(2, "MoleColumn ", currentColumnID.ToString());
+                    //else                Data.logEvent(2, "EmptyColumn ", currentColumnID.ToString());
 
                     // set waitcounter
 			        waitCounter = columnSelectDelay;
@@ -1404,8 +1416,8 @@ namespace continuousWAM {
 			        view.selectCell(currentRowID, currentColumnID, true);
 
                     // log cell click event
-                    if (currentMoleIndex == holeColumns * currentRowID + currentColumnID)   Data.logEvent(2, "CellClick", "1");
-                    else                                                                    Data.logEvent(2, "CellClick", "0");
+                    //if (currentMoleIndex == holeColumns * currentRowID + currentColumnID)   Data.logEvent(2, "CellClick", "1");
+                    //else                                                                    Data.logEvent(2, "CellClick", "0");
 
                     // set wait time before advancing
                     waitCounter = columnSelectedDelay;
