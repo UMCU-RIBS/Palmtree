@@ -264,12 +264,12 @@ namespace continuousWAM {
 
             parameters.addParameter<int>(
                 "MinimalMoleDistance",
-                "Minimal amount of cells between appearing mole and currently selected cell",
+                "Minimal distance, expressed in cells, from currently selected cell to appearing mole",
                 "1", "", "3");
 
             parameters.addParameter<int>(
                "MaximalMoleDistance",
-               "Maximal amount of cells between appearing mole and currently selected cell",
+               "Maximal distance, expressed in cells, from currently selected cell to appearing mole",
                "1", "", "8");
 
             parameters.addParameter<int>(
@@ -1247,9 +1247,11 @@ namespace continuousWAM {
             }
 
             // calculate score, based on required scoreType
-            if (scoreType == 1)         if (tp + fp + fn > 0)       score = (int)Math.Floor((tp / (tp + fp + fn)) * 100.0);
-            else if (scoreType == 2)    if (tp + tn + fp + fn > 0)  score = (int)Math.Floor(((tp + tn) / (tp + tn + fp + fn)) * 100.0);
-            else                        logger.Error("Undefined score type, check code");
+            if (scoreType == 1) {
+                if (tp + fp + fn > 0) score = (int)Math.Floor((tp / (tp + fp + fn)) * 100.0);
+            } else if (scoreType == 2) {
+                if (tp + tn + fp + fn > 0) score = (int)Math.Floor(((tp + tn) / (tp + tn + fp + fn)) * 100.0);
+            } else logger.Error("Undefined score type, check code");
 
             // calculate escapeScore
             if (tpEsc + fnEsc > 0)      scoreEscape = (int)Math.Floor((tpEsc / (tpEsc + fnEsc)) * 100.0);
