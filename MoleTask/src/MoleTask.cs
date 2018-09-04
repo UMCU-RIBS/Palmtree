@@ -1006,9 +1006,12 @@ namespace MoleTask {
 			        view.selectRow(currentRowID, false);
 
                     // log event that row is highlighted, and whether the row is empty (no mole), blank (no mole and no pile of dirt), or contains a mole
-                    if (currentRowID == 0) Data.logEvent(2, "BlankRow ", currentRowID.ToString());
-                    else if (currentRowID * holeColumns < currentMoleIndex && (currentRowID + 1) * holeColumns > currentMoleIndex) Data.logEvent(2, "MoleRow ", currentRowID.ToString());
-                    else Data.logEvent(2, "EmptyRow ", currentRowID.ToString());
+                    if (currentRowID == 0)
+                        Data.logEvent(2, "BlankRow ", currentRowID.ToString());
+                    else if (currentRowID * holeColumns < currentMoleIndex && (currentRowID + 1) * holeColumns > currentMoleIndex)
+                        Data.logEvent(2, "MoleRow ", currentRowID.ToString());
+                    else
+                        Data.logEvent(2, "EmptyRow ", currentRowID.ToString());
 
                     // 
                     mWaitCounter = mRowSelectDelay;

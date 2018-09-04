@@ -135,10 +135,11 @@ namespace continuousWAM {
         private string filter = "";
         private string param = "";
         private Parameters dynamicParameterSet = null;
+        private Parameters originalParameterSet = null;
         private string paramType = null;
         private scoreTypes increaseType = scoreTypes.FalsePositive;
         private scoreTypes decreaseType = scoreTypes.FalseNegative;
-        private dynamic localParamCopy = null;
+        private dynamic localParam = null;
         private int addInfo = 0;
         private int stopOrUpdateAfterCorrect = 0;
         private int currentCorrect = 0;
@@ -205,7 +206,7 @@ namespace continuousWAM {
             parameters.addParameter<int>(
                "PositiveHelpPercentage",
                "Only in CWAM with computer help: percentage of samples during cell selection that will be corrected if a false negative no-click is made during that sample",
-               "0", "", "40");
+               "0", "", "5");
 
             parameters.addParameter<int>(
                "NegativeHelpPercentage",
@@ -219,7 +220,7 @@ namespace continuousWAM {
 
             parameters.addParameter<double>(
                 "Stepsize",
-                "Only in Dynamic Mode: stepsize with which dynamic parameter is adjusted per step, relative to current value of paramter, in %",
+                "Only in Dynamic Mode: absolute stepsize with which dynamic parameter is adjusted per step",
                 "0", "", "5");
 
             parameters.addParameter<int>(
@@ -477,7 +478,7 @@ namespace continuousWAM {
                 // retrieve help percentages
                 posHelpPercentage = newParameters.getValue<int>("PositiveHelpPercentage");
                 negHelpPercentage = newParameters.getValue<int>("NegativeHelpPercentage");
-                if (posHelpPercentage < 1 || posHelpPercentage > 100 || negHelpPercentage < 1 || negHelpPercentage > 100) {
+                if (posHelpPercentage < 0 || posHelpPercentage > 100 || negHelpPercentage < 0 || negHelpPercentage > 100) {
                     logger.Error("Positive and negative help percentages can not be below 0% or above 100%");
                     return false;
                 }
@@ -502,12 +503,6 @@ namespace continuousWAM {
                     return false;
                 } else if (stopOrUpdateAfterCorrect == 0 && taskMode == 3 && dynamicParameter == 5) {
                     logger.Error("When adjusting parameter 5 in dynamic mode, the parameter stopOrUpdateAfterCorrect can not be 0, as this would result in never updating the parameter.");
-                    return false;
-                }
-
-                    // stepsize needs to be positive, but below 100%
-                    if (stepSize < 1 || stepSize > 100) {
-                    logger.Error("Stepsize can not be below 0% or above 100%");
                     return false;
                 }
 
@@ -636,11 +631,11 @@ namespace continuousWAM {
                 // reset the score, and positive and negative list
                 score = 0;
                 posAndNegs.Clear();
-                
-                // set countdown to the countdown time
-                countdownCounter = countdownTime;
 
-	            if(taskStartDelay != 0 || taskFirstRunStartDelay != 0) {
+                // set countdown to the countdown time
+                countdownCounter = countdownTime == 0 ? countdownTime : countdownTime - 1;
+
+                if (taskStartDelay != 0 || taskFirstRunStartDelay != 0) {
 
 		            // set state to wait
 		            setState(TaskStates.Wait);
@@ -649,9 +644,9 @@ namespace continuousWAM {
                     view.setFixation(true);
 
 	            } else {
-			
-		            // countdown
-		            setState(TaskStates.CountDown);
+
+                    // countdown
+                    setState(TaskStates.CountDown);
 
 	            }
 
@@ -815,13 +810,14 @@ namespace continuousWAM {
                         // get whether the current column contains a mole
                         bool containsMole = currentMoleIndex == holeColumns * currentRowID + currentColumnID;
 
-                        // if in computer help mode and we are not moving on to next column, combine click with computer help (no-)click
-                        if (taskMode == 2 && waitCounter != 0) {
+                        int curIndex = holeColumns * currentRowID + currentColumnID;
+                        //logger.Info("At cell " + curIndex + ", at sample " + waitCounter + " with value: " + input);
 
-                            
+                        // if in computer help mode and we are not moving on to next column, combine click with computer help (no-)click
+                        if (taskMode == 2) {
 
                             // get computer help click or no click
-                            bool helpclick = helpClickVector[columnSelectDelay - waitCounter];
+                            bool helpclick = helpClickVector[columnSelectDelay - (waitCounter + 1)];
                             bool newClick = false;
 
                             // combine help click with actual click made, depending on the current column 
@@ -841,8 +837,9 @@ namespace continuousWAM {
                             
                         }
 
-                        // if clicked
+                        // if clicked, log click and go to next state
                         if (click) {
+                            Data.logEvent(2, "CellClick", currentColumnID.ToString());
                             setState(TaskStates.ColumnSelected);
 			            } else {
                             
@@ -856,10 +853,14 @@ namespace continuousWAM {
                                     posAndNegs.Add(scoreTypes.FalseNegative);
 
                                     // sotre as event
-                                    Data.logEvent(2, "FalseNegative", CLASS_NAME);
+                                    Data.logEvent(2, "FalseNegative", currentColumnID.ToString());
 
                                     // increase cue index
                                     currentCueIndex++;
+
+                                    // advance to next cell, if the end of row has been reached, reset column id
+                                    currentColumnID++;
+                                    if (currentColumnID >= holeColumns) currentColumnID = 0;
 
                                     // if at end of cue sequence, go to Endtext state, otherwise set next cue and correpsonding state
                                     if (currentCueIndex == cueSequence.Count)       setState(TaskStates.EndText);
@@ -873,13 +874,11 @@ namespace continuousWAM {
 
                                     // store true negative and event
                                     posAndNegs.Add(scoreTypes.TrueNegative);
-                                    Data.logEvent(2, "TrueNegative", CLASS_NAME);
+                                    Data.logEvent(2, "TrueNegative", currentColumnID.ToString());
 
 
-                                    // advance to next cell
+                                    // advance to next cell, if the end of row has been reached, reset column id
                                     currentColumnID++;
-
-                                    // if the end of row has been reached, reset column id
                                     if (currentColumnID >= holeColumns) currentColumnID = 0;
 
                                     // re-set state to same state, to trigger functions that occur at beginning of processing of this state
@@ -902,7 +901,7 @@ namespace continuousWAM {
 
                                 // store true positive and log event
                                 posAndNegs.Add(scoreTypes.TruePositive);
-                                Data.logEvent(2, "TruePositive", CLASS_NAME);
+                                Data.logEvent(2, "TruePositive", currentColumnID.ToString());
 
                                 // go to next trial in the sequence and set mole and selectionbox
                                 currentCueIndex++;
@@ -930,9 +929,11 @@ namespace continuousWAM {
 
                                 // store false positive and event
                                 posAndNegs.Add(scoreTypes.FalsePositive);
-                                Data.logEvent(2, "FalsePositive", CLASS_NAME);
+                                Data.logEvent(2, "FalsePositive", currentColumnID.ToString());
 
-                                // start again selecting rows from the top
+                                // increase column ID and select enxt cell
+                                currentColumnID++;
+                                if (currentColumnID >= holeColumns) currentColumnID = 0;
                                 setState(TaskStates.ColumnSelect);
 
                                 // if in dynamic mode, adjust dynamic parameter and check if we need to stop task because enough correct responses have been given
@@ -953,10 +954,10 @@ namespace continuousWAM {
                             // store or true positive or false negative depending on whether an escape sequence was made, and store events
                             if (keySequenceActive) {
                                 posAndNegs.Add(scoreTypes.TruePositiveEscape);
-                                Data.logEvent(2, "TruePositiveEscape", CLASS_NAME);
+                                Data.logEvent(2, "TruePositiveEscape", "");
                             } else {
                                 posAndNegs.Add(scoreTypes.FalseNegativeEscape);
-                                Data.logEvent(2, "FalseNegativeEscape", CLASS_NAME);
+                                Data.logEvent(2, "FalseNegativeEscape", "");
                             }
 
                             // remove escape cue
@@ -1091,8 +1092,8 @@ namespace continuousWAM {
             // check if we need to end task because enough correct responses have been given
             if (dynamicParameter != 5 && stopOrUpdateAfterCorrect != 0) {
 
-                if (lastScore == increaseType)                                                   currentCorrect++;
-                else if (lastScore == scoreTypes.FalsePositive || lastScore == decreaseType)    currentCorrect = 0;
+                if (lastScore == scoreTypes.TruePositive)                                                   currentCorrect++;
+                else if (lastScore == scoreTypes.FalsePositive || lastScore == scoreTypes.FalseNegative)    currentCorrect = 0;
 
                 if (currentCorrect >= stopOrUpdateAfterCorrect) {
                     setState(TaskStates.EndText);
@@ -1170,12 +1171,13 @@ namespace continuousWAM {
                     
                     // retrieve parameter set from given filter
                     dynamicParameterSet = MainThread.getFilterParametersClone(filter);
+                    originalParameterSet = MainThread.getFilterParametersClone(filter);
 
                     // retrieve value for given parameter and store local copy    
-                    if (paramType == "double")          localParamCopy = dynamicParameterSet.getValue<double>(param);
-                    else if (paramType == "double[]")   localParamCopy = dynamicParameterSet.getValue<double[]>(param);
-                    else if (paramType == "double[][]") localParamCopy = dynamicParameterSet.getValue<double[][]>(param);
-                    else if (paramType == "samples")    localParamCopy = dynamicParameterSet.getValueInSamples(param);               
+                    if (paramType == "double")          localParam = dynamicParameterSet.getValue<double>(param);
+                    else if (paramType == "double[]")   localParam = dynamicParameterSet.getValue<double[]>(param);
+                    else if (paramType == "double[][]") localParam = dynamicParameterSet.getValue<double[][]>(param);
+                    else if (paramType == "samples")    localParam = dynamicParameterSet.getValueInSamples(param);               
                 }
 
                 // prevent from retrieving value from parameter set again
@@ -1183,51 +1185,64 @@ namespace continuousWAM {
             }
 
             // update local copy of parameter and push to filter
-            if (localParamCopy != null) {
+            if (localParam != null) {
+
+                // make backup of local parameter value, in case the newly calculated value is rejected by filter we can use this backup to retore the value if the local parameter
+                dynamic localParamBackup = localParam;
 
                 // based on parameter type, adjust parameter by increasing or decreasing based on whether the last score was a (true or false) positive or negative
                 if (paramType == "double") {
-                    if          (lastScore == decreaseType)     localParamCopy = localParamCopy * (1 - (stepSize / 100));
-                    else if     (lastScore == increaseType)     localParamCopy = localParamCopy * (1 + (stepSize / 100));
+                    if          (lastScore == decreaseType)     localParam = localParam - stepSize;
+                    else if     (lastScore == increaseType)     localParam = localParam + stepSize;
                 } 
                 else if (paramType == "double[]") {
-                    for (int channel = 0; channel < localParamCopy.Length; ++channel) {
-                        if      (lastScore == decreaseType) localParamCopy[channel] = localParamCopy[channel] * (1 - (stepSize / 100));
-                        else if (lastScore == increaseType) localParamCopy[channel] = localParamCopy[channel] * (1 + (stepSize / 100));
+                    for (int channel = 0; channel < localParam.Length; ++channel) {
+                        if      (lastScore == decreaseType) localParam[channel] = localParam[channel] - stepSize;
+                        else if (lastScore == increaseType) localParam[channel] = localParam[channel] + stepSize;
                     }
                 } 
                 else if (paramType == "double[][]") {
-                    for (int channel = 0; channel < localParamCopy[0].Length; ++channel) {                  
-                        if      (lastScore == decreaseType) localParamCopy[addInfo][channel] = localParamCopy[addInfo][channel] * (1 - (stepSize / 100));
-                        else if (lastScore == increaseType) localParamCopy[addInfo][channel] = localParamCopy[addInfo][channel] * (1 + (stepSize / 100));
+                    for (int channel = 0; channel < localParam[0].Length; ++channel) {                  
+                        if      (lastScore == decreaseType) localParam[addInfo][channel] = localParam[addInfo][channel] - stepSize;
+                        else if (lastScore == increaseType) localParam[addInfo][channel] = localParam[addInfo][channel] + stepSize;
                     }
                 } 
                 else if (paramType == "samples") {
-                    if          (lastScore == decreaseType)     localParamCopy = Math.Round(localParamCopy * (1 - (stepSize / 100)));
-                    else if     (lastScore == increaseType)     localParamCopy = Math.Round(localParamCopy * (1 + (stepSize / 100)));
+                    if          (lastScore == decreaseType)     localParam = Math.Round(localParam - stepSize);
+                    else if     (lastScore == increaseType)     localParam = Math.Round(localParam + stepSize);
                 }
 
                 // store adjusted threshold  in dynamic parameter set and re-configure running filter using this adjusted parameter set
-                dynamicParameterSet.setValue(param, localParamCopy);
-                MainThread.configureRunningFilter(filter, dynamicParameterSet);
+                dynamicParameterSet.setValue(param, localParam);
+                bool suc = MainThread.configureRunningFilter(filter, dynamicParameterSet);
 
-                logger.Info("localVar:" + localParamCopy);
+                // if update of filter did not succeed, adjust local copy by restoring backup, to ensure local copy and filter paramter value stay in sync
+                if (!suc) {
+                    localParam = localParamBackup;
+                    logger.Info("Value of dynamic parameter exceeds allowed thresholds after updating, current value of " + localParam + " is retained.");
+                } else logger.Info("Value of dynamic parameter updated, new value: " + localParam);
             }
 
             // update dynamic parameter 5 if needed, is done seperately, because it is a local variable
             if (dynamicParameter == 5) {
 
-                logger.Info(param + " " + columnSelectDelay);
+                // create backup in case updating the paramter results in values beyond allowed limits
+                int columnSelectDelayBackup = columnSelectDelay;
 
-                if (lastScore == scoreTypes.FalseNegative) columnSelectDelay = (int)Math.Round(columnSelectDelay * (1 + (stepSize / 100)));
+                if (lastScore == scoreTypes.FalseNegative) columnSelectDelay = (int)Math.Round(columnSelectDelay + stepSize);
                 else if (lastScore == scoreTypes.TruePositive) {
                     currentCorrect++;
-                    if (currentCorrect >= 3) {
-                        columnSelectDelay = (int)Math.Round(columnSelectDelay * (1 - (stepSize / 100)));
+                    if (currentCorrect >= stopOrUpdateAfterCorrect) {
+                        columnSelectDelay = (int)Math.Round(columnSelectDelay - stepSize);
                         currentCorrect = 0;
                     }
                 }
-                logger.Info(param + " " + columnSelectDelay);
+
+                // scanning rate can not go below 1, same limit as used during configure() step
+                if(columnSelectDelay < 1) {
+                    columnSelectDelay = columnSelectDelayBackup;
+                    logger.Info("Value of dynamic parameter exceeds allowed thresholds after updating, current value of " + columnSelectDelay + " is retained.");
+                } else logger.Info("Value of dynamic parameter updated, new value: " + localParam);
             }
         }
 
@@ -1278,8 +1293,6 @@ namespace continuousWAM {
 	        // Set state
 	        taskState = state;
 
-            logger.Info("set state " + state);
-
 	        switch (state) {
 
                 // starting, pauzed or waiting
@@ -1297,14 +1310,14 @@ namespace continuousWAM {
                     view.setGrid(false);
                     view.viewScore(false);
 
-                    // Set wait counter to startdelay
+                    // Set wait counter to startdelay NB: WAITCOUNTER IS INITILAISED WITHOUT MINUS 1, BECAUSE WAIT STATE IS CALLED FROM START(), WHICH IS IMMEDIATELY FOLLOWED BY PROCESS CYCLE WHICH REDUCES WAITCOUNTER BY 1
                     if (taskFirstRunStartDelay != 0) {
                         waitCounter = taskFirstRunStartDelay;
                         taskFirstRunStartDelay = 0;
                     } else
-			            waitCounter = taskStartDelay;
+                        waitCounter = taskStartDelay;
 
-			        break;
+                    break;
 
                 // countdown when task starts
                 case TaskStates.CountDown:
@@ -1329,15 +1342,16 @@ namespace continuousWAM {
                     view.selectRow(-1, false);
                     view.selectCell(-1, -1, false);
 
-                    logger.Info("In state escape");
-
                     // Data.logEvent(2, "Escape presented", "");
-                    waitCounter = escapeDuration;
+                    waitCounter = escapeDuration == 0 ? escapeDuration : escapeDuration - 1;
 
                     break;
 
                 // selecting a column
                 case TaskStates.ColumnSelect:
+
+                    // TODO
+                    // move currentColumnID++; if (currentColumnID >= holeColumns) currentColumnID = 0; to here and remove everywhere else?
 
                     // get whether current cell contains mole
                     bool containsMole = currentMoleIndex == holeColumns * currentRowID + currentColumnID;
@@ -1379,7 +1393,7 @@ namespace continuousWAM {
                                 // create random number between 1 and 100 
                                 int p = rng.Next(1, 100);
 
-                                logger.Info("Threhsold: " + thresh + " and p: " + p);
+                                //logger.Info("Threhsold: " + thresh + " and p: " + p);
 
                                 // if number is smaller than threshold, set help to true
                                 if (p < thresh) helpClickVector[i] = true;
@@ -1389,12 +1403,12 @@ namespace continuousWAM {
                         }
                         
                         // debug
-                        String helpClStr = "";
-                        for(int i = 0; i < helpClickVector.Count; i++) {
-                            helpClStr = helpClStr + " " + helpClickVector[i].ToString();
-                        }
+                        //String helpClStr = "";
+                        //for(int i = 0; i < helpClickVector.Count; i++) {
+                        //    helpClStr = helpClStr + " " + helpClickVector[i].ToString();
+                        //}
 
-                        logger.Info(helpClStr);
+                        //logger.Info(helpClStr);
                     }
 
                     // select cell
@@ -1405,9 +1419,9 @@ namespace continuousWAM {
                     //else                Data.logEvent(2, "EmptyColumn ", currentColumnID.ToString());
 
                     // set waitcounter
-			        waitCounter = columnSelectDelay;
+                    waitCounter = columnSelectDelay == 0 ? columnSelectDelay : columnSelectDelay - 1;
 
-			        break;
+                    break;
 
                 // column was selected
                 case TaskStates.ColumnSelected:
@@ -1420,21 +1434,27 @@ namespace continuousWAM {
                     //else                                                                    Data.logEvent(2, "CellClick", "0");
 
                     // set wait time before advancing
-                    waitCounter = columnSelectedDelay;
+                    waitCounter = columnSelectedDelay == 0 ? columnSelectedDelay : columnSelectedDelay - 1;
 
-			        break;
+                    break;
 
                 // show end text
                 case TaskStates.EndText:
-			        
-			        // hide hole grid
-			        view.setGrid(false);
 
-			        // show text
-				    view.setText("Done");
+                    // wait 2s before screen goes blank
+                    int endTime = (int)(MainThread.getPipelineSamplesPerSecond() * 2.0);
+                    waitCounter = endTime == 0 ? endTime : endTime - 1;
+
+                    // hide hole grid
+                    view.setGrid(false);
+                    view.viewScore(false);
+
+                    // show text
+                    view.setText("Done");
 
                     // set duration for text to be shown at the end (3s)
-                    waitCounter = (int)(MainThread.getPipelineSamplesPerSecond() * 3.0);
+                    endTime = (int)(MainThread.getPipelineSamplesPerSecond() * 3.0);
+                    waitCounter = endTime == 0 ? endTime : endTime - 1;
 
                     break;
 	        }
@@ -1445,14 +1465,35 @@ namespace continuousWAM {
         private void stopTask() {
             if (view == null)   return;
 
-            // give feedback on final value of dynamic parameter when in dynamic mode
-            if (taskMode == 3 && localParamCopy != null) logger.Info("Final value " + param + ": " + localParamCopy);
-            
+            // print (escape) score to console
+            logger.Info("Score: " + score + " Escape score: " + scoreEscape);
+
+            // If taskmode is 3, reset dynamic paramters to original value
+            if (taskMode == 3) {
+
+                // give feedback on final value of dynamic parameter
+                if (localParam != null) logger.Info("Final value " + param + ": " + localParam);
+
+                // reset filter with original parameter values
+                MainThread.configureRunningFilter(filter, originalParameterSet);
+
+                // reset vars related to taskmode 3
+                firstUpdate = true;
+                localParam = null;
+                currentCorrect = 0;
+
+            }
+
+            // reset the score, and positive and negative list
+            score = 0;
+            scoreEscape = 0;
+            posAndNegs.Clear();
+
             // Set state to Wait
             setState(TaskStates.Wait);
 
-            // check if there is no fixed target sequence
-	        if (fixedTrialSequence.Length == 0) {
+            // if there is no fixed target sequence, generate new targetlist
+            if (fixedTrialSequence.Length == 0) {
 
 		        // generate new targetlist
 		        generateCueSequence();
@@ -1506,7 +1547,7 @@ namespace continuousWAM {
                     m++;
                 }
 
-                logger.Info(cueSequence[i]);
+                //logger.Info(cueSequence[i]);
 
             }
         }
@@ -1535,7 +1576,7 @@ namespace continuousWAM {
 
         private void setCueAndState(int index) {
 
-            logger.Info(index);
+            //logger.Info(index);
 
 	        // set mole index to variable
 	        currentMoleIndex = index;

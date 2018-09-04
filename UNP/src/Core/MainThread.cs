@@ -826,7 +826,7 @@ namespace UNP.Core {
         public static void configureRunningFilter(Parameters newParameters, bool resetFilter = false) {
             configureRunningFilter(newParameters.ParamSetName, newParameters, resetFilter);    // use the name of the parameter set as the filterName (should be equal)
         }
-        public static void configureRunningFilter(string filterName, Parameters newParameters, bool resetFilter = false) {
+        public static bool configureRunningFilter(string filterName, Parameters newParameters, bool resetFilter = false) {
 
             // find the filter, and return a reference to its paremeters
             IFilter filter = null;
@@ -844,12 +844,12 @@ namespace UNP.Core {
                 logger.Error("Filter '" + filterName + "' could not be found, no filter parameters were adjusted");
 
                 // return without action
-                return;
+                return false;
 
             }
             
             // apply the new parameters to the running filter
-            filter.configureRunningFilter(newParameters, resetFilter);
+            return filter.configureRunningFilter(newParameters, resetFilter);
 
         }
         public static void configureRunningFilter(Parameters[] newParameters, bool resetFilter = false) {
