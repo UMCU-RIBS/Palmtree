@@ -140,7 +140,7 @@ namespace continuousWAM {
         private scoreTypes increaseType = scoreTypes.FalsePositive;
         private scoreTypes decreaseType = scoreTypes.FalseNegative;
         private dynamic localParam = null;
-        private int addInfo = 0;
+        private dynamic addInfo = null;
         private int stopOrUpdateAfterCorrect = 0;
         private int currentCorrect = 0;
         private double stepSize = 0;                                                // stepsize with which the dynamic parameter is being adjusted per step
@@ -220,7 +220,7 @@ namespace continuousWAM {
 
             parameters.addParameter<double>(
                 "Stepsize",
-                "Only in Dynamic Mode: absolute stepsize with which dynamic parameter is adjusted per step",
+                "Only in Dynamic Mode: absolute stepsize with which dynamic parameter is adjusted per step, given in unit of specific parameter. If unit of parameter is time-based, either time n seconds or samples can be used. Except for dynamic parameter 4, here the stepsize is defined as a fraction of the initial standard deviation.",
                 "0", "", "5");
 
             parameters.addParameter<int>(
@@ -416,8 +416,8 @@ namespace continuousWAM {
 
             // retrieve minimal distance between current cell and appearing moles
             minMoleDistance = newParameters.getValue<int>("MinimalMoleDistance");
-            if (minMoleDistance < 1) {
-                logger.Error("Minimal distance of 1 cell is required");
+            if (minMoleDistance < 1 || minMoleDistance > holeColumns) {
+                logger.Error("Minimal distance of at least 1 cell is required and can not be higher than the amount of cells available.");
                 return false;
             }
 
@@ -824,13 +824,14 @@ namespace continuousWAM {
                             if (containsMole)   newClick = helpclick || click;
                             else                newClick = helpclick && click;
 
-                            // if we changed click, set or unset refractoryperiod accordingly
+                            // if we changed click, set or unset refractoryperiod accordingly and give feedback
                             if (newClick != click) {
                                 if (newClick)   clickTranslator.setRefractoryPeriod(true);
                                 else            clickTranslator.setRefractoryPeriod(false);
-                            }
 
-                            logger.Info("At sample " + waitCounter + " in this column the click is: " + click + "and is adjusted to: " + newClick);
+                                logger.Info("At sample " + waitCounter + " in this column the click is: " + click + " and is adjusted to: " + newClick);
+                                Data.logEvent(2, "clickAdjusted", click + ";" + newClick);
+                            }
 
                             // set click to adjusted click
                             click = newClick;
@@ -911,7 +912,8 @@ namespace continuousWAM {
                                 // check whether at the end of trial sequence
                                 if (currentCueIndex == cueSequence.Count) {
 
-                                    // show end text
+                                    // update score and show end text
+                                    updateScore();
                                     setState(TaskStates.EndText);
 
                                 } else {
@@ -980,6 +982,13 @@ namespace continuousWAM {
                     case TaskStates.EndText:
 			            
 			            if (waitCounter == 0) {
+
+                            // hide hole grid
+                            view.setGrid(false);
+                            view.viewScore(false);
+
+                            // show text for three seconds
+                            view.setText("Done");
 
                             // log event task is stopped
                             Data.logEvent(2, "TaskStop", CLASS_NAME + ";end");
@@ -1148,6 +1157,23 @@ namespace continuousWAM {
                         increaseType = scoreTypes.FalsePositive;
                         decreaseType = scoreTypes.FalseNegative;
 
+                        // for dynamic parameter mean the stepsize is not an absolute value, but is given as fraction of the standard deviation. 
+                        // Therefore store a stepsize modifier based on the standard deviations per channel in addInfo variable, multiplied by their respective signs from the weights in the linear classifier filter, which ensures the adjustment occurs in the desired direction 
+
+                        // get stds and weights
+                        Parameters adaptationParams = MainThread.getFilterParametersClone("Adaptation");
+                        double[] initStds = adaptationParams.getValue<double[]>("InitialChannelStds");
+                        Parameters linearClassParams = MainThread.getFilterParametersClone("LinearClassifier");
+                        double[][] redistributionValues = linearClassParams.getValue<double[][]>("Redistribution");
+                        addInfo = redistributionValues[2];
+
+                        // check if same amount channels are defined in both filters
+                        if (addInfo.Length != initStds.Length) logger.Error("Different amount of initial channel standard deviations (in Adaptation filter) and redistribution channels (in Linear Classifier filter) set.");
+
+                        // calculate stepsize modifier
+                        for (int i = 0; i < addInfo.Length; i++)
+                            addInfo[i] = Math.Sign(addInfo[i]) * initStds[i];
+
                         break;
 
                     // dynamic parameter: columnSelectDelay
@@ -1184,8 +1210,8 @@ namespace continuousWAM {
                 firstUpdate = false;
             }
 
-            // update local copy of parameter and push to filter
-            if (localParam != null) {
+            // if local parameter needs updating and is not empty, update local copy of parameter and push to filter
+            if (localParam != null && (lastScore == decreaseType || lastScore == increaseType) ) {
 
                 // make backup of local parameter value, in case the newly calculated value is rejected by filter we can use this backup to retore the value if the local parameter
                 dynamic localParamBackup = localParam;
@@ -1196,12 +1222,25 @@ namespace continuousWAM {
                     else if     (lastScore == increaseType)     localParam = localParam + stepSize;
                 } 
                 else if (paramType == "double[]") {
+
+                    // if addInfo is not set earlier (because the specific paramter being updated here does need this additional info), then init addInfo to all ones, having no effect
+                    if (addInfo == null) {
+                        addInfo = new int[localParam.Length];
+                        for (int i = 0; i < addInfo.Length; i++) { addInfo[i] = 1; }
+                    }
+
+                    // NOTE: stepsize direction is adjusted based on sign in addInfo, useful for example in adjusting means of different channels
                     for (int channel = 0; channel < localParam.Length; ++channel) {
-                        if      (lastScore == decreaseType) localParam[channel] = localParam[channel] - stepSize;
-                        else if (lastScore == increaseType) localParam[channel] = localParam[channel] + stepSize;
+                        if      (lastScore == decreaseType) localParam[channel] = localParam[channel] - (stepSize * addInfo[channel]);
+                        else if (lastScore == increaseType) localParam[channel] = localParam[channel] + (stepSize * addInfo[channel]);
                     }
                 } 
                 else if (paramType == "double[][]") {
+
+                    // if addInfo is not set earlier (because the specific parameter being updated here does need this additional info), then set addInfo to 0, defaulting to first column in matrix to adjust
+                    if (addInfo == null)    addInfo = 1;
+
+                    // NOTE: column in matrix is adjusted based on addInfo, defaulting to 0
                     for (int channel = 0; channel < localParam[0].Length; ++channel) {                  
                         if      (lastScore == decreaseType) localParam[addInfo][channel] = localParam[addInfo][channel] - stepSize;
                         else if (lastScore == increaseType) localParam[addInfo][channel] = localParam[addInfo][channel] + stepSize;
@@ -1219,8 +1258,13 @@ namespace continuousWAM {
                 // if update of filter did not succeed, adjust local copy by restoring backup, to ensure local copy and filter paramter value stay in sync
                 if (!suc) {
                     localParam = localParamBackup;
-                    logger.Info("Value of dynamic parameter exceeds allowed thresholds after updating, current value of " + localParam + " is retained.");
-                } else logger.Info("Value of dynamic parameter updated, new value: " + localParam);
+                    logger.Info("Value of dynamic parameter exceeds allowed thresholds after updating, current value is retained.");
+                    Data.logEvent(2, "VariableUpdate ", dynamicParameter.ToString() + "Unsuccessful, exceeded bounds.");
+                } else {
+                    // give feedback on new value of local copy
+                    logger.Info("Value of dynamic parameter updated, new value: " +  Extensions.arrayToString(localParam));
+                    Data.logEvent(2, "VariableUpdate ", dynamicParameter.ToString() + ";" + Extensions.arrayToString(localParam));
+                }
             }
 
             // update dynamic parameter 5 if needed, is done seperately, because it is a local variable
@@ -1229,20 +1273,30 @@ namespace continuousWAM {
                 // create backup in case updating the paramter results in values beyond allowed limits
                 int columnSelectDelayBackup = columnSelectDelay;
 
-                if (lastScore == scoreTypes.FalseNegative) columnSelectDelay = (int)Math.Round(columnSelectDelay + stepSize);
+                // temp var to base console output on
+                bool updated = false;
+
+                // false negative
+                if (lastScore == scoreTypes.FalseNegative) {
+                    columnSelectDelay = (int)Math.Round(columnSelectDelay + stepSize);
+                    updated = true;
+                }
                 else if (lastScore == scoreTypes.TruePositive) {
                     currentCorrect++;
                     if (currentCorrect >= stopOrUpdateAfterCorrect) {
                         columnSelectDelay = (int)Math.Round(columnSelectDelay - stepSize);
                         currentCorrect = 0;
+                        updated = true;
                     }
                 }
 
                 // scanning rate can not go below 1, same limit as used during configure() step
-                if(columnSelectDelay < 1) {
+                if (columnSelectDelay < 1) {
                     columnSelectDelay = columnSelectDelayBackup;
                     logger.Info("Value of dynamic parameter exceeds allowed thresholds after updating, current value of " + columnSelectDelay + " is retained.");
-                } else logger.Info("Value of dynamic parameter updated, new value: " + localParam);
+                } else if (updated) {
+                    logger.Info("Value of dynamic parameter updated, new value: " + columnSelectDelay);
+                }
             }
         }
 
@@ -1373,7 +1427,7 @@ namespace continuousWAM {
                             amountHelpNoClicks = (int)Math.Floor(columnSelectDelay * (negHelpPercentage / 100.0));
                             amountHelpClicks = columnSelectDelay - amountHelpNoClicks;
 
-                            logger.Error("helpClicks: " + amountHelpClicks + "helpNoClicks" + amountHelpNoClicks);
+                            //logger.Error("helpClicks: " + amountHelpClicks + "helpNoClicks" + amountHelpNoClicks);
 
                             // adjust the help click vector by inserting the amount of clicks needed 
                             for (int i = Math.Max(0, amountHelpNoClicks); i < columnSelectDelay; i++) helpClickVector[i] = true;
@@ -1414,6 +1468,7 @@ namespace continuousWAM {
                     // select cell
                     view.selectCell(currentRowID, currentColumnID, false);
 
+           
                     // log event that column is highlighted, and whether the column is empty(no mole), blank(no mole and no pile of dirt), or contains a mole
                     //if(containsMole)    Data.logEvent(2, "MoleColumn ", currentColumnID.ToString());
                     //else                Data.logEvent(2, "EmptyColumn ", currentColumnID.ToString());
@@ -1442,18 +1497,7 @@ namespace continuousWAM {
                 case TaskStates.EndText:
 
                     // wait 2s before screen goes blank
-                    int endTime = (int)(MainThread.getPipelineSamplesPerSecond() * 2.0);
-                    waitCounter = endTime == 0 ? endTime : endTime - 1;
-
-                    // hide hole grid
-                    view.setGrid(false);
-                    view.viewScore(false);
-
-                    // show text
-                    view.setText("Done");
-
-                    // set duration for text to be shown at the end (3s)
-                    endTime = (int)(MainThread.getPipelineSamplesPerSecond() * 3.0);
+                    int endTime = (int)(MainThread.getPipelineSamplesPerSecond() * 3.0);
                     waitCounter = endTime == 0 ? endTime : endTime - 1;
 
                     break;
@@ -1472,10 +1516,10 @@ namespace continuousWAM {
             if (taskMode == 3) {
 
                 // give feedback on final value of dynamic parameter
-                if (localParam != null) logger.Info("Final value " + param + ": " + localParam);
+                if (localParam != null) logger.Info("Final value " + param + ": " + Extensions.arrayToString(localParam) );
 
-                // reset filter with original parameter values
-                MainThread.configureRunningFilter(filter, originalParameterSet);
+                // reset filter with original parameter values (not needed for param 5 because this does not involve updating filters)
+                if (dynamicParameter != 5)  MainThread.configureRunningFilter(filter, originalParameterSet);
 
                 // reset vars related to taskmode 3
                 firstUpdate = true;

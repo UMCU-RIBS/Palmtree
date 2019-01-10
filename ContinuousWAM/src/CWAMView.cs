@@ -596,17 +596,8 @@ namespace continuousWAM {
             }
 
             //scoreCellWidth = (int)Math.Floor(Math.Max(minScoreCellWidth, (getContentWidth() - ((scoreCellsPerRow + 1.0) * spacing)) / scoreCellsPerRow));
-
-
-
             scoreCellHeight = scoreCellWidth;
             totalScoresOnScreen = scoreRows * scoreCellsPerRow;
-
-            logger.Info(scoreRows);
-
-            logger.Info(scoreCellsPerRow);
-
-            logger.Info(totalScoresOnScreen);
 
             // set offsets
             scoreGridOffsetX = spacing;

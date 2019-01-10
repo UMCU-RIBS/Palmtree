@@ -248,7 +248,7 @@ namespace UNP.Filters {
 
                 // check the active rate threshold
                 double newActiveRateThreshold = newParameters.getValue<double>("ActiveRateClickThreshold");
-			    if (newActiveRateThreshold > 1 || newActiveRateThreshold < 0) {
+			    if (newActiveRateThreshold > 1 || newActiveRateThreshold <= 0) {
                     logger.Error("The ActiveRateClickThreshold is outside [0 1]");
                     return false;
                 }

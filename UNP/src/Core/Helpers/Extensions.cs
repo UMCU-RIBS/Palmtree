@@ -13,6 +13,7 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details. You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+using NLog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -28,6 +29,9 @@ namespace UNP.Core.Helpers {
     /// </summary>
     public static class Extensions {
 
+        private const string CLASS_NAME = "extensions";
+        private static Logger logger = LogManager.GetLogger(CLASS_NAME);           
+
         // TODO: use non-Linq statement?
         public static int[] findIndices(int[] array, int match) {
             return Enumerable.Range(0, array.Length)
@@ -40,6 +44,26 @@ namespace UNP.Core.Helpers {
             return set.ToArray<int>();
         }
 
+        // convert one and two-dimensional arrays to string. If given 0-dimensional input (e.g. double), generic ToString() method is used if object has this method
+        public static string arrayToString(dynamic arr) {
+
+            string output = "";
+
+            if (arr != null) {
+                if (arr.GetType().Name == "Double[]") { foreach (var item in arr) { output += item + ", "; } } 
+                else if (arr.GetType().Name == "Double[][]") { foreach (var item in arr) { foreach (var subItem in item) { output += subItem + ", "; } } } 
+                else {
+                    try {
+                        if (arr.GetType().GetMethod("ToString") != null) output = arr.ToString();
+                        else logger.Error("Not able to cast object to String, check if object is array.");
+                    } catch (System.Reflection.AmbiguousMatchException) { output = arr.ToString(); }            // if there are overloads of ToString, an Ambigous Exception is thrown, but this means there is a method we can use, so call method
+                }
+            } else {
+                logger.Error("Null object given to cast to string, empty String returned.");
+            }
+
+            return output;
+        }
 
         public static void Swap<T>(this IList<T> list, int indexA, int indexB) {
             T tmp = list[indexA];
