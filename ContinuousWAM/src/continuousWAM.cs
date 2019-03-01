@@ -1681,11 +1681,13 @@ namespace continuousWAM {
             newParameters.setValue("CountdownTime", "3s");
             newParameters.setValue("TaskInputChannel", 1);
             newParameters.setValue("ColumnSelectDelay", "3s");
-            newParameters.setValue("ColumnSelectedDelay", 5.0);
-            newParameters.setValue("NumberOfMoles", 5);
+            newParameters.setValue("ColumnSelectedDelay", "3s");
+            newParameters.setValue("NumberOfMoles", 8);
             newParameters.setValue("MinimalMoleDistance", 3);
+            newParameters.setValue("MaximalMoleDistance", 5);
             newParameters.setValue("NumberOfEscapes", 0);
             newParameters.setValue("ShowScore", true);
+            newParameters.setValue("ShowEscapeScoreSeperate", false);       
             newParameters.setValue("ScoreType", 1);
 
             // get parameter values from app.config
