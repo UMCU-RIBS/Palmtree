@@ -54,7 +54,7 @@ namespace continuousWAM {
             FalseNegativeEscape
         };
 
-        private const int CLASS_VERSION = 1;
+        private const int CLASS_VERSION = 2;
         private const string CLASS_NAME = "continuousWAM";
         private const string CONNECTION_LOST_SOUND = "sounds\\connectionLost.wav";
 
@@ -220,7 +220,7 @@ namespace continuousWAM {
 
             parameters.addParameter<double>(
                 "Stepsize",
-                "Only in Dynamic Mode: absolute stepsize with which dynamic parameter is adjusted per step, given in unit of specific parameter. If unit of parameter is time-based, either time n seconds or samples can be used. Except for dynamic parameter 4, here the stepsize is defined as a fraction of the initial standard deviation.",
+                "Only in Dynamic Mode: absolute stepsize with which dynamic parameter is adjusted per step, given in unit of specific parameter, with the exception of dynamic parameter 4: here the stepsize is relative, defined as a fraction of the initial standard deviation.",
                 "0", "", "5");
 
             parameters.addParameter<int>(
@@ -1262,7 +1262,7 @@ namespace continuousWAM {
                     Data.logEvent(2, "VariableUpdate ", dynamicParameter.ToString() + "Unsuccessful, exceeded bounds.");
                 } else {
                     // give feedback on new value of local copy
-                    logger.Info("Value of dynamic parameter updated, new value: " +  Extensions.arrayToString(localParam));
+                    logger.Info("Value of dynamic parameter updated, new value: " + Extensions.arrayToString(localParam));
                     Data.logEvent(2, "VariableUpdate ", dynamicParameter.ToString() + ";" + Extensions.arrayToString(localParam));
                 }
             }
@@ -1294,8 +1294,10 @@ namespace continuousWAM {
                 if (columnSelectDelay < 1) {
                     columnSelectDelay = columnSelectDelayBackup;
                     logger.Info("Value of dynamic parameter exceeds allowed thresholds after updating, current value of " + columnSelectDelay + " is retained.");
+                    Data.logEvent(2, "VariableUpdate ", "ColumnSelectDelay Unsuccessful, exceeded bounds.");
                 } else if (updated) {
                     logger.Info("Value of dynamic parameter updated, new value: " + columnSelectDelay);
+                    Data.logEvent(2, "VariableUpdate ", "ColumnSelectDelay; " + columnSelectDelay.ToString());
                 }
             }
         }
@@ -1338,7 +1340,7 @@ namespace continuousWAM {
             if (tpEsc + fnEsc > 0)      scoreEscape = (int)Math.Floor((tpEsc / (tpEsc + fnEsc)) * 100.0);
 
             // push to view
-            view.setScore(posAndNegs, score, scoreEscape);
+            if(view != null)    view.setScore(posAndNegs, score, scoreEscape);
 
         } 
 
@@ -1656,7 +1658,7 @@ namespace continuousWAM {
 
 
             // create a new parameter object and define this task's parameters
-            Parameters newParameters = new Parameters("FollowTask", Parameters.ParamSetTypes.Application);
+            Parameters newParameters = new Parameters("Cwam", Parameters.ParamSetTypes.Application);
             defineParameters(ref newParameters);
 
             // transfer some parameters from the parent
@@ -1670,18 +1672,21 @@ namespace continuousWAM {
             inputChannels = 1;
             //allowExit = true;                  // UNPMenu task, allow exit
             newParameters.setValue("WindowBackgroundColor", "0;0;0");
-            newParameters.setValue("CountdownTime", "3s");
-            newParameters.setValue("TaskInputChannel", 1);
+            newParameters.setValue("Mode", 3);
+            newParameters.setValue("DynamicParameter", 4);
+            newParameters.setValue("Stepsize", 0.1);
+            newParameters.setValue("StopOrUpdateAfterCorrect", 0);
             newParameters.setValue("TaskFirstRunStartDelay", "2s");
             newParameters.setValue("TaskStartDelay", "2s");
-            newParameters.setValue("HoleRows", 4);
-            newParameters.setValue("HoleColumns", 4);
-            newParameters.setValue("RowSelectDelay", 12.0);
-            newParameters.setValue("RowSelectedDelay", 5.0);
-            newParameters.setValue("ColumnSelectDelay", 12.0);
+            newParameters.setValue("CountdownTime", "3s");
+            newParameters.setValue("TaskInputChannel", 1);
+            newParameters.setValue("ColumnSelectDelay", "3s");
             newParameters.setValue("ColumnSelectedDelay", 5.0);
-            newParameters.setValue("NumberOfTrials", 10);
-            newParameters.setValue("TrialSequence", "");
+            newParameters.setValue("NumberOfMoles", 5);
+            newParameters.setValue("MinimalMoleDistance", 3);
+            newParameters.setValue("NumberOfEscapes", 0);
+            newParameters.setValue("ShowScore", true);
+            newParameters.setValue("ScoreType", 1);
 
             // get parameter values from app.config
             // cycle through app.config parameter values and try to set the parameter
