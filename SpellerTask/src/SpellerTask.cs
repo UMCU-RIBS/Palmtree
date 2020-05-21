@@ -546,7 +546,7 @@ namespace SpellerTask
                 if (cueType == 0)
                     currentTarget = cues[cueCounter].Substring(currentTargetIndex, 1);
                 
-                // set state to wait and countdown after that
+                // set state to wait and countdown after  
                 setState(TaskStates.Wait);
                 afterWait = TaskStates.CountDown;
             }

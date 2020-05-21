@@ -104,12 +104,12 @@ namespace UNP.Core.Params {
         public T getValueInSamples<T>() {
 
             Type paramType = typeof(T);
-            if (paramType == typeof(int[][])) {
+            if (paramType == typeof(int[][]))
+            {
                 // request to return as int[][]
 
                 // return value
                 return (T)Convert.ChangeType(getValueInSamples(), typeof(int[][]));
-
             } else {
                 // request to return as other
 

@@ -1251,7 +1251,7 @@ namespace continuousWAM {
                     else if     (lastScore == increaseType)     localParam = Math.Round(localParam + stepSize);
                 }
 
-                // store adjusted threshold  in dynamic parameter set and re-configure running filter using this adjusted parameter set
+                // store adjusted threshold in dynamic parameter set and re-configure running filter using this adjusted parameter set
                 dynamicParameterSet.setValue(param, localParam);
                 bool suc = MainThread.configureRunningFilter(filter, dynamicParameterSet);
 

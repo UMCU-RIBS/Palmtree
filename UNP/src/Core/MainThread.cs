@@ -112,6 +112,7 @@ namespace UNP.Core {
             filters.Add(new ThresholdClassifierFilter("ThresholdClassifier"));
             filters.Add(new ClickTranslatorFilter("ClickTranslator"));
             filters.Add(new NormalizerFilter("Normalizer"));
+            filters.Add(new WasupFilter("Wasup"));
 
             // create the application
             try {
