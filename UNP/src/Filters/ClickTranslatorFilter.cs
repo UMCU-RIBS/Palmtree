@@ -7,6 +7,7 @@
  * Copyright (C) 2017:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Concept:             UNP Team                    (neuroprothese@umcutrecht.nl)
  * Author(s):           Max van den Boom            (info@maxvandenboom.nl)
+ *                      Benny van der Vijgh         (benny@vdvijgh.nl)
  * 
  * Adapted from:        Erik Aarnoutse and Patrik Andersson (E.J.Aarnoutse@umcutrecht.nl)
  * 
