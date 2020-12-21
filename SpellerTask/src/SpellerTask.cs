@@ -25,8 +25,7 @@ using UNP.Core.DataIO;
 using System.Collections.Specialized;
 using System.Speech.Synthesis;
 
-namespace SpellerTask
-{
+namespace SpellerTask {
 
     /// <summary>
     /// The <c>SpellerTask</c> class.
@@ -445,11 +444,9 @@ namespace SpellerTask
                 synthesizer = new SpeechSynthesizer();
                 synthesizer.Volume = 100;  // 0...100
                 synthesizer.Rate = 0;     // -10...10
-                // synthesizer.SelectVoice("Microsoft George")
                 synthesizer.SetOutputToDefaultAudioDevice();
                 synthesizer.SpeakAsync("Auditory speller");
 
-             
                 // create extra row for exit if needed
                 if (allowExit) holeRows++;
 
@@ -546,7 +543,7 @@ namespace SpellerTask
                 if (cueType == 0)
                     currentTarget = cues[cueCounter].Substring(currentTargetIndex, 1);
                 
-                // set state to wait and countdown after  
+                // set state to wait and countdown after that
                 setState(TaskStates.Wait);
                 afterWait = TaskStates.CountDown;
             }
@@ -719,12 +716,13 @@ namespace SpellerTask
                                 // Advance to next row and wrap around
                                 rowID++;
 					            if(rowID >= holeRows)		rowID = 0;
+					            
                                 // announce row
                                 string cellContent = holes[holeColumns * rowID + 1].content;
                                 if (string.IsNullOrEmpty(cellContent))
                                     synthesizer.SpeakAsync("Empty Row");
                                 else
-                                synthesizer.SpeakAsync("Row " + cellContent);
+                                    synthesizer.SpeakAsync("Row " + cellContent);
 
                                 // select the row in the scene
                                 view.selectRow(rowID, false);
@@ -754,9 +752,9 @@ namespace SpellerTask
                                     synthesizer.SpeakAsync("Empty Row");
                             else
                                 synthesizer.SpeakAsync("Row " + cellContent);
+                            
                             // update total number of clicks
                             totalClicks++;
-                            
 
                             // if row contains target, update number of correct clicks
                             if (targetInRow(rowID)) correctClicks++;
@@ -781,6 +779,8 @@ namespace SpellerTask
 
                                 // Advance to next row and wrap around
                                 columnID++;
+                                
+                                // announce the cell
                                 string cellContent = holes[holeColumns * rowID + columnID].content;
                                 if (string.IsNullOrEmpty(cellContent))
                                     synthesizer.SpeakAsync("Empty Cell");
@@ -835,11 +835,12 @@ namespace SpellerTask
                             
                             // get clicked cell
                             SpellerCell activeCell = holes[holeColumns * rowID + columnID];
+                            
+                            // announce the cell content
                             if (string.IsNullOrEmpty(activeCell.content))
-                                    synthesizer.SpeakAsync("Empty Cell");
+                                synthesizer.SpeakAsync("Empty Cell");
                             else
                                 synthesizer.SpeakAsync(activeCell.content);
-
 
                             // store that a cell is clicked
                             totalClicks++;

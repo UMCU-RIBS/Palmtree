@@ -114,8 +114,7 @@ namespace UNP.Core.Params {
         }
 
         
-        public bool setStdValue(string stdValue)
-        {
+        public bool setStdValue(string stdValue) {
             return true;
         }
 

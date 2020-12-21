@@ -19,16 +19,14 @@ using UNP.Core.DataIO;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
 
-namespace UNP.Filters
-{
+namespace UNP.Filters {
 
     /// <summary>
     /// The <c>WasupFilter</c> class.
     /// 
     /// ...
     /// </summary>
-    public class WasupFilter : FilterBase, IFilter
-    {
+    public class WasupFilter : FilterBase, IFilter {
         private new const int CLASS_VERSION = 1;
 
         private int clickInputChannel = 0;                      // channel that will be monitored for clicks required to make wasup
@@ -46,8 +44,7 @@ namespace UNP.Filters
         private bool wasupState = false;                        // holds most recent state of wasup call
         private RingBuffer[] mDataBuffers = null;               // an array of ringbuffers, a ringbuffer for every channel
 
-        public WasupFilter(string filterName)
-        {
+        public WasupFilter(string filterName) {
 
             // set class version
             base.CLASS_VERSION = CLASS_VERSION;
@@ -135,13 +132,11 @@ namespace UNP.Filters
          * parameters and, if valid, transfers the configuration parameters to local variables
          * (initialization of the filter is done later by the initialize function)
          **/
-        public bool configure(ref PackageFormat input, out PackageFormat output)
-        {
+        public bool configure(ref PackageFormat input, out PackageFormat output) {
 
             // retrieve the number of input channels
             inputChannels = input.getNumberOfChannels();
-            if (inputChannels <= 0)
-            {
+            if (inputChannels <= 0) {
                 logger.Error("Number of input channels cannot be 0");
                 output = null;
                 return false;
@@ -179,12 +174,10 @@ namespace UNP.Filters
          *  The local parameter is left untouched so it is easy to revert back to the original configuration parameters
          *  The functions handles both the configuration and initialization of filter related variables.
          **/
-        public bool configureRunningFilter(Parameters newParameters, bool resetFilter)
-        {
+        public bool configureRunningFilter(Parameters newParameters, bool resetFilter) {
 
             // check if new parameters are given (only a reset is also an option)
-            if (newParameters != null)
-            {
+            if (newParameters != null) {
 
                 //
                 // no pre-check on the number of output channels is needed here, the number of output
@@ -196,8 +189,7 @@ namespace UNP.Filters
 
                 // retrieve and check the LogDataStreams parameter
                 bool newLogDataStreams = newParameters.getValue<bool>("LogDataStreams");
-                if (!mLogDataStreams && newLogDataStreams)
-                {
+                if (!mLogDataStreams && newLogDataStreams) {
                     // logging was (in the initial configuration) switched off and is trying to be switched on
                     // (refuse, it cannot be switched on, because sample streams have to be registered during the first configuration)
 
@@ -213,8 +205,7 @@ namespace UNP.Filters
                 transferParameters(newParameters);
 
                 // apply change in the logging of sample streams
-                if (mLogDataStreams && mLogDataStreamsRuntime && !newLogDataStreams)
-                {
+                if (mLogDataStreams && mLogDataStreamsRuntime && !newLogDataStreams) {
                     // logging was (in the initial configuration) switched on and is currently on but wants to be switched off (resulting in 0's being output)
 
                     // message
@@ -223,9 +214,7 @@ namespace UNP.Filters
                     // switch logging off (to zeros)
                     mLogDataStreamsRuntime = false;
 
-                }
-                else if (mLogDataStreams && !mLogDataStreamsRuntime && newLogDataStreams)
-                {
+                } else if (mLogDataStreams && !mLogDataStreamsRuntime && newLogDataStreams) {
                     // logging was (in the initial configuration) switched on and is currently off but wants to be switched on (resume logging)
 
                     // message
@@ -244,8 +233,7 @@ namespace UNP.Filters
             // TODO: take resetFilter into account (currently always resets the buffers on initialize
             //          but when set not to reset, the buffers should be resized while retaining their values!)
 
-            if (resetFilter)
-            {
+            if (resetFilter) {
 
                 // message
                 logger.Debug("Filter reset");
@@ -272,8 +260,7 @@ namespace UNP.Filters
             bool newEnableFilter = newParameters.getValue<bool>("EnableFilter");
 
             // check if the filter is enabled
-            if (newEnableFilter)
-            {
+            if (newEnableFilter) {
                 // check parameters
                 int newClickInputChannel = newParameters.getValue<int>("ClickInputChannel");
                 if (newClickInputChannel < 1 || newClickInputChannel > inputChannels) {
@@ -306,8 +293,7 @@ namespace UNP.Filters
                 }
 
                 int newMeanandSdInputChannel = newParameters.getValue<int>("MeanandSdInputChannel");
-                if (newMeanandSdInputChannel < 1 || newMeanandSdInputChannel > inputChannels)
-                {
+                if (newMeanandSdInputChannel < 1 || newMeanandSdInputChannel > inputChannels) {
                     logger.Error("MeanandSdInputChannel should be larger than 1 and smaller than amount of input channels.");
                     return false;
                 }
@@ -321,14 +307,12 @@ namespace UNP.Filters
         /**
          * transfer the given parameter set to local variables
          **/
-        private void transferParameters(Parameters newParameters)
-        {
+        private void transferParameters(Parameters newParameters) {
             // filter is enabled/disabled
             mEnableFilter = newParameters.getValue<bool>("EnableFilter");
 
             // check if the filter is enabled
-            if (mEnableFilter)
-            {
+            if (mEnableFilter) {
                 // transfer parameters to local variables
                 clickInputChannel = newParameters.getValue<int>("ClickInputChannel");
                 amountOfClicks = newParameters.getValue<int>("AmountOfClicks");
@@ -345,15 +329,14 @@ namespace UNP.Filters
 
         }
 
-        private void printLocalConfiguration()
-        {
+        private void printLocalConfiguration() {
+
             // debug output
             logger.Debug("--- Filter configuration: " + filterName + " ---");
             logger.Debug("Input channels: " + inputChannels);
             logger.Debug("Enabled: " + mEnableFilter);
             logger.Debug("Output channels: " + outputChannels);
-            if (mEnableFilter)
-            {
+            if (mEnableFilter) {
                 logger.Debug("clickInputChannel: " + clickInputChannel);
                 logger.Debug("amountOfClicks: " + amountOfClicks);
                 logger.Debug("minInterval: " + minInterval);
@@ -368,12 +351,10 @@ namespace UNP.Filters
             }
         }
 
-        public void initialize()
-        {
+        public void initialize() {
 
             // check if the filter is enabled
-            if (mEnableFilter)
-            {
+            if (mEnableFilter) {
                 // create the data buffers. if mean and sd are not taken into account, create only buffer for clicks, otherwise also one for mean and sd
                 mDataBuffers = checkMeanSd ? new RingBuffer[2] : new RingBuffer[1];
 
@@ -383,29 +364,24 @@ namespace UNP.Filters
 
         }
 
-        public void start()
-        {
+        public void start() {
 
         }
 
-        public void stop()
-        {
+        public void stop() {
 
         }
 
-        public bool isStarted()
-        {
+        public bool isStarted() {
             return false;
         }
 
-        public void process(double[] input, out double[] output)
-        {
+        public void process(double[] input, out double[] output) {
             // create an output sample
             output = new double[outputChannels];
 
             // check if the filter is enabled
-            if (mEnableFilter)
-            {
+            if (mEnableFilter) {
                 // set flag for sending wasup to false
                 bool sendWasup = false;
 
@@ -426,19 +402,18 @@ namespace UNP.Filters
                 // check if copied data contains at least the required amount of clicks (amount of clicks times clickrate). Only if so proceed to test for intervals. This to increase performance: checking amount of clicks (using quicksort) is on average O(n log n), wheras checking intervals (and if needed mean and sd) is estimated around O(3n) to O(6n)
                 // check amount of clicks by first sorting and then checking the amount of clicks from the end of the array (Max is precaution to prevent outofBounds in case amountOfClicks times clickRate resolves to zero)
                 System.Array.Sort(countClickData);
-                if(countClickData[System.Math.Max(countClickData.Length - (int)System.Math.Floor((double)amountOfClicks * clickRate), 1)] == 1)
-                {
+                if(countClickData[System.Math.Max(countClickData.Length - (int)System.Math.Floor((double)amountOfClicks * clickRate), 1)] == 1) {
 
                     // init vars, to cycle through click data 
                     uint interval = 0;
                     uint correctClicks = 0;
 
                     // cycle through click data
-                    for (uint i=0; i < clickData.Length; i++)
-                    {
+                    for (uint i=0; i < clickData.Length; i++) {
+
                         // if a click is detected 
-                        if (clickData[i] == 1)
-                        {
+                        if (clickData[i] == 1) {
+
                             // first click always fulfills interval requirements, if not first, check requirements and increase correct clicks if fullfilled 
                             if (correctClicks == 0)                                     correctClicks++;
                             else if(interval >= minInterval && interval <= maxInterval) correctClicks++;
@@ -454,8 +429,8 @@ namespace UNP.Filters
                     if (correctClicks >= System.Math.Floor(amountOfClicks * clickRate)) sendWasup = true;
                     
                     // if also mean and sd need to be checked
-                    if (checkMeanSd)
-                    {
+                    if (checkMeanSd) {
+
                         // retrieve data from buffer
                         double[] meanSdData = mDataBuffers[1].Data();
 
@@ -485,8 +460,7 @@ namespace UNP.Filters
                 }
 
                 // send Wasup if needed
-                if (sendWasup != wasupState)
-                {
+                if (sendWasup != wasupState) {
                     // set the global
                     Globals.setValue<bool>("Wasup", (sendWasup ? "1" : "0"));
 
@@ -496,6 +470,7 @@ namespace UNP.Filters
                     // update the current wasup state
                     wasupState = sendWasup;
                 }
+
             }
 
             // pass the input straight through
@@ -503,10 +478,10 @@ namespace UNP.Filters
 
             // handle the data logging of the output (both to file and for visualization)
             processOutputLogging(output);
+
         }
 
-        public void destroy()
-        {
+        public void destroy() {
 
             // stop the filter
             // Note: At this point stop will probably have been called from the mainthread before destroy, however there is a slight
@@ -518,6 +493,5 @@ namespace UNP.Filters
         }
 
     }
-
 
 }
