@@ -1689,6 +1689,12 @@ namespace CMoleTask {
             newParameters.setValue("ShowScore", true);
             newParameters.setValue("ShowEscapeScoreSeperate", false);       
             newParameters.setValue("ScoreType", 1);
+            newParameters.setValue("PositiveHelpPercentage", 5);
+            newParameters.setValue("NegativeHelpPercentage", 10);
+            newParameters.setValue("EscapeInterval", 2);
+            newParameters.setValue("EscapeDuration", "3s");
+            newParameters.setValue("TrialSequence", "");
+
 
             // get parameter values from app.config
             // cycle through app.config parameter values and try to set the parameter
