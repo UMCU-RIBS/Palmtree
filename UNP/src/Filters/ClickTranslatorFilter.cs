@@ -30,7 +30,7 @@ namespace UNP.Filters {
     /// </summary>
     public class ClickTranslatorFilter : FilterBase, IFilter {
 
-        private new const int CLASS_VERSION = 1;
+        private new const int CLASS_VERSION = 2;
 
         private int[] activePeriod = null;                               // time window of buffer used for determining clicks
         private int[] mBufferSize = null;                                // now equals the activeperiod variable, can be used to enlarge the buffer but only use the last part (activeperiod)
