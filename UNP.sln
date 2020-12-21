@@ -25,7 +25,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpellerTask", "SpellerTask\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MultiClicks", "MultiClicks\MultiClicks.csproj", "{056AA1C1-2AD5-4742-B9B2-05591CD322D6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "continuousWAM", "ContinuousWAM\continuousWAM.csproj", "{014AF1DA-75CB-4D4B-B2B8-5B845A2D2F9E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CMoleTask", "CMoleTask\CMoleTask.csproj", "{014AF1DA-75CB-4D4B-B2B8-5B845A2D2F9E}"
 EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution

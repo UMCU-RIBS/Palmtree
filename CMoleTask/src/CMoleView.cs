@@ -1,10 +1,10 @@
 ﻿/**
- * The CWAMView class
+ * The CMoleView class
  * 
  * ...
  * 
  * 
- * Copyright (C) 2017:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Copyright (C) 2019:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Author(s):           Benny van der Vijgh         (benny@vdvijgh.nl)
  * 
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software
@@ -18,17 +18,17 @@ using System.Collections.Generic;
 using UNP.Core;
 using UNP.Views;
 
-namespace continuousWAM {
+namespace CMoleTask {
 
     /// <summary>
-    /// The <c>CWAMView</c> class.
+    /// The <c>CMoleView</c> class.
     /// 
     /// ...
     /// </summary>
-    public class CWAMView : OpenTKView, IView {
-    //class CWAMView : SharpGLView, IView {
+    public class CMoleView : OpenTKView, IView {
+    //class CMoleView : SharpGLView, IView {
 
-        private static Logger logger = LogManager.GetLogger("CWAMView");                // the logger object for the view
+        private static Logger logger = LogManager.GetLogger("CMoleView");                // the logger object for the view
 
         private Object textureLock = new Object();                                      // threadsafety lock for texture events
 
@@ -72,7 +72,7 @@ namespace continuousWAM {
         private int scoreGridOffsetY = 0;
         private int totalScoresOnScreen = 0;
 
-        List<continuousWAM.scoreTypes> posAndNegs = new List<continuousWAM.scoreTypes>(0);
+        List<CMoleTask.scoreTypes> posAndNegs = new List<CMoleTask.scoreTypes>(0);
 
 
         private glFreeTypeFont scoreFont = new glFreeTypeFont();
@@ -91,11 +91,11 @@ namespace continuousWAM {
 
 
 
-        public CWAMView() : base(120, 0, 0, 640, 480, true) {
+        public CMoleView() : base(120, 0, 0, 640, 480, true) {
             
         }
 
-        public CWAMView(int updateFrequency, int x, int y, int width, int height, bool border) : base(updateFrequency, x, y, width, height, border) {
+        public CMoleView(int updateFrequency, int x, int y, int width, int height, bool border) : base(updateFrequency, x, y, width, height, border) {
             
         }
 
@@ -318,8 +318,8 @@ namespace continuousWAM {
                 int y = scoreGridOffsetY;
 
                 // create new list from posAndNegs list (to prevent referencing the same object), remove true negatives (we don't want to plot these), and use this list for plotting
-                List<continuousWAM.scoreTypes> scoreList = new List<continuousWAM.scoreTypes>(posAndNegs);
-                scoreList.RemoveAll(item => item == continuousWAM.scoreTypes.TrueNegative);
+                List<CMoleTask.scoreTypes> scoreList = new List<CMoleTask.scoreTypes>(posAndNegs);
+                scoreList.RemoveAll(item => item == CMoleTask.scoreTypes.TrueNegative);
 
                 // determine at which index to begin plotting the scores (it is possible that there are more scores than can fit on screen (scoreRows * scoreCellsPerRow fit on screen), so when screen is full, only new scores are plotted
                 int index = (int)Math.Floor(scoreList.Count / (double)totalScoresOnScreen) * totalScoresOnScreen;
@@ -328,7 +328,7 @@ namespace continuousWAM {
                 for (int i = index; i < scoreList.Count; i++) {
 
                     // plot anything but true negatives
-                    if (scoreList[i] != continuousWAM.scoreTypes.TrueNegative) {
+                    if (scoreList[i] != CMoleTask.scoreTypes.TrueNegative) {
 
                         // to determine if was false or true
                         bool correct = false;
@@ -337,11 +337,11 @@ namespace continuousWAM {
                         glColor3(1f, 1f, 1f);
 
                         // set texture
-                        if (scoreList[i] == continuousWAM.scoreTypes.FalseNegative) glBindTexture2D(moleLaughTexture);
-                        else if (scoreList[i] == continuousWAM.scoreTypes.FalsePositive) glBindTexture2D(holeTexture);
-                        else if (scoreList[i] == continuousWAM.scoreTypes.TruePositive) { glBindTexture2D(moleWhackedTexture); correct = true; } 
-                        else if (scoreList[i] == continuousWAM.scoreTypes.TruePositiveEscape) { glBindTexture2D(escapeTexture); correct = true; } 
-                        else if (scoreList[i] == continuousWAM.scoreTypes.FalseNegativeEscape) glBindTexture2D(escapeTexture);
+                        if (scoreList[i] == CMoleTask.scoreTypes.FalseNegative) glBindTexture2D(moleLaughTexture);
+                        else if (scoreList[i] == CMoleTask.scoreTypes.FalsePositive) glBindTexture2D(holeTexture);
+                        else if (scoreList[i] == CMoleTask.scoreTypes.TruePositive) { glBindTexture2D(moleWhackedTexture); correct = true; } 
+                        else if (scoreList[i] == CMoleTask.scoreTypes.TruePositiveEscape) { glBindTexture2D(escapeTexture); correct = true; } 
+                        else if (scoreList[i] == CMoleTask.scoreTypes.FalseNegativeEscape) glBindTexture2D(escapeTexture);
                         else return;
 
                         // draw hole
@@ -469,7 +469,7 @@ namespace continuousWAM {
 	        showGrid = visible;	
         }
 
-        public void setScore(List<continuousWAM.scoreTypes> posAndNegs, int score, int scoreEscape) {
+        public void setScore(List<CMoleTask.scoreTypes> posAndNegs, int score, int scoreEscape) {
             this.posAndNegs = posAndNegs;
             this.score = score;
             this.scoreEscape = scoreEscape;

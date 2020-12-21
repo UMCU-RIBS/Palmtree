@@ -1,5 +1,5 @@
 ﻿/**
- * The Program class
+ * The MoleCell class
  * 
  * ...
  * 
@@ -12,24 +12,36 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details. You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-using System;
-using UNP.Core;
-
-namespace continuousWAM {
+namespace CMoleTask {
 
     /// <summary>
-    /// The <c>Program</c> class.
+    /// The <c>MoleCell</c> class.
     /// 
     /// ...
     /// </summary>
-    class Program {
+    public class MoleCell {
+        
+		public enum CellType : int {
+			Empty,
+			Hole,
+			Mole,
+			Exit
+		};
 
-        static void Main(string[] args) {
+        public int x;
+        public int y;
+        public int width;
+        public int height;
+        public CellType type;
 
-            Type t = Type.GetType("continuousWAM.continuousWAM");
-            MainBoot.Run(args, t);
-
+        public MoleCell(int x, int y, int width, int height, CellType type) {
+	        this.x = x;
+	        this.y = y;
+	        this.width = width;
+	        this.height = height;
+            this.type = type;
         }
 
     }
+
 }

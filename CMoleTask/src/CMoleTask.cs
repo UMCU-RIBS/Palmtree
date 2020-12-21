@@ -1,10 +1,10 @@
 ﻿/**
- * The continuousWAM class
+ * The CMoleTask class
  * 
  * ...
  * 
  * 
- * Copyright (C) 2017:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Copyright (C) 2019:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Concept:             UNP Team                    (neuroprothese@umcutrecht.nl)
  * Author(s):           Benny van der Vijgh         (benny@vdvijgh.nl)
  * 
@@ -26,15 +26,15 @@ using UNP.Core.Params;
 using UNP.Core.DataIO;
 using System.Collections.Specialized;
 
-namespace continuousWAM {
+namespace CMoleTask {
 
     /// <summary>
-    /// The <c>continuousWAM</c> class.
+    /// The <c>CMoleTask</c> class.
     /// 
     /// ...
     /// </summary>
     
-    public class continuousWAM : IApplication, IApplicationUNP {
+    public class CMoleTask : IApplication, IApplicationUNP {
 
 		private enum TaskStates:int {
 			Wait,
@@ -55,14 +55,14 @@ namespace continuousWAM {
         };
 
         private const int CLASS_VERSION = 2;
-        private const string CLASS_NAME = "continuousWAM";
+        private const string CLASS_NAME = "CMoleTask";
         private const string CONNECTION_LOST_SOUND = "sounds\\connectionLost.wav";
 
         private static Logger logger = LogManager.GetLogger(CLASS_NAME);            // the logger object for the view
         private static Parameters parameters = null;
         
         private int inputChannels = 0;
-        private CWAMView view = null;
+        private CMoleView view = null;
 
         private Random rand = new Random(Guid.NewGuid().GetHashCode());
         private Object lockView = new Object();                                     // threadsafety lock for all event on the view
@@ -145,8 +145,8 @@ namespace continuousWAM {
         private int currentCorrect = 0;
         private double stepSize = 0;                                                // stepsize with which the dynamic parameter is being adjusted per step
 
-        public continuousWAM() : this(false) { }
-        public continuousWAM(bool UNPMenuTask) {
+        public CMoleTask() : this(false) { }
+        public CMoleTask(bool UNPMenuTask) {
 
             // transfer the UNP menu task flag
             unpMenuTask = UNPMenuTask;
@@ -582,7 +582,7 @@ namespace continuousWAM {
         private void initializeView() {
 
             // create the view
-            view = new CWAMView(windowRedrawFreqMax, windowLeft, windowTop, windowWidth, windowHeight, false);
+            view = new CMoleView(windowRedrawFreqMax, windowLeft, windowTop, windowWidth, windowHeight, false);
             view.setBackgroundColor(windowBackgroundColor.getRed(), windowBackgroundColor.getGreen(), windowBackgroundColor.getBlue());
 
             // set task specific display attributes 
@@ -1658,7 +1658,7 @@ namespace continuousWAM {
 
 
             // create a new parameter object and define this task's parameters
-            Parameters newParameters = new Parameters("Cwam", Parameters.ParamSetTypes.Application);
+            Parameters newParameters = new Parameters("CMole", Parameters.ParamSetTypes.Application);
             defineParameters(ref newParameters);
 
             // transfer some parameters from the parent

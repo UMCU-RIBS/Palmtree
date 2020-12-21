@@ -5,12 +5,12 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("continuousWAM")]
+[assembly: AssemblyTitle("CMoleTask")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Lab of Nick Ramsey")]
-[assembly: AssemblyProduct("continuousWAM")]
-[assembly: AssemblyCopyright("Copyright © Lab of Nick Ramsey 2017")]
+[assembly: AssemblyProduct("CMoleTask")]
+[assembly: AssemblyCopyright("Copyright © Lab of Nick Ramsey 2019")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
