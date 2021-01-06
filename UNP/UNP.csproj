@@ -56,9 +56,8 @@
     </StartupObject>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Expressive, Version=1.2.1.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\ExpressiveParser.1.2.1\lib\Net40\Expressive.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="Expressive, Version=2.2.0.0, Culture=neutral, PublicKeyToken=96bf77aa50d0fd78, processorArchitecture=MSIL">
+      <HintPath>..\packages\ExpressiveParser.2.2.0\lib\net45\Expressive.dll</HintPath>
     </Reference>
     <Reference Include="NLog, Version=4.0.0.0, Culture=neutral, PublicKeyToken=5120e14c03d0593c, processorArchitecture=MSIL">
       <HintPath>..\packages\NLog.4.7.6\lib\net45\NLog.dll</HintPath>
