@@ -347,7 +347,7 @@ namespace UNP.Views {
 
             // set transparancy
             GL.Enable(EnableCap.Blend);
-            GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
+            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
             // clear the buffer and show (black screen)
             GL.Clear(ClearBufferMask.ColorBufferBit);
@@ -744,7 +744,7 @@ namespace UNP.Views {
         public void glDisableBlend()                            {   GL.Disable(EnableCap.Blend);        }
 
         public void glBlendFunc_SrcAlpha_DstOneMinusSrcAlpha() {
-            GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
+            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
         }
 
         public void glTranslate(float x, float y, float z)      {   GL.Translate(x, y, z);  }
