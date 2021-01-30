@@ -14,12 +14,15 @@
  */
 using NLog;
 using System;
+using System.Collections.Generic;
+using System.Configuration;
 using System.Globalization;
 using System.Threading;
 using System.Windows.Forms;
 using UNP.Core.Helpers;
 using UNP.Core.Params;
 using UNP.GUI;
+using UNP.Core.Helpers.AppConfig;
 
 namespace UNP.Core {
 
@@ -30,17 +33,29 @@ namespace UNP.Core {
     /// </summary>
     public static class MainBoot {
 
-        private const int CLASS_VERSION = 1;
+        private const int CLASS_VERSION = 2;
 
         private static Logger logger = LogManager.GetLogger("MainBoot");
 
         // the available sources
-        private static string[][] sources = new string[][] {
-                                                new string[] { "GenerateSignal",    "UNP.Sources.GenerateSignal"},
-                                                new string[] { "KeypressSignal",    "UNP.Sources.KeypressSignal"},
-                                                new string[] { "NexusSignal",       "UNP.Sources.NexusSignal" },
-                                                new string[] { "PlaybackSignal",    "UNP.Sources.PlaybackSignal" }
-                                            };
+        private static string[][] availableSources = new string[][] {
+                                                        new string[] { "GenerateSignal",            "UNP.Sources.GenerateSignal"},
+                                                        new string[] { "KeypressSignal",            "UNP.Sources.KeypressSignal"},
+                                                        new string[] { "NexusSignal",               "UNP.Sources.NexusSignal" },
+                                                        new string[] { "PlaybackSignal",            "UNP.Sources.PlaybackSignal" }
+                                                    };
+
+        // the available filters
+        private static string[][] availableFilters = new string[][] {
+                                                        new string[] { "AdaptationFilter",          "UNP.Filters.AdaptationFilter" },                                    
+                                                        new string[] { "ClickTranslatorFilter",     "UNP.Filters.ClickTranslatorFilter" },
+                                                        new string[] { "KeySequenceFilter",         "UNP.Filters.KeySequenceFilter" },
+                                                        new string[] { "NormalizerFilter",          "UNP.Filters.NormalizerFilter" },
+                                                        new string[] { "RedistributionFilter",      "UNP.Filters.RedistributionFilter"},
+                                                        new string[] { "ThresholdClassifierFilter", "UNP.Filters.ThresholdClassifierFilter" },
+                                                        new string[] { "TimeSmoothingFilter",       "UNP.Filters.TimeSmoothingFilter"},
+                                                        new string[] { "WasupFilter",               "UNP.Filters.WasupFilter" }
+                                                    };
 
         public static int getClassVersion() {
             return CLASS_VERSION;
@@ -60,27 +75,21 @@ namespace UNP.Core {
             bool startupStartRun = false;
             string parameterFile = @"";
             string source = "";
+            List<string[]> filters = new List<string[]>();
 
-            //args = new string[] { "-parameterfile", "UNPMenu_nexus.prm", "-source", "NexusSignal", "-startupConfigAndInit", "-startupStart" };
-            //args = new string[] { "-parameterfile", "test_UNPMENU.prm", "-source", "KeypressSignal", "-startupConfigAndInit", "-startupStartRun" };
-            //args = new string[] { "-source", "KeypressSignal", "-startupConfigAndInit", "-startupStart" };
-            //args = new string[] { "-source", "KeypressSignal"};
-            //args = new string[] { "-source", "KeypressSignal"};
-            //args = new string[] { "-source", "KeypressSignal", "-language", "en" };
-            //args = new string[] { "-language", "en-us" };
-
-            // process startup arguments
+            // See if we are providing a graphical user interface (GUI)
+            // 
+            // Note: done seperately because it will detemine whether error messages are 
+            //       also show as message dialogs, instead of only written to the log file
             for (int i = 0; i < args.Length; i++) {
-                // TODO: process following startup arguments 
-                // - autosetconfig = 
-                // - autostart = 
-                // - source (GenerateSignal/KeypressSignal/PlaybackSignal) = 
-
                 string argument = args[i].ToLower();
-
-                // check if no gui should be shown
                 if (argument == "-nogui")                       nogui = true;
+            }
 
+            // process all startup arguments
+            for (int i = 0; i < args.Length; i++) {
+                string argument = args[i].ToLower();
+                
                 // check if the configuration and initialization should be done automatically at startup
                 if (argument == "-startupconfigandinit")        startupConfigAndInit = true;
 
@@ -92,7 +101,25 @@ namespace UNP.Core {
 
                     // the next element should be the source, try to retrieve
                     if (args.Length >= i + 1 && !string.IsNullOrEmpty(args[i + 1])) {
-                        source = args[i + 1];
+
+                        // check if valid source
+                        int[] sourceIdx = ArrayHelper.jaggedArrayCompare(args[i + 1], availableSources, null, new int[]{0}, true);
+                        if (sourceIdx == null) {
+
+                            string errMessage = "Could not find the source module '" + args[i + 1] + "' requested as startup argument), choose one of the following: " + ArrayHelper.jaggedArrayJoin(", ", availableSources, 0);
+                            logger.Error(errMessage);
+                            if (!nogui)
+                                MessageBox.Show(errMessage, "Requested source module not found", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            
+                            return;
+
+                        } else {
+                            
+                            // store the source-type as a string
+                            source = availableSources[sourceIdx[0]][1];
+
+                        }
+                        
                     }
 
                 }
@@ -138,7 +165,7 @@ namespace UNP.Core {
                 }
 
             }
-
+            
             // adjust decimal seperator and group seperator
             culture.NumberFormat.NumberDecimalSeparator = ".";
             culture.NumberFormat.NumberGroupSeparator = "";
@@ -149,57 +176,74 @@ namespace UNP.Core {
             CultureInfo.DefaultThreadCurrentUICulture = culture;
             Thread.CurrentThread.CurrentCulture = culture;
             Thread.CurrentThread.CurrentUICulture = culture;
+            
+            // try to read the pipeline modules (source and filters) from the <AppName>.Config file
+            try {
+                
+                // if no valid source was parsed from a command-line argument, then try to retrieve a valid source from the <appname>.config file
+                KeyValueConfigurationElement appConfigSource = PipelineConfigurationSection.Pipeline.Source;
+                if (string.IsNullOrEmpty(source) && !string.IsNullOrEmpty(appConfigSource.Value)) {
+                    int[] sourceIdx = ArrayHelper.jaggedArrayCompare(appConfigSource.Value, availableSources, null, new int[]{0}, true);
+                    if (sourceIdx != null) {
+    
+                        // store the source-type as a string
+                        source = availableSources[sourceIdx[0]][1];
+                        
+                    } else {
 
-            // check if a source is given as argument
-            if (!string.IsNullOrEmpty(source)) {
+                        string errMessage = "Could not find the source module '" + appConfigSource.Value + "' requested in the <appname>.config file, choose one of the following: " + ArrayHelper.jaggedArrayJoin(", ", availableSources, 0);
+                        logger.Error(errMessage);
+                        if (!nogui)
+                                MessageBox.Show(errMessage, "Requested source module not found", MessageBoxButtons.OK, MessageBoxIcon.Error);
 
-                // loop throug the available source to check the given source can be found
-                bool sourceFound = false;
-                for (int i = 0; i < sources.Length; i++) {
-                    if (string.Compare(source, sources[i][0], true) == 0) {
-
-                        // flag as found
-                        sourceFound = true;
-
-                        // update the source to the type name
-                        source = sources[i][1];
-
-                        // stop looping
-                        break;
+                        return;
 
                     }
                 }
 
-                // check if the source was not found
-                if (!sourceFound) {
+                // if no valid filters were parsed from a command-line argument, then try to retrieve valid filters from the <appname>.config file
+                List<FilterConfigurationElement> appConfigFilters = PipelineConfigurationSection.Pipeline.Filters.All;
+                if (filters.Count == 0 && appConfigFilters.Count > 0) {
+                    for (int iFilter = 0; iFilter < appConfigFilters.Count; iFilter++) {
+                        string filterName = appConfigFilters[iFilter].Name;
+                        string filterType = appConfigFilters[iFilter].Type;
+                                   
+                        // check if valid filter
+                        int[] filterIdx = ArrayHelper.jaggedArrayCompare(filterType, availableFilters, null, new int[]{0}, true);
+                        if (filterIdx == null) {
 
-                    // build a list of valid sources to give as startup source argument
-                    string sourceList = "";
-                    for (int i = 0; i < sources.Length; i++) {
-                        if (i != 0) sourceList += ", ";
-                        sourceList += sources[i][0];
+                            string errMessage = "A filter-module of the type '" + filterType + "' was requested in the <appname>.config file, but could not be found. The following filter-types are available: " + ArrayHelper.jaggedArrayJoin(", ", availableFilters, 0);
+                            logger.Error(errMessage);
+                            if (!nogui)
+                                MessageBox.Show(errMessage, "Requested filter module not found", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            return;
+
+                        } else {
+                            
+                            // add the filter as a string array with two values (filter-type and filter-name)
+                            filters.Add(new string[] {availableFilters[filterIdx[0]][1], filterName});
+                        }
+
                     }
-
-                    // message
-                    logger.Error("Could not find the source that was given as startup source argument ('" + source + "'), use one of the following: " + sourceList);
-
-                    // empty the source
-                    source = "";
-
                 }
+
+            } catch (Exception e) {
+                string errMessage = "Error while reading the Pipeline config section in the <appname>.config file: " + e.Message;
+                logger.Error(errMessage);
+                if (!nogui)
+                    MessageBox.Show(errMessage, "Error in the <appname>.config file", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
 
-            // check if no (valid) source was given
+            // if no source passed using command-line or <appname>.config file then allow the user to choose a source by popup
             if (string.IsNullOrEmpty(source)) {
-
-                // allow the user to choose a source by popup
-                source = ListMessageBox.ShowSingle("Source", sources);
+                source = ListMessageBox.ShowSingle("Source", availableSources);
                 if (string.IsNullOrEmpty(source))  return;
-
             }
 
-            // GenerateSignal/KeypressSignal/PlaybackSignal
-            Type sourceType = Type.GetType(source);
+
+            //
+            // Setup and initialize Palmtree
+            // 
 
             // name this thread
             if (Thread.CurrentThread.Name == null)
@@ -263,19 +307,20 @@ namespace UNP.Core {
                 logger.Debug("Processes are run in a 32 bit environment");
 
             // setup and initialize the pipeline
-            mainThread.initPipeline(sourceType, applicationType);
+            if (mainThread.initPipeline(source, filters, applicationType)) {
 
-            // check if a parameter file was given to load at startup
-            if (!String.IsNullOrEmpty(parameterFile)) {
+                // check if a parameter file was given to load at startup
+                if (!String.IsNullOrEmpty(parameterFile)) {
 
-                // load parameter file to the applications parametersets
-                ParameterManager.loadParameterFile(parameterFile, ParameterManager.getParameterSets());
+                    // load parameter file to the applications parametersets
+                    ParameterManager.loadParameterFile(parameterFile, ParameterManager.getParameterSets());
+
+                }
+            
+                // continue to run as the main thread
+                mainThread.run();
 
             }
-            
-            // start the main thread
-            // (do it here, so the UNPThead uses main to run on)
-            mainThread.run();
 
             // check if there is a gui, and close it by delegate
             if (gui != null) {

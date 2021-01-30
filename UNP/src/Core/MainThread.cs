@@ -38,7 +38,7 @@ namespace UNP.Core {
     /// </summary>
     public class MainThread {
 
-        private const int CLASS_VERSION = 1;
+        private const int CLASS_VERSION = 2;
 
         private static Logger logger = LogManager.GetLogger("MainThread");
 
@@ -91,28 +91,31 @@ namespace UNP.Core {
             return CLASS_VERSION;
         }
 
-        public void initPipeline(Type sourceType, Type applicationType) {
+        public bool initPipeline(string sourceType, List<string[]> filtersTypes, Type applicationType) {
             
             // constuct the Data static class (this makes sure that the Data parameterset is created for configuration)
             Data.construct();
             
-            // create a source
+            // retrieve the source type and create and instance
             try {
-                source = (ISource)Activator.CreateInstance(sourceType);
+                source = (ISource)Activator.CreateInstance(Type.GetType(sourceType));
             } catch (Exception) {
-                logger.Error("Unable to create a source instance of '" + sourceType.Name + "'");
+                logger.Error("Unable to create a source instance of '" + sourceType + "'");
+                return false;
             }
 
             // create filters
-            filters.Add(new RedistributionFilter("FeatureSelector"));
-            filters.Add(new TimeSmoothingFilter("TimeSmoothing"));
-            filters.Add(new AdaptationFilter("Adaptation"));
-            filters.Add(new RedistributionFilter("LinearClassifier"));
-            filters.Add(new KeySequenceFilter("KeySequence"));
-            filters.Add(new ThresholdClassifierFilter("ThresholdClassifier"));
-            filters.Add(new ClickTranslatorFilter("ClickTranslator"));
-            filters.Add(new NormalizerFilter("Normalizer"));
-            filters.Add(new WasupFilter("Wasup"));
+            if (filtersTypes != null || filtersTypes.Count > 0) {
+                for (int i = 0; i < filtersTypes.Count; i++) {
+                    try {
+                        IFilter filter = (IFilter)Activator.CreateInstance(Type.GetType(filtersTypes[i][0]), filtersTypes[i][1]);
+                        filters.Add(filter);
+                    } catch (Exception) {
+                        logger.Error("Unable to create a filter instance of '" + filtersTypes[i][0] + "'");
+                        return false;
+                    }
+                }
+            }
 
             // create the application
             try {
@@ -122,7 +125,10 @@ namespace UNP.Core {
             }
 
             // create/add plugins
-            plugins.Add(new WindowsSensorsPlugin("WindowsSensorsPlugin", "wsp"));
+            //plugins.Add(new WindowsSensorsPlugin("WindowsSensorsPlugin", "wsp"));
+
+            // return success
+            return true;
 
         }
 
@@ -338,7 +344,7 @@ namespace UNP.Core {
                 process = true;
 
                 // interrupt the 'noproc' waitloop , allowing the loop to continue (in case it was waiting the sample interval)
-                // casing it to fall into the 'proc' loop
+                // causing it to fall into the 'proc' loop
                 loopManualResetEvent.Set();
                 
                 // start the source
