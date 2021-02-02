@@ -31,7 +31,7 @@ namespace CursorTask {
     /// 
     /// ...
     /// </summary>
-    public class CursorTask : IApplication, IApplicationUNP {
+    public class CursorTask : IApplication, IApplicationChild {
 
         enum TaskStates : int {
             Wait,

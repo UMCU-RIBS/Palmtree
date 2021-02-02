@@ -106,7 +106,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="src\Applications\IApplication.cs" />
-    <Compile Include="src\Applications\IApplicationPalmtree.cs" />
+    <Compile Include="src\Applications\IApplicationChild.cs" />
     <Compile Include="src\Core\DataIO\Data.cs" />
     <Compile Include="src\Core\DataIO\DataHeader.cs" />
     <Compile Include="src\Core\DataIO\DataReader.cs" />

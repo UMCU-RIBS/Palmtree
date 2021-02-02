@@ -33,7 +33,7 @@ namespace MultiClicksTask {
     /// 
     /// ...
     /// </summary>
-    public class MultiClicksTask : IApplication, IApplicationUNP {
+    public class MultiClicksTask : IApplication, IApplicationChild {
 
 		private enum TaskStates:int {
 			Wait,

@@ -1,5 +1,5 @@
 ﻿/**
- * The IApplicationUNP interface
+ * The IApplicationChild interface
  * 
  * ...
  * 
@@ -17,11 +17,11 @@ using Palmtree.Core.Params;
 namespace Palmtree.Applications {
 
     /// <summary>
-    /// The <c>IApplicationUNP</c> interface.
+    /// The <c>IApplicationChild</c> interface.
     /// 
     /// abc.
     /// </summary>
-    public interface IApplicationUNP {
+    public interface IApplicationChild {
 
         void UNP_start(Parameters parentParameters);
         void UNP_stop();                        // stops the task from running. The parent process should check isRunning (whether the task stopped) and is responsible for removing the object

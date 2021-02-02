@@ -34,7 +34,7 @@ namespace MoleTask {
     /// 
     /// ...
     /// </summary>
-    public class MoleTask : IApplication, IApplicationUNP {
+    public class MoleTask : IApplication, IApplicationChild {
 
 		private enum TaskStates:int {
 			Wait,

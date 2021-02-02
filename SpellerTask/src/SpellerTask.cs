@@ -32,7 +32,7 @@ namespace SpellerTask {
     /// 
     /// ...
     /// </summary>
-    public class SpellerTask : IApplication, IApplicationUNP {
+    public class SpellerTask : IApplication, IApplicationChild {
 
         // fundamentals
         private const int CLASS_VERSION = 0;

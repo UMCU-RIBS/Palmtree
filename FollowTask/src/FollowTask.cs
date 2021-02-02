@@ -33,7 +33,7 @@ namespace FollowTask {
     /// 
     /// ...
     /// </summary>
-    public class FollowTask : IApplication, IApplicationUNP {
+    public class FollowTask : IApplication, IApplicationChild {
 
 		private enum TaskStates:int {
 			Wait,

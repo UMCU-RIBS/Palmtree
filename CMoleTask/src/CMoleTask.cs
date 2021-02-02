@@ -34,7 +34,7 @@ namespace CMoleTask {
     /// ...
     /// </summary>
     
-    public class CMoleTask : IApplication, IApplicationUNP {
+    public class CMoleTask : IApplication, IApplicationChild {
 
 		private enum TaskStates:int {
 			Wait,
