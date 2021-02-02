@@ -120,7 +120,7 @@ namespace SpellerTask {
         public SpellerTask() : this(false) { }
         public SpellerTask(bool childApplication) {
 
-            // transfer the UNP menu task flag
+            // transfer the child application flag
             this.childApplication = childApplication;
             
             // check if the task is standalone (not a child application)
@@ -1334,14 +1334,14 @@ namespace SpellerTask {
 
 
         ////////////////////////////////////////////////
-        //  UNP entry points (start, process, stop)
+        //  Child application entry points (start, process, stop)
         ////////////////////////////////////////////////
 
         public void AppChild_start(Parameters parentParameters) {
             
-            // UNP entry point can only be used if initialized as UNPMenu
+            // entry point can only be used if initialized as child application
             if (!childApplication) {
-                logger.Error("Using UNP entry point while the task was not initialized as UNPMenu task, check parameters used to call the task constructor");
+                logger.Error("Using child entry point while the task was not initialized as child application task, check parameters used to call the task constructor");
                 return;
             }
 
@@ -1405,9 +1405,9 @@ namespace SpellerTask {
 
         public void AppChild_stop() {
             
-            // UNP entry point can only be used if initialized as UNPMenu
+            // entry point can only be used if initialized as child application
             if (!childApplication) {
-                logger.Error("Using UNP entry point while the task was not initialized as UNPMenu task, check parameters used to call the task constructor");
+                logger.Error("Using child entry point while the task was not initialized as child application task, check parameters used to call the task constructor");
                 return;
             }
 

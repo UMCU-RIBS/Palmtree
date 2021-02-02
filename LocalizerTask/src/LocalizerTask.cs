@@ -88,7 +88,7 @@ namespace LocalizerTask {
         public LocalizerTask() : this(false) { }
         public LocalizerTask (bool childApplication) {
 
-            // transfer the UNP menu task flag
+            // transfer the child application flag
             this.this.childApplication = childApplication;
 
             // check if the task is standalone (not a child application)
@@ -705,13 +705,13 @@ namespace LocalizerTask {
         }
 
         //
-        //  UNP entry points (start, process, stop)
+        //  Child application entry points (start, process, stop)
         //
         public void AppChild_start(Parameters parentParameters) {
 
-            // UNP entry point can only be used if initialized as UNPMenu
+            // entry point can only be used if initialized as child application
             if (!this.childApplication) {
-                logger.Error("Using UNP entry point while the task was not initialized as UNPMenu task, check parameters used to call the task constructor.");
+                logger.Error("Using child entry point while the task was not initialized as child application task, check parameters used to call the task constructor.");
                 return;
             }
 
@@ -744,9 +744,9 @@ namespace LocalizerTask {
 
         public void AppChild_stop() {
 
-            // UNP entry point can only be used if initialized as UNPMenu
+            // entry point can only be used if initialized as child application
             if (!this.childApplication) {
-                logger.Error("Using UNP entry point while the task was not initialized as UNPMenu task, check parameters used to call the task constructor");
+                logger.Error("Using child entry point while the task was not initialized as child application task, check parameters used to call the task constructor");
                 return;
             }
 
@@ -764,13 +764,13 @@ namespace LocalizerTask {
             return childApplicationRunning;
         }
 
-        public void AppChild_process(double[] input, bool unpConnectionLost) {
+        public void AppChild_process(double[] input, bool connectionLost) {
 
             // check if the task is running
             if (childApplicationRunning) {
 
                 // transfer connection lost
-                connectionLost = unpConnectionLost;
+                this.connectionLost = connectionLost;
 
                 // process the input (if the task is not suspended)
                 if (!childApplicationSuspended)      process();
