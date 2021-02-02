@@ -78,7 +78,7 @@ namespace Palmtree.GUI {
             this.btnSetConfig.Name = "btnSetConfig";
             this.btnSetConfig.Size = new System.Drawing.Size(148, 44);
             this.btnSetConfig.TabIndex = 15;
-            this.btnSetConfig.Text = "Set Configuration";
+            this.btnSetConfig.Text = "Set Configuration and Initialize";
             this.btnSetConfig.UseVisualStyleBackColor = true;
             this.btnSetConfig.Click += new System.EventHandler(this.btnSetConfig_Click);
             // 
