@@ -68,8 +68,8 @@ namespace CMoleTask {
         private Object lockView = new Object();                                     // threadsafety lock for all event on the view
         private bool taskPaused = false;								            // flag to hold whether the task is pauzed (view will remain active, e.g. connection lost)
 
-        private bool unpMenuTask = false;								            // flag whether the task is created by the UNPMenu
-        private bool unpMenuTaskRunning = false;						            // flag to hold whether the task should is running (setting this to false is also used to notify the UNPMenu that the task is finished)
+        private bool childApplication = false;								        // flag whether the task is running as a child application (true) or standalone (false)
+        private bool childApplicationRunning = false;						        // flag to hold whether the application should be or is running (setting this to false is also used to notify the parent application that the task is finished)
         private bool umpMenuTaskSuspended = false;						            // flag to hold whether the task is suspended (view will be destroyed/re-initiated)
 
         private bool connectionLost = false;							            // flag to hold whether the connection is lost
@@ -146,13 +146,13 @@ namespace CMoleTask {
         private double stepSize = 0;                                                // stepsize with which the dynamic parameter is being adjusted per step
 
         public CMoleTask() : this(false) { }
-        public CMoleTask(bool UNPMenuTask) {
+        public CMoleTask(bool childApplication) {
 
             // transfer the UNP menu task flag
-            unpMenuTask = UNPMenuTask;
+            this.childApplication = childApplication;
             
-            // check if the task is standalone (not unp menu)
-            if (!unpMenuTask) {
+            // check if the task is standalone (not a child application)
+            if (!childApplication) {
 
                 // create a parameter set for the task
                 parameters = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Application);
@@ -612,8 +612,8 @@ namespace CMoleTask {
 
         public void start() {
 
-            // check if the task is standalone (not unp menu)
-            if (!unpMenuTask) {
+            // check if the task is standalone (not a child application)
+            if (!childApplication) {
                 
                 // store the generated sequence in the output parameter xml
                 Data.adjustXML(CLASS_NAME, "TrialSequence", string.Join(" ", cueSequence));
@@ -994,7 +994,7 @@ namespace CMoleTask {
                             Data.logEvent(2, "TaskStop", CLASS_NAME + ";end");
 
                             // stop the task, this will also call stop(), and as a result stopTask()
-                            if (unpMenuTask)        UNP_stop();
+                            if (childApplication)        AppChild_stop();
                             else                    MainThread.stop(false);
 
                         } else
@@ -1648,10 +1648,10 @@ namespace CMoleTask {
         //  UNP entry points (start, process, stop)
         ////////////////////////////////////////////////
 
-        public void UNP_start(Parameters parentParameters) {
+        public void AppChild_start(Parameters parentParameters) {
             
             // UNP entry point can only be used if initialized as UNPMenu
-            if (!unpMenuTask) {
+            if (!childApplication) {
                 logger.Error("Using UNP entry point while the task was not initialized as UNPMenu task, check parameters used to call the task constructor");
                 return;
             }
@@ -1721,14 +1721,14 @@ namespace CMoleTask {
             start();
 
             // set the task as running
-            unpMenuTaskRunning = true;
+            childApplicationRunning = true;
 
         }
 
-        public void UNP_stop() {
+        public void AppChild_stop() {
             
             // UNP entry point can only be used if initialized as UNPMenu
-            if (!unpMenuTask) {
+            if (!childApplication) {
                 logger.Error("Using UNP entry point while the task was not initialized as UNPMenu task, check parameters used to call the task constructor");
                 return;
             }
@@ -1740,18 +1740,18 @@ namespace CMoleTask {
             destroy();
 
             // flag the task as no longer running (setting this to false is also used to notify the UNPMenu that the task is finished)
-            unpMenuTaskRunning = false;
+            childApplicationRunning = false;
 
         }
 
-        public bool UNP_isRunning() {
-            return unpMenuTaskRunning;
+        public bool AppChild_isRunning() {
+            return childApplicationRunning;
         }
 
-        public void UNP_process(double[] input, bool connectionLost) {
+        public void AppChild_process(double[] input, bool connectionLost) {
 
 	        // check if the task is running
-            if (unpMenuTaskRunning) {
+            if (childApplicationRunning) {
 
 		        // transfer connection lost
 		        this.connectionLost = connectionLost;
@@ -1763,7 +1763,7 @@ namespace CMoleTask {
 
         }
 
-        public void UNP_resume() {
+        public void AppChild_resume() {
 
             // lock for thread safety
             lock (lockView) {
@@ -1781,7 +1781,7 @@ namespace CMoleTask {
 
         }
 
-        public void UNP_suspend() {
+        public void AppChild_suspend() {
 
             // flag task as suspended
             umpMenuTaskSuspended = true;

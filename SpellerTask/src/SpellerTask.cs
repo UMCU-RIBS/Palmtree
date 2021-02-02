@@ -43,9 +43,9 @@ namespace SpellerTask {
         private int inputChannels = 0;
 
         // status
-        private bool unpMenuTask = false;								        // flag whether the task is created by the UNPMenu
-        private bool unpMenuTaskRunning = false;						        // flag to hold whether the task should is running (setting this to false is also used to notify the UNPMenu that the task is finished)
-        private bool unpMenuTaskSuspended = false;						        // flag to hold whether the task is suspended (view will be destroyed/re-initiated)
+        private bool childApplication = false;								    // flag whether the task is running as a child application (true) or standalone (false)
+        private bool childApplicationRunning = false;						    // flag to hold whether the application should be or is running (setting this to false is also used to notify the parent application that the task is finished)
+        private bool childApplicationSuspended = false;						        // flag to hold whether the task is suspended (view will be destroyed/re-initiated)
         private bool taskPaused = false;                                        // flag to hold whether the task is pauzed (view will remain active, e.g. connection lost)
         private bool connectionLost = false;							        // flag to hold whether the connection is lost
         private bool connectionWasLost = false;						            // flag to hold whether the connection has been lost (should be reset after being re-connected)
@@ -118,13 +118,13 @@ namespace SpellerTask {
         };
 
         public SpellerTask() : this(false) { }
-        public SpellerTask(bool UNPMenuTask) {
+        public SpellerTask(bool childApplication) {
 
             // transfer the UNP menu task flag
-            unpMenuTask = UNPMenuTask;
+            this.childApplication = childApplication;
             
-            // check if the task is standalone (not unp menu)
-            if (!unpMenuTask) {
+            // check if the task is standalone (not a child application)
+            if (!childApplication) {
 
                 // create a parameter set for the task
                 parameters = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Application);
@@ -872,7 +872,7 @@ namespace SpellerTask {
 
                                     // stop the task
                                     // this will also call stop(), and as a result stopTask()
-                                    if (unpMenuTask)        UNP_stop();
+                                    if (childApplication)        AppChild_stop();
                                     else                    MainThread.stop(false);
 
                                 }
@@ -969,7 +969,7 @@ namespace SpellerTask {
 
                                     // stop the task
                                     // this will also call stop(), and as a result stopTask()
-                                    if (unpMenuTask)    UNP_stop();
+                                    if (childApplication)    AppChild_stop();
                                     else                MainThread.stop(false);
 
                                 } else {
@@ -998,7 +998,7 @@ namespace SpellerTask {
 
                             // stop the run
                             // this will also call stop(), and as a result stopTask()
-                            if (unpMenuTask)        UNP_stop();
+                            if (childApplication)        AppChild_stop();
                             else                    MainThread.stop(false);
 
                         } else  waitCounter--;
@@ -1337,10 +1337,10 @@ namespace SpellerTask {
         //  UNP entry points (start, process, stop)
         ////////////////////////////////////////////////
 
-        public void UNP_start(Parameters parentParameters) {
+        public void AppChild_start(Parameters parentParameters) {
             
             // UNP entry point can only be used if initialized as UNPMenu
-            if (!unpMenuTask) {
+            if (!childApplication) {
                 logger.Error("Using UNP entry point while the task was not initialized as UNPMenu task, check parameters used to call the task constructor");
                 return;
             }
@@ -1399,14 +1399,14 @@ namespace SpellerTask {
             start();
 
             // set the task as running
-            unpMenuTaskRunning = true;
+            childApplicationRunning = true;
 
         }
 
-        public void UNP_stop() {
+        public void AppChild_stop() {
             
             // UNP entry point can only be used if initialized as UNPMenu
-            if (!unpMenuTask) {
+            if (!childApplication) {
                 logger.Error("Using UNP entry point while the task was not initialized as UNPMenu task, check parameters used to call the task constructor");
                 return;
             }
@@ -1418,30 +1418,30 @@ namespace SpellerTask {
             destroy();
 
             // flag the task as no longer running (setting this to false is also used to notify the UNPMenu that the task is finished)
-            unpMenuTaskRunning = false;
+            childApplicationRunning = false;
 
         }
 
-        public bool UNP_isRunning() {
-            return unpMenuTaskRunning;
+        public bool AppChild_isRunning() {
+            return childApplicationRunning;
         }
 
-        public void UNP_process(double[] input, bool connectionLost) {
+        public void AppChild_process(double[] input, bool connectionLost) {
 
 	        // check if the task is running
-            if (unpMenuTaskRunning) {
+            if (childApplicationRunning) {
 
 		        // transfer connection lost
 		        this.connectionLost = connectionLost;
                 
 		        // process the input (if the task is not suspended)
-		        if (!unpMenuTaskSuspended)		process(input);
+		        if (!childApplicationSuspended)		process(input);
 
 	        }
 
         }
 
-        public void UNP_resume() {
+        public void AppChild_resume() {
 
             // lock for thread safety
             lock (lockView) {
@@ -1455,14 +1455,14 @@ namespace SpellerTask {
 	        resumeTask();
 
 	        // flag task as no longer suspended
-	        unpMenuTaskSuspended = false;
+	        childApplicationSuspended = false;
 
         }
 
-        public void UNP_suspend() {
+        public void AppChild_suspend() {
 
             // flag task as suspended
-            unpMenuTaskSuspended = true;
+            childApplicationSuspended = true;
 
             // pauze the task
             pauseTask();

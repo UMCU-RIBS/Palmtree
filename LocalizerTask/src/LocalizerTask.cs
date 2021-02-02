@@ -41,9 +41,9 @@ namespace LocalizerTask {
         private static Parameters parameters = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Application);        // parameters
  
         // status 
-        private bool unpMenuTask = false;                                   // flag whether the task is created by the UNPMenu
-        private bool unpMenuTaskRunning = false;                            // flag to hold whether the task is running as UNP task
-        private bool unpMenuTaskSuspended = false;                          // flag to hold whether the task (when running as UNP task) is suspended          
+        private bool childApplication = false;                               // flag whether the task is running as a child application (true) or standalone (false)
+        private bool childApplicationRunning = false;                            // flag to hold whether the task is running as UNP task
+        private bool childApplicationSuspended = false;                          // flag to hold whether the task (when running as UNP task) is suspended          
 
         private bool connectionLost = false;							    // flag to hold whether the connection is lost
         private bool connectionWasLost = false;						        // flag to hold whether the connection has been lost (should be reset after being re-connected)
@@ -86,13 +86,13 @@ namespace LocalizerTask {
 
         // parameterless constructor calls second constructor
         public LocalizerTask() : this(false) { }
-        public LocalizerTask (bool UNPMenuTask) {
+        public LocalizerTask (bool childApplication) {
 
             // transfer the UNP menu task flag
-            this.unpMenuTask = UNPMenuTask;
+            this.this.childApplication = childApplication;
 
-            // check if the task is standalone (not unp menu)
-            if (!this.unpMenuTask) {
+            // check if the task is standalone (not a child application)
+            if (!this.childApplication) {
 
                 // create a parameter set for the task
                 parameters = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Application);
@@ -497,7 +497,7 @@ namespace LocalizerTask {
 
                         // stop the run
                         // this will also call stop(), and as a result stopTask()
-                        if (unpMenuTask)        UNP_stop();
+                        if (childApplication)        AppChild_stop();
                         else                    MainThread.stop(false);
 
                         break;
@@ -707,10 +707,10 @@ namespace LocalizerTask {
         //
         //  UNP entry points (start, process, stop)
         //
-        public void UNP_start(Parameters parentParameters) {
+        public void AppChild_start(Parameters parentParameters) {
 
             // UNP entry point can only be used if initialized as UNPMenu
-            if (!this.unpMenuTask) {
+            if (!this.childApplication) {
                 logger.Error("Using UNP entry point while the task was not initialized as UNPMenu task, check parameters used to call the task constructor.");
                 return;
             }
@@ -739,13 +739,13 @@ namespace LocalizerTask {
             start();
 
             // set the task as running as UNP task
-            unpMenuTaskRunning = true;
+            childApplicationRunning = true;
         }
 
-        public void UNP_stop() {
+        public void AppChild_stop() {
 
             // UNP entry point can only be used if initialized as UNPMenu
-            if (!this.unpMenuTask) {
+            if (!this.childApplication) {
                 logger.Error("Using UNP entry point while the task was not initialized as UNPMenu task, check parameters used to call the task constructor");
                 return;
             }
@@ -757,41 +757,41 @@ namespace LocalizerTask {
             destroy();
 
             // flag the task as no longer running (setting this to false is also used to notify the UNPMenu that the task is finished)
-            unpMenuTaskRunning = false;
+            childApplicationRunning = false;
         }
 
-        public bool UNP_isRunning() {
-            return unpMenuTaskRunning;
+        public bool AppChild_isRunning() {
+            return childApplicationRunning;
         }
 
-        public void UNP_process(double[] input, bool unpConnectionLost) {
+        public void AppChild_process(double[] input, bool unpConnectionLost) {
 
             // check if the task is running
-            if (unpMenuTaskRunning) {
+            if (childApplicationRunning) {
 
                 // transfer connection lost
                 connectionLost = unpConnectionLost;
 
                 // process the input (if the task is not suspended)
-                if (!unpMenuTaskSuspended)      process();
+                if (!childApplicationSuspended)      process();
 
             }
 
         }
 
-        public void UNP_resume() {
+        public void AppChild_resume() {
 
             // flag task as no longer suspended
-            unpMenuTaskSuspended = false;
+            childApplicationSuspended = false;
             
             // resume the task
             resumeTask();
         }
 
-        public void UNP_suspend() {
+        public void AppChild_suspend() {
 
             // flag task as suspended
-            unpMenuTaskSuspended = true;
+            childApplicationSuspended = true;
 
             // pause the task
             setState(TaskStates.Pause);
