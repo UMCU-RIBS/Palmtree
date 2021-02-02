@@ -383,7 +383,7 @@ namespace Palmtree.Filters {
             // check if the filter is enabled
             if (mEnableFilter) {
 				
-                // set flag for sending wasup to false
+                // set the initial key-sequence state
                 bool keySequenceState = false;
 
                 // add data to click buffer
