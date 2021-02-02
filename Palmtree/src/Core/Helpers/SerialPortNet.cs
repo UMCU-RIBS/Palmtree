@@ -17,7 +17,7 @@ using System.Collections.Specialized;
 using System.IO.Ports;
 using System.Runtime.InteropServices;
 
-namespace UNP.Core.Helpers {
+namespace Palmtree.Core.Helpers {
 
     /// <summary>
     /// The <c>SerialPortNet</c> class.
@@ -30,10 +30,10 @@ namespace UNP.Core.Helpers {
         public static extern bool SetCommMask(IntPtr hFile, uint dwEvtMask);
 
         [DllImport("kernel32.dll")]
-        public static extern bool GetCommState(IntPtr hFile, ref UNP.Core.Helpers.SerialPortNet.DCB lpDCB);
+        public static extern bool GetCommState(IntPtr hFile, ref Palmtree.Core.Helpers.SerialPortNet.DCB lpDCB);
 
         [DllImport("kernel32.dll")]
-        public static extern bool SetCommState(IntPtr hFile, ref UNP.Core.Helpers.SerialPortNet.DCB lpDCB);
+        public static extern bool SetCommState(IntPtr hFile, ref Palmtree.Core.Helpers.SerialPortNet.DCB lpDCB);
 
         [DllImport("kernel32.dll")]
         public static extern bool EscapeCommFunction(IntPtr hFile, uint dwFunc);
@@ -41,7 +41,7 @@ namespace UNP.Core.Helpers {
         [DllImport("kernel32.dll")]
         public static extern bool ClearCommError([In] IntPtr hFile, // not int, convert int to IntPtr: new IntPtr(12)
           [Out, Optional] out uint lpErrors,
-          [Out, Optional] out UNP.Core.Helpers.SerialPortNet.COMSTAT lpStat
+          [Out, Optional] out Palmtree.Core.Helpers.SerialPortNet.COMSTAT lpStat
         );
 
         public const int CBR_300 = 300;

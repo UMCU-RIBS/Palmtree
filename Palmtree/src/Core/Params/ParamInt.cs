@@ -13,9 +13,9 @@
  * more details. You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 using System;
-using UNP.Core.Helpers;
+using Palmtree.Core.Helpers;
 
-namespace UNP.Core.Params {
+namespace Palmtree.Core.Params {
 
     /// <summary>
     /// The <c>ParamInt</c> class.

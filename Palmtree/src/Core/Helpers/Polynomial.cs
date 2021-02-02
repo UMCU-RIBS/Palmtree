@@ -16,7 +16,7 @@
  */
 using System.Numerics;
 
-namespace UNP.Core.Helpers {
+namespace Palmtree.Core.Helpers {
 
     /// <summary>
     /// The <c>Polynomial</c> class.

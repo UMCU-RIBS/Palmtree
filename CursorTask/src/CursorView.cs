@@ -14,9 +14,9 @@
  */
 using NLog;
 using System;
-using UNP.Core;
-using UNP.Core.Helpers;
-using UNP.Views;
+using Palmtree.Core;
+using Palmtree.Core.Helpers;
+using Palmtree.Views;
 
 namespace CursorTask {
 
@@ -91,7 +91,7 @@ namespace CursorTask {
         
 
 
-        // general UNP variables
+        // general Palmtree variables
         private bool showConnectionLost = false;
         private int connectionLostTexture = 0;
         private glFreeTypeFont textFont = new glFreeTypeFont();
@@ -120,7 +120,7 @@ namespace CursorTask {
 
         protected override void load() {
             
-            // initialize the UNP font
+            // initialize the Palmtree font
             textFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 20), "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.- 0123456789%");
 
             // initialize the taks fonts
@@ -170,7 +170,7 @@ namespace CursorTask {
 
         protected override void unload() {
             
-            // clear the UNP font
+            // clear the Palmtree font
             textFont.clean();
 
             // clear the task fonts

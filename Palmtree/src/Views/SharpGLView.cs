@@ -21,7 +21,7 @@ using System.Diagnostics;
 using System.Drawing.Imaging;
 using NLog;
 
-namespace UNP.Views {
+namespace Palmtree.Views {
 
     /// <summary>
     /// The <c>SharpGLView</c> class.

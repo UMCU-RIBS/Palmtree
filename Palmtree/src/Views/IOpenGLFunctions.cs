@@ -14,7 +14,7 @@
  */
 using System;
 
-namespace UNP.Views {
+namespace Palmtree.Views {
 
     /// <summary>
     /// The <c>IOpenGLFunctions</c> interface.

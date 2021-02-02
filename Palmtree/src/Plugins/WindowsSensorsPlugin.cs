@@ -17,11 +17,11 @@ using NLog;
 using System;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using UNP.Core;
-using UNP.Core.DataIO;
-using UNP.Core.Params;
+using Palmtree.Core;
+using Palmtree.Core.DataIO;
+using Palmtree.Core.Params;
 
-namespace UNP.Plugins {
+namespace Palmtree.Plugins {
 
     /// <summary>
     /// The <c>WindowsSensorsPlugin</c> class.

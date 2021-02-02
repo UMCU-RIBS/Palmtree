@@ -18,7 +18,7 @@ using System;
 using SharpFont;
 using NLog;
 
-namespace UNP.Views {
+namespace Palmtree.Views {
 
     /// <summary>
     /// The <c>glFreeTypeFont</c> class.

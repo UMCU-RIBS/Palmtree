@@ -1,4 +1,4 @@
-﻿namespace UNP.Views {
+﻿namespace Palmtree.Views {
 
     partial class OpenTKView {
 

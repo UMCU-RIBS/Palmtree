@@ -18,7 +18,7 @@ using System;
 using System.Numerics;
 using NLog;
 
-namespace UNP.Core.Helpers {
+namespace Palmtree.Core.Helpers {
 
     /// <summary>
     /// The <c>ARFilter</c> class.

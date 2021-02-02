@@ -16,12 +16,12 @@ using NLog;
 using System;
 using System.Collections.Generic;
 using System.Xml;
-using UNP.Applications;
-using UNP.Core.DataIO;
-using UNP.Filters;
-using UNP.Sources;
+using Palmtree.Applications;
+using Palmtree.Core.DataIO;
+using Palmtree.Filters;
+using Palmtree.Sources;
 
-namespace UNP.Core.Params {
+namespace Palmtree.Core.Params {
 
     /// <summary>
     /// The <c>ParameterManager</c> class.

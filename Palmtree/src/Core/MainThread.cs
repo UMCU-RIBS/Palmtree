@@ -20,16 +20,16 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
-using UNP.Applications;
-using UNP.Filters;
-using UNP.Core.Helpers;
-using UNP.Core.Params;
-using UNP.Sources;
-using UNP.Plugins;
-using UNP.Core.DataIO;
+using Palmtree.Applications;
+using Palmtree.Filters;
+using Palmtree.Core.Helpers;
+using Palmtree.Core.Params;
+using Palmtree.Sources;
+using Palmtree.Plugins;
+using Palmtree.Core.DataIO;
 using System.Windows.Forms;
 
-namespace UNP.Core {
+namespace Palmtree.Core {
 
     /// <summary>
     /// The <c>MainThread</c> class.
@@ -48,7 +48,7 @@ namespace UNP.Core {
 
         private static ManualResetEvent loopManualResetEvent = new ManualResetEvent(false);    // Manual reset event to call the WaitOne event on (this allows - in contrast to the sleep wait - to cancel the wait period at any point when a new sample comes in) 
 
-        private static bool running = false;				                        // flag to define if the UNP thread is running (setting to false will stop the experiment thread) 
+        private static bool running = false;				                        // flag to define if the Palmtree thread is running (setting to false will stop the experiment thread) 
         private static bool process = false;                                        // flag to define if the thread is allowed to process samples
         private static bool stopDataDelegateFlag = false;                           // stop data delegate flag (if true will stop the data class in the main loop)
 
@@ -75,7 +75,7 @@ namespace UNP.Core {
 
 
         /**
-         * UNPThread constructor
+         * MainThread constructor
          * 
          */
         public MainThread(bool startupConfigAndInit, bool startupStartRun, bool noGUI) {

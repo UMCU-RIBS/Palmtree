@@ -19,10 +19,10 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Timers;
-using UNP.Core;
-using UNP.Views;
+using Palmtree.Core;
+using Palmtree.Views;
 
-namespace UNP.GUI {
+namespace Palmtree.GUI {
 
     /// <summary>
     /// The <c>GUIMain</c> class.

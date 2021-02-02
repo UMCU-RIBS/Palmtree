@@ -18,7 +18,7 @@ using System;
 using System.IO;
 using System.Text;
 
-namespace UNP.Core.DataIO {
+namespace Palmtree.Core.DataIO {
 
     /// <summary>
     /// The <c>DataReader</c> class.

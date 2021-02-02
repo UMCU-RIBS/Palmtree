@@ -12,10 +12,10 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details. You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-using UNP.Core.Helpers;
-using UNP.Core.Params;
+using Palmtree.Core.Helpers;
+using Palmtree.Core.Params;
 
-namespace UNP.Filters {
+namespace Palmtree.Filters {
 
     /// <summary>
     /// The <c>IFilter</c> interface.

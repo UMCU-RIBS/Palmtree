@@ -17,9 +17,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
-using UNP.Core;
-using UNP.Core.Helpers;
-using UNP.Views;
+using Palmtree.Core;
+using Palmtree.Core.Helpers;
+using Palmtree.Views;
 
 namespace MultiClicksTask {
 
@@ -64,7 +64,7 @@ namespace MultiClicksTask {
         private glFreeTypeFont countdownFont = new glFreeTypeFont();
         private glFreeTypeFont fixationFont = new glFreeTypeFont();
 
-        // general UNP variables
+        // general Palmtree variables
         private bool showConnectionLost = false;
         private int connectionLostTexture = 0;
         private glFreeTypeFont textFont = new glFreeTypeFont();

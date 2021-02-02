@@ -7,8 +7,8 @@
     <ProjectGuid>{9EEB0FE1-D91D-4AB9-BFC6-A5A70CEFE1DA}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>UNP</RootNamespace>
-    <AssemblyName>UNP</AssemblyName>
+    <RootNamespace>Palmtree</RootNamespace>
+    <AssemblyName>Palmtree</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <IsWebBootstrapper>false</IsWebBootstrapper>
@@ -106,7 +106,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="src\Applications\IApplication.cs" />
-    <Compile Include="src\Applications\IApplicationUNP.cs" />
+    <Compile Include="src\Applications\IApplicationPalmtree.cs" />
     <Compile Include="src\Core\DataIO\Data.cs" />
     <Compile Include="src\Core\DataIO\DataHeader.cs" />
     <Compile Include="src\Core\DataIO\DataReader.cs" />

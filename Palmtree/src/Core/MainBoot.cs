@@ -19,12 +19,12 @@ using System.Configuration;
 using System.Globalization;
 using System.Threading;
 using System.Windows.Forms;
-using UNP.Core.Helpers;
-using UNP.Core.Params;
-using UNP.GUI;
-using UNP.Core.Helpers.AppConfig;
+using Palmtree.Core.Helpers;
+using Palmtree.Core.Params;
+using Palmtree.GUI;
+using Palmtree.Core.Helpers.AppConfig;
 
-namespace UNP.Core {
+namespace Palmtree.Core {
 
     /// <summary>
     /// The <c>MainBoot</c> class.
@@ -39,22 +39,22 @@ namespace UNP.Core {
 
         // the available sources
         private static string[][] availableSources = new string[][] {
-                                                        new string[] { "GenerateSignal",            "UNP.Sources.GenerateSignal"},
-                                                        new string[] { "KeypressSignal",            "UNP.Sources.KeypressSignal"},
-                                                        new string[] { "NexusSignal",               "UNP.Sources.NexusSignal" },
-                                                        new string[] { "PlaybackSignal",            "UNP.Sources.PlaybackSignal" }
+                                                        new string[] { "GenerateSignal",            "Palmtree.Sources.GenerateSignal"},
+                                                        new string[] { "KeypressSignal",            "Palmtree.Sources.KeypressSignal"},
+                                                        new string[] { "NexusSignal",               "Palmtree.Sources.NexusSignal" },
+                                                        new string[] { "PlaybackSignal",            "Palmtree.Sources.PlaybackSignal" }
                                                     };
 
         // the available filters
         private static string[][] availableFilters = new string[][] {
-                                                        new string[] { "AdaptationFilter",          "UNP.Filters.AdaptationFilter" },                                    
-                                                        new string[] { "ClickTranslatorFilter",     "UNP.Filters.ClickTranslatorFilter" },
-                                                        new string[] { "KeySequenceFilter",         "UNP.Filters.KeySequenceFilter" },
-                                                        new string[] { "NormalizerFilter",          "UNP.Filters.NormalizerFilter" },
-                                                        new string[] { "RedistributionFilter",      "UNP.Filters.RedistributionFilter"},
-                                                        new string[] { "ThresholdClassifierFilter", "UNP.Filters.ThresholdClassifierFilter" },
-                                                        new string[] { "TimeSmoothingFilter",       "UNP.Filters.TimeSmoothingFilter"},
-                                                        new string[] { "WasupFilter",               "UNP.Filters.WasupFilter" }
+                                                        new string[] { "AdaptationFilter",          "Palmtree.Filters.AdaptationFilter" },                                    
+                                                        new string[] { "ClickTranslatorFilter",     "Palmtree.Filters.ClickTranslatorFilter" },
+                                                        new string[] { "KeySequenceFilter",         "Palmtree.Filters.KeySequenceFilter" },
+                                                        new string[] { "NormalizerFilter",          "Palmtree.Filters.NormalizerFilter" },
+                                                        new string[] { "RedistributionFilter",      "Palmtree.Filters.RedistributionFilter"},
+                                                        new string[] { "ThresholdClassifierFilter", "Palmtree.Filters.ThresholdClassifierFilter" },
+                                                        new string[] { "TimeSmoothingFilter",       "Palmtree.Filters.TimeSmoothingFilter"},
+                                                        new string[] { "WasupFilter",               "Palmtree.Filters.WasupFilter" }
                                                     };
 
         public static int getClassVersion() {

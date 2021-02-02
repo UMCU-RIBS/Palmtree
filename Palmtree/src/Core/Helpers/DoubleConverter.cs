@@ -15,7 +15,7 @@
 using System;
 using System.Globalization;
 
-namespace UNP.Core.Helpers {
+namespace Palmtree.Core.Helpers {
 
     /// <summary>
     /// The <c>DoubleConverter</c> class.

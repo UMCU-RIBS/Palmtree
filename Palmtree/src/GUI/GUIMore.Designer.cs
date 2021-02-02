@@ -1,4 +1,4 @@
-﻿namespace UNP.GUI {
+﻿namespace Palmtree.GUI {
     partial class GUIMore {
         /// <summary>
         /// Required designer variable.

@@ -16,11 +16,11 @@ using NLog;
 using System;
 using System.Diagnostics;
 using System.Threading;
-using UNP.Core;
-using UNP.Core.Helpers;
-using UNP.Core.Params;
+using Palmtree.Core;
+using Palmtree.Core.Helpers;
+using Palmtree.Core.Params;
 
-namespace UNP.Sources {
+namespace Palmtree.Sources {
 
     /// <summary>
     /// The <c>GenerateSignal</c> class.

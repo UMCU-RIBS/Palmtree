@@ -15,11 +15,11 @@
  */
 using NLog;
 using System;
-using UNP.Core.DataIO;
-using UNP.Core.Helpers;
-using UNP.Core.Params;
+using Palmtree.Core.DataIO;
+using Palmtree.Core.Helpers;
+using Palmtree.Core.Params;
 
-namespace UNP.Filters {
+namespace Palmtree.Filters {
 
     /// <summary>
     /// The <c>AdaptationFilter</c> class.

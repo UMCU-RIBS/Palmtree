@@ -25,15 +25,15 @@ using System.Diagnostics;
 using System.IO.Ports;
 using System.Reflection;
 using System.Threading;
-using UNP.Core;
-using UNP.Core.DataIO;
-using UNP.Core.Helpers;
-using UNP.Core.Params;
+using Palmtree.Core;
+using Palmtree.Core.DataIO;
+using Palmtree.Core.Helpers;
+using Palmtree.Core.Params;
 #if (DEBUG_TESTDATA)
-    using static UNP.Core.Helpers.DebugHelper;
+    using static Palmtree.Core.Helpers.DebugHelper;
 #endif
 
-namespace UNP.Sources {
+namespace Palmtree.Sources {
 
     /// <summary>
     /// The <c>NexusSignal</c> class.

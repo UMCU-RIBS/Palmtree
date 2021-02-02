@@ -13,9 +13,9 @@
  * more details. You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-using UNP.Core.Params;
+using Palmtree.Core.Params;
 
-namespace UNP.Plugins {
+namespace Palmtree.Plugins {
 
     /// <summary>
     /// The <c>IPlugin</c> interface.

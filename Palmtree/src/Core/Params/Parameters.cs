@@ -17,9 +17,9 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
-using UNP.Core.Helpers;
+using Palmtree.Core.Helpers;
 
-namespace UNP.Core.Params {
+namespace Palmtree.Core.Params {
 
     /// <summary>
     /// The <c>Parameters</c> class.

@@ -15,9 +15,9 @@
 using NLog;
 using System;
 
-using UNP.Applications;
-using UNP.Core.Helpers;
-using UNP.Core.Params;
+using Palmtree.Applications;
+using Palmtree.Core.Helpers;
+using Palmtree.Core.Params;
 
 namespace EmptyTask {
 

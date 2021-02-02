@@ -15,8 +15,8 @@
 using NLog;
 using System;
 using System.Collections.Generic;
-using UNP.Core;
-using UNP.Views;
+using Palmtree.Core;
+using Palmtree.Views;
 
 namespace CMoleTask {
 
@@ -82,7 +82,7 @@ namespace CMoleTask {
         private int scoreEscape = 0;
         private bool seperateEscapes = false;
 
-        // general UNP variables
+        // general Palmtree variables
         private bool showConnectionLost = false;
         private int connectionLostTexture = 0;
         private glFreeTypeFont textFont = new glFreeTypeFont();

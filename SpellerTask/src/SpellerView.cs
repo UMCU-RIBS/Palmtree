@@ -15,8 +15,8 @@
 using NLog;
 using System;
 using System.Collections.Generic;
-using UNP.Core;
-using UNP.Views;
+using Palmtree.Core;
+using Palmtree.Views;
 
 namespace SpellerTask {
 
@@ -71,7 +71,7 @@ namespace SpellerTask {
         private glFreeTypeFont inputFont = new glFreeTypeFont();
         private int longestCue = -1;
         private uint textFontSize = 0;
-        private uint cueTextY = 0;                                      // standard Y location of cue tetx
+        private uint cueTextY = 0;                                      // standard Y location of cue text
 
         // font parameters
         private string inputFontFont = "fonts\\ariblk.ttf";

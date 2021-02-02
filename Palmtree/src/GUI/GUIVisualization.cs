@@ -17,11 +17,11 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Windows.Forms.DataVisualization.Charting;
-using UNP.Core.DataIO;
-using UNP.Core.Events;
-using UNP.Core.Helpers;
+using Palmtree.Core.DataIO;
+using Palmtree.Core.Events;
+using Palmtree.Core.Helpers;
 
-namespace UNP.GUI {
+namespace Palmtree.GUI {
 
     /// <summary>
     /// The <c>GUIVisualization</c> class.

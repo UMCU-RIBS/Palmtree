@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UNP", "UNP\UNP.csproj", "{9EEB0FE1-D91D-4AB9-BFC6-A5A70CEFE1DA}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Palmtree", "Palmtree\Palmtree.csproj", "{9EEB0FE1-D91D-4AB9-BFC6-A5A70CEFE1DA}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MoleTask", "MoleTask\MoleTask.csproj", "{C45C2615-CDDB-414A-AB61-8ADF87666F55}"
 EndProject
@@ -13,9 +13,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FollowTask", "FollowTask\Fo
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpFont", "SharpFont\SharpFont.csproj", "{C293DB32-FA42-486D-B128-5A12522FAE4E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UNPMenu", "UNPMenu\UNPMenu.csproj", "{491F7CF3-F0E2-4E87-B610-9E938D998436}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UNPLogReader", "UNPLogReader\UNPLogReader.csproj", "{D4180529-472C-45B1-B934-A9B41B50CCE5}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PalmtreeLogReader", "PalmtreeLogReader\PalmtreeLogReader.csproj", "{D4180529-472C-45B1-B934-A9B41B50CCE5}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CursorTask", "CursorTask\CursorTask.csproj", "{D5997AAB-8A79-4A15-BC2F-950EC57DC827}"
 EndProject

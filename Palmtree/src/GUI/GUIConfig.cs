@@ -20,11 +20,11 @@ using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
-using UNP.Core;
-using UNP.Core.Helpers;
-using UNP.Core.Params;
+using Palmtree.Core;
+using Palmtree.Core.Helpers;
+using Palmtree.Core.Params;
 
-namespace UNP.GUI {
+namespace Palmtree.GUI {
 
     /// <summary>
     /// The <c>GUIConfig</c> class.

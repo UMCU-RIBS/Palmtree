@@ -139,9 +139,9 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\UNP\UNP.csproj">
+    <ProjectReference Include="..\Palmtree\Palmtree.csproj">
       <Project>{9eeb0fe1-d91d-4ab9-bfc6-a5a70cefe1da}</Project>
-      <Name>UNP</Name>
+      <Name>Palmtree</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

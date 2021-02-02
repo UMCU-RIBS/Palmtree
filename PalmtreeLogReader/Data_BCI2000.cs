@@ -13,7 +13,7 @@
  * more details. You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-namespace UNPLogReader {
+namespace PalmtreeLogReader {
 
     /// <summary>
     /// The <c>Data_BCI2000</c> class.

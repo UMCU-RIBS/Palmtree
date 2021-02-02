@@ -16,10 +16,10 @@ using NLog;
 using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
-using UNP.Core.Helpers;
-using UNP.Core.Params;
+using Palmtree.Core.Helpers;
+using Palmtree.Core.Params;
 
-namespace UNP.GUI {
+namespace Palmtree.GUI {
 
     /// <summary>
     /// The <c>GUIMore</c> class.

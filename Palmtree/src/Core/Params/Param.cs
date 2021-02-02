@@ -15,7 +15,7 @@
 using NLog;
 using System;
 
-namespace UNP.Core.Params {
+namespace Palmtree.Core.Params {
 
     /// <summary>
     /// The <c>Param</c> class.

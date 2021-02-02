@@ -14,7 +14,7 @@
  */
 using System;
 
-namespace UNP.Core.Params {
+namespace Palmtree.Core.Params {
 
     /// <summary>
     /// The <c>ParamBoolArr</c> class.

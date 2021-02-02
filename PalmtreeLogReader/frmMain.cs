@@ -16,10 +16,10 @@
 using System;
 using System.IO;
 using System.Windows.Forms;
-using UNP.Core.DataIO;
-using UNP.Core.Helpers;
+using Palmtree.Core.DataIO;
+using Palmtree.Core.Helpers;
 
-namespace UNPLogReader {
+namespace PalmtreeLogReader {
 
     /// <summary>
     /// The <c>frmMain</c> class.
@@ -32,12 +32,6 @@ namespace UNPLogReader {
 
         public frmMain() {
             InitializeComponent();
-
-            txtInputFile.Text = "D:\\UNP\\other\\testrun\\test_20170724_Run_0.dat";
-            txtInputFile.Text = "D:\\UNP\\other\\testrun\\UNP001_multiclicks_motor_power_20170621001\\UNP001_multiclicks_motor_power_20170621S001R01.dat";
-
-            
-
 
         }
 
@@ -272,7 +266,7 @@ namespace UNPLogReader {
 
         }
 
-        private void btnConvertBCIToUNP_Click(object sender, EventArgs e) {
+        private void btnConvertBCIToPalmtree_Click(object sender, EventArgs e) {
 
             // clear the output
             txtOutput.Text = "";

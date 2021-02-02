@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Windows.Forms;
 
-namespace UNP.GUI {
+namespace Palmtree.GUI {
 
     partial class GUIMain {
 
@@ -177,7 +177,7 @@ namespace UNP.GUI {
             this.Name = "GUIMain";
             this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Hide;
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "UNP";
+            this.Text = "Palmtree";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.GUI_FormClosing);
             this.Load += new System.EventHandler(this.GUI_Load);
             this.grpConsole.ResumeLayout(false);

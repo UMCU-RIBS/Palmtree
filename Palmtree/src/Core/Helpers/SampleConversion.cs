@@ -14,7 +14,7 @@
  */
 using System;
 
-namespace UNP.Core.Helpers {
+namespace Palmtree.Core.Helpers {
 
     /// <summary>
     /// The <c>SampleConversion</c> class.

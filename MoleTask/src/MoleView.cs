@@ -17,8 +17,8 @@
 using NLog;
 using System;
 using System.Collections.Generic;
-using UNP.Core;
-using UNP.Views;
+using Palmtree.Core;
+using Palmtree.Views;
 
 namespace MoleTask {
 
@@ -59,7 +59,7 @@ namespace MoleTask {
 		private glFreeTypeFont countdownFont = new glFreeTypeFont();
 		private int score = -1;									            // the score that is being shown (-1 = do not show score)
 
-        // general UNP variables
+        // general Palmtree variables
         private bool showConnectionLost = false;
         private int connectionLostTexture = 0;
         private glFreeTypeFont textFont = new glFreeTypeFont();
@@ -231,8 +231,8 @@ namespace MoleTask {
 		        if (selectionWidth != 0 && selectionHeight != 0 ) {
 		
 			        // set the color
-			        float colorR = 1, colorG = 0, colorB = 0;
-			        if (selected)			colorG = 1;
+			        float colorR = 1, colorG = 1, colorB = 0;
+			        if (selected)			colorG = 0;
                     
 			        // draw selection
 			        drawRectangle(	selectionX, 

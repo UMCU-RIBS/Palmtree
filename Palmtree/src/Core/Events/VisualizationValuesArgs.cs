@@ -14,7 +14,7 @@
  */
 using System;
 
-namespace UNP.Core.Events {
+namespace Palmtree.Core.Events {
 
     /// <summary>
     /// The <c>VisualizationValuesArgs</c> class.

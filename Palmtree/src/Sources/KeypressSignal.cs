@@ -20,11 +20,11 @@ using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Forms;
-using UNP.Core;
-using UNP.Core.Helpers;
-using UNP.Core.Params;
+using Palmtree.Core;
+using Palmtree.Core.Helpers;
+using Palmtree.Core.Params;
 
-namespace UNP.Sources {
+namespace Palmtree.Sources {
 
     /// <summary>
     /// The <c>KeypressSignal</c> class.

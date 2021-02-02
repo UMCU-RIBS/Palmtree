@@ -16,7 +16,7 @@
 using System;
 using System.Windows.Forms;
 
-namespace UNPLogReader {
+namespace PalmtreeLogReader {
 
     /// <summary>
     /// The <c>Program</c> class.

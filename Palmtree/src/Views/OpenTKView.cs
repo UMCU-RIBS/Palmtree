@@ -23,7 +23,7 @@ using NLog;
 using OpenTK.Input;
 using System.Runtime.InteropServices;
 
-namespace UNP.Views {
+namespace Palmtree.Views {
 
     /// <summary>
     /// The <c>OpenTKView</c> class.

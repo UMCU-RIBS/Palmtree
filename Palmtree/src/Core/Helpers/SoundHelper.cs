@@ -17,7 +17,7 @@ using System;
 using System.IO;
 using System.Timers;
 
-namespace UNP.Core.Helpers {
+namespace Palmtree.Core.Helpers {
 
     /// <summary>
     /// The <c>Sound</c> class.

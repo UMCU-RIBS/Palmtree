@@ -7,8 +7,8 @@
     <ProjectGuid>{D4180529-472C-45B1-B934-A9B41B50CCE5}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>UNPLogReader</RootNamespace>
-    <AssemblyName>UNPLogReader</AssemblyName>
+    <RootNamespace>PalmtreeLogReader</RootNamespace>
+    <AssemblyName>PalmtreeLogReader</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -98,9 +98,9 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\UNP\UNP.csproj">
+    <ProjectReference Include="..\Palmtree\Palmtree.csproj">
       <Project>{9eeb0fe1-d91d-4ab9-bfc6-a5a70cefe1da}</Project>
-      <Name>UNP</Name>
+      <Name>Palmtree</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

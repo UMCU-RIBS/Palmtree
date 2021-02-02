@@ -17,11 +17,11 @@
 using NLog;
 using System;
 using System.Collections.Generic;
-using UNP.Core;
-using UNP.Core.Helpers;
-using UNP.Core.Params;
+using Palmtree.Core;
+using Palmtree.Core.Helpers;
+using Palmtree.Core.Params;
 
-namespace UNP.Filters {
+namespace Palmtree.Filters {
 
     /// <summary>
     /// The <c>NormalizerFilter</c> class.

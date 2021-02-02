@@ -1,4 +1,4 @@
-﻿namespace UNP.GUI {
+﻿namespace Palmtree.GUI {
 
     partial class GUIConfig {
         /// <summary>
@@ -28,7 +28,7 @@
             this.btnSave = new System.Windows.Forms.Button();
             this.btnLoadPrmFile = new System.Windows.Forms.Button();
             this.btnSavePrmFile = new System.Windows.Forms.Button();
-            this.tabControl = new UNP.GUI.NoBorderTabControl();
+            this.tabControl = new Palmtree.GUI.NoBorderTabControl();
             this.SuspendLayout();
             // 
             // btnCancel

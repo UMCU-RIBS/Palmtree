@@ -17,10 +17,10 @@ using Expressive;
 using NLog;
 using System;
 using System.Collections.Generic;
-using UNP.Core.Helpers;
-using UNP.Core.Params;
+using Palmtree.Core.Helpers;
+using Palmtree.Core.Params;
 
-namespace UNP.Core {
+namespace Palmtree.Core {
 
     /// <summary>
     /// The <c>Globals</c> class.

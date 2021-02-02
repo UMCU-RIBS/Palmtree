@@ -13,9 +13,9 @@
  * more details. You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 using System;
-using UNP.Core;
+using Palmtree.Core;
 
-namespace UNP {
+namespace Palmtree {
 
     /// <summary>
     /// The <c>Program</c> class.
@@ -26,7 +26,7 @@ namespace UNP {
 
         static void Main(string[] args) {
 
-            Type t = Type.GetType("UNP.Applications.EmptyTask");
+            Type t = Type.GetType("Palmtree.Applications.EmptyTask");
             MainBoot.Run(args, t);
 
         }

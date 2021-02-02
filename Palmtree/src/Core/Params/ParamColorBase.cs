@@ -15,7 +15,7 @@
 using System;
 using System.Globalization;
 
-namespace UNP.Core.Params {
+namespace Palmtree.Core.Params {
 
     /// <summary>
     /// The <c>ParamColorBase</c> class.

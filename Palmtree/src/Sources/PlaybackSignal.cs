@@ -17,12 +17,12 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
-using UNP.Core;
-using UNP.Core.DataIO;
-using UNP.Core.Helpers;
-using UNP.Core.Params;
+using Palmtree.Core;
+using Palmtree.Core.DataIO;
+using Palmtree.Core.Helpers;
+using Palmtree.Core.Params;
 
-namespace UNP.Sources {
+namespace Palmtree.Sources {
 
     /// <summary>
     /// The <c>PlaybackSignal</c> class.

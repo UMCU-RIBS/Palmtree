@@ -14,9 +14,9 @@
  */
 using System;
 using System.Globalization;
-using UNP.Core.Helpers;
+using Palmtree.Core.Helpers;
 
-namespace UNP.Core.Params {
+namespace Palmtree.Core.Params {
 
     /// <summary>
     /// The <c>ParamDoubleBase</c> class.

@@ -14,8 +14,8 @@
  */
 using NLog;
 using System;
-using UNP.Core;
-using UNP.Views;
+using Palmtree.Core;
+using Palmtree.Views;
 
 namespace LocalizerTask {
 

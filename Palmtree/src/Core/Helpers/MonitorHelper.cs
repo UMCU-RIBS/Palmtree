@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-namespace UNP.Core.Helpers {
+namespace Palmtree.Core.Helpers {
 
     public static class MonitorHelper {
 
