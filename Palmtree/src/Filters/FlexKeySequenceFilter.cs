@@ -1,5 +1,5 @@
 ﻿/**
- * The WasupFilter class
+ * The FlexKeySequenceFilter class
  * 
  * ...
  * 
@@ -22,29 +22,29 @@ using Palmtree.Core.Params;
 namespace Palmtree.Filters {
 
     /// <summary>
-    /// The <c>WasupFilter</c> class.
+    /// The <c>FlexKeySequenceFilter</c> class.
     /// 
     /// ...
     /// </summary>
-    public class WasupFilter : FilterBase, IFilter {
-        private new const int CLASS_VERSION = 1;
+    public class FlexKeySequenceFilter : FilterBase, IFilter {
+        private new const int CLASS_VERSION = 2;
 
-        private int clickInputChannel = 0;                      // channel that will be monitored for clicks required to make wasup
-        private int amountOfClicks = 0;                         // amount of clicks required to create wasup
+        private int clickInputChannel = 0;                      // channel that will be monitored for clicks required to make the flex-keysequence
+        private int amountOfClicks = 0;                         // amount of clicks required to create flex-keysequence
         private int minInterval = 0;                            // minimum interval between required clicks
         private int maxInterval = 0;                            // maximum interval between required clicks
         private double clickRate = 0;                           // rate of clicks that are actually required
-        private bool checkMeanSd = false;                       // whether mean and sd are taken into account in creating wasup
-        private int meanSdChannel = 0;                          // channel that will be monitored for mean and sd required to make wasup
+        private bool checkMeanStd = false;                       // whether mean and sd are taken into account in creating flex-keysequence
+        private int meanStdChannel = 0;                          // channel that will be monitored for mean and sd required to make flex-keysequence
         private double meanThreshold = 0;                       // threshold applied for mean
         private int meanDirection = 0;                          // whether mean should be above or below threshold
-        private double sdThreshold = 0;                         // threshold applied for sd
-        private int sdDirection = 0;                            // whether mean sd should be above or below threshold
+        private double stdThreshold = 0;                         // threshold applied for sd
+        private int stdDirection = 0;                            // whether mean sd should be above or below threshold
 
-        private bool wasupState = false;                        // holds most recent state of wasup call
+        private bool keySequencePreviousState = false;          // holds most recent state of the flexible keysequence
         private RingBuffer[] mDataBuffers = null;               // an array of ringbuffers, a ringbuffer for every channel
 
-        public WasupFilter(string filterName) {
+        public FlexKeySequenceFilter(string filterName) {
 
             // set class version
             base.CLASS_VERSION = CLASS_VERSION;
@@ -93,33 +93,33 @@ namespace Palmtree.Filters {
                 "0", "", "0.9");
 
             parameters.addParameter<bool>(
-                "CheckMeanAndSd",
+                "CheckMeanAndStd",
                 "In addition to requiring clicks to fulfill above requirements, also require mean and sd of seperate channel to fulfill requirements in order to create wake-up call.",
                 "1");
 
             parameters.addParameter<int>(
-                "MeanandSdInputChannel",
-                "Channel of which mean and sd are used as input (only if CheckMeanAndSd checkbox is ticked).",
+                "MeanAndStdInputChannel",
+                "Channel of which mean and sd are used as input (only if CheckMeanAndStd checkbox is ticked).",
                 "1", "", "1");
 
             parameters.addParameter<double>(
                 "MeanThreshold",
-                "Mean threshold used in determining if wake-up call is created (only if CheckMeanAndSd checkbox is ticked).",
+                "Mean threshold used in determining if wake-up call is created (only if CheckMeanAndStd checkbox is ticked).",
                 "", "", "0");
 
             parameters.addParameter<int>(
                 "MeanDirection",
-                "Direction in which the mean is compared to the MeanThreshold. If negative, mean should be below MeanThreshold to count towards create wake-up call, otherwise should be above threshold (only if CheckMeanAndSd checkbox is ticked).",
+                "Direction in which the mean is compared to the MeanThreshold. If negative, mean should be below MeanThreshold to count towards create wake-up call, otherwise should be above threshold (only if CheckMeanAndStd checkbox is ticked).",
                 "", "", "1");
 
             parameters.addParameter<double>(
-                "SdThreshold",
-                "Sd threshold used in determining if wake-up call is created (only if CheckMeanAndSd checkbox is ticked).",
+                "StdThreshold",
+                "Sd threshold used in determining if wake-up call is created (only if CheckMeanAndStd checkbox is ticked).",
                 "", "", "1");
 
             parameters.addParameter<int>(
-                "SdDirection",
-                "Direction in which the sd is compared to the SdThreshold. If negative, sd should be below SdThreshold to count towards create wake-up call, otherwise should be above threshold (only if CheckMeanAndSd checkbox is ticked).",
+                "StdDirection",
+                "Direction in which the sd is compared to the StdThreshold. If negative, sd should be below StdThreshold to count towards create wake-up call, otherwise should be above threshold (only if CheckMeanAndStd checkbox is ticked).",
                 "", "", "-1");
 
             // message
@@ -292,9 +292,9 @@ namespace Palmtree.Filters {
                     return false;
                 }
 
-                int newMeanandSdInputChannel = newParameters.getValue<int>("MeanandSdInputChannel");
-                if (newMeanandSdInputChannel < 1 || newMeanandSdInputChannel > inputChannels) {
-                    logger.Error("MeanandSdInputChannel should be larger than 1 and smaller than amount of input channels.");
+                int newMeanAndStdInputChannel = newParameters.getValue<int>("MeanAndStdInputChannel");
+                if (newMeanAndStdInputChannel < 1 || newMeanAndStdInputChannel > inputChannels) {
+                    logger.Error("MeanAndStdInputChannel should be larger than 1 and smaller than amount of input channels.");
                     return false;
                 }
             }
@@ -319,12 +319,12 @@ namespace Palmtree.Filters {
                 minInterval = newParameters.getValueInSamples<int>("MinimumClickInterval");
                 maxInterval = newParameters.getValueInSamples<int>("MaximumClickInterval");
                 clickRate = newParameters.getValue<double>("ClickRate");
-                checkMeanSd = newParameters.getValue<bool>("CheckMeanAndSd"); 
-                meanSdChannel = newParameters.getValue<int>("MeanandSdInputChannel");
+                checkMeanStd = newParameters.getValue<bool>("CheckMeanAndStd"); 
+                meanStdChannel = newParameters.getValue<int>("MeanAndStdInputChannel");
                 meanThreshold = newParameters.getValue<double>("MeanThreshold");
                 meanDirection = newParameters.getValue<int>("MeanDirection");
-                sdThreshold = newParameters.getValue<double>("SdThreshold");
-                sdDirection = newParameters.getValue<int>("SdDirection");
+                stdThreshold = newParameters.getValue<double>("StdThreshold");
+                stdDirection = newParameters.getValue<int>("StdDirection");
             }
 
         }
@@ -342,12 +342,12 @@ namespace Palmtree.Filters {
                 logger.Debug("minInterval: " + minInterval);
                 logger.Debug("maxInterval: " + maxInterval);
                 logger.Debug("clickRate: " + clickRate);
-                logger.Debug("checkMeanSd: " + checkMeanSd);
-                logger.Debug("meanSdChannel: " + meanSdChannel);
+                logger.Debug("checkMeanStd: " + checkMeanStd);
+                logger.Debug("meanStdChannel: " + meanStdChannel);
                 logger.Debug("meanThreshold: " + meanThreshold);
                 logger.Debug("meanDirection: " + meanDirection);
-                logger.Debug("sdThreshold: " + sdThreshold);
-                logger.Debug("sdDirection: " + sdDirection);
+                logger.Debug("stdThreshold: " + stdThreshold);
+                logger.Debug("stdDirection: " + stdDirection);
             }
         }
 
@@ -356,7 +356,7 @@ namespace Palmtree.Filters {
             // check if the filter is enabled
             if (mEnableFilter) {
                 // create the data buffers. if mean and sd are not taken into account, create only buffer for clicks, otherwise also one for mean and sd
-                mDataBuffers = checkMeanSd ? new RingBuffer[2] : new RingBuffer[1];
+                mDataBuffers = checkMeanStd ? new RingBuffer[2] : new RingBuffer[1];
 
                 // set size of buffers equal to amount of clicks that need to be detected, times the maximal allowed interval between clicks
                 for (uint i = 0; i < mDataBuffers.Length; i++) mDataBuffers[i] = new RingBuffer((uint)(amountOfClicks * maxInterval));
@@ -382,14 +382,16 @@ namespace Palmtree.Filters {
 
             // check if the filter is enabled
             if (mEnableFilter) {
+				
                 // set flag for sending wasup to false
-                bool sendWasup = false;
+                bool keySequenceState = false;
 
                 // add data to click buffer
-                mDataBuffers[0].Put(input[clickInputChannel-1]);
+                mDataBuffers[0].Put(input[clickInputChannel - 1]);
 
                 // if also checking sd and mean, add data to this buffer
-                if(checkMeanSd) mDataBuffers[1].Put(input[meanSdChannel - 1]);
+                if(checkMeanStd)
+					mDataBuffers[1].Put(input[meanStdChannel - 1]);
 
                 // retrieve click data from buffer
                 double[] clickData = mDataBuffers[0].Data();
@@ -415,60 +417,65 @@ namespace Palmtree.Filters {
                         if (clickData[i] == 1) {
 
                             // first click always fulfills interval requirements, if not first, check requirements and increase correct clicks if fullfilled 
-                            if (correctClicks == 0)                                     correctClicks++;
-                            else if(interval >= minInterval && interval <= maxInterval) correctClicks++;
+                            if (correctClicks == 0 || (interval >= minInterval && interval <= maxInterval))                                     
+								correctClicks++;
                             
                             // reset interval counter    
                             interval = 0;
-
-                        // if no click is detected, increase interval
-                        } else interval++;                       
+                        
+                        } else {
+							// if no click is detected, increase interval
+							interval++;
+							
+						}
+						
                     }
 
                     // check if sufficient correct clicks have been made, and set flag if so
-                    if (correctClicks >= System.Math.Floor(amountOfClicks * clickRate)) sendWasup = true;
+                    if (correctClicks >= System.Math.Floor(amountOfClicks * clickRate)) keySequenceState = true;
                     
                     // if also mean and sd need to be checked
-                    if (checkMeanSd) {
+                    if (checkMeanStd) {
 
                         // retrieve data from buffer
-                        double[] meanSdData = mDataBuffers[1].Data();
+                        double[] meanStdData = mDataBuffers[1].Data();
 
                         // init vars
-                        int dataLength = meanSdData.Length;
+                        int dataLength = meanStdData.Length;
                         double bufferSum = 0.0;
                         double SSQ = 0.0;
                         double mean = 0.0;
                         double sd = 0.0;
 
                         // calculate the mean
-                        for (uint i = 0; i < dataLength; ++i) bufferSum += meanSdData[i];
+                        for (uint i = 0; i < dataLength; ++i) bufferSum += meanStdData[i];
                         mean = bufferSum / dataLength;
 
                         // calculate the sd                  
-                        for (uint i = 0; i < dataLength; ++i) SSQ += (meanSdData[i] - mean) * (meanSdData[i] - mean);
+                        for (uint i = 0; i < dataLength; ++i) SSQ += (meanStdData[i] - mean) * (meanStdData[i] - mean);
                         sd = System.Math.Sqrt(SSQ / dataLength);
 
                         // check if mean and sd are above or below given mean and sd, as indicated by respective direction parameters, and set flag accordingly
-                        if (meanDirection < 0 && sdDirection < 0 && mean < meanThreshold && sd < sdThreshold)           sendWasup = sendWasup && true;
-                        else if (meanDirection >= 0 && sdDirection < 0 && mean >= meanThreshold && sd < sdThreshold)    sendWasup = sendWasup && true;
-                        else if (meanDirection < 0 && sdDirection >= 0 && mean < meanThreshold && sd >= sdThreshold)    sendWasup = sendWasup && true;
-                        else if (meanDirection >= 0 && sdDirection >= 0 && mean >= meanThreshold && sd >= sdThreshold)  sendWasup = sendWasup && true;
-                        else                                                                                            sendWasup = false;
+                        if (meanDirection < 0 && stdDirection < 0 && mean < meanThreshold && sd < stdThreshold)           keySequenceState = keySequenceState && true;
+                        else if (meanDirection >= 0 && stdDirection < 0 && mean >= meanThreshold && sd < stdThreshold)    keySequenceState = keySequenceState && true;
+                        else if (meanDirection < 0 && stdDirection >= 0 && mean < meanThreshold && sd >= stdThreshold)    keySequenceState = keySequenceState && true;
+                        else if (meanDirection >= 0 && stdDirection >= 0 && mean >= meanThreshold && sd >= stdThreshold)  keySequenceState = keySequenceState && true;
+                        else                                                                                            keySequenceState = false;
                     }
 
                 }
 
-                // send Wasup if needed
-                if (sendWasup != wasupState) {
+                // check if the flex-keysequence state changed
+                if (keySequenceState != keySequencePreviousState) {
+					
                     // set the global
-                    Globals.setValue<bool>("Wasup", (sendWasup ? "1" : "0"));
+                    Globals.setValue<bool>("FlexKeySequenceActive", (keySequenceState ? "1" : "0"));
 
-                    // log if the escapestate has changed
-                    Data.logEvent(1, "WasupChange", (sendWasup) ? "1" : "0");
+                    // log that the state has changed
+                    Data.logEvent(1, "FlexKeySequenceChange", (keySequenceState) ? "1" : "0");
 
-                    // update the current wasup state
-                    wasupState = sendWasup;
+                    // update the current (to be previous) keysequence state
+                    keySequencePreviousState = keySequenceState;
                 }
 
             }

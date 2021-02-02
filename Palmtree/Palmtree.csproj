@@ -127,7 +127,7 @@
     <Compile Include="src\Core\Helpers\SoundHelper.cs" />
     <Compile Include="src\Core\Params\ParamFileString.cs" />
     <Compile Include="src\Filters\RedistributionFilter.cs" />
-    <Compile Include="src\Filters\WasupFilter.cs" />
+    <Compile Include="src\Filters\FlexKeySequenceFilter.cs" />
     <Compile Include="src\GUI\GUIMore.cs">
       <SubType>Form</SubType>
     </Compile>
