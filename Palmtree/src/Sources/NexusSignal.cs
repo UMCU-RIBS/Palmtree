@@ -1,7 +1,9 @@
 ﻿/**
- * The NexusSignal class
+ * NexusSignal class
  * 
- * ...
+ * This class provides a source module that connects to a Nexus device (i.e. Activa RC+S) using a COM-port and streams data
+ * samples from the device into Palmtree. This module can output data straight from the device as the device provides it (both 
+ * in time-domain or power-domain) or convert time-domain input from the device to power-domain output.
  * 
  * 
  * Copyright (C) 2017:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
@@ -17,7 +19,6 @@
  */
 
 //#define DEBUG_TESTDATA                                             // Output test data instead of data from the Nexus, even when connection with Nexus is timed-out
-
 using Microsoft.Win32.SafeHandles;
 using NLog;
 using System;

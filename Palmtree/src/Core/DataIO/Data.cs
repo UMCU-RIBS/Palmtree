@@ -1,7 +1,7 @@
 ﻿/**
  * The Data class
  * 
- * ...
+ * This static class handles all the data and event output from the source-, filter- and application-modules
  * 
  * 
  * Copyright (C) 2017:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
