@@ -386,7 +386,7 @@ namespace SpellerTask {
             inputArray = parameters.getValue<string[][]>("Input");
 
             // if matrix is defined, retrieve amount of rows and columns and cell contents
-            if (inputArray[0].Length >= 0 && inputArray.Length > 0) {
+            if (inputArray.Length > 0 && inputArray[0].Length >= 0) {
 
                 //
                 holeRows = inputArray[0].Length;
