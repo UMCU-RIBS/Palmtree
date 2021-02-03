@@ -1,5 +1,5 @@
 ﻿/**
- * The IApplication interface
+ * IApplication interface
  * 
  * This file declares an interface which all application modules are supposed to implement.
  * 
@@ -25,33 +25,33 @@ namespace Palmtree.Applications {
         /// <summary>Retrieve the the application module's version number</summary>
         /// <returns>The version number as an integer</returns>
         int getClassVersion();
-		
+
         /// <summary>Retrieve the name of the application module</summary>
         /// <returns>The name as a string</returns>
-        Parameters getParameters();
-		
+        string getClassName();
+
         /// <summary>Retrieve the configuration parameters that are used in the application module</summary>
         /// <returns>A Parameter object defining the configuration parameters</returns>
-        string getClassName();
+        Parameters getParameters();
 
         /// <summary>Configure the application module. Called upon by "set configuration" in the GUI</summary>
         /// <param name="input">Reference to a PackageFormat object which defines the incoming sample streams</param>
         /// <returns>A boolean, either true for a succesfull configuration, or false upon failure</returns>
         bool configure(ref PackageFormat input);
-		
+
         /// <summary>Initialize the application module. Called upon by "set configuration" in the GUI</summary>
         void initialize();
 
         /// <summary>Start the application module. Called upon by "Start" in the GUI</summary>
         void start();
-		
-		/// <summary>Stop the application module. Called upon by "Stop" in the GUI</summary>
+
+        /// <summary>Stop the application module. Called upon by "Stop" in the GUI</summary>
         void stop();
-		
+
         /// <summary>Check whether the application module is started</summary>
         /// <returns>True if the module is started, false if not started</returns>
         bool isStarted();
-		
+
         /// <summary>Process new incoming samples</summary>
         /// <param name="input">An array containing the new samples, each position the array represents one input channel</param>
         void process(double[] input);
@@ -65,4 +65,5 @@ namespace Palmtree.Applications {
         void destroy();
 
     }
+
 }
