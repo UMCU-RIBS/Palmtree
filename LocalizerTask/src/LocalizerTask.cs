@@ -89,7 +89,7 @@ namespace LocalizerTask {
         public LocalizerTask (bool childApplication) {
 
             // transfer the child application flag
-            this.this.childApplication = childApplication;
+            this.childApplication = childApplication;
 
             // check if the task is standalone (not a child application)
             if (!this.childApplication) {
