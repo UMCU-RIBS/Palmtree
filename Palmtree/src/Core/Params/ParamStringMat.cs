@@ -186,6 +186,17 @@ namespace Palmtree.Core.Params {
                 // try to split up the rows of each column string
                 string[] splitRows = splitColumns[i].Split(Parameters.MatRowDelimiters);
 
+                // check whether the current row has the same number of values (as the row before it)
+                if (i > 0 && splitRows.Length != values[i - 1].Length) {
+
+                    // message
+                    logger.Error("Could not store the values for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "'), the rows have different numbers of values");
+
+                    // return failure
+                    return false;
+
+                }
+
                 // resize the arrays rows
                 values[i] = new string[splitRows.Length];
 
