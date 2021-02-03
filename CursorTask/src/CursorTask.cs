@@ -319,10 +319,6 @@ namespace CursorTask {
                     "Fixed trial sequence in which targets should be presented (leave empty for random)\nNote. indexing is 0 based (so a value of 0 will be the first row from the 'Targets' parameter",
                     "0", "", "");
 
-
-
-
-
             }
 
             // message
@@ -422,14 +418,16 @@ namespace CursorTask {
 
             // retrieve the pre-trial cue parameters
             mPreTrialCues = parameters.getValue<bool>("PreTrialCues");
-            string[][] cuesTexts = parameters.getValue<string[][]>("PreTrialCueTexts");
-            if (cuesTexts.Length != 0 && cuesTexts.Length != 1) {
-                logger.Error("PreTrialCueTexts parameter must have 1 column (Texts)");
-                return false;
-            }
-            mPreTrialCueTexts = new string[0];
-            if (cuesTexts.Length > 0)   mPreTrialCueTexts = cuesTexts[0];
-
+			mPreTrialCueTexts = new string[0];
+			if (mPreTrialCues) {				
+				string[][] cuesTexts = parameters.getValue<string[][]>("PreTrialCueTexts");
+				if (cuesTexts.Length != 0 && cuesTexts.Length != 1) {
+					logger.Error("PreTrialCueTexts parameter must have 1 column (Texts)");
+					return false;
+				}
+				if (cuesTexts.Length > 0)   mPreTrialCueTexts = cuesTexts[0];
+			}
+			
             // retrieve the pre-trial duration parameter
             mPreTrialDuration = parameters.getValueInSamples("PreTrialDuration");
             if (mPreTrialDuration < 0) {
