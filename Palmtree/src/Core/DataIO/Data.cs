@@ -47,7 +47,8 @@ namespace Palmtree.Core.DataIO {
         private static Logger logger = LogManager.GetLogger("Data");
         private static Parameters parameters = ParameterManager.GetParameters("Data", Parameters.ParamSetTypes.Data);
 
-        private static Random rand = new Random(Guid.NewGuid().GetHashCode());
+        private static Random rand = new Random(Guid.NewGuid().GetHashCode());                  // setup a random number generator
+        private static double ticksPerMillisecond = Stopwatch.Frequency / 1000.0;         // calculate and set the ticks-per-millisecond (to be used later)
 
         private static string dataDir = "";                                                     // location of data directory
         private static string sessionDir = null;                                                // contains full path of directory all files of one sesison are written to
@@ -913,7 +914,7 @@ namespace Palmtree.Core.DataIO {
                 dataValuePointer = 0;
 
                 // store the milliseconds past since the last sample and reset the data stopwatch timer
-                dataElapsedTime = dataStopWatch.ElapsedTicks / (Stopwatch.Frequency / 1000.0);
+                dataElapsedTime = dataStopWatch.ElapsedTicks / ticksPerMillisecond;
                 dataStopWatch.Restart();
             }
 
@@ -1019,7 +1020,7 @@ namespace Palmtree.Core.DataIO {
                 if (!running)   return;
                 
                 // get time since last source sample
-                sourceElapsedTime = sourceStopWatch.ElapsedMilliseconds;
+                sourceElapsedTime = sourceStopWatch.ElapsedTicks / ticksPerMillisecond;
                 sourceStopWatch.Restart();
 
                 // debug
