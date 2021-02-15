@@ -97,7 +97,7 @@
             // 
             this.btnConvertBCIToPalmtree.Location = new System.Drawing.Point(308, 95);
             this.btnConvertBCIToPalmtree.Name = "btnConvertBCIToPalmtree";
-            this.btnConvertBCIToPalmtree.Size = new System.Drawing.Size(192, 37);
+            this.btnConvertBCIToPalmtree.Size = new System.Drawing.Size(219, 37);
             this.btnConvertBCIToPalmtree.TabIndex = 5;
             this.btnConvertBCIToPalmtree.Text = "Convert BCI2000 -> Palmtree";
             this.btnConvertBCIToPalmtree.UseVisualStyleBackColor = true;

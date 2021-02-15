@@ -33,7 +33,7 @@ namespace LocalizerTask {
     public class LocalizerTask : IApplication {
 
         // fundamentals
-        private const int CLASS_VERSION = 2;                                // class version
+        private const int CLASS_VERSION = 3;                                // class version
         private const string CLASS_NAME = "LocalizerTask";                  // class name
         private const string CONNECTION_LOST_SOUND = "sounds\\connectionLost.wav";
 
@@ -186,8 +186,21 @@ namespace LocalizerTask {
             return CLASS_NAME;
         }
 
-        public bool configure(ref PackageFormat input) {
+        public bool configure(ref SamplePackageFormat input) {
 
+            // check sample-major ordered input
+            if (input.valueOrder != SamplePackageFormat.ValueOrder.SampleMajor) {
+                logger.Error("This application is designed to work only with sample-major ordered input");
+                return false;
+            }
+
+            // check if the number of input channels is higher than 0
+            if (input.numChannels <= 0) {
+                logger.Error("Number of input channels cannot be 0");
+                return false;
+            }
+
+            
             // PARAMETER TRANSFER 
 
             // transfer window settings

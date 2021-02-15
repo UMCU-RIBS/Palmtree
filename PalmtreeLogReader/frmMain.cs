@@ -1,5 +1,5 @@
 ﻿/**
- * The frmMain class
+ * frmMain class
  * 
  * ...
  * 
@@ -22,7 +22,7 @@ using Palmtree.Core.Helpers;
 namespace PalmtreeLogReader {
 
     /// <summary>
-    /// The <c>frmMain</c> class.
+    /// frmMain class
     /// 
     /// ...
     /// </summary>
@@ -111,111 +111,98 @@ namespace PalmtreeLogReader {
 
             // print header information
             strOutput = "Data file: " + txtInputFile.Text + Environment.NewLine;
-            strOutput += "Internal code: " + header.code + Environment.NewLine;
+            strOutput += "Header code: " + header.code + Environment.NewLine;
+            if (header.version == 2) {
+                strOutput += "Run start epoch: " + header.runStartEpoch + Environment.NewLine;
+                strOutput += "Run file epoch: " + header.fileStartEpoch + Environment.NewLine;
+            }
             strOutput += "Sample rate: " + header.sampleRate + Environment.NewLine;
             strOutput += "Number of playback input streams: " + header.numPlaybackStreams + Environment.NewLine;
+            if (header.version == 2) {
+                strOutput += "Number of streams: " + header.numStreams + Environment.NewLine;
+                for (int i = 0; i < header.numStreams; i++) {
+                    strOutput += "   " + i + "  - type: " + header.streamDataTypes[i] + "  - samplesPer: " + header.streamDataSamplesPerPackage[i] + Environment.NewLine;
+                }
+            }
             strOutput += "Number of columns: " + header.numColumns + Environment.NewLine;
             strOutput += "Column names size (in bytes): " + header.columnNamesSize + Environment.NewLine;
             strOutput += "Column names: " + string.Join(", ", header.columnNames) + Environment.NewLine;
-            strOutput += "Row size (in bytes): " + header.rowSize + Environment.NewLine;
-            strOutput += "Number of rows: " + header.numRows + Environment.NewLine;
             strOutput += "Data start position: " + header.posDataStart + Environment.NewLine;
 
-            strOutput += "Data:" + Environment.NewLine + Environment.NewLine;
-            strOutput += string.Join("\t", header.columnNames) + Environment.NewLine;
-
-            // make sure the data pointer is at the start of the data
-            reader.resetDataPointer();
-
-            // variable to hold how many rows to read (0 = all)
-            int rowsToRead = 0;
-
-            // check if it is a big file
-            if (header.numRows > 1000) {
-
-                DialogResult result = MessageBox.Show("The file holds a large number of samples, would you like to read only the first 1000 rows ('Yes') instead of the whole file('No')?", "Large file", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
-
-                // check cancel
-                if (result == DialogResult.Cancel) {
-                    reader.close();
-                    return;
-                }
-
-                // check yes
-                if (result == DialogResult.Yes) {
-                    rowsToRead = 1000;
-                }
-
-            }
-
-            // loop until the end of the data
-            bool readMore = header.numRows > 0;
-            long rowsReadCounter = 0;
-            while(readMore) {
+            strOutput += "Row size (in bytes): " + header.rowSize + Environment.NewLine;
+            strOutput += "Number of rows: " + header.numRows + Environment.NewLine;
+            
+            
+            if (header.version == 1) {
                 
-                uint[] samples = null;
-                double[][] values = null;
+                strOutput += "Data:" + Environment.NewLine + Environment.NewLine;
+                strOutput += string.Join("\t", header.columnNames) + Environment.NewLine;
 
-                // read the next rows
-                long rows = reader.readNextRows(readStep, out samples, out values);
+                // make sure the data pointer is at the start of the data
+                reader.resetDataPointer();
 
-                // check for error while reading
-                if (rows == -1) {
-                    MessageBox.Show("Error while reading rows");
-                    return;
-                }
+                // variable to hold how many rows to read (0 = all)
+                int rowsToRead = 0;
 
-                // loop through the rows in set
-                strOutput += Environment.NewLine;
-                for (long i = 0; i < rows; i++) {
-                    string text = samples[i] + "\t";
-                    for (int j = 0; j < values[i].Length; j++) {
-                        if (j == 0) {
-                            text += DoubleConverter.ToExactString(values[i][j]);
-                        } else {
-                            text += "\t";
-                            text += values[i][j];
-                        }
+                // check if it is a big file
+                if (header.numRows > 1000) {
+
+                    DialogResult result = MessageBox.Show("The file holds a large number of samples, would you like to read only the first 1000 rows ('Yes') instead of the whole file('No')?", "Large file", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+
+                    // check cancel
+                    if (result == DialogResult.Cancel) {
+                        reader.close();
+                        return;
                     }
-                    text += Environment.NewLine;
-                    strOutput += text;
-                }
 
-
-
-                /*
-                byte[] rowData = null;
-
-                // read the next rows
-                long rows = reader.readNextRows(readStep, out rowData);
-                
-                // check for error while reading, return if so
-                if (rows == -1) return;
-
-                // loop through the rows in set
-                strOutput += Environment.NewLine;
-                for (int i = 0; i < rows; i++) {
-
-                    uint sampleCounter = BitConverter.ToUInt32(rowData, i * header.rowSize);
-                    double elapsedTime = BitConverter.ToDouble(rowData, i * header.rowSize + sizeof(uint));
-
-                    // convert remainder bytes to double array
-                    double[] values = new double[header.numColumns - 2];
-                    Buffer.BlockCopy(rowData, i * header.rowSize + sizeof(uint) + sizeof(double), values, 0, header.rowSize - (sizeof(double) + sizeof(uint)));
-
-                    string text = sampleCounter + "\t" + elapsedTime + "\t";
-                    text += string.Join("\t", values);
-                    text += Environment.NewLine;
-                    strOutput += text;
+                    // check yes
+                    if (result == DialogResult.Yes) {
+                        rowsToRead = 1000;
+                    }
 
                 }
-                */
 
-                // highten the rows read counter with the amount of rows read
-                rowsReadCounter += rows;
+                // loop until the end of the data
+                bool readMore = header.numRows > 0;
+                long rowsReadCounter = 0;
+                while(readMore) {
 
-                // check if more should be read after this
-                readMore = ((rowsToRead == 0 && !reader.reachedEnd()) || (rowsToRead > 0 && rowsReadCounter < rowsToRead));
+                    uint[] samples = null;
+                    double[][] values = null;
+
+                    // read the next rows
+                    long rows = reader.readNextRows(readStep, out samples, out values);
+
+                    // check for error while reading
+                    if (rows == -1) {
+                        MessageBox.Show("Error while reading rows");
+                        return;
+                    }
+
+                    // loop through the rows in set
+                    strOutput += Environment.NewLine;
+                    for (long i = 0; i < rows; i++) {
+                        string text = samples[i] + "\t";
+                        for (int j = 0; j < values[i].Length; j++) {
+                            if (j == 0) {
+                                text += DoubleConverter.ToExactString(values[i][j]);
+                            } else {
+                                text += "\t";
+                                text += values[i][j];
+                            }
+                        }
+                        text += Environment.NewLine;
+                        strOutput += text;
+                    }
+
+
+                    // highten the rows read counter with the amount of rows read
+                    rowsReadCounter += rows;
+
+                    // check if more should be read after this
+                    readMore = ((rowsToRead == 0 && !reader.reachedEnd()) || (rowsToRead > 0 && rowsReadCounter < rowsToRead));
+
+                }
                 
             }
 
@@ -285,13 +272,11 @@ namespace PalmtreeLogReader {
             if (dlgSaveDatFile.ShowDialog() != DialogResult.OK)     return;
             
             FileStream dataStream = null;
-            BinaryWriter dataStreamWriter = null;
 
             try {
 
                 // create filestream: create file if it does not exists, allow to write, do not share with other processes and use buffer of 8192 bytes (roughly 1000 samples)
                 dataStream = new FileStream(dlgSaveDatFile.FileName, FileMode.Create, FileAccess.Write, FileShare.None, 8192);
-                dataStreamWriter = new BinaryWriter(dataStream);
                 
             } catch (Exception exc) {
 
@@ -313,8 +298,8 @@ namespace PalmtreeLogReader {
             header.sampleRate = info.samplingRate;
 
             // write header
-            if (dataStreamWriter != null)
-                DataWriter.writeBinaryHeader(dataStreamWriter, header);
+            if (dataStream != null)
+                DataWriter.writeBinaryHeader(dataStream, header);
 
             // write data
             uint dataSampleCounter = 0;
@@ -342,8 +327,8 @@ namespace PalmtreeLogReader {
                 Buffer.BlockCopy(dataStreamValues, 0, streamOut, l1 + l2, l3);
 
                 // write data to file
-                if (dataStreamWriter != null)
-                    dataStreamWriter.Write(streamOut);
+                if (dataStream != null)
+                    dataStream.Write(streamOut, 0, streamOut.Length);
 
                 // increase sample counter
                 dataSampleCounter++;
@@ -354,8 +339,7 @@ namespace PalmtreeLogReader {
             txtOutput.Text = "Done";
 
             // clear
-            dataStreamWriter.Close();
-            dataStreamWriter = null;
+            dataStream.Close();
             dataStream = null;
 
         }

@@ -15,6 +15,7 @@
  */
 using NLog;
 using System;
+using Palmtree.Core;
 using Palmtree.Core.DataIO;
 using Palmtree.Core.Helpers;
 using Palmtree.Core.Params;
@@ -28,7 +29,7 @@ namespace Palmtree.Filters {
     /// </summary>
     public class AdaptationFilter : FilterBase, IFilter {
 
-        private new const int CLASS_VERSION = 1;
+        private new const int CLASS_VERSION = 2;
 
         private int[] mAdaptation = null;
         private int mBufferSize = 0;                        // time window of past data per buffer that enters into statistic
@@ -82,7 +83,7 @@ namespace Palmtree.Filters {
             parameters.addParameter <int[]>     (
                 "Adaptation",
                 "The adaptation type for each incoming channel, use one of the following options:\n0: no adaptation\n1: to initial params\n2: to first samples\n3: to lastest samples (sliding window)\n\nE.g. if there are three incoming channels, then setting this parameter to '0 3 1' would leave the first incoming channel\nunmodified, adapt the second channel to the lastest samples and adapt the third to a fixed mean and standard deviation\n\nNote: make sure that a value exists in this parameter for each incoming channel.",
-                "0", "3", "0",
+                "0", "3", "0,0",
                 new string[]{   "No adaptation",
                                 "To initial parameters",
                                 "To first samples",
@@ -92,12 +93,12 @@ namespace Palmtree.Filters {
             parameters.addParameter <double[]>  (
                 "InitialChannelMeans",
                 "The initial channel mean for each incoming channel (only used\nwhen the adaptation parameter for the channel is set to 1).\n\nNote: make sure that a value exists in this parameter for each incoming channel.",
-                "", "", "0");
+                "", "", "0,0");
 
             parameters.addParameter <double[]>  (
                 "InitialChannelStds",
 				"The initial standard deviation for each incoming channel (only used\nwhen the adaptation parameter for the channel is set to 1).\n\nNote: make sure that a value exists in this parameter for each incoming channel.",
-                "", "", "1");
+                "", "", "1,1");
 
             parameters.addParameter <int>       (
                 "BufferLength",
@@ -117,7 +118,7 @@ namespace Palmtree.Filters {
             parameters.addParameter <double[]>  (
                 "ExcludeStdThreshold",
                 "The threshold for each incoming channel (on a standard normal distribution) above which a sample will be excluded from buffering\n\nNote: make sure that a value exists in this parameter for each incoming channel.",
-                "", "", "2.7");
+                "", "", "2.7,2.7");
 
             // message
             logger.Info("Filter created (version " + CLASS_VERSION + ")");
@@ -129,23 +130,29 @@ namespace Palmtree.Filters {
          * parameters and, if valid, transfers the configuration parameters to local variables
          * (initialization of the filter is done later by the initialize function)
          **/
-        public bool configure(ref PackageFormat input, out PackageFormat output) {
+        public bool configure(ref SamplePackageFormat input, out SamplePackageFormat output) {
+
+            // check sample-major ordered input
+            if (input.valueOrder != SamplePackageFormat.ValueOrder.SampleMajor) {
+                logger.Error("This filter is designed to work only with sample-major ordered input");
+                output = null;
+                return false;
+            }
 
             // retrieve the number of input channels
-            inputChannels = input.getNumberOfChannels();
-            if (inputChannels <= 0) {
+            if (input.numChannels <= 0) {
                 logger.Error("Number of input channels cannot be 0");
                 output = null;
                 return false;
             }
 
-            // set the number of output channels as the same
-            // (same regardless if enabled or disabled)
-            outputChannels = inputChannels;
+            // the output package will be in the same format as the input package
+            output = new SamplePackageFormat(input.numChannels, input.numSamples, input.packageRate, input.valueOrder);
 
-            // create an output sampleformat
-            output = new PackageFormat(outputChannels, input.getSamples(), input.getRate());
-
+            // store a references to the input and output format
+            inputFormat = input;
+            outputFormat = output;
+            
             // check the values and application logic of the parameters
             if (!checkParameters(parameters))   return false;
 
@@ -265,15 +272,18 @@ namespace Palmtree.Filters {
 
                 // check adaptation settings
                 int[] newAdaptation = newParameters.getValue<int[]>("Adaptation");
-                if (newAdaptation.Length < inputChannels) {
-                    logger.Error("The number of entries in the Adaptation parameter must match the number of input channels");
+                if (newAdaptation.Length < inputFormat.numChannels) {
+                    logger.Error("The number of entries in the Adaptation parameter (" + newAdaptation.Length + ") cannot be less than the number of input channels (" + inputFormat.numChannels + "). Each entry defines the setting for a single input channel.");
                     return false;
                 }
+                if (newAdaptation.Length > inputFormat.numChannels)
+                    logger.Warn("The number of entries in the Adaptation parameter (" + newAdaptation.Length + ") is higher than the number of incoming channels (" + inputFormat.numChannels + "). Each entry defines the setting for a single input channel.");
+
                 
 		        // check if init or adaptation are enabled to check other parameters
 		        bool initial = false;
 		        bool adaptUsingBuffer = false;
-		        for( int channel = 0; channel < inputChannels; ++channel ) {
+		        for( int channel = 0; channel < inputFormat.numChannels; ++channel ) {
                     initial |= (newAdaptation[channel] == (int)AdaptationTypes.rawToInitial);
                     adaptUsingBuffer |= (newAdaptation[channel] == (int)AdaptationTypes.rawToFirstSamples || newAdaptation[channel] == (int)AdaptationTypes.rawToLatestSamples);
 		        }
@@ -286,14 +296,20 @@ namespace Palmtree.Filters {
                     double[] newInitialStds = newParameters.getValue<double[]>("InitialChannelStds");
 
                     // check if there are enough input parameters on the initial settings
-                    if (newInitialMeans.Length < inputChannels) {
-                        logger.Error("The number of entries in the InitialChannelMeans parameter must match the number of input channels");
+                    if (newInitialMeans.Length < inputFormat.numChannels) {
+                        logger.Error("The number of entries in the InitialChannelMeans parameter (" + newInitialMeans.Length + ") cannot be less than the number of input channels (" + inputFormat.numChannels + "). Each entry defines the setting for a single input channel.");
                         return false;
                     }
-                    if (newInitialStds.Length < inputChannels) {
-                        logger.Error("The number of entries in the InitialChannelStds parameter must match the number of input channels");
+                    if (newInitialMeans.Length > inputFormat.numChannels)
+                        logger.Warn("The number of entries in the InitialChannelMeans parameter (" + newInitialMeans.Length + ") is higher than the number of incoming channels (" + inputFormat.numChannels + "). Each entry defines the setting for a single input channel.");
+
+                    if (newInitialStds.Length < inputFormat.numChannels) {
+                        logger.Error("The number of entries in the InitialChannelStds parameter (" + newInitialStds.Length + ") cannot be less than the number of input channels (" + inputFormat.numChannels + "). Each entry defines the setting for a single input channel.");
                         return false;
                     }
+                    if (newInitialStds.Length > inputFormat.numChannels)
+                        logger.Warn("The number of entries in the InitialChannelStds parameter (" + newInitialStds.Length + ") is higher than the number of incoming channels (" + inputFormat.numChannels + "). Each entry defines the setting for a single input channel.");
+
 		        }
 
 
@@ -320,10 +336,12 @@ namespace Palmtree.Filters {
 
                     // check the (std) exclusion threshold for the channels
                     double[] newExcludeStdThreshold = newParameters.getValue<double[]>("ExcludeStdThreshold");
-			        if (newExcludeStdThreshold.Length < inputChannels ) {
-                        logger.Error("The number of entries in the AF_ExcludeStdThreshold parameter must match the number of input channels");
+                    if (newExcludeStdThreshold.Length < inputFormat.numChannels) {
+                        logger.Error("The number of entries in the ExcludeStdThreshold parameter (" + newExcludeStdThreshold.Length + ") cannot be less than the number of input channels (" + inputFormat.numChannels + "). Each entry defines the setting for a single input channel.");
                         return false;
                     }
+                    if (newExcludeStdThreshold.Length > inputFormat.numChannels)
+                        logger.Warn("The number of entries in the ExcludeStdThreshold parameter (" + newExcludeStdThreshold.Length + ") is higher than the number of incoming channels (" + inputFormat.numChannels + "). Each entry defines the setting for a single input channel.");
 
                     // check the number of samples to discard
                     int newBufferDiscardFirst = newParameters.getValueInSamples("BufferDiscardFirst");
@@ -359,7 +377,7 @@ namespace Palmtree.Filters {
 		        // check if init or adaptation are enabled to check other parameters
 		        bool initial = false;
 		        bool adaptUsingBuffer = false;
-		        for( int channel = 0; channel < inputChannels; ++channel ) {
+		        for( int channel = 0; channel < inputFormat.numChannels; ++channel ) {
                     initial |= (mAdaptation[channel] == (int)AdaptationTypes.rawToInitial);
                     adaptUsingBuffer |= (mAdaptation[channel] == (int)AdaptationTypes.rawToFirstSamples || mAdaptation[channel] == (int)AdaptationTypes.rawToLatestSamples);
 		        }
@@ -393,9 +411,9 @@ namespace Palmtree.Filters {
 
             // debug output
             logger.Debug("--- Filter configuration: " + filterName + " ---");
-            logger.Debug("Input channels: " + inputChannels);
+            logger.Debug("Input channels: " + inputFormat.numChannels);
             logger.Debug("Enabled: " + mEnableFilter);
-            logger.Debug("Output channels: " + outputChannels);
+            logger.Debug("Output channels: " + outputFormat.numChannels);
             if (mEnableFilter) {
                 logger.Debug("Adaptation: " + (mAdaptation == null ? "-" : string.Join(",", mAdaptation)));
                 logger.Debug("InitialChannelMeans: " + (mInitialMeans == null ? "-" : string.Join(",", mInitialMeans)));
@@ -414,15 +432,15 @@ namespace Palmtree.Filters {
             if (mEnableFilter) {
 
                 // create the data buffers
-                dataBuffers = new RingBuffer[inputChannels];
-                for (uint i = 0; i < inputChannels; i++) dataBuffers[i] = new RingBuffer((uint)mBufferSize);
+                dataBuffers = new RingBuffer[inputFormat.numChannels];
+                for (uint i = 0; i < inputFormat.numChannels; i++) dataBuffers[i] = new RingBuffer((uint)mBufferSize);
 
                 // initialize statistic variables
-                statSet = new bool[inputChannels];
-                statMeans = new double[inputChannels];
-                statStds = new double[inputChannels];
-                statStopUpdate = new bool[inputChannels];
-                for (uint i = 0; i < inputChannels; i++) {
+                statSet = new bool[inputFormat.numChannels];
+                statMeans = new double[inputFormat.numChannels];
+                statStds = new double[inputFormat.numChannels];
+                statStopUpdate = new bool[inputFormat.numChannels];
+                for (uint i = 0; i < inputFormat.numChannels; i++) {
                     statSet[i] = false;
                     statMeans[i] = 0;
                     statStds[i] = 0;
@@ -449,137 +467,156 @@ namespace Palmtree.Filters {
         }
 
         public void process(double[] input, out double[] output) {
-            
-            // create an output sample
-            output = new double[outputChannels];
+
+            // create an output package
+            output = new double[input.Length];
 
             // check if the filter is enabled
             if (mEnableFilter) {
                 // filter enabled
                 
-                // loop through every channel
-                for (int channel = 0; channel < inputChannels; ++channel ) {
-				
-				    // check whether the samples should be discarded
-				    if (mBufferDiscardFirst == 0) {
-					    // do not (or stop) discarding first samples
+                int totalSamples = inputFormat.numSamples * inputFormat.numChannels;
+                for (int sample = 0; sample < totalSamples; sample += inputFormat.numChannels) {
 
-					    // check
-					    // if adaptation is set to 2: to first samples, and the buffer is not yet full
-					    // or there should be a continues updating of samples in the buffer (3: to lastest samples)
-                        if ((mAdaptation[channel] == (int)AdaptationTypes.rawToFirstSamples && !dataBuffers[channel].IsFull()) ||
-						     mAdaptation[channel] == (int)AdaptationTypes.rawToLatestSamples) {
+                    double[] singleRow = new double[inputFormat.numChannels];
+                    Buffer.BlockCopy(input, sample * sizeof(double), singleRow, 0, inputFormat.numChannels * sizeof(double));
 
-						    // check if statistical values are available
-						    if (!statSet[channel]) {
-							    // no statistical values are set
+                    double[] singleRowOout = new double[inputFormat.numChannels];
+                    processSample(singleRow, out singleRowOout);
 
-							    // add to the buffer
-							    dataBuffers[channel].Put(input[channel]);
-
-						    } else {
-                                // statistical values are set
-
-                                // calculate z-score for input sample
-                                double zscore;
-							    if (statStds[channel] == 0)
-                                    zscore = (input[channel] - statMeans[channel]);
-							    else
-                                    zscore = (input[channel] - statMeans[channel]) / statStds[channel];
-
-							    // check the threshold
-							    if (zscore <= mExcludeStdThreshold[channel]) {
-
-								    // add to the buffer
-                                    dataBuffers[channel].Put(input[channel]);
-
-							    } else {
-
-								    // message
-                                    logger.Debug("Sample (ch: " + channel + ", raw: " + input[channel] + ", z: " + zscore + ") rejected, exceeded mExcludeStdThreshold (" + mExcludeStdThreshold[channel] + ")");
-
-							    }
-
-						    }
-
-					    }
-
-				    } else {
-					    // discard first samples
-
-					    // message
-                        logger.Debug("Sample discarded (ch: " + channel + ", raw: " + input[channel] + "), since it is first input");
-
-					    // make sure counting happens only once (at the last channel)
-					    // (nature of the nested loops, it should only be once per sample)
-					    if (channel == inputChannels - 1) {
-
-						    // reduce the sample discard count
-						    mBufferDiscardFirst--;
-
-					    }
-
-				    }
-
-                    // check if the statistics should be updated
-                    if (    (mAdaptation[channel] == (int)AdaptationTypes.rawToFirstSamples && !statStopUpdate[channel]) ||
-                             mAdaptation[channel] == (int)AdaptationTypes.rawToLatestSamples) {
-
-                        // Update the channel's calculated values
-                        updateStats(channel);
-                        
-                    }
-
-                    // check if the adaptation is set to first samples and the number of first samples will not change anymore (buffer is full and statistics are calculated)
-                    if (mAdaptation[channel] == (int)AdaptationTypes.rawToFirstSamples && statSet[channel] && dataBuffers[channel].IsFull() && !statStopUpdate[channel]) {
-
-                        // flag to stop updating the statistics for this channel
-                        statStopUpdate[channel] = true;
-                        
-                        // message
-                        logger.Debug("Calculated mean and sd for calibration of channel " + channel + ", based on first samples: " + statMeans[channel] + " and " + statStds[channel]);
-
-                        // log stop
-                        Data.logEvent(2, "stopStatUpdate", (channel + ";" + statMeans[channel] + ";" + statStds[channel]));
-
-                    }
-
-                    // produce the output
-                    if (mAdaptation[channel] == (uint)AdaptationTypes.none) {
-					    output[channel] = input[channel];
-
-				    } else if (mAdaptation[channel] == (int)AdaptationTypes.rawToInitial) {
-
-					    // set the output
-					    output[channel] = (input[channel] - mInitialMeans[channel]) / mInitialStds[channel];
-
-				    } else if (mAdaptation[channel] == (int)AdaptationTypes.rawToFirstSamples || mAdaptation[channel] == (int)AdaptationTypes.rawToLatestSamples) {
-				
-					    if (!statSet[channel])
-						    output[channel] = 0;
-					    else {
-
-						    // set the output
-						    output[channel] = (input[channel] - statMeans[channel]) / statStds[channel];
-                            
-					    }
-
-				    }
+                    Buffer.BlockCopy(singleRowOout, 0, output, sample * sizeof(double), inputFormat.numChannels * sizeof(double));
 
                 }
-
-                
 
             } else {
                 // filter disabled
 
-                // pass the input straight through
-                for (uint channel = 0; channel < inputChannels; ++channel)  output[channel] = input[channel];
+                // TODO: reason if we can just pass reference?
+                // copy the input straight through
+                Buffer.BlockCopy(input, 0, output, 0, input.Length * sizeof(double));
 
             }
 
             // handle the data logging of the output (both to file and for visualization)
             processOutputLogging(output);
+
+        }
+
+        public void processSample(double[] input, out double[] output) {
+            
+            // create an output sample
+            output = new double[outputFormat.numChannels];
+    
+            // loop through every channel
+            for (int channel = 0; channel < inputFormat.numChannels; ++channel ) {
+				
+				// check whether the samples should be discarded
+				if (mBufferDiscardFirst == 0) {
+					// do not (or stop) discarding first samples
+
+					// check
+					// if adaptation is set to 2: to first samples, and the buffer is not yet full
+					// or there should be a continues updating of samples in the buffer (3: to lastest samples)
+                    if ((mAdaptation[channel] == (int)AdaptationTypes.rawToFirstSamples && !dataBuffers[channel].IsFull()) ||
+						    mAdaptation[channel] == (int)AdaptationTypes.rawToLatestSamples) {
+
+						// check if statistical values are available
+						if (!statSet[channel]) {
+							// no statistical values are set
+
+							// add to the buffer
+							dataBuffers[channel].Put(input[channel]);
+
+						} else {
+                            // statistical values are set
+
+                            // calculate z-score for input sample
+                            double zscore;
+							if (statStds[channel] == 0)
+                                zscore = (input[channel] - statMeans[channel]);
+							else
+                                zscore = (input[channel] - statMeans[channel]) / statStds[channel];
+
+							// check the threshold
+							if (zscore <= mExcludeStdThreshold[channel]) {
+
+								// add to the buffer
+                                dataBuffers[channel].Put(input[channel]);
+
+							} else {
+
+								// message
+                                logger.Debug("Sample (ch: " + channel + ", raw: " + input[channel] + ", z: " + zscore + ") rejected, exceeded mExcludeStdThreshold (" + mExcludeStdThreshold[channel] + ")");
+
+							}
+
+						}
+
+					}
+
+				} else {
+					// discard first samples
+
+					// message
+                    logger.Debug("Sample discarded (ch: " + channel + ", raw: " + input[channel] + "), since it is first input");
+
+					// make sure counting happens only once (at the last channel)
+					// (nature of the nested loops, it should only be once per sample)
+					if (channel == inputFormat.numChannels - 1) {
+
+						// reduce the sample discard count
+						mBufferDiscardFirst--;
+
+					}
+
+				}
+
+                // check if the statistics should be updated
+                if ((mAdaptation[channel] == (int)AdaptationTypes.rawToFirstSamples && !statStopUpdate[channel]) ||
+                    mAdaptation[channel] == (int)AdaptationTypes.rawToLatestSamples) {
+
+                    // Update the channel's calculated values
+                    updateStats(channel);
+                        
+                }
+
+                // check if the adaptation is set to first samples and the number of first samples will not change anymore (buffer is full and statistics are calculated)
+                if (mAdaptation[channel] == (int)AdaptationTypes.rawToFirstSamples && statSet[channel] && dataBuffers[channel].IsFull() && !statStopUpdate[channel]) {
+
+                    // flag to stop updating the statistics for this channel
+                    statStopUpdate[channel] = true;
+                        
+                    // message
+                    logger.Debug("Calculated mean and sd for calibration of channel " + channel + ", based on first samples: " + statMeans[channel] + " and " + statStds[channel]);
+
+                    // log stop
+                    Data.logEvent(2, "stopStatUpdate", (channel + ";" + statMeans[channel] + ";" + statStds[channel]));
+
+                }
+
+                // produce the output
+                if (mAdaptation[channel] == (uint)AdaptationTypes.none) {
+					output[channel] = input[channel];
+
+				} else if (mAdaptation[channel] == (int)AdaptationTypes.rawToInitial) {
+
+					// set the output
+					output[channel] = (input[channel] - mInitialMeans[channel]) / mInitialStds[channel];
+
+				} else if (mAdaptation[channel] == (int)AdaptationTypes.rawToFirstSamples || mAdaptation[channel] == (int)AdaptationTypes.rawToLatestSamples) {
+				
+					if (!statSet[channel])
+						output[channel] = 0;
+					else {
+
+						// set the output
+						output[channel] = (input[channel] - statMeans[channel]) / statStds[channel];
+                            
+					}
+
+				}
+
+            }
 
         }
 

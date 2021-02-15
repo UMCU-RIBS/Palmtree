@@ -12,7 +12,7 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details. You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-using Palmtree.Core.Helpers;
+using Palmtree.Core;
 using Palmtree.Core.Params;
 
 namespace Palmtree.Applications {
@@ -37,7 +37,7 @@ namespace Palmtree.Applications {
         /// <summary>Configure the application module. Called upon by "set configuration" in the GUI</summary>
         /// <param name="input">Reference to a PackageFormat object which defines the incoming sample streams</param>
         /// <returns>A boolean, either true for a succesfull configuration, or false upon failure</returns>
-        bool configure(ref PackageFormat input);
+        bool configure(ref SamplePackageFormat input);
 
         /// <summary>Initialize the application module. Called upon by "set configuration" in the GUI</summary>
         void initialize();

@@ -1,5 +1,5 @@
 ﻿/**
- * The FlexKeySequenceFilter class
+ * FlexKeySequenceFilter class
  * 
  * ...
  * 
@@ -13,6 +13,7 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details. You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+using System;
 using NLog;
 using Palmtree.Core;
 using Palmtree.Core.DataIO;
@@ -22,12 +23,12 @@ using Palmtree.Core.Params;
 namespace Palmtree.Filters {
 
     /// <summary>
-    /// The <c>FlexKeySequenceFilter</c> class.
+    /// FlexKeySequenceFilter class
     /// 
     /// ...
     /// </summary>
     public class FlexKeySequenceFilter : FilterBase, IFilter {
-        private new const int CLASS_VERSION = 2;
+        private new const int CLASS_VERSION = 3;
 
         private int clickInputChannel = 0;                      // channel that will be monitored for clicks required to make the flex-keysequence
         private int amountOfClicks = 0;                         // amount of clicks required to create flex-keysequence
@@ -132,22 +133,28 @@ namespace Palmtree.Filters {
          * parameters and, if valid, transfers the configuration parameters to local variables
          * (initialization of the filter is done later by the initialize function)
          **/
-        public bool configure(ref PackageFormat input, out PackageFormat output) {
+        public bool configure(ref SamplePackageFormat input, out SamplePackageFormat output) {
 
-            // retrieve the number of input channels
-            inputChannels = input.getNumberOfChannels();
-            if (inputChannels <= 0) {
-                logger.Error("Number of input channels cannot be 0");
+            // check sample-major ordered input
+            if (input.valueOrder != SamplePackageFormat.ValueOrder.SampleMajor) {
+                logger.Error("This filter is designed to work only with sample-major ordered input");
                 output = null;
                 return false;
             }
 
-            // set the number of output channels as the same
-            // (same regardless if enabled or disabled)
-            outputChannels = inputChannels;
-
+            // retrieve the number of input channels
+            if (input.numChannels <= 0) {
+                logger.Error("Number of input channels cannot be 0");
+                output = null;
+                return false;
+            }
+            
             // create an output sampleformat
-            output = new PackageFormat(outputChannels, input.getSamples(), input.getRate());
+            output = new SamplePackageFormat(input.numChannels, input.numSamples, input.packageRate, input.valueOrder);
+
+            // store a references to the input and output format
+            inputFormat = input;
+            outputFormat = output;
 
             // check the values and application logic of the parameters
             if (!checkParameters(parameters)) return false;
@@ -263,7 +270,7 @@ namespace Palmtree.Filters {
             if (newEnableFilter) {
                 // check parameters
                 int newClickInputChannel = newParameters.getValue<int>("ClickInputChannel");
-                if (newClickInputChannel < 1 || newClickInputChannel > inputChannels) {
+                if (newClickInputChannel < 1 || newClickInputChannel > inputFormat.numChannels) {
                     logger.Error("ClickInputChannel should be larger than 1 and smaller than amount of input channels.");
                     return false;
                 }
@@ -293,7 +300,7 @@ namespace Palmtree.Filters {
                 }
 
                 int newMeanAndStdInputChannel = newParameters.getValue<int>("MeanAndStdInputChannel");
-                if (newMeanAndStdInputChannel < 1 || newMeanAndStdInputChannel > inputChannels) {
+                if (newMeanAndStdInputChannel < 1 || newMeanAndStdInputChannel > inputFormat.numChannels) {
                     logger.Error("MeanAndStdInputChannel should be larger than 1 and smaller than amount of input channels.");
                     return false;
                 }
@@ -333,9 +340,9 @@ namespace Palmtree.Filters {
 
             // debug output
             logger.Debug("--- Filter configuration: " + filterName + " ---");
-            logger.Debug("Input channels: " + inputChannels);
+            logger.Debug("Input channels: " + inputFormat.numChannels);
             logger.Debug("Enabled: " + mEnableFilter);
-            logger.Debug("Output channels: " + outputChannels);
+            logger.Debug("Output channels: " + outputFormat.numChannels);
             if (mEnableFilter) {
                 logger.Debug("clickInputChannel: " + clickInputChannel);
                 logger.Debug("amountOfClicks: " + amountOfClicks);
@@ -377,115 +384,131 @@ namespace Palmtree.Filters {
         }
 
         public void process(double[] input, out double[] output) {
-            // create an output sample
-            output = new double[outputChannels];
+
+            // create an output package
+            output = new double[input.Length];
 
             // check if the filter is enabled
             if (mEnableFilter) {
-				
-                // set the initial key-sequence state
-                bool keySequenceState = false;
+                // filter enabled
+                
+                int totalSamples = inputFormat.numSamples * inputFormat.numChannels;
+                for (int sample = 0; sample < totalSamples; sample += inputFormat.numChannels) {
 
-                // add data to click buffer
-                mDataBuffers[0].Put(input[clickInputChannel - 1]);
-
-                // if also checking sd and mean, add data to this buffer
-                if(checkMeanStd)
-					mDataBuffers[1].Put(input[meanStdChannel - 1]);
-
-                // retrieve click data from buffer
-                double[] clickData = mDataBuffers[0].Data();
-
-                // copy array to allow using original array later 
-                // TODO use BlockCopy?
-                double[] countClickData = new double[clickData.Length];
-                System.Array.Copy(clickData, countClickData, clickData.Length);
-
-                // check if copied data contains at least the required amount of clicks (amount of clicks times clickrate). Only if so proceed to test for intervals. This to increase performance: checking amount of clicks (using quicksort) is on average O(n log n), wheras checking intervals (and if needed mean and sd) is estimated around O(3n) to O(6n)
-                // check amount of clicks by first sorting and then checking the amount of clicks from the end of the array (Max is precaution to prevent outofBounds in case amountOfClicks times clickRate resolves to zero)
-                System.Array.Sort(countClickData);
-                if(countClickData[System.Math.Max(countClickData.Length - (int)System.Math.Floor((double)amountOfClicks * clickRate), 1)] == 1) {
-
-                    // init vars, to cycle through click data 
-                    uint interval = 0;
-                    uint correctClicks = 0;
-
-                    // cycle through click data
-                    for (uint i=0; i < clickData.Length; i++) {
-
-                        // if a click is detected 
-                        if (clickData[i] == 1) {
-
-                            // first click always fulfills interval requirements, if not first, check requirements and increase correct clicks if fullfilled 
-                            if (correctClicks == 0 || (interval >= minInterval && interval <= maxInterval))                                     
-								correctClicks++;
-                            
-                            // reset interval counter    
-                            interval = 0;
-                        
-                        } else {
-							// if no click is detected, increase interval
-							interval++;
-							
-						}
-						
-                    }
-
-                    // check if sufficient correct clicks have been made, and set flag if so
-                    if (correctClicks >= System.Math.Floor(amountOfClicks * clickRate)) keySequenceState = true;
+                    double[] singleRow = new double[inputFormat.numChannels];
+                    Buffer.BlockCopy(input, sample * sizeof(double), singleRow, 0, inputFormat.numChannels * sizeof(double));
+                    processSample(singleRow);
                     
-                    // if also mean and sd need to be checked
-                    if (checkMeanStd) {
-
-                        // retrieve data from buffer
-                        double[] meanStdData = mDataBuffers[1].Data();
-
-                        // init vars
-                        int dataLength = meanStdData.Length;
-                        double bufferSum = 0.0;
-                        double SSQ = 0.0;
-                        double mean = 0.0;
-                        double sd = 0.0;
-
-                        // calculate the mean
-                        for (uint i = 0; i < dataLength; ++i) bufferSum += meanStdData[i];
-                        mean = bufferSum / dataLength;
-
-                        // calculate the sd                  
-                        for (uint i = 0; i < dataLength; ++i) SSQ += (meanStdData[i] - mean) * (meanStdData[i] - mean);
-                        sd = System.Math.Sqrt(SSQ / dataLength);
-
-                        // check if mean and sd are above or below given mean and sd, as indicated by respective direction parameters, and set flag accordingly
-                        if (meanDirection < 0 && stdDirection < 0 && mean < meanThreshold && sd < stdThreshold)           keySequenceState = keySequenceState && true;
-                        else if (meanDirection >= 0 && stdDirection < 0 && mean >= meanThreshold && sd < stdThreshold)    keySequenceState = keySequenceState && true;
-                        else if (meanDirection < 0 && stdDirection >= 0 && mean < meanThreshold && sd >= stdThreshold)    keySequenceState = keySequenceState && true;
-                        else if (meanDirection >= 0 && stdDirection >= 0 && mean >= meanThreshold && sd >= stdThreshold)  keySequenceState = keySequenceState && true;
-                        else                                                                                            keySequenceState = false;
-                    }
-
-                }
-
-                // check if the flex-keysequence state changed
-                if (keySequenceState != keySequencePreviousState) {
-					
-                    // set the global
-                    Globals.setValue<bool>("FlexKeySequenceActive", (keySequenceState ? "1" : "0"));
-
-                    // log that the state has changed
-                    Data.logEvent(1, "FlexKeySequenceChange", (keySequenceState) ? "1" : "0");
-
-                    // update the current (to be previous) keysequence state
-                    keySequencePreviousState = keySequenceState;
                 }
 
             }
 
-            // pass the input straight through
-            for (uint channel = 0; channel < inputChannels; ++channel) output[channel] = input[channel];
+            // TODO: reason if we can just pass reference?
+            // copy the input straight through
+            Buffer.BlockCopy(input, 0, output, 0, input.Length * sizeof(double));
 
             // handle the data logging of the output (both to file and for visualization)
             processOutputLogging(output);
 
+        }
+
+        public void processSample(double[] input) {
+            
+            // set the initial key-sequence state
+            bool keySequenceState = false;
+
+            // add data to click buffer
+            mDataBuffers[0].Put(input[clickInputChannel - 1]);
+
+            // if also checking sd and mean, add data to this buffer
+            if(checkMeanStd)
+				mDataBuffers[1].Put(input[meanStdChannel - 1]);
+
+            // retrieve click data from buffer
+            double[] clickData = mDataBuffers[0].Data();
+
+            // copy array to allow using original array later 
+            // TODO use BlockCopy?
+            double[] countClickData = new double[clickData.Length];
+            Array.Copy(clickData, countClickData, clickData.Length);
+
+            // check if copied data contains at least the required amount of clicks (amount of clicks times clickrate). Only if so proceed to test for intervals. This to increase performance: checking amount of clicks (using quicksort) is on average O(n log n), wheras checking intervals (and if needed mean and sd) is estimated around O(3n) to O(6n)
+            // check amount of clicks by first sorting and then checking the amount of clicks from the end of the array (Max is precaution to prevent outofBounds in case amountOfClicks times clickRate resolves to zero)
+            Array.Sort(countClickData);
+            if(countClickData[Math.Max(countClickData.Length - (int)Math.Floor((double)amountOfClicks * clickRate), 1)] == 1) {
+
+                // init vars, to cycle through click data 
+                uint interval = 0;
+                uint correctClicks = 0;
+
+                // cycle through click data
+                for (uint i=0; i < clickData.Length; i++) {
+
+                    // if a click is detected 
+                    if (clickData[i] == 1) {
+
+                        // first click always fulfills interval requirements, if not first, check requirements and increase correct clicks if fullfilled 
+                        if (correctClicks == 0 || (interval >= minInterval && interval <= maxInterval))                                     
+							correctClicks++;
+                            
+                        // reset interval counter    
+                        interval = 0;
+                        
+                    } else {
+						// if no click is detected, increase interval
+						interval++;
+							
+					}
+						
+                }
+
+                // check if sufficient correct clicks have been made, and set flag if so
+                if (correctClicks >= Math.Floor(amountOfClicks * clickRate)) keySequenceState = true;
+                    
+                // if also mean and sd need to be checked
+                if (checkMeanStd) {
+
+                    // retrieve data from buffer
+                    double[] meanStdData = mDataBuffers[1].Data();
+
+                    // init vars
+                    int dataLength = meanStdData.Length;
+                    double bufferSum = 0.0;
+                    double SSQ = 0.0;
+                    double mean = 0.0;
+                    double sd = 0.0;
+
+                    // calculate the mean
+                    for (uint i = 0; i < dataLength; ++i) bufferSum += meanStdData[i];
+                    mean = bufferSum / dataLength;
+
+                    // calculate the sd                  
+                    for (uint i = 0; i < dataLength; ++i) SSQ += (meanStdData[i] - mean) * (meanStdData[i] - mean);
+                    sd = Math.Sqrt(SSQ / dataLength);
+
+                    // check if mean and sd are above or below given mean and sd, as indicated by respective direction parameters, and set flag accordingly
+                    if (meanDirection < 0 && stdDirection < 0 && mean < meanThreshold && sd < stdThreshold)           keySequenceState = keySequenceState && true;
+                    else if (meanDirection >= 0 && stdDirection < 0 && mean >= meanThreshold && sd < stdThreshold)    keySequenceState = keySequenceState && true;
+                    else if (meanDirection < 0 && stdDirection >= 0 && mean < meanThreshold && sd >= stdThreshold)    keySequenceState = keySequenceState && true;
+                    else if (meanDirection >= 0 && stdDirection >= 0 && mean >= meanThreshold && sd >= stdThreshold)  keySequenceState = keySequenceState && true;
+                    else                                                                                            keySequenceState = false;
+                }
+
+            }
+
+            // check if the flex-keysequence state changed
+            if (keySequenceState != keySequencePreviousState) {
+					
+                // set the global
+                Globals.setValue<bool>("FlexKeySequenceActive", (keySequenceState ? "1" : "0"));
+
+                // log that the state has changed
+                Data.logEvent(1, "FlexKeySequenceChange", (keySequenceState) ? "1" : "0");
+
+                // update the current (to be previous) keysequence state
+                keySequencePreviousState = keySequenceState;
+            }
+            
         }
 
         public void destroy() {

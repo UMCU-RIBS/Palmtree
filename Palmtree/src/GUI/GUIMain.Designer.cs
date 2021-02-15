@@ -47,10 +47,10 @@ namespace Palmtree.GUI {
             // 
             this.btnStop.Enabled = false;
             this.btnStop.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
-            this.btnStop.Location = new System.Drawing.Point(477, 18);
+            this.btnStop.Location = new System.Drawing.Point(492, 18);
             this.btnStop.Margin = new System.Windows.Forms.Padding(4);
             this.btnStop.Name = "btnStop";
-            this.btnStop.Size = new System.Drawing.Size(133, 44);
+            this.btnStop.Size = new System.Drawing.Size(120, 44);
             this.btnStop.TabIndex = 17;
             this.btnStop.Text = "Stop";
             this.btnStop.UseVisualStyleBackColor = true;
@@ -60,10 +60,10 @@ namespace Palmtree.GUI {
             // 
             this.btnStart.Enabled = false;
             this.btnStart.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
-            this.btnStart.Location = new System.Drawing.Point(345, 18);
+            this.btnStart.Location = new System.Drawing.Point(373, 18);
             this.btnStart.Margin = new System.Windows.Forms.Padding(4);
             this.btnStart.Name = "btnStart";
-            this.btnStart.Size = new System.Drawing.Size(133, 44);
+            this.btnStart.Size = new System.Drawing.Size(120, 44);
             this.btnStart.TabIndex = 16;
             this.btnStart.Text = "Start";
             this.btnStart.UseVisualStyleBackColor = true;
@@ -73,12 +73,12 @@ namespace Palmtree.GUI {
             // 
             this.btnSetConfig.Enabled = false;
             this.btnSetConfig.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
-            this.btnSetConfig.Location = new System.Drawing.Point(166, 18);
+            this.btnSetConfig.Location = new System.Drawing.Point(157, 18);
             this.btnSetConfig.Margin = new System.Windows.Forms.Padding(4);
             this.btnSetConfig.Name = "btnSetConfig";
-            this.btnSetConfig.Size = new System.Drawing.Size(148, 44);
+            this.btnSetConfig.Size = new System.Drawing.Size(181, 44);
             this.btnSetConfig.TabIndex = 15;
-            this.btnSetConfig.Text = "Set Configuration and Initialize";
+            this.btnSetConfig.Text = "Set Config and Init";
             this.btnSetConfig.UseVisualStyleBackColor = true;
             this.btnSetConfig.Click += new System.EventHandler(this.btnSetConfig_Click);
             // 
@@ -115,9 +115,9 @@ namespace Palmtree.GUI {
             this.btnEditConfig.Location = new System.Drawing.Point(16, 18);
             this.btnEditConfig.Margin = new System.Windows.Forms.Padding(4);
             this.btnEditConfig.Name = "btnEditConfig";
-            this.btnEditConfig.Size = new System.Drawing.Size(151, 44);
+            this.btnEditConfig.Size = new System.Drawing.Size(142, 44);
             this.btnEditConfig.TabIndex = 18;
-            this.btnEditConfig.Text = "Edit Configuration";
+            this.btnEditConfig.Text = "Edit Config";
             this.btnEditConfig.UseVisualStyleBackColor = true;
             this.btnEditConfig.Click += new System.EventHandler(this.btnEditConfig_Click);
             // 
@@ -132,6 +132,7 @@ namespace Palmtree.GUI {
             this.btnVisualization.TabIndex = 19;
             this.btnVisualization.Text = "Visualization";
             this.btnVisualization.UseVisualStyleBackColor = true;
+            this.btnVisualization.Visible = false;
             this.btnVisualization.Click += new System.EventHandler(this.btnVisualization_Click);
             // 
             // btnMore

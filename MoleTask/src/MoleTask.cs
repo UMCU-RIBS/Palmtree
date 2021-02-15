@@ -46,14 +46,14 @@ namespace MoleTask {
 			EndText
 		};
 
-        private const int CLASS_VERSION = 2;
+        private const int CLASS_VERSION = 3;
         private const string CLASS_NAME = "MoleTask";
         private const string CONNECTION_LOST_SOUND = "sounds\\connectionLost.wav";
 
         private static Logger logger = LogManager.GetLogger(CLASS_NAME);            // the logger object for the view
         private static Parameters parameters = null;
         
-        private int inputChannels = 0;
+        private SamplePackageFormat inputFormat = null;
         private MoleView view = null;
 
         private Random rand = new Random(Guid.NewGuid().GetHashCode());
@@ -78,7 +78,7 @@ namespace MoleTask {
         //private int mFullscreenMonitor = 0;
         
 
-        private int mTaskInputChannel = 1;											// input channel
+        private int taskInputChannel = 1;											// input channel to use
         private int mTaskFirstRunStartDelay = 0;                                    // the first run start delay in sample blocks
         private int mTaskStartDelay = 0;                                            // the run start delay in sample blocks
         private int mCountdownTime = 0;                                             // the time the countdown takes in sample blocks
@@ -253,17 +253,23 @@ namespace MoleTask {
             return CLASS_VERSION;
         }
 
-        public bool configure(ref PackageFormat input) {
-
-            // store the number of input channels
-            inputChannels = input.getNumberOfChannels();
+        public bool configure(ref SamplePackageFormat input) {
+            
+            // check sample-major ordered input
+            if (input.valueOrder != SamplePackageFormat.ValueOrder.SampleMajor) {
+                logger.Error("This application is designed to work only with sample-major ordered input");
+                return false;
+            }
 
             // check if the number of input channels is higher than 0
-            if (inputChannels <= 0) {
+            if (input.numChannels <= 0) {
                 logger.Error("Number of input channels cannot be 0");
                 return false;
             }
 
+            // store a reference to the input format
+            inputFormat = input;
+            
             // configured as stand-alone, disallow exit
             allowExit = false;
 
@@ -271,7 +277,6 @@ namespace MoleTask {
             return configure(parameters);
 
         }
-
 
         public bool configure(Parameters newParameters) {
 
@@ -304,13 +309,13 @@ namespace MoleTask {
             }
 
             // retrieve the input channel setting
-            mTaskInputChannel = newParameters.getValue<int>("TaskInputChannel");
-            if (mTaskInputChannel < 1) {
+            taskInputChannel = newParameters.getValue<int>("TaskInputChannel");
+            if (taskInputChannel < 1) {
                 logger.Error("Invalid input channel, should be higher than 0 (1...n)");
                 return false;
             }
-            if (mTaskInputChannel > inputChannels) {
-                logger.Error("Input should come from channel " + mTaskInputChannel + ", however only " + inputChannels + " channels are coming in");
+            if (taskInputChannel > inputFormat.numChannels) {
+                logger.Error("Input should come from channel " + taskInputChannel + ", however only " + inputFormat.numChannels + " channels are coming in");
                 return false;
             }
 
@@ -524,8 +529,10 @@ namespace MoleTask {
             // retrieve the connectionlost global
             connectionLost = Globals.getValue<bool>("ConnectionLost");
 
-            // process input
-            process(input[mTaskInputChannel - 1]);
+            // process
+            int totalSamples = inputFormat.numSamples * inputFormat.numChannels;
+            for (int sample = 0; sample < totalSamples; sample += inputFormat.numChannels)
+                process(sample + input[taskInputChannel - 1]);
 
         }
 
@@ -923,7 +930,7 @@ namespace MoleTask {
 
 		    }
 	    
-	        // set the previous gamestate
+	        // set the previous state
 	        setState(previousTaskState);
 
 	        // set task as not longer pauzed
@@ -1175,9 +1182,8 @@ namespace MoleTask {
                 return;
             }
 
-
             // create a new parameter object and define this task's parameters
-            Parameters newParameters = new Parameters("FollowTask", Parameters.ParamSetTypes.Application);
+            Parameters newParameters = new Parameters(CLASS_NAME + "_child", Parameters.ParamSetTypes.Application);
             defineParameters(ref newParameters);
 
             // transfer some parameters from the parent
@@ -1187,9 +1193,9 @@ namespace MoleTask {
             newParameters.setValue("WindowLeft", parentParameters.getValue<int>("WindowLeft"));
             newParameters.setValue("WindowTop", parentParameters.getValue<int>("WindowTop"));
 
-            // set UNP task standard settings
-            inputChannels = 1;
-            allowExit = true;                  // UNPMenu task, allow exit
+            // set child task standard settings
+            inputFormat.numChannels = 1;
+            allowExit = true;                  // child task, allow exit
             newParameters.setValue("WindowBackgroundColor", "0;0;0");
             newParameters.setValue("CountdownTime", "3s");
             newParameters.setValue("TaskInputChannel", 1);

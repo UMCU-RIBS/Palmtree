@@ -1,5 +1,5 @@
 ﻿/**
- * The DataReader class
+ * DataReader class
  * 
  * ...
  * 
@@ -21,7 +21,7 @@ using System.Text;
 namespace Palmtree.Core.DataIO {
 
     /// <summary>
-    /// The <c>DataReader</c> class.
+    /// DataReader class.
     /// 
     /// ...
     /// </summary>
@@ -155,13 +155,17 @@ namespace Palmtree.Core.DataIO {
                 // check if the reader has not been opened
                 if (header == null || dataStream == null) {
 
-                    // message
+                    // message and return failure
                     logger.Error("Trying to read rows without opening the reader first, returning null");
-
-                    // return
                     buffer = null;
                     return -1;
 
+                }
+                
+                // 
+                if (header.version != 1) {
+                    buffer = null;
+                    return -1;
                 }
 
                 // check if the reading the given number of rows exceeds the end of the data
@@ -234,19 +238,24 @@ namespace Palmtree.Core.DataIO {
             // check if an error occured while reading
             if (numRows == -1) {
 
-                // set output to null
+                // return null and failure
                 arrSamples = null;
                 matValues = null;
-
-                // return
                 return -1;
 
             }
 
             // threadsafety
             lock (lockReader) {
+
+                // 
+                if (header.version != 1) {
+                    arrSamples = null;
+                    matValues = null;
+                    return -1;
+                }
                 
-                // create new arrays
+                // initialize new arrays
                 arrSamples = new uint[numRows];
                 matValues = new double[numRows][];
 
@@ -254,21 +263,20 @@ namespace Palmtree.Core.DataIO {
                 for (int i = 0; i < numRows; i++) {
 
                     // store the samples
-                    // TODO: hack to make sure wsp files can be read, need to conform sp files to data format: use uint for sampleId, not a double
-                    if (header.code == "wsp") {
-                        arrSamples[i] = (uint)BitConverter.ToDouble(bOutput, i * header.rowSize);
-                    } else {
-                        arrSamples[i] = BitConverter.ToUInt32(bOutput, i * header.rowSize);
-                    }
-
-                    // store the values
+                    // TODO: can be done faster I think
                     matValues[i] = new double[header.numColumns - 1];
-                    // TODO: hack to make sure wsp files can be read, need to conform sp files to data format: use uint for sampleId, not a double
-                    if (header.code == "wsp") {
-                        Buffer.BlockCopy(bOutput, i * header.rowSize + sizeof(double), matValues[i], 0, header.rowSize - sizeof(double));
-                    } else {
+                    if (header.code == "src" || header.code == "dat") {
+
+                        arrSamples[i] = BitConverter.ToUInt32(bOutput, i * header.rowSize);
                         Buffer.BlockCopy(bOutput, i * header.rowSize + sizeof(uint), matValues[i], 0, header.rowSize - sizeof(uint));
+
+                    } else {
+                        
+                        arrSamples[i] = (uint)BitConverter.ToDouble(bOutput, i * header.rowSize);
+                        Buffer.BlockCopy(bOutput, i * header.rowSize + sizeof(double), matValues[i], 0, header.rowSize - sizeof(double));
+                    
                     }
+                    
                 }
 
                 // return the numbers of rows
@@ -294,78 +302,118 @@ namespace Palmtree.Core.DataIO {
             // create a new data header object
             DataHeader header = new DataHeader();
 
-            FileStream dataStream = null;
+            FileStream fileStream = null;
             try {
 
                 // open file stream
-                dataStream = new FileStream(fileName, FileMode.Open);
+                fileStream = new FileStream(fileName, FileMode.Open);
 
                 // retrieve version number
                 byte[] bVersion = new byte[sizeof(int)];
-                dataStream.Read(bVersion, 0, sizeof(int));
+                fileStream.Read(bVersion, 0, sizeof(int));
                 header.version = BitConverter.ToInt32(bVersion, 0);
+
+                // check version
+                if (header.version != 1 && header.version != 2)
+                    throw new Exception("Unknown data version");
+
+                // retrieve the code from the header
+                byte[] bCode = new byte[3];
+                fileStream.Read(bCode, 0, bCode.Length);
+                header.code = Encoding.ASCII.GetString(bCode);
+                
+                // retrieve the epochs (V2)
+                if (header.version == 2) {
+                    byte[] bRunStartEpoch = new byte[8];
+                    fileStream.Read(bRunStartEpoch, 0, bRunStartEpoch.Length);
+                    header.runStartEpoch = BitConverter.ToInt64(bRunStartEpoch, 0);
+
+                    byte[] bFileStartEpoch = new byte[8];
+                    fileStream.Read(bFileStartEpoch, 0, bFileStartEpoch.Length);
+                    header.fileStartEpoch = BitConverter.ToInt64(bFileStartEpoch, 0);
+                }
+                
+                // retrieve the sample rate
+                byte[] bSampleRate = new byte[8];
+                fileStream.Read(bSampleRate, 0, bSampleRate.Length);
+                header.sampleRate = BitConverter.ToDouble(bSampleRate, 0);
+
+                // retrieve the number of playback input streams
+                byte[] bNumPlaybackStreams = new byte[4];
+                fileStream.Read(bNumPlaybackStreams, 0, bNumPlaybackStreams.Length);
+                header.numPlaybackStreams = BitConverter.ToInt32(bNumPlaybackStreams, 0);
+
+                // # streams + streams details (V2)
+                if (header.version == 2) {
+                    byte[] bNumStreams = new byte[4];
+                    fileStream.Read(bNumStreams, 0, bNumStreams.Length);
+                    header.numStreams = BitConverter.ToInt32(bNumStreams, 0);
+                    for (int i = 0; i < header.numStreams; i++) {
+                        byte[] bStreamDataType = new byte[1];
+                        fileStream.Read(bStreamDataType, 0, bStreamDataType.Length);
+                        header.streamDataTypes.Add(bStreamDataType[0]);
+                        
+                        byte[] bStreamSamplesPer = new byte[2];
+                        fileStream.Read(bStreamSamplesPer, 0, bStreamSamplesPer.Length);
+                        header.streamDataSamplesPerPackage.Add(BitConverter.ToUInt16(bStreamSamplesPer, 0));
+                    }
+                }
+
+                // retrieve the number of columns
+                byte[] bNumColumns = new byte[4];
+                fileStream.Read(bNumColumns, 0, bNumColumns.Length);
+                header.numColumns = BitConverter.ToInt32(bNumColumns, 0);
+                
+                // retrieve the size of the column names
+                byte[] bColumnNamesSize = new byte[4];
+                fileStream.Read(bColumnNamesSize, 0, bColumnNamesSize.Length);
+                header.columnNamesSize = BitConverter.ToInt32(bColumnNamesSize, 0);
+
+                // retrieve the column names from the header
+                byte[] bColumnNames = new byte[header.columnNamesSize];
+                fileStream.Read(bColumnNames, 0, header.columnNamesSize);
+                header.columnNames = Encoding.ASCII.GetString(bColumnNames).Split('\t');
+
+
+
+                //
+                // calculate worker variables
+                //
+
+                // store the position where the data starts (= the current position of the pointer in the stream after reading the header)
+                header.posDataStart = fileStream.Position;
 
                 if (header.version == 1) {
 
-                    // retrieve the code from the header
-                    byte[] bCode = new byte[3];
-                    dataStream.Read(bCode, 0, 3);
-                    header.code = Encoding.ASCII.GetString(bCode);
-
-                    // retrieve the fixed fields from the header    (note that the pointer has already been moved till after the version bytes)
-                    int fixedBytesInHeader = 0;
-                    fixedBytesInHeader += sizeof(double);   // sample rate
-                    fixedBytesInHeader += sizeof(int);      // number of playback input streams
-                    fixedBytesInHeader += sizeof(int);      // number of columns
-                    fixedBytesInHeader += sizeof(int);      // size of the column names
-                    byte[] bFixedHeader = new byte[fixedBytesInHeader];
-                    dataStream.Read(bFixedHeader, 0, fixedBytesInHeader);
-
-                    // pointer to a variable in the fixed header
-                    int ptrFixedHeader = 0;
-
-                    // retrieve the sample rate
-                    header.sampleRate = BitConverter.ToDouble(bFixedHeader, ptrFixedHeader);
-                    ptrFixedHeader += sizeof(double);
-
-                    // retrieve the number of playback input streams
-                    header.numPlaybackStreams = BitConverter.ToInt32(bFixedHeader, ptrFixedHeader);
-                    ptrFixedHeader += sizeof(int);
-
-                    // retrieve the number of columns
-                    header.numColumns = BitConverter.ToInt32(bFixedHeader, ptrFixedHeader);
-                    ptrFixedHeader += sizeof(int);
-
-                    // retrieve the size of the column names
-                    header.columnNamesSize = BitConverter.ToInt32(bFixedHeader, ptrFixedHeader);
-                    ptrFixedHeader += sizeof(int);
-
-                    // retrieve the column names from the header
-                    byte[] bColumnNames = new byte[header.columnNamesSize];
-                    dataStream.Read(bColumnNames, 0, header.columnNamesSize);
-                    header.columnNames = Encoding.ASCII.GetString(bColumnNames).Split('\t');
-
-                    // determine the size of one row (in bytes)
-                    // TODO: hack to make sure wsp files can be read, need to conform sp files to data format: use uint for sampleId, not a double
-                    if (header.code=="wsp") {
-                        header.rowSize = header.numColumns * sizeof(double);
+                    // determine the rowsize based on the header code (src/dat or plugin file)
+                    if (header.code == "src" || header.code == "dat") {
+                        header.rowSize = sizeof(uint);                                  // sample id
+                        header.rowSize += (header.numColumns - 1) * sizeof(double);     // data                        
                     } else {
-                        header.rowSize = sizeof(uint);                                    // sample id
-                        header.rowSize += (header.numColumns - 1) * sizeof(double);      // data
+                        header.rowSize = header.numColumns * sizeof(double);            // sampleid <double> + stream values 
                     }
-
-                    // store the position where the data starts (= the current position of the pointer in the stream after reading the header)
-                    header.posDataStart = dataStream.Position;
-
+                    
                     // determine the number of rows
-                    header.numRows = (dataStream.Length - header.posDataStart) / header.rowSize;
+                    // casting to integer will make numrows round down in case of incomplete rows
+                    header.numRows = (fileStream.Length - header.posDataStart) / header.rowSize;
+                
+                } else if (header.version ==2) {
+
+                    // determine the highest number of samples that any data stream in the pipeline would want to log
+                    header.maxSamplesStream = 0;
+                    for (int i = 0; i < header.numStreams; i++) {
+                        if (header.streamDataSamplesPerPackage[i] > header.maxSamplesStream)
+                            header.maxSamplesStream = header.streamDataSamplesPerPackage[i];
+                    }
 
                 }
 
+
+                
             } catch (Exception) {
 
                 // close the data stream
-                if (dataStream != null)     dataStream.Close();
+                if (fileStream != null)     fileStream.Close();
 
                 // return failure
                 return null;
@@ -373,7 +421,7 @@ namespace Palmtree.Core.DataIO {
             } finally {
 
                 // close the data stream
-                if (dataStream != null)     dataStream.Close();
+                if (fileStream != null)     fileStream.Close();
 
             }
 

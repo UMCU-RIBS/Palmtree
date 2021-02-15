@@ -1,5 +1,5 @@
 ﻿/**
- * The RedistributionFilter class
+ * RedistributionFilter class
  * 
  * ...
  * 
@@ -15,19 +15,20 @@
  * more details. You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 using NLog;
-using Palmtree.Core.Helpers;
+using Palmtree.Core;
 using Palmtree.Core.Params;
+using System;
 
 namespace Palmtree.Filters {
 
     /// <summary>
-    /// The <c>RedistributionFilter</c> class.
+    /// RedistributionFilter class.
     /// 
     /// ...
     /// </summary>
     public class RedistributionFilter : FilterBase, IFilter {
 
-        private new const int CLASS_VERSION = 1;
+        private new const int CLASS_VERSION = 2;
 
         private int[] mConfigInputChannels = null;
         private int[] mConfigOutputChannels = null;
@@ -59,7 +60,7 @@ namespace Palmtree.Filters {
             parameters.addParameter <double[][]>  (
                 "Redistribution",
                 "Specifies which input channels are added together to one or more output channels.\nAlso specifies which weights are applied to the input values before addition\n\nInput: Input channel (1...n)\nOutput: output channel (1...n)\nWeight: Weight applied to input channel value",
-                "", "", "1;1;1", new string[] { "Input", "Output", "Weight" });
+                "", "", "1,2;1,2;1,1", new string[] { "Input", "Output", "Weight" });
 
             // message
             logger.Info("Filter created (version " + CLASS_VERSION + ")");
@@ -71,15 +72,24 @@ namespace Palmtree.Filters {
          * parameters and, if valid, transfers the configuration parameters to local variables
          * (initialization of the filter is done later by the initialize function)
          **/
-        public bool configure(ref PackageFormat input, out PackageFormat output) {
+        public bool configure(ref SamplePackageFormat input, out SamplePackageFormat output) {
+
+            // check sample-major ordered input
+            if (input.valueOrder != SamplePackageFormat.ValueOrder.SampleMajor) {
+                logger.Error("This filter is designed to work only with sample-major ordered input");
+                output = null;
+                return false;
+            }
 
             // retrieve and check the number of input channels
-            inputChannels = input.getNumberOfChannels();
-            if (inputChannels <= 0) {
+            if (input.numChannels <= 0) {
                 logger.Error("Number of input channels cannot be 0");
                 output = null;
                 return false;
             }
+
+            // store a references to the input format (here so checkParameters can use it)
+            inputFormat = input;
 
             // check the values and application logic of the parameters
             if (!checkParameters(parameters)) {
@@ -90,12 +100,11 @@ namespace Palmtree.Filters {
             // transfer the parameters to local variables
             transferParameters(parameters);
             
-            // check if the filter is enabled
+            // determine the number of output channels
+            int outputChannels;
             if (mEnableFilter) {
-                // filter enabled
 
-                // determine the highest output channel from the
-                // configuration and set this as the number of output channels
+                // determine the highest output channel from the configuration and set this as the number of output channels
                 int highestOutputChannel = 0;
                 for (int row = 0; row < mConfigOutputChannels.Length; ++row) {
                     if (mConfigOutputChannels[row] > highestOutputChannel)
@@ -104,15 +113,15 @@ namespace Palmtree.Filters {
                 outputChannels = highestOutputChannel;
 
             } else {
-                // filter disabled
 
                 // filter will pass the input straight through, so same number of channels as output
-                outputChannels = inputChannels;
+                outputChannels = inputFormat.numChannels;
 
             }
 
-            // create an output sampleformat
-            output = new PackageFormat(outputChannels, input.getSamples(), input.getRate());
+            // create an output sampleformat and store a references to the output format
+            output = new SamplePackageFormat(outputChannels, input.numSamples, input.packageRate, input.valueOrder);
+            outputFormat = output;
 
             // configure output logging for this filter
             configureOutputLogging(filterName + "_", output);
@@ -152,10 +161,10 @@ namespace Palmtree.Filters {
                     }
 
                     // check if the number of output channels would remain the same (if the change would be applied)
-                    if (outputChannels != highestOutputChannel) {
+                    if (outputFormat.numChannels != highestOutputChannel) {
 
                         // message
-                        logger.Error("Error while trying to enable the filter. Enabling the filter would adjust the number of output channels from " + outputChannels + " to " + highestOutputChannel + ", this might break the next filter(s) and is disallowed, not applying filter re-configuration");
+                        logger.Error("Error while trying to enable the filter. Enabling the filter would adjust the number of output channels from " + outputFormat.numChannels + " to " + highestOutputChannel + ", this might break the next filter(s) and is disallowed, not applying filter re-configuration");
 
                         // return failure
                         return false;
@@ -168,11 +177,11 @@ namespace Palmtree.Filters {
                     // Check if the number of output channels would remain or change the same (if the change would be applied)
                     // When the filter is to be switched off, then the current number of output
                     // channels (now, with the filter on) should be the same as the number of input channels. 
-                    if (outputChannels != inputChannels) {
+                    if (outputFormat.numChannels != inputFormat.numChannels) {
                         // number of channels would change, disallow adjustment
 
                         // message
-                        logger.Error("Error while trying to disable the filter. Disabling the filter would adjust the number of output channels from " + outputChannels + " to " + inputChannels + ", this might break the next filter(s) and is disallowed, not applying filter re-configuration");
+                        logger.Error("Error while trying to disable the filter. Disabling the filter would adjust the number of output channels from " + outputFormat.numChannels + " to " + inputFormat.numChannels + ", this might break the next filter(s) and is disallowed, not applying filter re-configuration");
 
                         // return failure
                         return false;
@@ -273,8 +282,8 @@ namespace Palmtree.Filters {
                         logger.Error("Input channels must be positive integers (note that the channel numbering is 1-based)");
                         return false;
                     }
-                    if (newRedistribution[0][row] > inputChannels) {
-                        logger.Error("One of the input channel values exceeds the number of channels coming into the filter (#inputChannels: " + inputChannels + ")");
+                    if (newRedistribution[0][row] > inputFormat.numChannels) {
+                        logger.Error("One of the input channel values (" + newRedistribution[0][row] + ") exceeds the number of channels coming into the filter (" + inputFormat.numChannels + ")");
                         return false;
                     }
                     if (newRedistribution[1][row] < 1 || newRedistribution[1][row] % 1 != 0) {
@@ -323,9 +332,9 @@ namespace Palmtree.Filters {
 
             // debug output
             logger.Debug("--- Filter configuration: " + filterName + " ---");
-            logger.Debug("Input channels: " + inputChannels);
+            logger.Debug("Input channels: " + inputFormat.numChannels);
             logger.Debug("Enabled: " + mEnableFilter);
-            logger.Debug("Output channels: " + outputChannels);
+            logger.Debug("Output channels: " + outputFormat.numChannels);
             if (mEnableFilter) {
                 string strRedistribution = "Redistribution: ";
                 if (mConfigInputChannels != null) {
@@ -359,29 +368,38 @@ namespace Palmtree.Filters {
 
         public void process(double[] input, out double[] output) {
 
-            // create an output sample
-            output = new double[outputChannels];
+            // create an output package
+            output = new double[outputFormat.numChannels * outputFormat.numSamples];
 
             // check if the filter is enabled
             if (mEnableFilter) {
                 // filter enabled
 
-                // set output initially to 0
-                for (uint channel = 0; channel < outputChannels; ++channel)     output[channel] = 0.0;
+                int totalSamples = inputFormat.numSamples * inputFormat.numChannels;
+                int outSample = 0;
+                for (int inSample = 0; inSample < totalSamples; inSample += inputFormat.numChannels) {
+                    
+                    // loop through the config rows and accumilate the input channels ( * the weight) into the output channels
+                    for (uint row = 0; row < mConfigWeights.Length; ++row)
+                        output[outSample + mConfigOutputChannels[row] - 1] += input[inSample + mConfigInputChannels[row] - 1] * mConfigWeights[row];
+                    
+                    // move the output sample index (the number of channels between input and output can differ)
+                    outSample += outputFormat.numChannels;
 
-                // loop through the config rows and accumilate the input channels ( * the weight) into the output channels
-                for (uint row = 0; row < mConfigWeights.Length; ++row)          output[mConfigOutputChannels[row] - 1] += input[mConfigInputChannels[row] - 1] * mConfigWeights[row];
+                }
 
             } else {
                 // filter disabled
 
-                // pass the input straight through
-                for (uint channel = 0; channel < inputChannels; ++channel)  output[channel] = input[channel];
+                // TODO: reason if we can just pass reference?
+                // copy the input straight through
+                Buffer.BlockCopy(input, 0, output, 0, input.Length * sizeof(double));
 
             }
 
             // handle the data logging of the output (both to file and for visualization)
             processOutputLogging(output);
+
 
         }
 

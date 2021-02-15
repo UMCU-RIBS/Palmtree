@@ -14,19 +14,21 @@
  * more details. You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 using NLog;
+using Palmtree.Core;
 using Palmtree.Core.Helpers;
 using Palmtree.Core.Params;
+using System;
 
 namespace Palmtree.Filters {
 
     /// <summary>
-    /// The <c>TimeSmoothingFilter</c> class.
+    /// TimeSmoothingFilter class.
     /// 
     /// ...
     /// </summary>
     public class TimeSmoothingFilter : FilterBase, IFilter {
 
-        private new const int CLASS_VERSION = 1;
+        private new const int CLASS_VERSION = 2;
 
         private RingBuffer[] mDataBuffers = null;                   // an array of ringbuffers, a ringbuffer for every channel
         private double[][] mBufferWeights = null;                   // matrix with the buffer weights for each channel (1st dimention are the channels; 2nd dimension are the sample weights per channel)
@@ -57,7 +59,7 @@ namespace Palmtree.Filters {
             parameters.addParameter <double[][]>  (
                 "BufferWeights",
                 "Weights corresponding to data buffers (columns correspond to output channels, multiple rows correspond to samples)",
-                "", "", "0.7,0.5,0.2,0");
+                "", "", "0.7,0.5,0.2,0;0.7,0.5,0.2,0");
 
             // message
             logger.Info("Filter created (version " + CLASS_VERSION + ")");
@@ -69,23 +71,29 @@ namespace Palmtree.Filters {
          * parameters and, if valid, transfers the configuration parameters to local variables
          * (initialization of the filter is done later by the initialize function)
          **/
-        public bool configure(ref PackageFormat input, out PackageFormat output) {
+        public bool configure(ref SamplePackageFormat input, out SamplePackageFormat output) {
+
+            // check sample-major ordered input
+            if (input.valueOrder != SamplePackageFormat.ValueOrder.SampleMajor) {
+                logger.Error("This filter is designed to work only with sample-major ordered input");
+                output = null;
+                return false;
+            }
 
             // retrieve the number of input channels
-            inputChannels = input.getNumberOfChannels();
-            if (inputChannels <= 0) {
+            if (input.numChannels <= 0) {
                 logger.Error("Number of input channels cannot be 0");
                 output = null;
                 return false;
             }
 
-            // set the number of output channels as the same
-            // (same regardless if enabled or disabled)
-            outputChannels = inputChannels;
+            // the output package will be in the same format as the input package
+            output = new SamplePackageFormat(input.numChannels, input.numSamples, input.packageRate, input.valueOrder);
 
-            // create an output sampleformat
-            output = new PackageFormat(outputChannels, input.getSamples(), input.getRate());
-
+            // store a references to the input and output format
+            inputFormat = input;
+            outputFormat = output;
+            
             // check the values and application logic of the parameters
             if (!checkParameters(parameters))   return false;
 
@@ -204,10 +212,13 @@ namespace Palmtree.Filters {
                 double[][] newBufferWeights = newParameters.getValue<double[][]>("BufferWeights");
 
                 // check if there are weights for each input channel
-                if (newBufferWeights.Length < inputChannels) {
-                    logger.Error("The number of columns in the BufferWeights parameter cannot be less than the number of input channels (as each column gives the weights for each input channel)");
+                if (newBufferWeights.Length < inputFormat.numChannels) {
+                    logger.Error("The number of columns in the BufferWeights parameter (" + newBufferWeights.Length + ") cannot be less than the number of input channels (" + inputFormat.numChannels + "). Each column defines the weights for a single input channel.");
                     return false;
                 }
+                if (newBufferWeights.Length > inputFormat.numChannels)
+                    logger.Warn("The number of columns in the BufferWeights parameter (" + newBufferWeights.Length + ") is higher than the number of incoming channels (" + inputFormat.numChannels + "). Each column defines the weights for a single input channel.");
+
                 if (newBufferWeights[0].Length < 1) {
                     logger.Error("The number of rows in the BufferWeights parameter must be at least 1");
                     return false;
@@ -242,9 +253,9 @@ namespace Palmtree.Filters {
 
             // debug output
             logger.Debug("--- Filter configuration: " + filterName + " ---");
-            logger.Debug("Input channels: " + inputChannels);
+            logger.Debug("Input channels: " + inputFormat.numChannels);
             logger.Debug("Enabled: " + mEnableFilter);
-            logger.Debug("Output channels: " + outputChannels);
+            logger.Debug("Output channels: " + outputFormat.numChannels);
             if (mEnableFilter) {
                 string strWeights = "Weights: ";
                 if (mBufferWeights != null) {
@@ -269,8 +280,8 @@ namespace Palmtree.Filters {
                 if (mBufferWeights.Length > 0)   bufferSize = (uint)mBufferWeights[0].Length;
 
                 // create the data buffers
-                mDataBuffers = new RingBuffer[inputChannels];
-                for (int i = 0; i < inputChannels; i++)     mDataBuffers[i] = new RingBuffer(bufferSize);
+                mDataBuffers = new RingBuffer[inputFormat.numChannels];
+                for (int i = 0; i < inputFormat.numChannels; i++)     mDataBuffers[i] = new RingBuffer(bufferSize);
             
             }
 
@@ -289,51 +300,58 @@ namespace Palmtree.Filters {
         }
 
         public void process(double[] input, out double[] output) {
-
-            // create an output sample
-            output = new double[outputChannels];
-
+            
+            // create the output package
+            output = new double[input.Length];
+            
             // check if the filter is enabled
             if (mEnableFilter) {
                 // filter enabled
-
-		        // loop through every channel
-                for (int channel = 0; channel < inputChannels; ++channel) {
-
-                    // add to the buffer
-                    mDataBuffers[channel].Put(input[channel]);
+            
+                // loop over samples (by sets of channels)
+                int totalSamples = inputFormat.numSamples * inputFormat.numChannels;
+                for (int sample = 0; sample < totalSamples; sample += inputFormat.numChannels) {
                 
-                    // for every sample generate a smoothed value based on the last ones (and the given weights)
-                    double[] data = mDataBuffers[channel].Data();
-				    double outputValue = 0;
-                    uint ringpos = 0;
-                    for (uint i = 0; i < mDataBuffers[channel].Fill(); ++i) {
+		            // loop through every channel
+                    for (int channel = 0; channel < inputFormat.numChannels; ++channel) {
+                    
+                        // add to the buffer
+                        mDataBuffers[channel].Put(input[sample + channel]);
 
-                        // calculate the correct position in the buffer weights (corrected for mcursor position)
-                        ringpos = (mDataBuffers[channel].CursorPos() - i + (uint)mBufferWeights[channel].Length - 1) % (uint)mBufferWeights[channel].Length;
-                        outputValue += data[i] * mBufferWeights[channel][ringpos];
+                        // for every sample generate a smoothed value based on the last ones (and the given weights)
+                        double[] data = mDataBuffers[channel].Data();
+                        double outputValue = 0;
+                        uint ringpos = 0;
+                        for (uint i = 0; i < mDataBuffers[channel].Fill(); ++i) {
 
-                    }
+	                        // calculate the correct position in the buffer weights (corrected for mcursor position)
+					        ringpos = (mDataBuffers[channel].CursorPos() - i + (uint)mBufferWeights[channel].Length - 1) % (uint)mBufferWeights[channel].Length;
+					        outputValue += data[i] * mBufferWeights[channel][ringpos];
+					        //logger.Info("\n\\n channel " + channel + " data[i] " + data[i] + " b " + mBufferWeights[channel][ringpos] + "\n");
+				
+                        }
 
-                    // store the output value
-                    output[channel] = outputValue;
+                        // store the output value
+                        output[sample + channel] = outputValue;
+                        
+			        }
 
-                }
-
+		        }
 
             } else {
                 // filter disabled
 
-                // pass the input straight through
-                for (uint channel = 0; channel < inputChannels; ++channel)  output[channel] = input[channel];
+                // TODO: reason if we can just pass reference?
+                // copy the input straight through
+                Buffer.BlockCopy(input, 0, output, 0, input.Length * sizeof(double));
 
             }
-
+            
             // handle the data logging of the output (both to file and for visualization)
             processOutputLogging(output);
-
+            
         }
-
+        
         public void destroy() {
 
             // stop the filter

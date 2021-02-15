@@ -15,7 +15,6 @@
 using NLog;
 using Palmtree.Core;
 using Palmtree.Core.DataIO;
-using Palmtree.Core.Helpers;
 using Palmtree.Core.Params;
 
 namespace Palmtree.Filters {
@@ -27,19 +26,19 @@ namespace Palmtree.Filters {
     /// </summary>
     public class FilterBase {
 
-        protected int CLASS_VERSION = -1;
+        protected int CLASS_VERSION                 = -1;
 
-        protected string filterName = "";
-        protected Logger logger = null;
-        protected Parameters parameters = null;
+        protected string filterName                 = "";
+        protected Logger logger                     = null;
+        protected Parameters parameters             = null;
 
-        protected bool mEnableFilter = false;                   // Filter is enabled or disabled
-        protected bool mLogDataStreams = false;                 // stores whether the initial configuration has the logging of data streams enabled or disabled
-        protected bool mLogDataStreamsRuntime = false;          // stores whether during runtime the data streams should be logged (if it was on, then it can be switched off, resulting in 0's being logged)
-        protected bool mEnableDataVisualization = false;         // stores whether data visualization is enabled or disabled. This is a local copy of the setting from Globals (originating from the Data class), set during configuration of the filter
+        protected bool mEnableFilter                = false;    // Filter is enabled or disabled
+        protected bool mLogDataStreams              = false;    // stores whether the initial configuration has the logging of data streams enabled or disabled
+        protected bool mLogDataStreamsRuntime       = false;    // stores whether during runtime the data streams should be logged (if it was on, then it can be switched off, resulting in 0's being logged)
+        protected bool mEnableDataVisualization     = false;    // stores whether data visualization is enabled or disabled. This is a local copy of the setting from Globals (originating from the Data class), set during configuration of the filter
 
-        protected int inputChannels = 0;
-        protected int outputChannels = 0;
+        protected SamplePackageFormat inputFormat   = null;
+        protected SamplePackageFormat outputFormat  = null;
 
         public string getName() {
             return filterName;
@@ -53,16 +52,16 @@ namespace Palmtree.Filters {
             return CLASS_VERSION;
         }
 
-        public void configureOutputLogging(string prefix, PackageFormat output) {
+        public void configureOutputLogging(string prefix, SamplePackageFormat output) {
 
             // retrieve and prepare the logging of streams
             mLogDataStreams = parameters.getValue<bool>("LogDataStreams");
             mLogDataStreamsRuntime = mLogDataStreams;
             if (mLogDataStreams) {
-
+                
                 // register the streams
-                for (int channel = 0; channel < outputChannels; channel++)
-                    Data.registerDataStream((prefix + "Output_Ch" + (channel + 1)), output);
+                for (int channel = 0; channel < outputFormat.numChannels; channel++)
+                    Data.registerDataStream((prefix + "Output_Ch" + (channel + 1)), output.numSamples);
 
             }
 
@@ -71,7 +70,7 @@ namespace Palmtree.Filters {
             if (mEnableDataVisualization) {
 
                 // register the streams to visualize
-                for (int channel = 0; channel < outputChannels; channel++) {
+                for (int channel = 0; channel < outputFormat.numChannels; channel++) {
                     Data.registerVisualizationStream((prefix + "Output_Ch" + (channel + 1)), output);
 
                     // debug
@@ -87,42 +86,38 @@ namespace Palmtree.Filters {
 
             // check if the streams should be logged to a file (initial setting) or visualization is allowed 
             if (mLogDataStreams || mEnableDataVisualization) {
+                
+                // check if logging of the steams was initially allowed
+                if (mLogDataStreams) {
 
-                for (int channel = 0; channel < outputChannels; ++channel) {
+                    // check if the logging of streams is needed/allowed during runtime
+                    if (mLogDataStreamsRuntime) {
+                        // enabled initially and at runtime
 
-                    // check if logging of the steams was initially allowed
-                    if (mLogDataStreams) {
-
-                        // check if the logging of streams is needed/allowed during runtime
-                        if (mLogDataStreamsRuntime) {
-                            // enabled initially and at runtime
-
-                            // log values
-                            Data.logStreamValue(output[channel]);
-
-                        } else {
-                            // enabled initially but not at runtime
-
-                            // log zeros
-                            Data.logStreamValue(0.0);
-
-                        }
-
-                    }
-
-                    // check if the data should be visualized
-                    if (mEnableDataVisualization) {
-                        
                         // log values
-                        Data.logVisualizationStreamValue(output[channel]);
+                        Data.logDataStreamValues(outputFormat.numChannels, output);
+                        
+                    } else {
+                        // enabled initially but not at runtime
 
-                        // debug
-                        //logger.Warn(("Output_Ch" + (channel + 1)));
+                        // log zeros
+                        Data.logDataStreamValues(outputFormat.numChannels, new double[outputFormat.numChannels]);
 
                     }
 
-                }   // end for loop
+                }
 
+                // check if the data should be visualized
+                if (mEnableDataVisualization) {
+                        
+                    // log values
+                    Data.logVisualizationStreamValues(outputFormat.numChannels, output);
+
+                    // debug
+                    //logger.Warn(("Output_Ch" + (channel + 1)));
+
+                }
+                    
             }
 
         }   // end processOutputLogging

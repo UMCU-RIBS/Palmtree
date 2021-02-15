@@ -1,5 +1,5 @@
 ﻿/**
- * The EmptyTask class
+ * EmptyTask class
  * 
  * ...
  * 
@@ -16,13 +16,13 @@ using NLog;
 using System;
 
 using Palmtree.Applications;
-using Palmtree.Core.Helpers;
+using Palmtree.Core;
 using Palmtree.Core.Params;
 
 namespace EmptyTask {
 
     /// <summary>
-    /// The <c>EmptyTask</c> class.
+    /// EmptyTask class
     /// 
     /// ...
     /// </summary>
@@ -60,7 +60,7 @@ namespace EmptyTask {
             return CLASS_NAME;
         }
 
-        public bool configure(ref PackageFormat input) {
+        public bool configure(ref SamplePackageFormat input) {
             return true;
         }
 

@@ -1,5 +1,5 @@
 ﻿/**
- * The GenerateSignal class
+ * GenerateSignal class
  * 
  * ...
  * 
@@ -17,10 +17,11 @@ using System;
 using System.Diagnostics;
 using System.Threading;
 using Palmtree.Core;
-using Palmtree.Core.Helpers;
 using Palmtree.Core.Params;
+using Palmtree.Core.DataIO;
 
 namespace Palmtree.Sources {
+    using ValueOrder = SamplePackageFormat.ValueOrder;
 
     /// <summary>
     /// The <c>GenerateSignal</c> class.
@@ -30,7 +31,7 @@ namespace Palmtree.Sources {
     public class GenerateSignal : ISource {
 
         private const string CLASS_NAME = "GenerateSignal";
-        private const int CLASS_VERSION = 1;
+        private const int CLASS_VERSION = 2;
 
         private const int threadLoopDelayNoProc = 200;                                  // thread loop delay when not processing (1000ms / 5 run times per second = rest 200ms)
 
@@ -42,10 +43,11 @@ namespace Palmtree.Sources {
         private bool running = true;					                                // flag to define if the source thread should be running (setting to false will stop the source thread)
         private ManualResetEvent loopManualResetEvent = new ManualResetEvent(false);    // Manual reset event to call the WaitOne event on (this allows - in contrast to the sleep wait - to cancel the wait period at any point when closing the source) 
         private Stopwatch swTimePassed = new Stopwatch();                               // stopwatch object to give an exact amount to time passed inbetween loops
-        private int sampleIntervalMs = 0;                                               // interval between the samples in milliseconds
-        private long sampleIntervalTicks = 0;                                           // interval between the samples in ticks (for high precision timing)
+        private int samplePackageIntervalMs = 0;                                        // interval between the samples in milliseconds
+        private long samplePackageIntervalTicks = 0;                                    // interval between the samples in ticks (for high precision timing)
         private int threadLoopDelay = 0;
         private long highPrecisionWaitTillTime = 0;                                     // stores the time until which the high precision timing waits before continueing
+        private long sampleValueCounter = 0;                                            // counter that is used when generating samples that increase linearly
 
         private bool configured = false;
         private bool initialized = false;
@@ -54,26 +56,39 @@ namespace Palmtree.Sources {
 
         private Random rand = new Random(Guid.NewGuid().GetHashCode());
         private int outputChannels = 0;
-        private double sampleRate = 0;                                                  // hold the amount of samples per second that the source outputs (used by the mainthead to convert seconds to number of samples)
-        private bool highPrecision = false;                                             // hold whether the generator should have high precision intervals
-        
+        private double samplePackageRate = 0;                                           // the amount of packages per second that the source outputs
+        private bool highPrecision = false;                                             // whether the generator should have high precision intervals
+        private int samplesPerPackage = 0;                                              // the amount of samples per package that the source outputs
+        private ValueOrder sampleValueOrder = ValueOrder.SampleMajor;                   // the value order/layout
 
         public GenerateSignal() {
 
             parameters.addParameter<int> (
                 "Channels",
                 "Number of source channels to generate",
-                "1", "", "1");
+                "1", "", "2");
 
             parameters.addParameter<double> (
-                "SampleRate",
-                "Rate with which samples are generated, in samples per second (hz).\nNote: High precision will be enabled automatically when a sample rate is set to more than 1000 hz.",
+                "PackageRate",
+                "Rate with which sample-packages are generated, in packages per second (hz).\nNote: High precision will be enabled automatically when a sample-package rate is set to more than 1000 hz.",
                 "0", "", "5");
 
             parameters.addParameter<bool>(
                 "HighPrecision",
-                "Use high precision intervals when generating sample.\nNote 1: Enabling this option will claim one processor core entirely, possibly causing your system to slow down or hang.\nNote 2: High precision will be enabled automatically when a sample rate is set to more than 1000 hz.",
+                "Use high precision intervals when generating sample-packages.\nNote 1: Running with this option enabled will put a large claim on the computing resources underlying the Palmtree OS-process, and\ntherefore - depending on the OS - could entirely claim a single one processor core. As a result, the pipeline signal\nprocessing might be slower or other processes on your system could slow down.\nNote 2: High precision will be enabled automatically when a sample-package rate is set to more than 1000 hz.",
                 "", "", "0");
+            
+            parameters.addParameter<int> (
+                "SamplesPerPackage",
+                "Number of samples per package.",
+                "1", "65535", "1");
+            
+            /*
+            parameters.addParameter<int>(
+                "ValueOrder",
+                "The linear ordering (the layout) of the values in the package. Sample-major is recommended and orders the values first by samples (stores the sample-elements contiguously in memory) and second\nby channel (i.e. <smpl0 - ch0> - <smpl0 - ch1> ...). Channel-major orders the values first by channels (stores the channel-elements contiguously in memory) and second by sample (i.e. <smpl0 - ch0> - <smpl1 - ch0> ...)",
+                "0", "1", "0", new string[] { "Channel-major", "Sample-major" });
+            */
 
             // message
             logger.Info("Source created (version " + CLASS_VERSION + ")");
@@ -121,11 +136,11 @@ namespace Palmtree.Sources {
             }
 
             // return the samples per second
-            return sampleRate;
+            return samplePackageRate;
 
         }
 
-        public bool configure(out PackageFormat output) {
+        public bool configure(out SamplePackageFormat output) {
 
             // retrieve the number of output channels
             outputChannels = parameters.getValue<int>("Channels");
@@ -135,10 +150,10 @@ namespace Palmtree.Sources {
                 return false;
             }
             
-            // retrieve the sample rate
-            sampleRate = parameters.getValue<double>("SampleRate");
-            if (sampleRate <= 0) {
-                logger.Error("The sample rate cannot be 0 or lower");
+            // retrieve the sample-package rate
+            samplePackageRate = parameters.getValue<double>("PackageRate");
+            if (samplePackageRate <= 0) {
+                logger.Error("The sample-package rate cannot be 0 or lower");
                 output = null;
                 return false;
             }
@@ -146,39 +161,54 @@ namespace Palmtree.Sources {
             // retrieve the high precision setting
             highPrecision = parameters.getValue<bool>("HighPrecision");
 
+            // retrieve the number of output channels
+            samplesPerPackage = parameters.getValue<int>("SamplesPerPackage");
+            if (samplesPerPackage <= 0) {
+                logger.Error("Number of samples per package cannot be 0");
+                output = null;
+                return false;
+            }
+            if (samplesPerPackage > 65535) {
+                logger.Error("Number of samples per package cannot be higher than 65535");
+                output = null;
+                return false;
+            }
+
+            // retrieve the sample value order
+            //sampleValueOrder = (parameters.getValue<int>("ValueOrder") == 0 ? ValueOrder.ChannelMajor : ValueOrder.SampleMajor);
+            sampleValueOrder = ValueOrder.SampleMajor;
+
             // create a sampleformat
-            output = new PackageFormat(outputChannels, 1, sampleRate);      // since the number of samples is 1 per package, the given samplerate is the packagerate)
+            output = new SamplePackageFormat(outputChannels, samplesPerPackage, samplePackageRate, sampleValueOrder);
 
-            // calculate the sample interval
-            sampleIntervalMs = (int)Math.Floor(1000.0 / sampleRate);
+            // calculate the sample-package interval
+            samplePackageIntervalMs = (int)Math.Floor(1000.0 / samplePackageRate);
 
-            // check if the samplerate is above 1000hz
-            if (sampleRate > 1000) {
+            // check if the sample-package rate is above 1000hz
+            if (samplePackageRate > 1000) {
 
                 // enable the high precision timing
                 highPrecision = true;
 
                 // message
-                logger.Warn("Because the sample rate is larger than 1000hz, the high precision timer is used");
+                logger.Warn("Because the sample-package rate is larger than 1000hz, the high precision timer will be used");
 
             }
 
             // check if high precision timing is enabled
             if (highPrecision) {
 
-                // calculate the sample interval for the high precision timing
-                sampleIntervalTicks = (long)Math.Round(Stopwatch.Frequency * (1.0 / sampleRate));
+                // calculate the sample-package interval for the high precision timing
+                samplePackageIntervalTicks = (long)Math.Round(Stopwatch.Frequency * (1.0 / samplePackageRate));
 
                 // message
-                logger.Warn("High precision timer enabled, as one core will be claimed entirely this might have consequences for your system performance");
+                logger.Warn("High precision timer enabled. The majority of the Palmtree OS-process will be claimed by the source-module, this might have consequences for the pipeline performance and/or your system performance");
 
             }
 
-            // TODO: debug, even sourceinput dingen; tijdelijk, dit hoort niet in generateSignal klasse
-            //PackageFormat generateSignalSampleFormat = new PackageFormat(outputChannels, 1, sampleRate);
-            //for (int i = 0; i < outputChannels; i++) {
-            //    Data.registerSourceInputStream(("Ch" + i), generateSignalSampleFormat);
-            //}
+            // TODO: debug, log as sourceinput
+            //for (int i = 0; i < outputChannels; i++)
+            //    Data.registerSourceInputStream(("Ch" + i), samplesPerPackage, samplePackageRate);
 
             // flag as configured
             configured = true;
@@ -228,7 +258,7 @@ namespace Palmtree.Sources {
 	    public void stop() {
 
             // if not initialized than nothing needs to be stopped
-            if (!initialized) return;
+            if (!initialized)	return;
 
             // lock for thread safety
             lock (lockStarted) {
@@ -282,7 +312,7 @@ namespace Palmtree.Sources {
             running = false;
 
             // interrupt the wait in the loop
-            // (this is done because if the sample rate is low, we might have to wait for a long time for the thread to end)
+            // (this is done because if the sample-package rate is low, we might have to wait for a long time for the thread to end)
             loopManualResetEvent.Set();
 
             // wait until the thread stopped
@@ -333,18 +363,49 @@ namespace Palmtree.Sources {
 			        // check if we are generating
 			        if (started) {
 
-                        // set values for the generated sample
-                        double[] sample = new double[outputChannels];
-                        for (int i = 0; i < outputChannels; i++) {
+                        /*
+                        // set the values for samples in the sample-package
+                        double[] sample = new double[outputChannels * samplesPerPackage];
+                        for (int i = 0; i < sample.Length; i++) {
                             //sample[i] = rand.NextDouble();
                             sample[i] = rand.Next(0, 10) + 100;
                         }
+                        */
 
-                        // TODO: debug, even sourceinput dingen
-                        //Data.logSourceInputValues(sample);
+                        // initialize an array
+                        double[] samples = new double[outputChannels * samplesPerPackage];
+                        
+                        // generate values
+                        if (sampleValueOrder == ValueOrder.SampleMajor) {
+                            for (int iSmpl = 0; iSmpl < samplesPerPackage; iSmpl++) {
+                                for (int iCh = 0; iCh < outputChannels; iCh++)
+                                    samples[iSmpl * outputChannels + iCh] = rand.Next(0, 10) + 100;
+                                /*
+                                for (int iCh = 0; iCh < outputChannels; iCh++)
+                                    samples[iSmpl * outputChannels + iCh] = sampleValueCounter;
+                                sampleValueCounter++;
+                                if (sampleValueCounter == long.MaxValue)  sampleValueCounter = 0;
+                                */
+                            }
+                        } else {
+                            for (int iSmpl = 0; iSmpl < samplesPerPackage; iSmpl++) {
+                                for (int iCh = 0; iCh < outputChannels; iCh++)
+                                    samples[iCh * samplesPerPackage + iSmpl] = rand.Next(0, 10) + 100;
+                                /*
+                                for (int iCh = 0; iCh < outputChannels; iCh++)
+                                    samples[iCh * samplesPerPackage + iSmpl] = sampleValueCounter;
+                                sampleValueCounter++;
+                                if (sampleValueCounter == long.MaxValue)  sampleValueCounter = 0;
+                                */
+                            }
+                        }
+                        
+
+                        // TODO: debug, still log as sourceinput
+                        //Data.logSourceInputValues(samples);
 
                         // pass the sample
-                        MainThread.eventNewSample(sample);
+                        MainThread.eventNewSample(samples);
                         
                     }
 
@@ -362,17 +423,17 @@ namespace Palmtree.Sources {
                             // high precision timing
 
                             // spin for the required amount of ticks
-                            highPrecisionWaitTillTime = Stopwatch.GetTimestamp() + sampleIntervalTicks;     // choose not to correct for elapsed ticks. This result in a slightly higher wait time, which at lower Hz comes closer to the expected samplecount per second
-                            //highPrecisionWaitTillTime = Stopwatch.GetTimestamp() + sampleIntervalTicks - swTimePassed.ElapsedTicks;
+                            highPrecisionWaitTillTime = Stopwatch.GetTimestamp() + samplePackageIntervalTicks;     // choose not to correct for elapsed ticks. This result in a slightly higher wait time, which at lower Hz comes closer to the expected samplecount per second
+                            //highPrecisionWaitTillTime = Stopwatch.GetTimestamp() + samplePackageIntervalTicks - swTimePassed.ElapsedTicks;
                             while (Stopwatch.GetTimestamp() <= highPrecisionWaitTillTime) ;
 
                         } else {
                             // low precision timing
 
-                            threadLoopDelay = sampleIntervalMs;     // choose not to correct for elapsed ms. This result in a slightly higher wait time, which at lower Hz comes closer to the expected samplecount per second
-                            //threadLoopDelay = sampleIntervalMs - (int)swTimePassed.ElapsedMilliseconds;
+                            threadLoopDelay = samplePackageIntervalMs;     // choose not to correct for elapsed ms. This result in a slightly higher wait time, which at lower Hz comes closer to the expected samplecount per second
+                            //threadLoopDelay = samplePackageIntervalMs - (int)swTimePassed.ElapsedMilliseconds;
 
-                            // wait for the remainder of the sample interval to get as close to the sample rate as possible (if there is a remainder)
+                            // wait for the remainder of the sample-package interval to get as close to the sample-package rate as possible (if there is a remainder)
                             if (threadLoopDelay >= 0) {
                                 
                                 // reset the manual reset event, so it is sure to block on the next call to WaitOne

@@ -111,6 +111,7 @@
     <Compile Include="src\Core\DataIO\DataHeader.cs" />
     <Compile Include="src\Core\DataIO\DataReader.cs" />
     <Compile Include="src\Core\DataIO\DataWriter.cs" />
+    <Compile Include="src\Core\DataIO\StreamFormat.cs" />
     <Compile Include="src\Core\Events\VisualizationEventArgs.cs" />
     <Compile Include="src\Core\Events\VisualizationValuesArgs.cs" />
     <Compile Include="src\Core\Helpers\AppConfigHelper.cs" />
@@ -181,7 +182,7 @@
     <Compile Include="src\Core\Helpers\RGBColor.cs" />
     <Compile Include="src\Core\Helpers\RingBuffer.cs" />
     <Compile Include="src\Core\Helpers\SampleConversion.cs" />
-    <Compile Include="src\Core\Helpers\PackageFormat.cs" />
+    <Compile Include="src\Core\SamplePackageFormat.cs" />
     <Compile Include="src\Core\MainThread.cs" />
     <Compile Include="src\GUI\GUIMain.cs">
       <SubType>Form</SubType>

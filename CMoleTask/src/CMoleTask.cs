@@ -13,7 +13,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details. You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -54,14 +53,14 @@ namespace CMoleTask {
             FalseNegativeEscape
         };
 
-        private const int CLASS_VERSION = 2;
+        private const int CLASS_VERSION = 4;
         private const string CLASS_NAME = "CMoleTask";
         private const string CONNECTION_LOST_SOUND = "sounds\\connectionLost.wav";
 
         private static Logger logger = LogManager.GetLogger(CLASS_NAME);            // the logger object for the view
         private static Parameters parameters = null;
         
-        private int inputChannels = 0;
+        private SamplePackageFormat inputFormat = null;
         private CMoleView view = null;
 
         private Random rand = new Random(Guid.NewGuid().GetHashCode());
@@ -83,7 +82,7 @@ namespace CMoleTask {
         private int windowRedrawFreqMax = 0;
         private RGBColorFloat windowBackgroundColor = new RGBColorFloat(0f, 0f, 0f);
 
-        private int taskInputChannel = 1;											// input channel
+        private int taskInputChannel = 1;										   // input channel
         private int taskFirstRunStartDelay = 0;                                    // the first run start delay in sample blocks
         private int taskStartDelay = 0;                                            // the run start delay in sample blocks
         private int countdownTime = 0;                                             // the time the countdown takes in sample blocks
@@ -322,17 +321,23 @@ namespace CMoleTask {
             return CLASS_VERSION;
         }
 
-        public bool configure(ref PackageFormat input) {
+        public bool configure(ref SamplePackageFormat input) {
 
-            // store the number of input channels
-            inputChannels = input.getNumberOfChannels();
+            // check sample-major ordered input
+            if (input.valueOrder != SamplePackageFormat.ValueOrder.SampleMajor) {
+                logger.Error("This application is designed to work only with sample-major ordered input");
+                return false;
+            }
 
             // check if the number of input channels is higher than 0
-            if (inputChannels <= 0) {
+            if (input.numChannels <= 0) {
                 logger.Error("Number of input channels cannot be 0");
                 return false;
             }
 
+            // store a reference to the input format
+            inputFormat = input;
+            
             // configure the parameters
             return configure(parameters);
 
@@ -372,8 +377,8 @@ namespace CMoleTask {
                 logger.Error("Invalid input channel, should be higher than 0 (1...n)");
                 return false;
             }
-            if (taskInputChannel > inputChannels) {
-                logger.Error("Input should come from channel " + taskInputChannel + ", however only " + inputChannels + " channels are coming in");
+            if (taskInputChannel > inputFormat.numChannels) {
+                logger.Error("Input should come from channel " + taskInputChannel + ", however only " + inputFormat.numChannels + " channels are coming in");
                 return false;
             }
 
@@ -681,8 +686,10 @@ namespace CMoleTask {
             // retrieve the connectionlost global
             connectionLost = Globals.getValue<bool>("ConnectionLost");
 
-            // process input
-            process(input[taskInputChannel - 1]);
+            // process
+            int totalSamples = inputFormat.numSamples * inputFormat.numChannels;
+            for (int sample = 0; sample < totalSamples; sample += inputFormat.numChannels)
+                process(sample + input[taskInputChannel - 1]);
 
         }
 
@@ -1220,8 +1227,8 @@ namespace CMoleTask {
                 if (paramType == "double") {
                     if          (lastScore == decreaseType)     localParam = localParam - stepSize;
                     else if     (lastScore == increaseType)     localParam = localParam + stepSize;
-                } 
-                else if (paramType == "double[]") {
+
+                } else if (paramType == "double[]") {
 
                     // if addInfo is not set earlier (because the specific paramter being updated here does need this additional info), then init addInfo to all ones, having no effect
                     if (addInfo == null) {
@@ -1234,8 +1241,8 @@ namespace CMoleTask {
                         if      (lastScore == decreaseType) localParam[channel] = localParam[channel] - (stepSize * addInfo[channel]);
                         else if (lastScore == increaseType) localParam[channel] = localParam[channel] + (stepSize * addInfo[channel]);
                     }
-                } 
-                else if (paramType == "double[][]") {
+
+                } else if (paramType == "double[][]") {
 
                     // if addInfo is not set earlier (because the specific parameter being updated here does need this additional info), then set addInfo to 0, defaulting to first column in matrix to adjust
                     if (addInfo == null)    addInfo = 1;
@@ -1245,10 +1252,12 @@ namespace CMoleTask {
                         if      (lastScore == decreaseType) localParam[addInfo][channel] = localParam[addInfo][channel] - stepSize;
                         else if (lastScore == increaseType) localParam[addInfo][channel] = localParam[addInfo][channel] + stepSize;
                     }
-                } 
-                else if (paramType == "samples") {
+
+                } else if (paramType == "samples") {
+
                     if          (lastScore == decreaseType)     localParam = Math.Round(localParam - stepSize);
                     else if     (lastScore == increaseType)     localParam = Math.Round(localParam + stepSize);
+
                 }
 
                 // store adjusted threshold in dynamic parameter set and re-configure running filter using this adjusted parameter set
@@ -1280,8 +1289,7 @@ namespace CMoleTask {
                 if (lastScore == scoreTypes.FalseNegative) {
                     columnSelectDelay = (int)Math.Round(columnSelectDelay + stepSize);
                     updated = true;
-                }
-                else if (lastScore == scoreTypes.TruePositive) {
+                } else if (lastScore == scoreTypes.TruePositive) {
                     currentCorrect++;
                     if (currentCorrect >= stopOrUpdateAfterCorrect) {
                         columnSelectDelay = (int)Math.Round(columnSelectDelay - stepSize);
@@ -1295,9 +1303,11 @@ namespace CMoleTask {
                     columnSelectDelay = columnSelectDelayBackup;
                     logger.Info("Value of dynamic parameter exceeds allowed thresholds after updating, current value of " + columnSelectDelay + " is retained.");
                     Data.logEvent(2, "VariableUpdate ", "ColumnSelectDelay Unsuccessful, exceeded bounds.");
+
                 } else if (updated) {
                     logger.Info("Value of dynamic parameter updated, new value: " + columnSelectDelay);
                     Data.logEvent(2, "VariableUpdate ", "ColumnSelectDelay; " + columnSelectDelay.ToString());
+
                 }
             }
         }
@@ -1314,7 +1324,7 @@ namespace CMoleTask {
             double fnEsc = 0;
 
             // cycle through list and count (true and false) positives and negatives
-            for(int i=0; i < posAndNegs.Count; i++) {
+            for(int i = 0; i < posAndNegs.Count; i++) {
                 if      (posAndNegs[i] == scoreTypes.TruePositive) tp++;
                 else if (posAndNegs[i] == scoreTypes.FalsePositive) fp++;
                 else if (posAndNegs[i] == scoreTypes.TrueNegative) tn++;
@@ -1657,7 +1667,7 @@ namespace CMoleTask {
             }
 
             // create a new parameter object and define this task's parameters
-            Parameters newParameters = new Parameters("CMole", Parameters.ParamSetTypes.Application);
+            Parameters newParameters = new Parameters(CLASS_NAME + "_child", Parameters.ParamSetTypes.Application);
             defineParameters(ref newParameters);
 
             // transfer some parameters from the parent
@@ -1667,8 +1677,8 @@ namespace CMoleTask {
             newParameters.setValue("WindowLeft", parentParameters.getValue<int>("WindowLeft"));
             newParameters.setValue("WindowTop", parentParameters.getValue<int>("WindowTop"));
 
-            // set task parameters for the child instance
-            inputChannels = 1;
+            // set child task standard settings
+            inputFormat.numChannels = 1;
             //allowExit = true;                  // child task, allow exit
             newParameters.setValue("WindowBackgroundColor", "0;0;0");
             newParameters.setValue("Mode", 3);

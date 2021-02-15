@@ -19,7 +19,6 @@ using System.IO;
 using System.Threading;
 using Palmtree.Core;
 using Palmtree.Core.DataIO;
-using Palmtree.Core.Helpers;
 using Palmtree.Core.Params;
 
 namespace Palmtree.Sources {
@@ -164,7 +163,7 @@ namespace Palmtree.Sources {
 
         }
 
-        public bool configure(out PackageFormat output) {
+        public bool configure(out SamplePackageFormat output) {
             #pragma warning disable 0162            // for constant checks, conscious ignore
             
             // retrieve whether the file should be read into memory
@@ -206,6 +205,18 @@ namespace Palmtree.Sources {
 
                         // message
                         logger.Error("Could not read header data from input .dat file '" + inputDatFile + "'");
+
+                        // return
+                        output = null;
+                        return false;
+
+                    }
+
+                    // check version
+                    if (header.version != 1) {
+
+                        // message
+                        logger.Error("Currently only .dat files stored in the V1 format can be playbacked. Higher versions are not implemented yet.");
 
                         // return
                         output = null;
@@ -282,9 +293,10 @@ namespace Palmtree.Sources {
                     }
 
                     // create a sampleformat
-                    // (at this point we can only playback .day files with the pipeline input streams, these always have 1 sample per package.
+                    // (at this point we can only playback .dat files with the pipeline input streams, these always have 1 sample per package.
                     // since the number of samples is 1 per package, the given samplerate is the packagerate)
-                    output = new PackageFormat(outputChannels, 1, sampleRate);      
+                    // TODO: support more samples per package
+                    output = new SamplePackageFormat(outputChannels, 1, sampleRate, SamplePackageFormat.ValueOrder.SampleMajor);      
 
                     // check the constants (buffer size in combination with buffer min read)
                     if (INPUT_BUFFER_MIN_READ_SECONDS < 2) {

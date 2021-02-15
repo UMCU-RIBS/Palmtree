@@ -13,6 +13,7 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details. You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+using System.Collections.Generic;
 
 namespace Palmtree.Core.DataIO {
 
@@ -23,20 +24,31 @@ namespace Palmtree.Core.DataIO {
     /// </summary>
     public class DataHeader {
 
+        public int version                              = 0;                // data format version
+        public string code                              = "";               // data code (src, dat or other)
+
+        public double sampleRate                        = 0;                // the sample rate (in Hz)
+        public int numPlaybackStreams                   = 0;                // number of playback input streams         (needs to be > 0 for playback)
+        public int numStreams                           = 0;                // total number of streams per sample       (used in version 1 as a worker variable, in version 2 a data variable)
+
+        public int numColumns                           = 0;                // total number of columns per sample       (this includes the sample/package ID and time elapsed columns)
+        public int columnNamesSize                      = 0;                // the size (in bytes) of all the column names stored in the header
+        public string[] columnNames                     = new string[0];    // all column names                         (this includes the sample/package ID and time elapsed columns)
         
-        public int version = 0;                         // version
-        public string code = "";                        // code
+        // version 2 variables
+        public long runStartEpoch                       = 0;                // the start epoch of the run data-set      (only used in version 2)
+        public long fileStartEpoch                      = 0;                // the start epoch of the run data-set      (only used in version 2)
+        public List<byte> streamDataTypes               = new List<byte>(0);   // store, for each stream, the data type     (currently not used, but stored anyway; 0 = double)
+        public List<ushort> streamDataSamplesPerPackage = new List<ushort>(0); // store, for each stream, the number of samples per call/package  (not used in source/.src data, the number of samples is allowed to vary per package; is used in pipeline/.dat data)
+        
+        // worker variables, induced
+        public long posDataStart                        = 0;                // position (counted in bytes) to the start of the data in the file
 
-        public double sampleRate = 0;                   // the sample rate (in Hz)
-        public int numPlaybackStreams = 0;              // number of playback input streams (needs to be > 0 for playback)
-        public int numColumns = 0;                      // total number of columns per sample
-        public int columnNamesSize = 0;                 // the size (in bytes) of all the column names stored in the header
-        public string[] columnNames = new string[0];    // the column names
+        public int rowSize                              = 0;                // the size (in bytes) of one row
+        public long numRows                             = 0;                // total number of complete rows
 
-        public int rowSize = 0;                         // the size (in bytes) of one row
-        public long numRows = 0;                        // total number of rows
+        public ushort maxSamplesStream                  = 0;                // the highest number of samples that any data stream in the pipeline would want to log    (only used in version 2)
 
-        public long posDataStart = 0;                   // position (counted in bytes) to the start of the data in the file
 
     }
 

@@ -1,5 +1,5 @@
 ﻿/**
- * The SpellerTask class
+ * SpellerTask class
  * 
  * ...
  * 
@@ -28,24 +28,23 @@ using System.Speech.Synthesis;
 namespace SpellerTask {
 
     /// <summary>
-    /// The <c>SpellerTask</c> class.
+    /// SpellerTask class
     /// 
     /// ...
     /// </summary>
     public class SpellerTask : IApplication, IApplicationChild {
 
-        // fundamentals
-        private const int CLASS_VERSION = 0;
+        private const int CLASS_VERSION = 1;
         private const string CLASS_NAME = "SpellerTask";
         private const string CONNECTION_LOST_SOUND = "sounds\\connectionLost.wav";
         private static Logger logger = LogManager.GetLogger(CLASS_NAME);                        // the logger object for the view
         private static Parameters parameters = null;
-        private int inputChannels = 0;
+        private SamplePackageFormat inputFormat = null;
 
         // status
         private bool childApplication = false;								    // flag whether the task is running as a child application (true) or standalone (false)
         private bool childApplicationRunning = false;						    // flag to hold whether the application should be or is running (setting this to false is also used to notify the parent application that the task is finished)
-        private bool childApplicationSuspended = false;						        // flag to hold whether the task is suspended (view will be destroyed/re-initiated)
+        private bool childApplicationSuspended = false;						    // flag to hold whether the task is suspended (view will be destroyed/re-initiated)
         private bool taskPaused = false;                                        // flag to hold whether the task is pauzed (view will remain active, e.g. connection lost)
         private bool connectionLost = false;							        // flag to hold whether the connection is lost
         private bool connectionWasLost = false;						            // flag to hold whether the connection has been lost (should be reset after being re-connected)
@@ -264,17 +263,23 @@ namespace SpellerTask {
             return CLASS_VERSION;
         }
 
-        public bool configure(ref PackageFormat input) {
-
-            // store the number of input channels
-            inputChannels = input.getNumberOfChannels();
+        public bool configure(ref SamplePackageFormat input) {
+            
+            // check sample-major ordered input
+            if (input.valueOrder != SamplePackageFormat.ValueOrder.SampleMajor) {
+                logger.Error("This application is designed to work only with sample-major ordered input");
+                return false;
+            }
 
             // check if the number of input channels is higher than 0
-            if (inputChannels <= 0) {
+            if (input.numChannels <= 0) {
                 logger.Error("Number of input channels cannot be 0");
                 return false;
             }
 
+            // store a reference to the input format
+            inputFormat = input;
+            
             // configured as stand-alone, disallow exit
             allowExit = false;
 
@@ -316,8 +321,8 @@ namespace SpellerTask {
                 logger.Error("Invalid input channel, should be higher than 0 (1...n)");
                 return false;
             }
-            if (taskInputChannel > inputChannels) {
-                logger.Error("Input should come from channel " + taskInputChannel + ", however only " + inputChannels + " channels are coming in");
+            if (taskInputChannel > inputFormat.numChannels) {
+                logger.Error("Input should come from channel " + taskInputChannel + ", however only " + inputFormat.numChannels + " channels are coming in");
                 return false;
             }
 
@@ -577,8 +582,10 @@ namespace SpellerTask {
             // TODO connectionLost as state instead as seperate bool?
             connectionLost = Globals.getValue<bool>("ConnectionLost");
 
-            // process input
-            process(input[taskInputChannel - 1]);
+            // process
+            int totalSamples = inputFormat.numSamples * inputFormat.numChannels;
+            for (int sample = 0; sample < totalSamples; sample += inputFormat.numChannels)
+                process(sample + input[taskInputChannel - 1]);
 
         }
 
@@ -1347,7 +1354,7 @@ namespace SpellerTask {
 
 
             // create a new parameter object and define this task's parameters
-            Parameters newParameters = new Parameters("FollowTask", Parameters.ParamSetTypes.Application);
+            Parameters newParameters = new Parameters(CLASS_NAME + "_child", Parameters.ParamSetTypes.Application);
             defineParameters(ref newParameters);
 
             // transfer some parameters from the parent
@@ -1357,9 +1364,9 @@ namespace SpellerTask {
             newParameters.setValue("WindowLeft", parentParameters.getValue<int>("WindowLeft"));
             newParameters.setValue("WindowTop", parentParameters.getValue<int>("WindowTop"));
 
-            // set UNP task standard settings
-            inputChannels = 1;
-            allowExit = true;                  // UNPMenu task, allow exit
+            // set child task standard settings
+            inputFormat.numChannels = 1;
+            allowExit = true;                  // child task, allow exit
             newParameters.setValue("WindowBackgroundColor", "0;0;0");
             newParameters.setValue("CountdownTime", "3s");
             newParameters.setValue("TaskInputChannel", 1);

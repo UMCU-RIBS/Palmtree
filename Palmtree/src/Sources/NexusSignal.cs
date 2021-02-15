@@ -47,7 +47,7 @@ namespace Palmtree.Sources {
         private const string CLASS_NAME = "NexusSignal";
         private const int CLASS_VERSION = 4;
 
-        private const double OUTPUT_SAMPLE_RATE = 5;                                      // hold the amount of samples per second that the source outputs (used by the mainthead to convert seconds to number of samples)
+        private const double OUTPUT_SAMPLE_RATE = 5;                 // hold the amount of samples per second that the source outputs (used by the mainthead to convert seconds to number of samples)
         private const int NEXUS_POWERMODE_SAMPLES_PER_PACKAGE = 1;
         private const int NEXUS_POWERMODE_CHANNELS_PER_PACKAGE = 5;
         private const int NEXUS_POWERMODE_SIGNALFREQUENCY = 5;
@@ -224,7 +224,7 @@ namespace Palmtree.Sources {
 		
 		
 
-        public bool configure(out PackageFormat output) {
+        public bool configure(out SamplePackageFormat output) {
 
             // reset numOutputChannels
             numOutputChannels = 0;
@@ -253,7 +253,7 @@ namespace Palmtree.Sources {
 			
             // create the sampleformat (the nexusfilter - regardless if set to power or time domain - will always give one sample per package, thus 1)
             // therefore, the given samplerate is actually the packagerate here
-            output = new PackageFormat(numOutputChannels, 1, OUTPUT_SAMPLE_RATE);
+            output = new SamplePackageFormat(numOutputChannels, 1, OUTPUT_SAMPLE_RATE, SamplePackageFormat.ValueOrder.SampleMajor);
             
             // retrieve and set the comport
             int comPortOption = parameters.getValue<int>("ComPort");
@@ -279,14 +279,12 @@ namespace Palmtree.Sources {
                 // set input sample rate
                 inputSampleRate = NEXUS_POWERMODE_SIGNALFREQUENCY;
 
+                // calculate the number of input values per package
                 numberOfInputValues = NEXUS_POWERMODE_CHANNELS_PER_PACKAGE * NEXUS_POWERMODE_SAMPLES_PER_PACKAGE;
-
-                // create sampleFormat object. Since we are splitting the nexus channels up to seperate streams, the format defines 1 channel
-                PackageFormat nexusPowerSampleFormat = new PackageFormat(1, NEXUS_POWERMODE_SAMPLES_PER_PACKAGE, inputSampleRate);
-
+                
                 // register the channels from the nexus (which in power mode have only 1 sample) as seperate source input streams)
                 for (int channel = 0; channel < NEXUS_POWERMODE_CHANNELS_PER_PACKAGE; channel++) {
-                    Data.registerSourceInputStream("Nexus_Input_Ch" + (channel + 1), nexusPowerSampleFormat);
+                    Data.registerSourceInputStream("Nexus_Input_Ch" + (channel + 1), NEXUS_POWERMODE_SAMPLES_PER_PACKAGE, inputSampleRate);
                 }
             }
 
@@ -296,7 +294,12 @@ namespace Palmtree.Sources {
                 // set input sample rate
                 inputSampleRate = NEXUS_TIMEMODE_SIGNALFREQUENCY;
 
+                // calculate the number of input values per package
                 numberOfInputValues = NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE * NEXUS_TIMEMODE_SAMPLES_PER_PACKAGE;
+
+                // register the input streams
+                for (int channel = 0; channel < NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE; channel++)
+                    Data.registerSourceInputStream("Nexus_Input_Ch" + (channel + 1), NEXUS_TIMEMODE_SAMPLES_PER_PACKAGE, inputSampleRate);
 
                 // transfer the model order
                 modelOrder = parameters.getValue<int>("modelOrder");
@@ -342,14 +345,7 @@ namespace Palmtree.Sources {
                     logger.Error("At least one bin must be defined in Input Output matrix.");
                     return false;
                 }
-
-                // create sampleFormat object. Since we are splitting the nexus channels up to seperate streams, the format defines 1 channel
-                PackageFormat nexusTimeSampleFormat = new PackageFormat(1, NEXUS_TIMEMODE_SAMPLES_PER_PACKAGE, inputSampleRate);
-
-                // TODO: change names of stream to bins they represent?
-                // register the streams
-                for (int channel = 0; channel < NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE; channel++)
-                    Data.registerSourceInputStream("Nexus_Input_Ch" + (channel + 1), nexusTimeSampleFormat);
+                
             }
 
             // lock for thread safety
@@ -609,7 +605,8 @@ namespace Palmtree.Sources {
                                 // create buffers for different input channels         
                                 int buffLength = NEXUS_TIMEMODE_SAMPLES_PER_PACKAGE;
                                 double[][] inputChBuffers = new double [NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE][];
-                                for(int ch = 0; ch < NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE; ch++)      inputChBuffers[ch] = new double[buffLength];
+                                for(int ch = 0; ch < NEXUS_TIMEMODE_CHANNELS_PER_PACKAGE; ch++)      
+                                    inputChBuffers[ch] = new double[buffLength];
 
                                 // loop through data coming from Nexus
                                 for (int sample = 0; sample < NEXUS_TIMEMODE_SAMPLES_PER_PACKAGE; sample++) {

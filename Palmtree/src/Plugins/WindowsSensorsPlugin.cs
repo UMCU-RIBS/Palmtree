@@ -176,7 +176,7 @@ namespace Palmtree.Plugins {
                 if (mLogDataStreams) {
 
                     // register the streams
-                    pluginId = Data.registerPluginInputStream(pluginName, pluginExt, pluginStreamNames, null);
+                    pluginId = Data.registerPluginInputStream(pluginName, pluginExt, sampleRate, pluginStreamNames, null);
 
                 }
 
@@ -378,7 +378,7 @@ namespace Palmtree.Plugins {
 
                         // log the current values, if we set this to do so
                         if (mLogDataStreams) {
-                            Data.logPluginDataValue(acceleration, pluginId);
+                            Data.logPluginDataValue(pluginId, acceleration);
                         }
                     }
 

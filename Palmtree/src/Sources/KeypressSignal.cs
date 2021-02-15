@@ -1,5 +1,5 @@
 ﻿/**
- * The KeypressSignal class
+ * KeypressSignal class
  * 
  * ...
  * 
@@ -21,10 +21,10 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Forms;
 using Palmtree.Core;
-using Palmtree.Core.Helpers;
 using Palmtree.Core.Params;
 
 namespace Palmtree.Sources {
+    using ValueOrder = SamplePackageFormat.ValueOrder;
 
     /// <summary>
     /// The <c>KeypressSignal</c> class.
@@ -34,7 +34,7 @@ namespace Palmtree.Sources {
     public class KeypressSignal : ISource {
 
         private const string CLASS_NAME = "KeypressSignal";
-        private const int CLASS_VERSION = 1;
+        private const int CLASS_VERSION = 2;
 
         private const int threadLoopDelayNoProc = 200;                                  // thread loop delay when not processing (1000ms / 5 run times per second = rest 200ms)
 
@@ -44,26 +44,29 @@ namespace Palmtree.Sources {
         private static Logger logger = LogManager.GetLogger(CLASS_NAME);
         private static Parameters parameters = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Source);
         
+
         private Thread signalThread = null;                                             // the source thread
-        private bool running = true;                                                    // flag to define if the source thread should be running (setting to false will stop the source thread)
+        private bool running = true;					                                // flag to define if the source thread should be running (setting to false will stop the source thread)
         private ManualResetEvent loopManualResetEvent = new ManualResetEvent(false);    // Manual reset event to call the WaitOne event on (this allows - in contrast to the sleep wait - to cancel the wait period at any point when closing the source) 
         private Stopwatch swTimePassed = new Stopwatch();                               // stopwatch object to give an exact amount to time passed inbetween loops
-        private int sampleIntervalMs = 0;                                               // interval between the samples in milliseconds
-        private long sampleIntervalTicks = 0;                                           // interval between the samples in ticks (for high precision timing)
+        private int samplePackageIntervalMs = 0;                                        // interval between the samples in milliseconds
+        private long samplePackageIntervalTicks = 0;                                    // interval between the samples in ticks (for high precision timing)
         private int threadLoopDelay = 0;
         private long highPrecisionWaitTillTime = 0;                                     // stores the time until which the high precision timing waits before continueing
-
+        private long sampleValueCounter = 0;                                            // counter that is used when generating samples that increase linearly
 
         private bool configured = false;
         private bool initialized = false;
         private bool started = false;				                                    // flag to define if the source is started or stopped
         private Object lockStarted = new Object();
 
-        Random rand = new Random(Guid.NewGuid().GetHashCode());
+        private Random rand = new Random(Guid.NewGuid().GetHashCode());
         private int outputChannels = 0;
-        private double sampleRate = 0;                                                  // hold the amount of samples per second that the source outputs (used by the mainthead to convert seconds to number of samples)
-        private bool highPrecision = false;                                             // hold whether the generator should have high precision intervals
-
+        private double samplePackageRate = 0;                                           // the amount of packages per second that the source outputs
+        private bool highPrecision = false;                                             // whether the generator should have high precision intervals
+        private int samplesPerPackage = 0;                                              // the amount of samples per package that the source outputs
+        private ValueOrder sampleValueOrder = ValueOrder.SampleMajor;                   // the value order/layout
+        
         private Keys[] mConfigKeys = null;
         private int[] mConfigOutputChannels = null;
         private double[] mConfigPressed = null;
@@ -74,22 +77,34 @@ namespace Palmtree.Sources {
             parameters.addParameter<int> (
                 "Channels",
                 "Number of source channels to generate",
-                "1", "", "1");
+                "1", "", "2");
 
-            parameters.addParameter<double>(
-                "SampleRate",
-                "Rate with which samples are generated, in samples per second (hz).\nNote: High precision will be enabled automatically when a sample rate is set to more than 1000 hz.",
+            parameters.addParameter<double> (
+                "SamplePackageRate",
+                "Rate with which sample-packages are generated, in packages per second (hz).\nNote: High precision will be enabled automatically when a sample-package rate is set to more than 1000 hz.",
                 "0", "", "5");
 
             parameters.addParameter<bool>(
                 "HighPrecision",
-                "Use high precision intervals when generating sample.\nNote 1: Enabling this option will claim one processor core entirely, possibly causing your system to slow down or hang.\nNote 2: High precision will be enabled automatically when a sample rate is set to more than 1000 hz.",
+                "Use high precision intervals when generating sample-packages.\nNote 1: Running with this option enabled will put a large claim on the computing resources underlying the Palmtree OS-process, and\ntherefore - depending on the OS - could entirely claim a single one processor core. As a result, the pipeline signal\nprocessing might be slower or other processes on your system could slow down.\nNote 2: High precision will be enabled automatically when a sample-package rate is set to more than 1000 hz.",
                 "", "", "0");
+            
+            parameters.addParameter<int> (
+                "SamplesPerPackage",
+                "Number of samples per package.",
+                "1", "65535", "1");
+
+            /*
+            parameters.addParameter<int>(
+                "ValueOrder",
+                "The linear ordering (the layout) of the values in the package. Sample-major is recommended and orders the values first by samples (stores the sample-elements contiguously in memory) and second\nby channel (i.e. <smpl0 - ch0> - <smpl0 - ch1> ...). Channel-major orders the values first by channels (stores the channel-elements contiguously in memory) and second by sample (i.e. <smpl0 - ch0> - <smpl1 - ch0> ...)",
+                "0", "1", "0", new string[] { "Channel-major", "Sample-major" });
+            */
 
             parameters.addParameter<string[][]>(
                 "Keys",
                 "Specifies which key influence which output channels and what values they give\n\nKey: Key to check for (takes a single character a-z or 0-9)\nOutput: output channel (1...n)\nPressed: value to output on the channel when the given key is pressed\nNot-pressed: value to output on the channel when the given key is not pressed",
-                "", "", "F;1;1;-1", new string[] { "Key", "Output", "Pressed", "Not-pressed" });
+                "", "", "F,S;1,2;1,1;-1,-1", new string[] { "Key", "Output", "Pressed", "Not-pressed" });
 
             // message
             logger.Info("Source created (version " + CLASS_VERSION + ")");
@@ -137,11 +152,11 @@ namespace Palmtree.Sources {
             }
 
             // return the samples per second
-            return sampleRate;
+            return samplePackageRate;
 
         }
 
-        public bool configure(out PackageFormat output) {
+        public bool configure(out SamplePackageFormat output) {
 
             // retrieve the number of output channels
             outputChannels = parameters.getValue<int>("Channels");
@@ -151,101 +166,130 @@ namespace Palmtree.Sources {
                 return false;
             }
             
-            // retrieve the sample rate
-            sampleRate = parameters.getValue<double>("SampleRate");
-            if (sampleRate <= 0) {
-                logger.Error("The sample rate cannot be 0 or lower");
+            // retrieve the sample-package rate
+            samplePackageRate = parameters.getValue<double>("SamplePackageRate");
+            if (samplePackageRate <= 0) {
+                logger.Error("The sample-package rate cannot be 0 or lower");
+                output = null;
+                return false;
+            }
+            
+            // retrieve the high precision setting
+            highPrecision = parameters.getValue<bool>("HighPrecision");
+
+            // retrieve the number of output channels
+            samplesPerPackage = parameters.getValue<int>("SamplesPerPackage");
+            if (samplesPerPackage <= 0) {
+                logger.Error("Number of samples per package cannot be 0");
+                output = null;
+                return false;
+            }
+            if (samplesPerPackage > 65535) {
+                logger.Error("Number of samples per package cannot be higher than 65535");
                 output = null;
                 return false;
             }
 
-
-            // retrieve the high precision setting
-            highPrecision = parameters.getValue<bool>("HighPrecision");
+            // retrieve the sample value order
+            //sampleValueOrder = (parameters.getValue<int>("ValueOrder") == 0 ? ValueOrder.ChannelMajor : ValueOrder.SampleMajor);
+            sampleValueOrder = ValueOrder.SampleMajor;
 
             // create a sampleformat
-            output = new PackageFormat(outputChannels, 1, sampleRate);      // since the number of samples is 1 per package, the given samplerate is the packagerate)
+            output = new SamplePackageFormat(outputChannels, samplesPerPackage, samplePackageRate, sampleValueOrder);
 
-            // calculate the sample interval
-            sampleIntervalMs = (int)Math.Floor(1000.0 / sampleRate);
+            // calculate the sample-package interval
+            samplePackageIntervalMs = (int)Math.Floor(1000.0 / samplePackageRate);
 
-            // check if the samplerate is above 1000hz
-            if (sampleRate > 1000) {
+            // check if the sample-package rate is above 1000hz
+            if (samplePackageRate > 1000) {
 
                 // enable the high precision timing
                 highPrecision = true;
 
                 // message
-                logger.Warn("Because the sample rate is larger than 1000hz, the high precision timer is used");
+                logger.Warn("Because the sample-package rate is larger than 1000hz, the high precision timer will be used");
 
             }
 
             // check if high precision timing is enabled
             if (highPrecision) {
 
-                // calculate the sample interval for the high precision timing
-                sampleIntervalTicks = (long)Math.Round(Stopwatch.Frequency * (1.0 / sampleRate));
+                // calculate the sample-package interval for the high precision timing
+                samplePackageIntervalTicks = (long)Math.Round(Stopwatch.Frequency * (1.0 / samplePackageRate));
 
                 // message
-                logger.Warn("High precision timer enabled, as one core will be claimed entirely this might have consequences for your system performance");
+                logger.Warn("High precision timer enabled. The majority of the Palmtree OS-process will be claimed by the source-module, this might have consequences for the pipeline performance and/or your system performance");
 
             }
 
             // retrieve key settings
             string[][] keys = parameters.getValue<string[][]>("Keys");
-            if (keys.Length != 0 && keys.Length != 4) {
-                logger.Error("Keys parameter must have 4 columns (Key, Output channel, Pressed, Not-pressed)");
-                return false;
-            }
+            if (keys == null || keys.Length == 0) {
+                // no keys specified
 
-            // resize the variables
-            mConfigKeys = new Keys[keys[0].Length];                    // char converted to virtual key
-            mConfigOutputChannels = new int[keys[0].Length];          // for the values stored in this array: value 0 = channel 1
-            mConfigPressed = new double[keys[0].Length];
-            mConfigNotPressed = new double[keys[0].Length];
-
-            // loop through the rows
-            for (int row = 0; row < keys[0].Length; ++row ) {
+                mConfigKeys = new Keys[0];
+                mConfigOutputChannels = new int[0];
+                mConfigPressed = new double[0];
+                mConfigNotPressed = new double[0];
                 
-                // try to convert the key character to an int
-                string key = keys[0][row].ToUpper();
-                if (key.Length != 1 || !(new Regex(@"^[A-Z0-9]*$")).IsMatch(key)) {
-                    logger.Error("The key value '" + key + "' is not a valid key (should be a single character, a-z or 0-9)");
-                    return false;
-                }
-                mConfigKeys[row] = (Keys)key[0];     // capital characters A-Z and numbers can be directly saved as int (directly used/emulated as virtual keys)
+            } else {
+                // keys present
 
-                // try to parse the channel number
-                int channel = 0;
-                if (!int.TryParse(keys[1][row], out channel)) {
-                    logger.Error("The value '" + keys[1][row] + "' is not a valid output channel value (should be a positive integer)");
+                if (keys.Length != 4) {
+                    logger.Error("Keys parameter must have 4 columns (Key, Output channel, Pressed, Not-pressed)");
                     return false;
                 }
-                if (channel < 1) {
-                    logger.Error("Output channels must be positive integers");
-                    return false;
-                }
-                if (channel > outputChannels) {
-                    logger.Error("The output channel value '" + keys[1][row] + "' exceeds the number of channels coming out of the filter (#outputChannels: " + outputChannels + ")");
-                    return false;
-                }
-                mConfigOutputChannels[row] = channel - 1;   // -1 since the user input the channel 1-based and we use a 0-based array
 
-                // try to parse the pressed value
-                double doubleValue = 0;
-                if (!double.TryParse(keys[2][row], NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign, Parameters.NumberCulture, out doubleValue)) {
-                    logger.Error("The value '" + keys[2][row] + "' is not a valid double value");
-                    return false;
-                }
-                mConfigPressed[row] = doubleValue;
+                // resize the variables
+                mConfigKeys = new Keys[keys[0].Length];                    // char converted to virtual key
+                mConfigOutputChannels = new int[keys[0].Length];          // for the values stored in this array: value 0 = channel 1
+                mConfigPressed = new double[keys[0].Length];
+                mConfigNotPressed = new double[keys[0].Length];
 
-                // try to parse the not-pressed value
-                doubleValue = 0;
-                if (!double.TryParse(keys[3][row], NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign, Parameters.NumberCulture, out doubleValue)) {
-                    logger.Error("The value '" + keys[3][row] + "' is not a valid double value");
-                    return false;
+                // loop through the rows
+                for (int row = 0; row < keys[0].Length; ++row ) {
+                
+                    // try to convert the key character to an int
+                    string key = keys[0][row].ToUpper();
+                    if (key.Length != 1 || !(new Regex(@"^[A-Z0-9]*$")).IsMatch(key)) {
+                        logger.Error("The key value '" + key + "' is not a valid key (should be a single character, a-z or 0-9)");
+                        return false;
+                    }
+                    mConfigKeys[row] = (Keys)key[0];     // capital characters A-Z and numbers can be directly saved as int (directly used/emulated as virtual keys)
+
+                    // try to parse the channel number
+                    int channel = 0;
+                    if (!int.TryParse(keys[1][row], out channel)) {
+                        logger.Error("The value '" + keys[1][row] + "' is not a valid output channel value (should be a positive integer)");
+                        return false;
+                    }
+                    if (channel < 1) {
+                        logger.Error("Output channels must be positive integers");
+                        return false;
+                    }
+                    if (channel > outputChannels) {
+                        logger.Error("The output channel value '" + keys[1][row] + "' exceeds the number of channels coming out of the filter (#outputChannels: " + outputChannels + ")");
+                        return false;
+                    }
+                    mConfigOutputChannels[row] = channel - 1;   // -1 since the user input the channel 1-based and we use a 0-based array
+
+                    // try to parse the pressed value
+                    double doubleValue = 0;
+                    if (!double.TryParse(keys[2][row], NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign, Parameters.NumberCulture, out doubleValue)) {
+                        logger.Error("The value '" + keys[2][row] + "' is not a valid double value");
+                        return false;
+                    }
+                    mConfigPressed[row] = doubleValue;
+
+                    // try to parse the not-pressed value
+                    doubleValue = 0;
+                    if (!double.TryParse(keys[3][row], NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign, Parameters.NumberCulture, out doubleValue)) {
+                        logger.Error("The value '" + keys[3][row] + "' is not a valid double value");
+                        return false;
+                    }
+                    mConfigNotPressed[row] = doubleValue;
+
                 }
-                mConfigNotPressed[row] = doubleValue;
 
             }
 
@@ -258,7 +302,7 @@ namespace Palmtree.Sources {
         }
 
         public void initialize() {
-
+			
             // flag the initialization as complete
             initialized = true;
 
@@ -351,7 +395,7 @@ namespace Palmtree.Sources {
             running = false;
 
             // interrupt the wait in the loop
-            // (this is done because if the sample rate is low, we might have to wait for a long time for the thread to end)
+            // (this is done because if the sample-package rate is low, we might have to wait for a long time for the thread to end)
             loopManualResetEvent.Set();
 
             // wait until the thread stopped
@@ -390,7 +434,7 @@ namespace Palmtree.Sources {
             // log message
             logger.Debug("Thread started");
 
-            // set an initial start for the stopwatche
+            // set an initial start for the stopwatch
             swTimePassed.Start();
 
 		    // loop while running
@@ -402,22 +446,28 @@ namespace Palmtree.Sources {
 			        // check if we are generating
 			        if (started) {
 
-                        // set (0) values for the generated sample
-                        double[] sample = new double[outputChannels];
-
+                        // initialize an array
+                        double[] samples = new double[outputChannels * samplesPerPackage];
+                        
                         // loop through the keys
                         for (int i = 0; i < mConfigKeys.Length; i++) {
 
                             // check if the key is pressed (without any other special keys like shift, control etc)
                             bool pressed = (0 != (GetAsyncKeyState((int)mConfigKeys[i]) & 0x8000));
-                            
-                            // set the sample value accordingly
-                            sample[mConfigOutputChannels[i]] = (pressed ? mConfigPressed[i] : mConfigNotPressed[i]);
+
+                            // set values based on pressed or not
+                            if (sampleValueOrder == ValueOrder.SampleMajor) {
+                                for (int sample = 0; sample < samplesPerPackage; sample++)
+                                    samples[sample * outputChannels + mConfigOutputChannels[i]] = pressed ? mConfigPressed[i] : mConfigNotPressed[i];
+                            } else {
+                                for (int sample = 0; sample < samplesPerPackage; sample++)
+                                    samples[mConfigOutputChannels[i] * samplesPerPackage + sample] = pressed ? mConfigPressed[i] : mConfigNotPressed[i];
+                            }
 
                         }
 
                         // pass the sample
-                        MainThread.eventNewSample(sample);
+                        MainThread.eventNewSample(samples);
                         
 			        }
 
@@ -435,16 +485,17 @@ namespace Palmtree.Sources {
                             // high precision timing
 
                             // spin for the required amount of ticks
-                            highPrecisionWaitTillTime = Stopwatch.GetTimestamp() + sampleIntervalTicks;     // choose not to correct for elapsed ticks. This result in a slightly higher wait time, which at lower Hz comes closer to the expected samplecount per second
-                            //highPrecisionWaitTillTime = Stopwatch.GetTimestamp() + sampleIntervalTicks - swTimePassed.ElapsedTicks;
+                            highPrecisionWaitTillTime = Stopwatch.GetTimestamp() + samplePackageIntervalTicks;     // choose not to correct for elapsed ticks. This result in a slightly higher wait time, which at lower Hz comes closer to the expected samplecount per second
+                            //highPrecisionWaitTillTime = Stopwatch.GetTimestamp() + samplePackageIntervalTicks - swTimePassed.ElapsedTicks;
+                            while (Stopwatch.GetTimestamp() <= highPrecisionWaitTillTime) ;
 
                         } else {
                             // low precision timing
 
-                            threadLoopDelay = sampleIntervalMs;     // choose not to correct for elapsed ms. This result in a slightly higher wait time, which at lower Hz comes closer to the expected samplecount per second
-                            //threadLoopDelay = sampleIntervalMs - (int)swTimePassed.ElapsedMilliseconds;
+                            threadLoopDelay = samplePackageIntervalMs;     // choose not to correct for elapsed ms. This result in a slightly higher wait time, which at lower Hz comes closer to the expected samplecount per second
+                            //threadLoopDelay = samplePackageIntervalMs - (int)swTimePassed.ElapsedMilliseconds;
 
-                            // wait for the remainder of the sample interval to get as close to the sample rate as possible (if there is a remainder)
+                            // wait for the remainder of the sample-package interval to get as close to the sample-package rate as possible (if there is a remainder)
                             if (threadLoopDelay >= 0) {
                                 
                                 // reset the manual reset event, so it is sure to block on the next call to WaitOne

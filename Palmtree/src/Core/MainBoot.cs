@@ -63,6 +63,12 @@ namespace Palmtree.Core {
 
         public static void Run(string[] args, Type applicationType) {
 
+            // check the endianness
+            if (!BitConverter.IsLittleEndian) {
+                logger.Error("This software assumes a little-endianness OS, your OS uses a big-endian system. Exiting");
+                return;
+            }
+
             // TODO: check if all dependencies exists
             // TODO: also 32/64 bit (freetype or other dlls)
 

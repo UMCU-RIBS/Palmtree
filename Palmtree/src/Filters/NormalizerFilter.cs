@@ -1,5 +1,5 @@
 ﻿/**
- * The NormalizerFilter class
+ * NormalizerFilter class
  * 
  * ...
  * 
@@ -24,7 +24,7 @@ using Palmtree.Core.Params;
 namespace Palmtree.Filters {
 
     /// <summary>
-    /// The <c>NormalizerFilter</c> class.
+    /// NormalizerFilter class
     /// 
     /// ...
     /// </summary>
@@ -36,7 +36,7 @@ namespace Palmtree.Filters {
             ZeroMeanUnitVar = 2,
         };
 
-        private new const int CLASS_VERSION = 1;
+        private new const int CLASS_VERSION = 2;
 
         private double[] mOffsets = null;                           // array to hold the offset for each channel
         private double[] mGains = null;                             // array to hold the gain for each channel
@@ -77,22 +77,22 @@ namespace Palmtree.Filters {
             parameters.addParameter <double[]>  (
                 "NormalizerOffsets",
                 "Normalizer offsets",
-                "", "", "0");
+                "", "", "0,0");
 
             parameters.addParameter <double[]>  (
                 "NormalizerGains",
                 "Normalizer gain values",
-                "", "", "1");
+                "", "", "1,1");
 
             parameters.addParameter<int[]>(
                 "Adaptation",
                 "Adaptation setting per channel: 0 no adaptation, 1 zero mean, 2 zero mean, unit variance",
-                "", "", "0");
+                "", "", "0,0");
 
             parameters.addParameter<string[][]>(
                 "Buffers",
                 "Defines the buffers.\nThe columns correspond to the output channels. The rows allow for one or more buffers per channel.\nInside the cells (for each buffer) it is possible to define expressions which are evaluated during runtime, global variables can be\nused and evaluated (e.g. [feedback] == 1). if an expression is evaluated as true then the sample will be added accordingly to that buffer.\n\nNote the variablenames in the expressions are case-sensitive",
-                "", "", "[Feedback] == 1 && [Target] == 1,[Feedback] == 1 && [Target] == 0");
+                "", "", "[Feedback] == 1 && [Target] == 1,[Feedback] == 1 && [Target] == 0;[Feedback] == 1 && [Target] == 1,[Feedback] == 1 && [Target] == 0");
 
             parameters.addParameter<double>(
                 "BufferLength",
@@ -114,23 +114,29 @@ namespace Palmtree.Filters {
          * parameters and, if valid, transfers the configuration parameters to local variables
          * (initialization of the filter is done later by the initialize function)
          **/
-        public bool configure(ref PackageFormat input, out PackageFormat output) {
+        public bool configure(ref SamplePackageFormat input, out SamplePackageFormat output) {
 
-            // retrieve the number of input channels
-            inputChannels = input.getNumberOfChannels();
-            if (inputChannels <= 0) {
-                logger.Error("Number of input channels cannot be 0");
+            // check sample-major ordered input
+            if (input.valueOrder != SamplePackageFormat.ValueOrder.SampleMajor) {
+                logger.Error("This filter is designed to work only with sample-major ordered input");
                 output = null;
                 return false;
             }
 
-            // set the number of output channels as the same
-            // (same regardless if enabled or disabled)
-            outputChannels = inputChannels;
+            // retrieve the number of input channels
+            if (input.numChannels <= 0) {
+                logger.Error("Number of input channels cannot be 0");
+                output = null;
+                return false;
+            }
+            
+            // the output package will be in the same format as the input package
+            output = new SamplePackageFormat(input.numChannels, input.numSamples, input.packageRate, input.valueOrder);
 
-            // create an output sampleformat
-            output = new PackageFormat(outputChannels, input.getSamples(), input.getRate());
-
+            // store a references to the input and output format
+            inputFormat = input;
+            outputFormat = output;
+            
             // check the values and application logic of the parameters
             if (!checkParameters(parameters))   return false;
 
@@ -248,34 +254,40 @@ namespace Palmtree.Filters {
 
                 // check if there are offsets for each input channel
                 double[] newOffsets = newParameters.getValue<double[]>("NormalizerOffsets");
-                if (newOffsets.Length < inputChannels) {
-                    logger.Error("The number of values in the NormalizerOffsets parameter cannot be less than the number of input channels (as each value gives the offset for each input channel)");
+                if (newOffsets.Length < inputFormat.numChannels) {
+                    logger.Error("The number of entries in the NormalizerOffsets parameter (" + newOffsets.Length + ") cannot be less than the number of input channels (" + inputFormat.numChannels + "). Each entry defines the setting for a single input channel.");
                     return false;
                 }
+                if (newOffsets.Length > inputFormat.numChannels)
+                    logger.Warn("The number of entries in the NormalizerOffsets parameter (" + newOffsets.Length + ") is higher than the number of incoming channels (" + inputFormat.numChannels + "). Each entry defines the setting for a single input channel.");
 
                 // check if there are gains for each input channel
                 double[] newGains = newParameters.getValue<double[]>("NormalizerGains");
-                if (newGains.Length < inputChannels) {
-                    logger.Error("The number of values in the NormalizerGains parameter cannot be less than the number of input channels (as each value gives the gain for each input channel)");
+                if (newGains.Length < inputFormat.numChannels) {
+                    logger.Error("The number of entries in the NormalizerGains parameter (" + newGains.Length + ") cannot be less than the number of input channels (" + inputFormat.numChannels + "). Each entry defines the setting for a single input channel.");
                     return false;
                 }
+                if (newGains.Length > inputFormat.numChannels)
+                    logger.Warn("The number of entries in the NormalizerGains parameter (" + newGains.Length + ") is higher than the number of incoming channels (" + inputFormat.numChannels + "). Each entry defines the setting for a single input channel.");
 
                 // check if there are gains for each input channel
                 int[] newAdaptation = newParameters.getValue<int[]>("Adaptation");
-                if (newAdaptation.Length < inputChannels) {
-                    logger.Error("The number of values in the Adaptation parameter cannot be less than the number of input channels (as each value gives the adaptation setting for each input channel)");
+                if (newAdaptation.Length < inputFormat.numChannels) {
+                    logger.Error("The number of entries in the Adaptation parameter (" + newAdaptation.Length + ") cannot be less than the number of input channels (" + inputFormat.numChannels + "). Each entry defines the setting for a single input channel.");
                     return false;
                 }
+                if (newAdaptation.Length > inputFormat.numChannels)
+                    logger.Warn("The number of entries in the Adaptation parameter (" + newAdaptation.Length + ") is higher than the number of incoming channels (" + inputFormat.numChannels + "). Each entry defines the setting for a single input channel.");
 
                 // check if adaptation is needed
                 bool newDoAdaptation = false;
-                for(int channel = 0; channel < inputChannels; channel++)    newDoAdaptation |= (newAdaptation[channel] != (int)AdaptationTypes.None);
+                for(int channel = 0; channel < inputFormat.numChannels; channel++)    newDoAdaptation |= (newAdaptation[channel] != (int)AdaptationTypes.None);
                 if (newDoAdaptation) {
                     // adaptation is needed
 
                     // check the buffers parameter
                     string[][] newBuffers = newParameters.getValue<string[][]>("Buffers");
-                    if (newBuffers.Length > inputChannels) {
+                    if (newBuffers.Length > inputFormat.numChannels) {
                         logger.Error("The number of columns in the Buffers parameter may not exceed the number of input channels");
                         return false;
                     }
@@ -334,7 +346,7 @@ namespace Palmtree.Filters {
 
                 // store the adaptation settings
                 mAdaptation = newParameters.getValue<int[]>("Adaptation");
-                for (int channel = 0; channel < inputChannels; channel++) {
+                for (int channel = 0; channel < inputFormat.numChannels; channel++) {
                     mDoAdapt |= (mAdaptation[channel] != (int)AdaptationTypes.None);
                 }
 
@@ -360,9 +372,9 @@ namespace Palmtree.Filters {
 
             // debug output
             logger.Debug("--- Filter configuration: " + filterName + " ---");
-            logger.Debug("Input channels: " + inputChannels);
+            logger.Debug("Input channels: " + inputFormat.numChannels);
             logger.Debug("Enabled: " + mEnableFilter);
-            logger.Debug("Output channels: " + outputChannels);
+            logger.Debug("Output channels: " + outputFormat.numChannels);
             if (mEnableFilter) {
                 logger.Debug("Offsets: " + (mOffsets == null ? "-" : string.Join(",", mOffsets)));
                 logger.Debug("Gains: " + (mGains == null ? "-" : string.Join(",", mGains)));
@@ -440,75 +452,93 @@ namespace Palmtree.Filters {
         public bool isStarted() {
             return false;
         }
-        
+
         public void process(double[] input, out double[] output) {
 
-            // create an output sample
-            output = new double[outputChannels];
+            // create an output package
+            output = new double[input.Length];
 
             // check if the filter is enabled
             if (mEnableFilter) {
                 // filter enabled
+                
+                int totalSamples = inputFormat.numSamples * inputFormat.numChannels;
+                for (int sample = 0; sample < totalSamples; sample += inputFormat.numChannels) {
 
-                // check if adaptation is on for one of the channels
-                if (mDoAdapt) {
+                    double[] singleRow = new double[inputFormat.numChannels];
+                    Buffer.BlockCopy(input, sample * sizeof(double), singleRow, 0, inputFormat.numChannels * sizeof(double));
 
-                    //logger.Error("-----");
-                    for (int channel = 0; channel < mBuffers.Length; ++channel) {
-                        for (int buffer = 0; buffer < mBuffers[channel].Length; ++buffer) {
-                            bool testResult = Globals.evaluateConditionExpression(mBuffers[channel][buffer]);
-                            //logger.Debug("channel: " + channel + "   buffer: " + buffer + "    testResult = " + testResult);
-                            if (testResult) {
-                                mDataBuffers[channel][buffer].Put(input[channel]);
-                            }
-                        }
-                    }
+                    double[] singleRowOout = new double[inputFormat.numChannels];
+                    processSample(singleRow, out singleRowOout);
 
-                    // check if there is an update trigger
-                    if (mUpdateTrigger != null) {
-                        // update trigger set
-                        
-                        // check the expression
-                        bool currentTrigger = Globals.evaluateConditionExpression(mUpdateTrigger);
-                        //logger.Debug("mPreviousTrigger: " + mPreviousTrigger);
-                        //logger.Debug("currentTrigger: " + currentTrigger);
-
-                        // check if the trigger expession result goes from 0 to 1
-                        if (currentTrigger && !mPreviousTrigger) {
-                            //logger.Debug("Update");
-                            update();
-
-                        }
-                        mPreviousTrigger = currentTrigger;
-
-                    } else {
-                        // no trigger, continuous update
-
-                        update();
-
-                    }
-
-                }
-
-                // loop through every channel
-                for (int channel = 0; channel < inputChannels; ++channel) {
-
-                    // normalize
-                    output[channel] = (input[channel] - mOffsets[channel]) * mGains[channel];
+                    Buffer.BlockCopy(singleRowOout, 0, output, sample * sizeof(double), inputFormat.numChannels * sizeof(double));
 
                 }
 
             } else {
                 // filter disabled
 
-                // pass the input straight through
-                for (uint channel = 0; channel < inputChannels; ++channel)  output[channel] = input[channel];
+                // TODO: reason if we can just pass reference?
+                // copy the input straight through
+                Buffer.BlockCopy(input, 0, output, 0, input.Length * sizeof(double));
 
             }
 
             // handle the data logging of the output (both to file and for visualization)
             processOutputLogging(output);
 
+
+        }
+        
+        public void processSample(double[] input, out double[] output) {
+
+            // create an output sample
+            output = new double[outputFormat.numChannels];
+            
+            // check if adaptation is on for one of the channels
+            if (mDoAdapt) {
+
+                //logger.Error("-----");
+                for (int channel = 0; channel < mBuffers.Length; ++channel) {
+                    for (int buffer = 0; buffer < mBuffers[channel].Length; ++buffer) {
+                        bool testResult = Globals.evaluateConditionExpression(mBuffers[channel][buffer]);
+                        //logger.Debug("channel: " + channel + "   buffer: " + buffer + "    testResult = " + testResult);
+                        if (testResult) {
+                            mDataBuffers[channel][buffer].Put(input[channel]);
+                        }
+                    }
+                }
+
+                // check if there is an update trigger
+                if (mUpdateTrigger != null) {
+                    // update trigger set
+                        
+                    // check the expression
+                    bool currentTrigger = Globals.evaluateConditionExpression(mUpdateTrigger);
+                    //logger.Debug("mPreviousTrigger: " + mPreviousTrigger);
+                    //logger.Debug("currentTrigger: " + currentTrigger);
+
+                    // check if the trigger expession result goes from 0 to 1
+                    if (currentTrigger && !mPreviousTrigger) {
+                        //logger.Debug("Update");
+                        update();
+
+                    }
+                    mPreviousTrigger = currentTrigger;
+
+                } else {
+                    // no trigger, continuous update
+
+                    update();
+
+                }
+
+            }
+
+            // normalize every channel
+            for (int channel = 0; channel < inputFormat.numChannels; ++channel)
+                output[channel] = (input[channel] - mOffsets[channel]) * mGains[channel];
+            
         }
 
         public void destroy() {

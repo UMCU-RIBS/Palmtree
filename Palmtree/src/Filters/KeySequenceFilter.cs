@@ -1,5 +1,5 @@
 ﻿/**
- * The KeySequenceFilter class
+ * KeySequenceFilter class
  * 
  * ...
  * 
@@ -20,17 +20,18 @@ using Palmtree.Core;
 using Palmtree.Core.DataIO;
 using Palmtree.Core.Helpers;
 using Palmtree.Core.Params;
+using System;
 
 namespace Palmtree.Filters {
 
     /// <summary>
-    /// The <c>KeySequenceFilter</c> class.
+    /// KeySequenceFilter class.
     /// 
     /// ...
     /// </summary>
     public class KeySequenceFilter : FilterBase, IFilter {
 
-        private new const int CLASS_VERSION = 1;
+        private new const int CLASS_VERSION = 2;
 
         private int filterInputChannel = 1;							// input channel
         private double mThreshold = 0;                              // 
@@ -84,7 +85,7 @@ namespace Palmtree.Filters {
             parameters.addParameter <bool[]>  (
                 "Sequence",
                 "Sequence activation pattern and amount of samples needed",
-                "", "", "1 1 1 1 1 1");
+                "", "", "1,1,1,1,1,1");
 
             // message
             logger.Info("Filter created (version " + CLASS_VERSION + ")");
@@ -96,22 +97,28 @@ namespace Palmtree.Filters {
          * parameters and, if valid, transfers the configuration parameters to local variables
          * (initialization of the filter is done later by the initialize function)
          **/
-        public bool configure(ref PackageFormat input, out PackageFormat output) {
+        public bool configure(ref SamplePackageFormat input, out SamplePackageFormat output) {
+
+            // check sample-major ordered input
+            if (input.valueOrder != SamplePackageFormat.ValueOrder.SampleMajor) {
+                logger.Error("This filter is designed to work only with sample-major ordered input");
+                output = null;
+                return false;
+            }
 
             // retrieve the number of input channels
-            inputChannels = input.getNumberOfChannels();
-            if (inputChannels <= 0) {
+            if (input.numChannels <= 0) {
                 logger.Error("Number of input channels cannot be 0");
                 output = null;
                 return false;
             }
 
-            // set the number of output channels as the same
-            // (same regardless if enabled or disabled)
-            outputChannels = inputChannels;
-
             // create an output sampleformat
-            output = new PackageFormat(outputChannels, input.getSamples(), input.getRate());
+            output = new SamplePackageFormat(input.numChannels, input.numSamples, input.packageRate, input.valueOrder);
+
+            // store a references to the input and output format
+            inputFormat = input;
+            outputFormat = output;
 
             // check the values and application logic of the parameters
             if (!checkParameters(parameters)) return false;
@@ -234,8 +241,8 @@ namespace Palmtree.Filters {
                     logger.Error("Invalid input channel, should be higher than 0 (1...n)");
                     return false;
                 }
-                if (newFilterInputChannel > inputChannels) {
-                    logger.Error("Input should come from channel " + newFilterInputChannel + ", however only " + inputChannels + " channels are coming in");
+                if (newFilterInputChannel > inputFormat.numChannels) {
+                    logger.Error("Input should come from channel " + newFilterInputChannel + ", however only " + inputFormat.numChannels + " channels are coming in");
                     return false;
                 }
 
@@ -290,9 +297,9 @@ namespace Palmtree.Filters {
 
             // debug output
             logger.Debug("--- Filter configuration: " + filterName + " ---");
-            logger.Debug("Input channels: " + inputChannels);
+            logger.Debug("Input channels: " + inputFormat.numChannels);
             logger.Debug("Enabled: " + mEnableFilter);
-            logger.Debug("Output channels: " + outputChannels);
+            logger.Debug("Output channels: " + outputFormat.numChannels);
             if (mEnableFilter) {
                 logger.Debug("FilterInputChannel: " + filterInputChannel);
                 logger.Debug("Threshold: " + mThreshold);
@@ -341,74 +348,86 @@ namespace Palmtree.Filters {
 
         public void process(double[] input, out double[] output) {
 
-            // create an output sample
-            output = new double[outputChannels];
+            // create an output package
+            output = new double[input.Length];
 
             // check if the filter is enabled
             if (mEnableFilter) {
                 // filter enabled
                 
-                // set boolean based on threshold setting
-                bool inValue = (input[filterInputChannel - 1] >= mThreshold);
-                
-                // add boolean to ringbuffer
-                mDataBuffer.Put(inValue);
-                
-                // check if ringbuffer was filled
-                if (mDataBuffer.Fill() == mSequence.Length) {
+                int totalSamples = inputFormat.numSamples * inputFormat.numChannels;
+                for (int sample = 0; sample < totalSamples; sample += inputFormat.numChannels) {
 
-                    // reset compare counter
-                    mCompareCounter = 0;
-
-                    // check the ringbuffer against the keysequence
-                    for (int i = 0; i < mDataBuffer.Fill(); ++i) {
-
-                        // check if sequence and input are the same
-                        if (mDataBuffer.Data()[i] == mSequence[i])
-                            mCompareCounter++;
-
-                    }
-
-                    // check if proportion of comparison between keysequence and ringbuffer is met
-                    // set the KeySequenceActive global variable accordingly
-                    if ((double)mCompareCounter / mSequence.Length >= mProportionCorrect)
-                        keySequenceActive = true;
-                    else
-                        keySequenceActive = false;
-
-                    // check if the escapestate has changed
-                    if (keySequenceActive != keySequenceWasPressed) {
-
-                        // set the global
-                        Globals.setValue<bool>("KeySequenceActive", (keySequenceActive ? "1" : "0"));
-
-                        // log if the escapestate has changed
-                        Data.logEvent(1, "KeySequenceChange", (keySequenceActive) ? "1" : "0");
-
-                        // update the flag
-                        keySequenceWasPressed = keySequenceActive;
-
-                    }
-
+                    double[] singleRow = new double[inputFormat.numChannels];
+                    Buffer.BlockCopy(input, sample * sizeof(double), singleRow, 0, inputFormat.numChannels * sizeof(double));
+                    processSample(singleRow);
                     
-
-                } else {
-
-                    // TODO: setValue is not always necessary, only call setValue if the value (locally stored) changes
-                    Globals.setValue<bool>("KeySequenceActive", "0");
-                    keySequenceActive = false;
-                    keySequenceWasPressed = false;
-
                 }
 
             }
-            
-            // pass the input straight through as output
-            for (uint channel = 0; channel < inputChannels; ++channel) output[channel] = input[channel];
+
+            // TODO: reason if we can just pass reference?
+            // copy the input straight through
+            Buffer.BlockCopy(input, 0, output, 0, input.Length * sizeof(double));
 
             // handle the data logging of the output (both to file and for visualization)
             processOutputLogging(output);
 
+        }
+
+        public void processSample(double[] input) {
+    
+            // set boolean based on threshold setting
+            bool inValue = (input[filterInputChannel - 1] >= mThreshold);
+                
+            // add boolean to ringbuffer
+            mDataBuffer.Put(inValue);
+                
+            // check if ringbuffer was filled
+            if (mDataBuffer.Fill() == mSequence.Length) {
+
+                // reset compare counter
+                mCompareCounter = 0;
+
+                // check the ringbuffer against the keysequence
+                for (int i = 0; i < mDataBuffer.Fill(); ++i) {
+
+                    // check if sequence and input are the same
+                    if (mDataBuffer.Data()[i] == mSequence[i])
+                        mCompareCounter++;
+
+                }
+
+                // check if proportion of comparison between keysequence and ringbuffer is met
+                // set the KeySequenceActive global variable accordingly
+                if ((double)mCompareCounter / mSequence.Length >= mProportionCorrect)
+                    keySequenceActive = true;
+                else
+                    keySequenceActive = false;
+
+                // check if the escapestate has changed
+                if (keySequenceActive != keySequenceWasPressed) {
+
+                    // set the global
+                    Globals.setValue<bool>("KeySequenceActive", (keySequenceActive ? "1" : "0"));
+
+                    // log if the escapestate has changed
+                    Data.logEvent(1, "KeySequenceChange", (keySequenceActive) ? "1" : "0");
+
+                    // update the flag
+                    keySequenceWasPressed = keySequenceActive;
+
+                }
+
+            } else {
+
+                // TODO: setValue is not always necessary, only call setValue if the value (locally stored) changes
+                Globals.setValue<bool>("KeySequenceActive", "0");
+                keySequenceActive = false;
+                keySequenceWasPressed = false;
+
+            }
+                
         }
 
         public void destroy() {
@@ -423,6 +442,5 @@ namespace Palmtree.Filters {
         }
 
     }
-
 
 }

@@ -12,9 +12,9 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details. You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-
-//#define DEBUG_SAMPLES                   // causes the thread not to remove the sample after processing causing infinite samples to process, used to test performance of the pipeline (filters + application)
-//#define DEBUG_SAMPLES_LOG_PERFORMANCE   // log the performance (display the amount of samples processed)
+//#define DEBUG_KEEP_SAMPLES                                                    // causes the thread not to remove the sample-package after processing causing infinite sample-packages to process, used to test performance of the pipeline (filters + application)
+//#define DEBUG_SAMPLES_LOG_PERFORMANCE                                         // log the performance (display the amount of sample-packages processed)
+//#define DEBUB_INCOMING_SAMPLES_PER_SECOND                                     // log the incoming samples per second
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -22,7 +22,6 @@ using System.Diagnostics;
 using System.Threading;
 using Palmtree.Applications;
 using Palmtree.Filters;
-using Palmtree.Core.Helpers;
 using Palmtree.Core.Params;
 using Palmtree.Sources;
 using Palmtree.Plugins;
@@ -38,40 +37,45 @@ namespace Palmtree.Core {
     /// </summary>
     public class MainThread {
 
-        private const int CLASS_VERSION = 2;
+        private const int CLASS_VERSION                     = 3;
 
-        private static Logger logger = LogManager.GetLogger("MainThread");
+        private static Logger logger                        = LogManager.GetLogger("MainThread");
 
-        private const int threadLoopDelayNoProc = 200;                              // thread loop delay when not processing (1000ms / 5 run times per second = rest 200ms)
-        private const int threadLoopDelayProc = 100;	                            // thread loop delay while processing (1000ms / 5 run times per second = rest 200ms); Sleep will be interrupted when a sample comes in; And no sleep when there are more samples waiting for processing
-        private const int sampleBufferSize = 10000;                                 // the size (and maximum samples) of the sample buffer/que 
+        private const int threadLoopDelayNoProc             = 200;                  // thread loop delay when not processing (1000ms / 5 run times per second = rest 200ms)
+        private const int threadLoopDelayProc               = 100;	                // thread loop delay while processing (1000ms / 5 run times per second = rest 200ms); Sleep will be interrupted when a sample comes in; And no sleep when there are more samples waiting for processing
+        private const int sampleBufferSize                  = 10000;                // the size (and maximum samples) of the sample buffer/que 
 
-        private static ManualResetEvent loopManualResetEvent = new ManualResetEvent(false);    // Manual reset event to call the WaitOne event on (this allows - in contrast to the sleep wait - to cancel the wait period at any point when a new sample comes in) 
+        private static ManualResetEvent loopManualResetEvent= new ManualResetEvent(false); // Manual reset event to call the WaitOne event on (this allows - in contrast to the sleep wait - to cancel the wait period at any point when a new sample comes in) 
 
-        private static bool running = false;				                        // flag to define if the Palmtree thread is running (setting to false will stop the experiment thread) 
-        private static bool process = false;                                        // flag to define if the thread is allowed to process samples
-        private static bool stopDataDelegateFlag = false;                           // stop data delegate flag (if true will stop the data class in the main loop)
+        private static bool running                         = false;                // flag to define if the Palmtree thread is running (setting to false will stop the experiment thread) 
+        private static bool process                         = false;                // flag to define if the thread is allowed to process samples
+        private static bool stopDataDelegateFlag            = false;                // stop data delegate flag (if true will stop the data class in the main loop)
 
-        private static bool startupConfigAndInit = false;
-        private static bool startupStartRun = false;
-        private static bool noGUI = false;
-        private static bool systemConfigured = false;                               // 
-        private static bool systemInitialized = false;                              // 
-        private static bool started = false;                                        // flag to hold whether the system is in a started or stopped state
-        private static Object lockStarted = new Object();                           // threadsafety lock for starting/stopping the system and processing
+        private static bool startupConfigAndInit            = false;
+        private static bool startupStartRun                 = false;
+        private static bool noGUI                           = false;
+        private static bool systemConfigured                = false;                // 
+        private static bool systemInitialized               = false;                // 
+        private static bool started                         = false;                // flag to hold whether the system is in a started or stopped state
+        private static Object lockStarted                   = new Object();         // threadsafety lock for starting/stopping the system and processing
 
-        private long nextOutputTime = Stopwatch.GetTimestamp() + Stopwatch.Frequency;       // the next timestamp to ouput message in the mainloop (done only once per second because logger holds up the main thread)
+        private long nextOutputTime                         = 0;                    // the next timestamp to ouput message in the mainloop (done only once per second because logger holds up the main thread)
+        private static ISource source                       = null;                 //
+        private static List<IFilter> filters                = new List<IFilter>();  //
+        private static IApplication application             = null;                 // reference to the application
+        private static List<IPlugin> plugins                = new List<IPlugin>();  //
 
-        private static ISource source = null;                                       //
-        private static List<IFilter> filters = new List<IFilter>();                 //
-        private static IApplication application = null;                             // reference to the application
-        private static List<IPlugin> plugins = new List<IPlugin>();                 //
+        private static double[][] samplePackagesBuffer      = new double[sampleBufferSize][]; // the sample-package buffer in which sample-packages are queud
+        private static int sampleBufferAddIndex             = 0;                    // the index where in the (ring) sample-package buffer the next sample-package will be added
+        private static int sampleBufferReadIndex            = 0;                    // the index where in the (ring) sample-package buffer the next sample-package that should be read is
+        private static int numSamplePackagesInBuffer        = 0;                    // the number of added but unread samples-package in the (ring) sample-packages buffer
+        private static int numSamplePackagesDiscarded       = 0;                    // count the number of discarded sample-packages
 
-        private static double[][] sampleBuffer = new double[sampleBufferSize][];    // the sample buffer in which samples are queud
-        private static int sampleBufferAddIndex = 0;                                // the index where in the (ring) sample buffer the next sample will be added
-        private static int sampleBufferReadIndex = 0;                               // the index where in the (ring) sample buffer the next sample that should be read is
-        private static int numSamplesInBuffer = 0;                                  // the number of added but unread samples in the (ring) sample buffer
-        private static int numSamplesDiscarded = 0;                                 // count the number of discarded samples
+        #if DEBUG_SAMPLES_LOG_PERFORMANCE || DEBUB_INCOMING_SAMPLES_PER_SECOND
+            private static long samplePackagesProcessed         = 0;                // the number of sample-packages that were processed since the last reset
+            private static long samplePackagesIn                = 0;                // the number of sample-packages that came in since the last reset
+            private static long samplePackagesInNextOutputTime  = 0;                // the next timestamp at which to display the number of sample-packages that came in
+        #endif
 
 
         /**
@@ -169,16 +173,14 @@ namespace Palmtree.Core {
             }
 
             // configure source (this will also give the output format information)
-            PackageFormat tempFormat = null;
+            SamplePackageFormat packageFormat = null;
             if (source != null) {
 
                 // configure the source
-                if (!source.configure(out tempFormat)) {
+                if (!source.configure(out packageFormat)) {
 
-                    // message
+                    // message and return failure
                     logger.Error("An error occured while configuring source, stopped");
-
-                    // return failure and go no further
                     return false;
 
                 }
@@ -186,17 +188,17 @@ namespace Palmtree.Core {
             }
 
             // register the pipeline input based on the output format of the source
-            Data.registerPipelineInput(tempFormat);
+            Data.registerPipelineInput(packageFormat);
             
             // configure the filters
             for (int i = 0; i < filters.Count; i++) {
 
                 // create a local variable to temporarily store the output format of the filter in
                 // (will be given in the configure step)
-                PackageFormat outputFormat = null;
+                SamplePackageFormat outputFormat = null;
 
                 // configure the filter
-                if (!filters[i].configure(ref tempFormat, out outputFormat)) {
+                if (!filters[i].configure(ref packageFormat, out outputFormat)) {
                     
                     // message
                     logger.Error("An error occured while configuring filter '" + filters[i].GetType().Name + "', stopped");
@@ -211,7 +213,7 @@ namespace Palmtree.Core {
                 }
 
                 // store the output filter as the input filter for the next loop (filter)
-                tempFormat = outputFormat;
+                packageFormat = outputFormat;
 
             }
 
@@ -219,7 +221,7 @@ namespace Palmtree.Core {
             if (application != null) {
                 
                 // configure the application
-                if (!application.configure(ref tempFormat)) {
+                if (!application.configure(ref packageFormat)) {
 
                     // message
                     logger.Error("An error occured while configuring application, stopped");
@@ -323,24 +325,20 @@ namespace Palmtree.Core {
                 // start the data
                 Data.start();
                 
-                // start the plugins
+                // start the plugins, the application module and the filter modules
                 for (int i = 0; i < plugins.Count; i++)     plugins[i].start();
-
-                // start the application
                 if (application != null)                    application.start();
-
-                // start the filters
                 for (int i = 0; i < filters.Count; i++)     filters[i].start();
 
-                // clear the samplesbuffer counter
-                lock (sampleBuffer.SyncRoot) {
+                // reset the sample-packages buffer counters
+                lock (samplePackagesBuffer.SyncRoot) {
                     sampleBufferAddIndex = 0;
                     sampleBufferReadIndex = 0;
-                    numSamplesInBuffer = 0;
-                    numSamplesDiscarded = 0;
+                    numSamplePackagesInBuffer = 0;
+                    numSamplePackagesDiscarded = 0;
                 }
 
-                // allow the main loop to process samples
+                // allow the main loop to process sample-packages
                 process = true;
 
                 // interrupt the 'noproc' waitloop , allowing the loop to continue (in case it was waiting the sample interval)
@@ -376,13 +374,9 @@ namespace Palmtree.Core {
                     // stop the processing of samples in the main loop
                     process = false;
 
-                    // stop the filters
+                    // stop the filter modules, the application module and the plugins
                     for (int i = 0; i < filters.Count; i++)     filters[i].stop();
-
-                    // stop the application
                     if (application != null)                    application.stop();
-
-                    // stop the plugins
                     for (int i = 0; i < plugins.Count; i++)     plugins[i].stop();
 
                     // check if the data class should be stopped immediately or later (by the loop)
@@ -431,8 +425,8 @@ namespace Palmtree.Core {
         public void run() {
 
             // debug messages
-            #if (DEBUG_SAMPLES)
-                logger.Error("DEBUG_SAMPLES is enabled");
+            #if (DEBUG_KEEP_SAMPLES)
+                logger.Error("DEBUG_KEEP_SAMPLES is enabled");
             #endif
 
             // check if there is no application instance
@@ -442,12 +436,10 @@ namespace Palmtree.Core {
             logger.Debug("Thread started");
 
             // local variables
-            double[] sample = null;
+            double[] samplePackage = null;
 
             #if (DEBUG_SAMPLES_LOG_PERFORMANCE)
-
-                long samplesProcessed = 0;
-
+                samplePackagesProcessed = 0;
             #endif
 
             // flag as running
@@ -467,10 +459,8 @@ namespace Palmtree.Core {
                     // check if there is no gui
                     if (noGUI) {
 
-                        // message
+                        // message and do not start the process
                         MessageBox.Show("Error during configuration, check log file", "Error during configuration", MessageBoxButtons.OK, MessageBoxIcon.Error);
-
-                        // do not start the process
                         running = false;
 
                     }
@@ -482,10 +472,8 @@ namespace Palmtree.Core {
                 // check if there is no gui
                 if (noGUI) {
 
-                    // message
+                    // message and do not start the process
                     MessageBox.Show("Error during startup, without a GUI and automatic startup arguments there is no way to run the program, check startup arguments", "Error during startup", MessageBoxButtons.OK, MessageBoxIcon.Error);
-
-                    // do not start the process
                     running = false;
 
                 }
@@ -500,6 +488,9 @@ namespace Palmtree.Core {
 
             }
 
+            // set an initial output time
+            nextOutputTime = Stopwatch.GetTimestamp() + Stopwatch.Frequency;
+
             // loop while running
             while (running) {
                 
@@ -512,34 +503,29 @@ namespace Palmtree.Core {
                         // processing
                         
                         // see if there samples in the queue, pick the sample for processing
-                        sample = null;
-                        lock(sampleBuffer.SyncRoot) {
+                        samplePackage = null;
+                        lock(samplePackagesBuffer.SyncRoot) {
                             
                             // performance watch
                             if (Stopwatch.GetTimestamp() > nextOutputTime) {
 
                                 // check if there were sample discarded the last second
-                                if (numSamplesDiscarded > 0) {
+                                if (numSamplePackagesDiscarded > 0) {
 
                                     // message missed
-                                    logger.Error("Missed " + numSamplesDiscarded + " samples, because the sample buffer was full, the roundtrip of a sample through the filter and application takes longer than the sample frequency of the source");
+                                    logger.Error("Missed " + numSamplePackagesDiscarded + " samples, because the sample buffer was full, the roundtrip of a sample through the filter and application takes longer than the sample frequency of the source");
 
                                     // reset counter
-                                    numSamplesDiscarded = 0;
+                                    numSamplePackagesDiscarded = 0;
 
                                 }
 
-
+                                // 
                                 #if (DEBUG_SAMPLES_LOG_PERFORMANCE)
-
-                                    // print
                                     logger.Info("----------");
-                                    logger.Info("samplesProcessed: " + samplesProcessed);
-                                    logger.Info("numberOfSamples: " + numSamplesInBuffer);
-
-                                    // reset counter
-                                    samplesProcessed = 0;
-
+                                    logger.Info("samples processed: " + samplePackagesProcessed);
+                                    logger.Info("number of samples left in buffer: " + numSamplePackagesInBuffer);
+                                    samplePackagesProcessed = 0;
                                 #endif
 
                                 // set the next time to output messages
@@ -549,19 +535,19 @@ namespace Palmtree.Core {
 
 
                             // check if there are samples in the buffer to process
-                            if (numSamplesInBuffer > 0) {
+                            if (numSamplePackagesInBuffer > 0) {
 
                                 // retrieve the sample to process (pointer to from array)
-                                sample = sampleBuffer[sampleBufferReadIndex];
+                                samplePackage = samplePackagesBuffer[sampleBufferReadIndex];
 
-                                #if (!DEBUG_SAMPLES)
+                                #if (!DEBUG_KEEP_SAMPLES)
 
                                     // set the read index to the next item
                                     sampleBufferReadIndex++;
                                     if (sampleBufferReadIndex == sampleBufferSize) sampleBufferReadIndex = 0;
 
                                     // decrease the itemcounter as it will be processed (to make space for another item in the samples buffer)
-                                    numSamplesInBuffer--;
+                                    numSamplePackagesInBuffer--;
 
                                 #endif
                                 
@@ -570,55 +556,53 @@ namespace Palmtree.Core {
                         }
 
                         // check if there is a sample to process
-                        if (sample != null) {
-                            
+                        if (samplePackage != null) {
                             double[] output = null;
 
                             // Announce the sample at the beginning of the pipeline
-                            Data.sampleProcessingStart();
+                            Data.pipelineProcessingStart();
 
-                            // debug 
+                            // keep?
                             for (int i = 0; i < plugins.Count; i++) {
                                 plugins[i].preFiltersProcess();
                             }
-                            
-                            // loop through the pipeline input samples
-                            for (int i = 0; i < sample.Length; i++) {
 
-                                // log data (the 'LogPipelineInputStreamValue' function not log the sample if pipeline input logging is disabled)
-                                Data.logPipelineInputStreamValue(sample[i]);
+                            // log data (the 'LogPipelineInputStreamValue' function will not log the samples if pipeline input logging is disabled)
+                            Data.logPipelineInputStreamValues(samplePackage);
 
-                                // log for visualization (the 'LogVisualizationStreamValue' function will discard the sample if visualization is disabled)
-                                Data.logVisualizationStreamValue(sample[i]);
-
-                            }
+                            // TODO:
+                            // log for visualization (the 'LogVisualizationStreamValue' function will discard the sample if visualization is disabled)
+                            //Data.logVisualizationStreamValue(sample);
 
                             // process the sample (filters)
                             for (int i = 0; i < filters.Count; i++) {
-                                filters[i].process(sample, out output);
-                                sample = output;
+                                filters[i].process(samplePackage, out output);
+                                samplePackage = output;
                                 output = null;
                             }
 
-                            // debug 
+                            // keep? 
                             for (int i = 0; i < plugins.Count; i++) {
                                 plugins[i].postFiltersProcess();
                             }
                             
                             // process the sample (application)
-                            if (application != null)    application.process(sample);
+                            if (application != null)    application.process(samplePackage);
                             
                             // Announce the sample at the end of the pipeline
-                            Data.sampleProcessingEnd();
+                            Data.pipelineProcessingEnd();
+
+                            // flush all plugin buffers to file
+                            Data.writePluginData(-1);
                             
                             #if (DEBUG_SAMPLES_LOG_PERFORMANCE)
-                                samplesProcessed++;
+                                samplePackagesProcessed++;
                             #endif
 
                         }
 
                         // sleep (when there are no samples) to allow for other processes
-                        if (threadLoopDelayProc != -1 && numSamplesInBuffer == 0) {
+                        if (threadLoopDelayProc != -1 && numSamplePackagesInBuffer == 0) {
 
                             // reset the manual reset event, so it is sure to block on the next call to WaitOne
                             // 
@@ -694,27 +678,42 @@ namespace Palmtree.Core {
         // A direct method call will suffice and is probably even faster.
         public static void eventNewSample(double[] sample) {
             
-            lock(sampleBuffer.SyncRoot) {
+            #if DEBUB_INCOMING_SAMPLES_PER_SECOND
+                samplePackagesIn++;
+                if (Stopwatch.GetTimestamp() > samplePackagesInNextOutputTime) {
+
+                    logger.Info("----------");
+                    logger.Info("new sample-packages in (last 1s): " + samplePackagesIn);
+
+                    samplePackagesIn = 0;
+                    samplePackagesInNextOutputTime = Stopwatch.GetTimestamp() + Stopwatch.Frequency;
+
+                }
+
+            #endif
+
+
+            lock(samplePackagesBuffer.SyncRoot) {
                 
                 // check if the buffer is full
-                if (numSamplesInBuffer == sampleBufferSize) {
+                if (numSamplePackagesInBuffer == sampleBufferSize) {
 
-                    // count the number of discarded samples
+                    // count the number of discarded sample-packages
                     // (warning, do not message here about discarded samples, this will take to much time and this function should return as quickly as possible)
-                    numSamplesDiscarded++;
+                    numSamplePackagesDiscarded++;
                     
                     // immediately return, discard sample
                     return;
 
                 }
                 
-                // add the sample at the pointer location, and increase the pointer (or loop the pointer around)
-                sampleBuffer[sampleBufferAddIndex] = sample;
+                // add the sample-package at the pointer location, and increase the pointer (or loop the pointer around)
+                samplePackagesBuffer[sampleBufferAddIndex] = sample;
                 sampleBufferAddIndex++;
                 if (sampleBufferAddIndex == sampleBufferSize) sampleBufferAddIndex = 0;
 
-                // increase the counter that tracks the number of samples in the array
-                numSamplesInBuffer++;
+                // increase the counter that tracks the number of sample-packages in the array
+                numSamplePackagesInBuffer++;
 
                 // interrupt the loop wait. The loop will reset the wait lock (so it will wait again upon the next WaitOne call)
                 // this will make sure the newly set sample rate interval is applied in the loop
