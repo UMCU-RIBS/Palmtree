@@ -54,7 +54,8 @@ namespace Palmtree.Core {
                                                         new string[] { "RedistributionFilter",      "Palmtree.Filters.RedistributionFilter"},
                                                         new string[] { "ThresholdClassifierFilter", "Palmtree.Filters.ThresholdClassifierFilter" },
                                                         new string[] { "TimeSmoothingFilter",       "Palmtree.Filters.TimeSmoothingFilter"},
-                                                        new string[] { "FlexKeySequenceFilter",     "Palmtree.Filters.FlexKeySequenceFilter" }
+                                                        new string[] { "FlexKeySequenceFilter",     "Palmtree.Filters.FlexKeySequenceFilter" },
+                                                        new string[] { "WSIOFilter",                "Palmtree.Filters.WSIOFilter" }
                                                     };
 
         public static int getClassVersion() {
