@@ -152,7 +152,7 @@ namespace Palmtree.Sources {
             }
 
             // return the samples per second
-            return samplePackageRate;
+            return samplePackageRate * samplesPerPackage;
 
         }
 
