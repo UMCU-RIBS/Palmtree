@@ -828,7 +828,7 @@ namespace Palmtree.GUI {
                 for (int c = 0; c < columns; c++) {
                     for (int r = 0; r < rows; r++) {
                         Object cell = grd[c, r].Value;
-                        if (cell == null) matstring += " ";
+                        if (cell == null) matstring += "";
                         else matstring += cell.ToString().Trim().Replace(',', '.');
                         if (r != rows - 1) matstring += Parameters.MatRowDelimiters[0];
                     }
