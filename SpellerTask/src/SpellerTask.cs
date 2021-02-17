@@ -75,35 +75,36 @@ namespace SpellerTask {
         private bool allowExit = false;
         private int holeRows = 0;
         private int holeColumns = 0;
-        private bool ToTopOnIncorrectRow = false;                               // whether to return to top row when an incorrect row is selected.
-        private bool showScore = false;                                         // whether or not to show score
-        private string[][] inputArray = null;
-        private string backspaceCode = "";
-        private string[] inputs = null;
-        private string[] answers = null;                                        // targets (answers) in case of question mode
-        private int cueInputDelay = 0;                                          // time between presentation of cue and inputs, in samples
-        private List<string> cues = new List<string>(0);
-        private bool backspacePresent = false;                                  // whether or not a backspace button is present in the input options
-        private int isi = 0;                                                    // inter stimulus interval, in samples
-        private int cueType = 0;
-        private int maxRowLoop = 0;                                             // maximal amount of times a row is looped over before it returns to the top row
+        private bool toTopOnIncorrectRow = false;                               // whether to return to top row when an incorrect row is selected.
+        private bool showScore                  = false;                        // whether or not to show score
+        private string[][] inputArray           = null;
+        private string backspaceCode            = "";
+        private string[] inputs                 = null;
+        private string[] answers                = null;                         // targets (answers) in case of question mode
+        private int cueInputDelay               = 0;                            // time between presentation of cue and inputs, in samples
+        private List<string> cues               = new List<string>(0);
+        private bool backspacePresent           = false;                        // whether or not a backspace button is present in the input options
+        private int isi                         = 0;                            // inter stimulus interval, in samples
+        private int cueType                     = 0;
+        private int maxRowLoop                  = 0;                            // maximal amount of times a row is looped over before it returns to the top row
+        private bool synthesizeSpeech           = false;                        // whether or not to show score
 
         // task specific variables
-        private int waitCounter = 0;
-        private int rowID = 0;
-        private int columnID = 0;
-        private int backSpacesNeeded = 0;
-        private string currentTarget = null;
-        private int currentTargetIndex = 0;                                     // the index of the current target in the currently presented word
-        private bool wordSpelled = false;
-        private int correctClicks = 0;
-        private int totalClicks = 0;
-        string waitText = "";
-        private int countdownCounter = 0;					                    // the countdown timer
-        private int score = 0;						                            // the score of the user correctly responding to the cues
-        private int rowLoopCounter = 0;
-        private int cueCounter = 0;
-        private SpeechSynthesizer synthesizer = null;
+        private int waitCounter                 = 0;
+        private int rowID                       = 0;
+        private int columnID                    = 0;
+        private int backSpacesNeeded            = 0;
+        private string currentTarget            = null;
+        private int currentTargetIndex          = 0;                            // the index of the current target in the currently presented word
+        private bool wordSpelled                = false;
+        private int correctClicks               = 0;
+        private int totalClicks                 = 0;
+        private string waitText                 = "";
+        private int countdownCounter            = 0;			                // the countdown timer
+        private int score                       = 0;			                // the score of the user correctly responding to the cues
+        private int rowLoopCounter              = 0;
+        private int cueCounter                  = 0;
+        private SpeechSynthesizer synthesizer   = null;
 
         private enum TaskStates : int {
             Wait,
@@ -216,13 +217,13 @@ namespace SpellerTask {
                 "0");
 
             parameters.addParameter<bool>(
-                "showScore",
-                "If selected, show score.",
+                "ShowScore",
+                "Whether to show the score on the screen",
                 "0");
 
             parameters.addParameter<int>(
                 "MaxRowLoops",
-                "Maximal amount of times columns in a row are looped over before highlighting of rows starts again.",
+                "Maximal number of times (the cells in) a row is looped over before the row is exited and the row highlighting of the rows starts again.",
                 "0", "", "2");
 
             parameters.addParameter<double>(
@@ -249,6 +250,12 @@ namespace SpellerTask {
                 "InterStimulusInterval",
                 "Amount of time in seconds between presenting cues.",
                 "0", "", "1s");
+
+            parameters.addParameter<bool>(
+                "SynthesizeSpeech",
+                "Whether to synthesize speech",
+                "0");
+
         }
 
         public Parameters getParameters() {
@@ -345,21 +352,18 @@ namespace SpellerTask {
 
             // retrieve cues         
             string[][] cuesMatrix = newParameters.getValue<string[][]>("Cues");
-
-            // check if there are more columns than desired
             if (cuesMatrix.Length != 1) {
                 logger.Error("Cues matrix must contain exactly one column.");
                 return false;
             }
 
-            // retrieve back space code
+            // retrieve and check backspace code
             if (string.IsNullOrEmpty(newParameters.getValue<string>("BackspaceCode"))) {
                 logger.Warn("No backspace code given, defaulting to 'BACK'.");
                 backspaceCode = "BACK";
             } else {
                 backspaceCode = newParameters.getValue<string>("BackspaceCode");
             }
-
 
             // check if there are cues defined, if so, transfer to cue array
             if (cuesMatrix[0].Length < 1) {
@@ -368,7 +372,7 @@ namespace SpellerTask {
             } else {
                 cues.Clear();                       // reset cues list before adding new cues
                 for(int cue = 0; cue < cuesMatrix[0].Length; cue++) {
-                    if (cuesMatrix[0][cue] != " ") {
+                    if (cuesMatrix[0][cue].Trim().Length != 0) {
                         cues.Add(cuesMatrix[0][cue]);
                     } else {
                         logger.Warn("Skipped cue " + (cue + 1) + " because cue was empty.");
@@ -389,8 +393,6 @@ namespace SpellerTask {
 
             // retrieve matrix with input options
             inputArray = parameters.getValue<string[][]>("Input");
-
-            // if matrix is defined, retrieve amount of rows and columns and cell contents
             if (inputArray.Length > 0 && inputArray[0].Length >= 0) {
 
                 //
@@ -403,7 +405,6 @@ namespace SpellerTask {
                 }
 
                 inputs = new string[holeRows * holeColumns];
-
                 for(int row = 0; row < holeRows; row++) {
                     for(int col = 0; col < holeColumns; col++) {
                         inputs[(holeColumns * row) + col] = inputArray[col][row];
@@ -423,8 +424,6 @@ namespace SpellerTask {
             }
 
             // retrieve selection delays and settings
-            ToTopOnIncorrectRow = newParameters.getValue<bool>("ToTopOnIncorrectRow");
-            showScore = newParameters.getValue<bool>("showScore");
             maxRowLoop = newParameters.getValue<int>("MaxRowLoops");
             rowSelectDelay = newParameters.getValueInSamples("RowSelectDelay");
             rowSelectedDelay = newParameters.getValueInSamples("RowSelectedDelay");
@@ -435,6 +434,11 @@ namespace SpellerTask {
                 return false;
             }
 
+            // 
+            toTopOnIncorrectRow = newParameters.getValue<bool>("ToTopOnIncorrectRow");
+            showScore = newParameters.getValue<bool>("ShowScore");
+            synthesizeSpeech = newParameters.getValue<bool>("SynthesizeSpeech");
+
             // return success
             return true;
 
@@ -444,13 +448,6 @@ namespace SpellerTask {
                                 
             // lock for thread safety
             lock(lockView) {
-
-                //set up Speech Synthesis
-                synthesizer = new SpeechSynthesizer();
-                synthesizer.Volume = 100;  // 0...100
-                synthesizer.Rate = 0;     // -10...10
-                synthesizer.SetOutputToDefaultAudioDevice();
-                synthesizer.SpeakAsync("Auditory speller");
 
                 // create extra row for exit if needed
                 if (allowExit) holeRows++;
@@ -517,6 +514,15 @@ namespace SpellerTask {
                 waitCounter--;
             }
 
+            //set up a speech synthesizer object
+            if (synthesizeSpeech) {
+                synthesizer = new SpeechSynthesizer();
+                synthesizer.Volume = 100;  // 0...100
+                synthesizer.Rate = 0;     // -10...10
+                synthesizer.SetOutputToDefaultAudioDevice();
+                synthesizer.SpeakAsync("Auditory speller");
+            }
+
         }
 
         public void start() {
@@ -540,17 +546,31 @@ namespace SpellerTask {
                 totalClicks = 0;
                 backSpacesNeeded = 0;
                 wordSpelled = false;
-                countdownCounter = countdownTime;
-                waitCounter = taskFirstRunStartDelay;
-                view.setFixation(true);
                 waitText = "";
 
                 if (cueType == 0)
                     currentTarget = cues[cueCounter].Substring(currentTargetIndex, 1);
+
+	            // reset countdown to the countdown time
+	            countdownCounter = countdownTime;
+
+	            if (taskFirstRunStartDelay != 0) {
+		            // wait
+
+		            // set state to wait
+                    waitCounter = taskFirstRunStartDelay;
+		            setState(TaskStates.Wait);
+                    
+                    // show the fixation
+                    view.setFixation(true);
+
+	            } else {
+			
+		            // countdown
+		            setState(TaskStates.CountDown);
+
+	            }
                 
-                // set state to wait and countdown after that
-                setState(TaskStates.Wait);
-                afterWait = TaskStates.CountDown;
             }
         }
 
@@ -559,12 +579,9 @@ namespace SpellerTask {
             // stop the connection lost sound from playing
             SoundHelper.stopContinuous();
 
-            // lock for thread safety
+            // stop the task
             lock (lockView) {
-
-                // stop the task
                 stopTask();
-
             }
 
             // log event app is stopped
@@ -705,8 +722,7 @@ namespace SpellerTask {
 
                         if (waitCounter > 0)    waitCounter--;
                         else
-                            setState(TaskStates.RowSelect);
-                            
+                            setState(TaskStates.RowSelect);    
 
                         break;
 
@@ -716,23 +732,37 @@ namespace SpellerTask {
                         // if clicked, select row, otherwise continue
 			            if (click)
                             setState(TaskStates.RowSelected);
+
                         else {
 
-				            if(waitCounter == 0) {
+				            if (waitCounter == 0) {
                                 
                                 // Advance to next row and wrap around
                                 rowID++;
 					            if(rowID >= holeRows)		rowID = 0;
 					            
-                                // announce row
-                                string cellContent = holes[holeColumns * rowID + 1].content;
-                                if (string.IsNullOrEmpty(cellContent))
-                                    synthesizer.SpeakAsync("Empty Row");
-                                else
-                                    synthesizer.SpeakAsync("Row " + cellContent);
-
                                 // select the row in the scene
                                 view.selectRow(rowID, false);
+
+                                // synthesize row
+                                if (synthesizeSpeech && synthesizer != null) {
+
+                                    // try to find the first non-empty option in the row
+                                    string cellContent = "";
+                                    for (int i = holeColumns * rowID; i < holeColumns * (rowID + 1); i++) {
+                                        if (holes[i].cellType != SpellerCell.CellType.Empty) {
+                                            cellContent = holes[i].content;
+                                            break;
+                                        }
+                                    }
+
+                                    // synthesize
+                                    if (string.IsNullOrEmpty(cellContent))
+                                        synthesizer.SpeakAsync("Empty Row");
+                                    else
+                                        synthesizer.SpeakAsync("Row " + cellContent);
+                                    
+                                }
 
                                 // check whether selected row contains target, if using words as cues
                                 if (cueType == 0) {
@@ -753,13 +783,27 @@ namespace SpellerTask {
 
                         // wait duration of delay, after that proceed to selecting row or columns
                         if (waitCounter == 0) {
-
-                            string cellContent = holes[holeColumns * rowID + 1].content;
-                            if (string.IsNullOrEmpty(cellContent))
-                                    synthesizer.SpeakAsync("Empty Row");
-                            else
-                                synthesizer.SpeakAsync("Row " + cellContent);
                             
+                            // synthesize speech
+                            if (synthesizeSpeech && synthesizer != null) {
+
+                              // try to find the first non-empty option in the row
+                                string cellContent = "";
+                                for (int i = holeColumns * rowID; i < holeColumns * (rowID + 1); i++) {
+                                    if (holes[i].cellType != SpellerCell.CellType.Empty) {
+                                        cellContent = holes[i].content;
+                                        break;
+                                    }
+                                }
+
+                                // synthesize cell
+                                if (string.IsNullOrEmpty(cellContent))
+                                        synthesizer.SpeakAsync("Empty Row");
+                                else
+                                    synthesizer.SpeakAsync("Row " + cellContent);
+
+                            }
+
                             // update total number of clicks
                             totalClicks++;
 
@@ -767,7 +811,7 @@ namespace SpellerTask {
                             if (targetInRow(rowID)) correctClicks++;
 
                             // if incorrect row is selected and parameter to return to top row is true, return to highlighting rows from top (do not do so in questionmode when no answers are provided). Otherwise, start highlighting columns 
-                            if (!targetInRow(rowID) && ToTopOnIncorrectRow && !(cueType == 1 && answers==null) )    setState(TaskStates.RowSelect);                         
+                            if (!targetInRow(rowID) && toTopOnIncorrectRow && !(cueType == 1 && answers==null) )    setState(TaskStates.RowSelect);                         
                             else                                                                                    setState(TaskStates.ColumnSelect);
 
                         } else waitCounter--;
@@ -797,13 +841,14 @@ namespace SpellerTask {
 						            rowLoopCounter++;
 					            }
 
-                                // announce the cell
-                                string cellContent = holes[holeColumns * rowID + columnID].content;
-                                if (string.IsNullOrEmpty(cellContent))
-                                    synthesizer.SpeakAsync("Empty Cell");
-                                else
-                                    synthesizer.SpeakAsync(cellContent);
-								
+                                // synthesize the cell
+                                if (synthesizeSpeech && synthesizer != null) {
+                                    if (holes[holeColumns * rowID + columnID].cellType == SpellerCell.CellType.Empty)
+                                        synthesizer.SpeakAsync("Empty Cell");
+                                    else
+                                        synthesizer.SpeakAsync(holes[holeColumns * rowID + columnID].content);
+                                }
+
                                 // check if there has been looped more than the defined maximal times
                                 if (rowLoopCounter >= maxRowLoop) {
 						
@@ -843,11 +888,13 @@ namespace SpellerTask {
                             // get clicked cell
                             SpellerCell activeCell = holes[holeColumns * rowID + columnID];
                             
-                            // announce the cell content
-                            if (string.IsNullOrEmpty(activeCell.content))
-                                synthesizer.SpeakAsync("Empty Cell");
-                            else
-                                synthesizer.SpeakAsync(activeCell.content);
+                            // synthesize the cell content
+                            if (synthesizeSpeech && synthesizer != null) {
+                                if (activeCell.cellType == SpellerCell.CellType.Empty)
+                                    synthesizer.SpeakAsync("Empty Cell");
+                                else
+                                    synthesizer.SpeakAsync(activeCell.content);
+                            }
 
                             // store that a cell is clicked
                             totalClicks++;
@@ -1087,16 +1134,18 @@ namespace SpellerTask {
 
         private void destroyView() {
 
-	        // check if a scene thread still exists
+            // dispose and release the synthesizer
+            if (synthesizer != null) {
+                synthesizer.Dispose();
+                synthesizer = null;
+            }
+             
+	        // stop (waits until finished) and release the view thread
 	        if (view != null) {
-
-		        // stop the animation thread (stop waits until the thread is finished)
                 view.stop();
-
-                // release the thread (For collection)
                 view = null;
-
 	        }
+
         }
 
 
@@ -1371,7 +1420,6 @@ namespace SpellerTask {
             newParameters.setValue("CountdownTime", "3s");
             newParameters.setValue("TaskInputChannel", 1);
             newParameters.setValue("TaskFirstRunStartDelay", "2s");
-            newParameters.setValue("TaskStartDelay", "2s");
             newParameters.setValue("HoleRows", 4);
             newParameters.setValue("HoleColumns", 4);
             newParameters.setValue("RowSelectDelay", 12.0);
