@@ -787,13 +787,6 @@ namespace SpellerTask {
                                 // Advance to next row and wrap around
                                 columnID++;
                                 
-                                // announce the cell
-                                string cellContent = holes[holeColumns * rowID + columnID].content;
-                                if (string.IsNullOrEmpty(cellContent))
-                                    synthesizer.SpeakAsync("Empty Cell");
-                                else
-                                    synthesizer.SpeakAsync(cellContent);
-
                                 // if the end of row has been reached
                                 if (columnID >= holeColumns) {
                                     
@@ -804,6 +797,13 @@ namespace SpellerTask {
 						            rowLoopCounter++;
 					            }
 
+                                // announce the cell
+                                string cellContent = holes[holeColumns * rowID + columnID].content;
+                                if (string.IsNullOrEmpty(cellContent))
+                                    synthesizer.SpeakAsync("Empty Cell");
+                                else
+                                    synthesizer.SpeakAsync(cellContent);
+								
                                 // check if there has been looped more than the defined maximal times
                                 if (rowLoopCounter >= maxRowLoop) {
 						
