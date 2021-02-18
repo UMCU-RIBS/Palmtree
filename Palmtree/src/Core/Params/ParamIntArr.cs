@@ -58,8 +58,8 @@ namespace Palmtree.Core.Params {
                 // request to return as other
 
                 // message and return 0
-                logger.Error("Could not retrieve the value for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') as '" + paramType.Name + "', can only return value as an array of integers (int[]). Returning empty array");
-                return (T)Convert.ChangeType(0, typeof(T));    
+                logger.Error("Could not retrieve the values for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') as '" + paramType.Name + "', can only return values as an array of integers (int[]). Returning empty array");
+                return (T)Convert.ChangeType(Parameters.emptyValue<T>(), typeof(T));    
 
             }
             
@@ -85,7 +85,7 @@ namespace Palmtree.Core.Params {
 
                 // message and return false
                 logger.Error("Could not retrieve the unit for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') as '" + paramType.Name + "', can only return value as 'Parameters.Units[]'. Returning 0");
-                return (T)Convert.ChangeType(0, typeof(T));    
+                return (T)Convert.ChangeType(Parameters.emptyValue<T>(), typeof(T));    
 
             }
 
@@ -104,8 +104,8 @@ namespace Palmtree.Core.Params {
                 // request to return as other
 
                 // message and return 0
-                logger.Error("Could not retrieve the value in samples for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') as '" + paramType.Name + "', can only return value as int[]. Returning 0");
-                return (T)Convert.ChangeType(0, typeof(T));
+                logger.Error("Could not retrieve the values (in samples) for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') as '" + paramType.Name + "', can only return values as int[]. Returning 0");
+                return (T)Convert.ChangeType(Parameters.emptyValue<T>(), typeof(T));
 
             }
 
@@ -133,7 +133,7 @@ namespace Palmtree.Core.Params {
                     if (samples != intSamples) {
 
                         // message
-                        logger.Warn("Value for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') was retrieved in number of samples (" + val + "s * " + SampleConversion.sampleRate() + "Hz), but has been rounded from " + samples + " samples to " + intSamples + " samples");
+                        logger.Warn("Value in parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') was retrieved in number of samples (" + val + "s * " + SampleConversion.sampleRate() + "Hz), but has been rounded from " + samples + " samples to " + intSamples + " samples");
 
                     }
 

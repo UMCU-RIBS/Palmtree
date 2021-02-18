@@ -69,7 +69,7 @@ namespace Palmtree.Core.Params {
 
                 // message and return false
                 logger.Error("Could not retrieve the unit for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') as '" + paramType.Name + "', can only return value as 'Parameters.Units'. Returning 0");
-                return (T)Convert.ChangeType(0, typeof(T));
+                return (T)Convert.ChangeType(Parameters.emptyValue<T>(), typeof(T));
 
             }
 
@@ -81,7 +81,7 @@ namespace Palmtree.Core.Params {
             logger.Error("Trying to retrieve the value in samples for string parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') in number of samples, cannot convert a boolean, returning 0");
 
             // return value
-            return (T)Convert.ChangeType(0, typeof(int));
+            return (T)Convert.ChangeType(Parameters.emptyValue<T>(), typeof(T));
 
         }
 

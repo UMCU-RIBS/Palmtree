@@ -47,7 +47,7 @@ namespace Palmtree.Core.Params {
 
                 // message and return 0
                 logger.Error("Could not retrieve the value for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') as '" + paramType.Name + "', can only return value as integer. Returning 0");
-                return (T)Convert.ChangeType(0, typeof(T));    
+                return (T)Convert.ChangeType(Parameters.emptyValue<T>(), typeof(T));    
 
             }
             
@@ -67,7 +67,7 @@ namespace Palmtree.Core.Params {
 
                 // message and return false
                 logger.Error("Could not retrieve the unit for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') as '" + paramType.Name + "', can only return value as 'Parameters.Units'. Returning 0");
-                return (T)Convert.ChangeType(0, typeof(T));    
+                return (T)Convert.ChangeType(Parameters.emptyValue<T>(), typeof(T));    
 
             }
 
@@ -86,8 +86,8 @@ namespace Palmtree.Core.Params {
                 // request to return as other
 
                 // message and return 0
-                logger.Error("Could not retrieve the value in samples for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') as '" + paramType.Name + "', can only return value as int. Returning 0");
-                return (T)Convert.ChangeType(0, typeof(T));
+                logger.Error("Could not retrieve the value (in samples) for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') as '" + paramType.Name + "', can only return value as int. Returning 0");
+                return (T)Convert.ChangeType(Parameters.emptyValue<T>(), typeof(T));
 
             }
 

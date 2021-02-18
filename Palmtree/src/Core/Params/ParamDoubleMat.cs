@@ -65,8 +65,8 @@ namespace Palmtree.Core.Params {
                 // request to return as other
 
                 // message and return 0
-                logger.Error("Could not retrieve the value for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') as '" + paramType.Name + "', can only return value as a matrix of doubles (double[][]). Returning empty matrix");
-                return (T)Convert.ChangeType(0, typeof(T));    
+                logger.Error("Could not retrieve the values for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') as '" + paramType.Name + "', can only return values as a matrix of doubles (double[][]). Returning empty matrix");
+                return (T)Convert.ChangeType(Parameters.emptyValue<T>(), typeof(T));    
 
             }
             
@@ -95,7 +95,7 @@ namespace Palmtree.Core.Params {
 
                 // message and return false
                 logger.Error("Could not retrieve the unit for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') as '" + paramType.Name + "', can only return value as 'Parameters.Units[][]'. Returning 0");
-                return (T)Convert.ChangeType(0, typeof(T));    
+                return (T)Convert.ChangeType(Parameters.emptyValue<T>(), typeof(T));    
 
             }
 
@@ -108,94 +108,125 @@ namespace Palmtree.Core.Params {
         public T getValueInSamples<T>(int[] ignoreColumns) {
 
             Type paramType = typeof(T);
-            if (paramType == typeof(int[][])) {
-                // request to return as int[][]
+            if (paramType == typeof(int[][]) || paramType == typeof(double[][])) {
+                // request to return as int[][] or double[][]
+                
+                // retrieve the values in samples
+                double[][] retValues = getValueInSamples(ignoreColumns);
+                
+                // return as int[][]
+                if (paramType == typeof(int[][])) {
+                    
+                    // convert doubles to int
+                    int[][] intRetValues = new int[retValues.Length][];
+                    for (int c = 0; c < units.Length; c++) {
+                        intRetValues[c] = new int[retValues[c].Length];
+                        for (int r = 0; r < retValues[c].Length; r++) {
+                            intRetValues[c][r] = (int)Math.Round(retValues[c][r]);
+                            if (intRetValues[c][r] != retValues[c][r]) {
+                                logger.Warn("A value in parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') was rounded from a double (" + retValues[c][r] + ") to an integer (" + intRetValues[c][r] + ") with a loss of precision, retrieve as this parameter as double[][] to retain precision");
+                            }
+                        }
+                    }
 
-                // return value
-                return (T)Convert.ChangeType(getValueInSamples(ignoreColumns), typeof(int[][]));
+                    // return int[][]
+                    return (T)Convert.ChangeType(intRetValues, typeof(int[][]));
+                }
+
+                // return as double[][]
+                return (T)Convert.ChangeType(retValues, typeof(double[][]));
 
             } else {
                 // request to return as other
-
+                
                 // message and return 0
-                logger.Error("Could not retrieve the value in samples for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') as '" + paramType.Name + "', can only return value as int[][]. Returning 0");
-                return (T)Convert.ChangeType(0, typeof(T));
+                logger.Error("Could not retrieve the values (in samples) for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') as '" + paramType.Name + "', can only return values as double[][] or int[][]. Returning 0");
+                return (T)Convert.ChangeType(Parameters.emptyValue<T>(), typeof(T));
 
             }
 
         }
-
-        public int[][] getValueInSamples() {
+        
+        public double[][] getValueInSamples() {
             return getValueInSamples(null);
         }
-
-        public int[][] getValueInSamples(int[] ignoreColumns) {
-
-            // create an matrix of values (in samples) to return
-            int[][] retValues = new int[values.Length][];
+        
+        public double[][] getValueInSamples(int[] ignoreColumns) {
+            
+            // create an matrix of values to return
+            double[][] retValues = new double[values.Length][];
 
             // loop through the columns
             for (int c = 0; c < units.Length; c++) {
 
                 // check if column should be ignored, if so skip
+                bool ignoreColumn = false;
                 if (ignoreColumns != null && ignoreColumns.Length > 0) {
-                    bool ignoreColumn = false;
                     for (int j = 0; j < ignoreColumns.Length; j++) {
                         if (c == ignoreColumns[j]) {
                             ignoreColumn = true;
                             break;
                         }
                     }
-                    if (ignoreColumn)   continue;
                 }
 
-                // create array of values (in samples) for this column
-                retValues[c] = new int[values[c].Length];
+                // create array of values for this column
+                retValues[c] = new double[values[c].Length];
                 
                 // loop through the rows
                 for (int r = 0; r < values[c].Length; r++) {
 
-                    // retrieve the value
-                    double val = values[c][r];
-                    int intSamples = 0;
+                    if (ignoreColumn)
 
-                    // check if the unit is set in seconds
-                    if (units[c][r] == Parameters.Units.Seconds) {
-                        // flagged as seconds
+                        // just copy the value (unrounded original value)
+                        retValues[c][r] = values[c][r];
 
-                        // convert, check rounding
-                        double samples = SampleConversion.timeToSamplesAsDouble(val);   // conversion result as double, no rounding before
-                        intSamples = (int)Math.Round(samples);
-                        if (samples != intSamples) {
+                    else {
+                    
+                        // retrieve the value
+                        double val = values[c][r];
+                        int intSamples = 0;
 
-                            // message
-                            logger.Warn("Value for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') was retrieved in number of samples (" + val + "s * " + SampleConversion.sampleRate() + "Hz), but has been rounded from " + samples + " sample(s) to " + intSamples + " sample(s)");
+                        // check if the unit is set in seconds
+                        if (units[c][r] == Parameters.Units.Seconds) {
+                            // flagged as seconds
+
+                            // convert, check rounding
+                            double samples = SampleConversion.timeToSamplesAsDouble(val);   // conversion result as double, no rounding before
+                            intSamples = (int)Math.Round(samples);
+                            if (samples != intSamples) {
+
+                                // message
+                                logger.Warn("Value in parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') was retrieved in number of samples (" + val + "s * " + SampleConversion.sampleRate() + "Hz), but has been rounded from " + samples + " sample(s) to " + intSamples + " sample(s)");
+
+                            }
+
+                        } else {
+                            // not flagged as seconds
+
+                            // convert double to int, check rounding
+                            intSamples = (int)Math.Round(val);
+                            if (val != intSamples) {
+
+                                // message
+                                logger.Warn("Value in parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') was retrieved in number of samples, but has been rounded from " + val + " sample(s) to " + intSamples + " samples");
+
+                            }
 
                         }
 
-                    } else {
-                        // not flagged as seconds
-
-                        // convert double to int, check rounding
-                        intSamples = (int)Math.Round(val);
-                        if (val != intSamples) {
-
-                            // message
-                            logger.Warn("Value for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') was retrieved in number of samples, but has been rounded from " + val + " sample(s) to " + intSamples + " samples");
-
-                        }
+                        // store the value in rounded samples
+                        retValues[c][r] = intSamples;
 
                     }
-
-                    retValues[c][r] = intSamples;
 
                 }
 
             }
 
-            // return number of samples
+            // return values
             return retValues;
-
+    
         }
 
         public override string ToString() {

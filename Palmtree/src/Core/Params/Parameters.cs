@@ -273,7 +273,7 @@ namespace Palmtree.Core.Params {
                     logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', returning 0");
 
                     // return 0
-                    return (T)Convert.ChangeType(0, typeof(T));
+                    return (T)Convert.ChangeType(Parameters.emptyValue<T>(), typeof(T));
 
                 }
 
@@ -295,7 +295,7 @@ namespace Palmtree.Core.Params {
                     logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', returning 0");
 
                     // return 0
-                    return (T)Convert.ChangeType(0, typeof(T));
+                    return (T)Convert.ChangeType(Parameters.emptyValue<T>(), typeof(T));
 
                 }
 
@@ -316,7 +316,7 @@ namespace Palmtree.Core.Params {
 
                     // message and return 0
                     logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', returning 0");
-                    return (T)Convert.ChangeType(0, typeof(T));
+                    return (T)Convert.ChangeType(Parameters.emptyValue<T>(), typeof(T));
 
                 }
                     
@@ -330,8 +330,8 @@ namespace Palmtree.Core.Params {
                 } else {
 
                     // message and return 0
-                    logger.Error("Could not retrieve the value in samples for parameter '" + paramName + "' (parameter set: '" + paramSetName + "'), the getValueInSamples functionality with ignoreColumns can only be used for matrix parameters (int[][] or double[][]). Returning 0");
-                    return (T)Convert.ChangeType(0, typeof(T));
+                    logger.Error("Could not retrieve the values (in samples) for parameter '" + paramName + "' (parameter set: '" + paramSetName + "'), the getValueInSamples functionality with ignoreColumns can only be used for matrix parameters (int[][] or double[][]). Returning 0");
+                    return (T)Convert.ChangeType(Parameters.emptyValue<T>(), typeof(T));
 
                 }
                 
@@ -715,6 +715,33 @@ namespace Palmtree.Core.Params {
 
             }
 
+        }
+        
+        public static T emptyValue<T>() {
+            Type paramType = typeof(T);
+            if (paramType == typeof(ParamBool) || paramType == typeof(bool) || paramType == typeof(Boolean)) {
+                return (T)Convert.ChangeType(false, typeof(T));
+            } else if (paramType == typeof(ParamInt) || paramType == typeof(int) || paramType == typeof(ParamDouble) || paramType == typeof(double)) {
+                return (T)Convert.ChangeType(0, typeof(T));
+            } else if (paramType == typeof(ParamBoolArr) || paramType == typeof(bool[]) || paramType == typeof(Boolean[])) {
+                return (T)Convert.ChangeType(new bool[0], typeof(T));
+            } else if (paramType == typeof(ParamIntArr) || paramType == typeof(int[])) {
+                return (T)Convert.ChangeType(new int[0], typeof(T));
+            } else if (paramType == typeof(ParamDoubleArr) || paramType == typeof(double[])) {
+                return (T)Convert.ChangeType(new double[0], typeof(T));
+            } else if (paramType == typeof(ParamBoolMat) || paramType == typeof(bool[][]) || paramType == typeof(Boolean[][])) {
+                return (T)Convert.ChangeType(new bool[0][], typeof(T));
+            } else if (paramType == typeof(ParamIntMat) || paramType == typeof(int[][])) {
+                return (T)Convert.ChangeType(new int[0][], typeof(T));
+            } else if (paramType == typeof(ParamDoubleMat) || paramType == typeof(double[][])) {
+                return (T)Convert.ChangeType(new double[0][], typeof(T));
+            } else if (paramType == typeof(ParamStringMat) || paramType == typeof(string[][]) || paramType == typeof(String[][])) {
+                return (T)Convert.ChangeType(new string[0][], typeof(T));
+            } else if (paramType == typeof(ParamColor) || paramType == typeof(RGBColorFloat)) {
+                return (T)Convert.ChangeType(null, typeof(T));
+            } else {
+                return (T)Convert.ChangeType(null, typeof(T));
+            }
         }
 
         public Parameters clone() {
