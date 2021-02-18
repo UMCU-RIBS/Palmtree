@@ -1,7 +1,7 @@
 ﻿/**
  * ThresholdClassifierFilter class
  * 
- * ...
+ * This filters allow for the thresholding (binarizing) of specific channels, other channels pass through untouched.
  * 
  * 
  * Copyright (C) 2017:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
@@ -29,24 +29,24 @@ namespace Palmtree.Filters {
     /// </summary>
     public class ThresholdClassifierFilter : FilterBase, IFilter {
 
-        private new const int CLASS_VERSION = 2;
+        private new const int CLASS_VERSION     = 3;
 
-        private int[] mConfigInputChannels = null;
-        private int[] mConfigOutputChannels = null;
-        private double[] mConfigThresholds = null;
-        private int[] mConfigDirections = null;
+        private int[] mChannels                 = null;         // the channels that need to be thresholded (0-based)
+        private double[] mThresholds            = null;         // the thresholds that will be applied to the incoming values on the specified channel
+        private int[] mDirections               = null;         // the direction in which the threshold is applied
+
 
         public ThresholdClassifierFilter(string filterName) {
 
             // set class version
-            base.CLASS_VERSION = CLASS_VERSION;
+            base.CLASS_VERSION  = CLASS_VERSION;
 
             // store the filter name
-            this.filterName = filterName;
+            this.filterName     = filterName;
 
             // initialize the logger and parameters with the filter name
-            logger = LogManager.GetLogger(filterName);
-            parameters = ParameterManager.GetParameters(filterName, Parameters.ParamSetTypes.Filter);
+            logger              = LogManager.GetLogger(filterName);
+            parameters          = ParameterManager.GetParameters(filterName, Parameters.ParamSetTypes.Filter);
 
             // define the parameters
             parameters.addParameter<bool>(
@@ -60,9 +60,9 @@ namespace Palmtree.Filters {
                 "0");
 
             parameters.addParameter <double[][]>  (
-                "Thresholds",
-                "Specifies which input channels are added together to one or more output channels.\nAlso specifies what threshold values are applied to the output values, after addition, to binarize the output values\n\nInput: Input channel (1...n)\nOutput: output channel (1...n)\nThreshold: (channel output) threshold above or under which the channel output will become 1 or 0\nDirection: the direction of the thresholding.\nIf direction < 0 (negative) then smaller than the threshold will result in true; if >= 0 (positive) then larger than the threshold will result in true",
-                "", "", "1,2;1,2;0.45,0.45;1,1", new string[] { "Input", "Output", "Threshold", "Direction" });
+                "Thresholding",
+                "Specifies which channels are thresholded, the other channels pass through untouched.\n\nChannel: the channel (1...n) to which thresholding will be applied.\nThreshold: the threshold above (>) or under (<) which the channel output will become 1 or 0\nDirection: the direction of the thresholding. If the direction value is negative (<0) then input values smaller than\nthe threshold will result in true; if positive (>= 0) then input values larger than the threshold will result in true.\n",
+                "", "", "1,2;0.45,0.45;1,1", new string[] { "Channel", "Threshold", "Direction" });
 
             // message
             logger.Info("Filter created (version " + CLASS_VERSION + ")");
@@ -90,42 +90,19 @@ namespace Palmtree.Filters {
                 return false;
             }
 
-            // store a references to the input format (here so checkParameters can use it)
-            inputFormat = input;
+            // the output package will be in the same format as the input package
+            output = new SamplePackageFormat(input.numChannels, input.numSamples, input.packageRate, input.valueOrder);
 
+            // store a references to the input and output format
+            inputFormat = input;
+            outputFormat = output;
+            
             // check the values and application logic of the parameters
-            if (!checkParameters(parameters)) {
-                output = null;
-                return false;
-            }
+            if (!checkParameters(parameters))   return false;
 
             // transfer the parameters to local variables
             transferParameters(parameters);
             
-            // determine the number of output channels
-            int outputChannels;
-            if (mEnableFilter) {
-
-                // determine the highest output channel from the
-                // configuration and set this as the number of output channels
-                int highestOutputChannel = 0;
-                for (int row = 0; row < mConfigOutputChannels.Length; ++row) {
-                    if (mConfigOutputChannels[row] > highestOutputChannel)
-                        highestOutputChannel = mConfigOutputChannels[row];
-                }
-                outputChannels = highestOutputChannel;
-
-            } else {
-
-                // filter will pass the input straight through, so same number of channels as output
-                outputChannels = inputFormat.numChannels;
-
-            }
-
-            // create an output sampleformat
-            output = new SamplePackageFormat(outputChannels, input.numSamples, input.packageRate, input.valueOrder);
-            outputFormat = output;
-
             // configure output logging for this filter
             configureOutputLogging(filterName + "_", output);
 
@@ -149,49 +126,11 @@ namespace Palmtree.Filters {
             
             // check if new parameters are given (only a reset is also an option)
             if (newParameters != null) {
-
-                // retrieve whether the filter should be enabled
-                bool newEnabled = newParameters.getValue<bool>("EnableFilter");
-                if (!mEnableFilter && newEnabled) {
-                    // filter was off, and should be switched on
-
-                    // determine the highest output channel from the configuration
-                    double[][] newThresholds = parameters.getValue<double[][]>("Thresholds");
-                    int highestOutputChannel = 0;
-                    for (int row = 0; row < newThresholds[0].Length; ++row) {
-                        if (newThresholds[1][row] > highestOutputChannel)
-                            highestOutputChannel = (int)newThresholds[1][row];
-                    }
-
-                    // check if the number of output channels would remain the same (if the change would be applied)
-                    if (outputFormat.numChannels != highestOutputChannel) {
-
-                        // message
-                        logger.Error("Error while trying to enable the filter. Enabling the filter would adjust the number of output channels from " + outputFormat.numChannels + " to " + highestOutputChannel + ", this might break the next filter(s) and is disallowed, not applying filter re-configuration");
-
-                        // return failure
-                        return false;
-
-                    }
-
-                } else if (mEnableFilter && !newEnabled) {
-                    // filter was on, and should be switched off
-
-                    // Check if the number of output channels would remain or change the same (if the change would be applied)
-                    // When the filter is to be switched off, then the current number of output
-                    // channels (now, with the filter on) should be the same as the number of input channels. 
-                    if (outputFormat.numChannels != inputFormat.numChannels) {
-                        // number of channels would change, disallow adjustment
-
-                        // message
-                        logger.Error("Error while trying to disable the filter. Disabling the filter would adjust the number of output channels from " + outputFormat.numChannels + " to " + inputFormat.numChannels + ", this might break the next filter(s) and is disallowed, not applying filter re-configuration");
-
-                        // return failure
-                        return false;
-
-                    }
-
-                }
+                
+                //
+                // no pre-check on the number of output channels is needed here, the number of output
+                // channels will remain the some regardless to the filter being enabled or disabled
+                // 
 
                 // check the values and application logic of the parameters
                 if (!checkParameters(newParameters))    return false;
@@ -251,7 +190,7 @@ namespace Palmtree.Filters {
 
             // initialize the variables (if needed)
             initialize();
-
+            
             // return success
             return true;
 
@@ -265,35 +204,37 @@ namespace Palmtree.Filters {
             // 
             // TODO: parameters.checkminimum, checkmaximum
 
-            // filter is enabled/disabled
+            // if the filter is enabled
             bool newEnableFilter = newParameters.getValue<bool>("EnableFilter");
-
-            // check if the filter is enabled
             if (newEnableFilter) {
 
                 // check thresholds
-                double[][] newThresholds = newParameters.getValue<double[][]>("Thresholds");
-		        if (newThresholds.Length != 4 || newThresholds[0].Length <= 0) {
-                    logger.Error("Threshold parameter must have 4 columns (Input channel, Output channel, Threshold, Direction) and at least one row");
+                double[][] newThresholds = newParameters.getValue<double[][]>("Thresholding");
+		        if (newThresholds.Length != 0 && newThresholds.Length != 3) {
+                    logger.Error("Threshold parameter must have 3 columns (Channel, Threshold, Direction)");
                     return false;
                 }
+                
+                // check the channel indices (1...#chan and not double)
+                if (newThresholds.Length > 0) {
+                    for (int row = 0; row < newThresholds[0].Length; ++row ) {
 
-                // loop through the rows
-                for (int row = 0; row < newThresholds[0].Length; ++row ) {
+                        if (newThresholds[0][row] < 1 || newThresholds[0][row] % 1 != 0) {
+                            logger.Error("Channels indices must be positive integers (note that the channel numbering is 1-based)");
+                            return false;
+                        }
+                        if (newThresholds[0][row] > inputFormat.numChannels) {
+                            logger.Error("One of the channel indices (value " + newThresholds[0][row] + ") exceeds the number of channels coming into the filter (" + inputFormat.numChannels + ")");
+                            return false;
+                        }
+                        for (int j = 0; j < newThresholds[0].Length; ++j ) {
+                            if (row != j && newThresholds[0][row] == newThresholds[0][j]) {
+                                logger.Error("One of the channel indices (value " + newThresholds[0][row] + ") occurs twice. A channel can only be thresholded once.");
+                                return false;
+                            }
+                        }
 
-                    if (newThresholds[0][row] < 1 || newThresholds[0][row] % 1 != 0) {
-                        logger.Error("Input channels must be positive integers (note that the channel numbering is 1-based)");
-                        return false;
                     }
-                    if (newThresholds[0][row] > inputFormat.numChannels) {
-                        logger.Error("One of the input channel values (" + newThresholds[0][row] + ") exceeds the number of channels coming into the filter (" + inputFormat.numChannels + ")");
-                        return false;
-                    }
-                    if (newThresholds[1][row] < 1 || newThresholds[0][row] % 1 != 0) {
-                        logger.Error("Output channels must be positive integers (note that the channel numbering is 1-based)");
-                        return false;
-                    }
-
                 }
 
             }
@@ -308,25 +249,25 @@ namespace Palmtree.Filters {
          **/
         private void transferParameters(Parameters newParameters) {
 
-            // filter is enabled/disabled
+            // if the filter is enabled
             mEnableFilter = newParameters.getValue<bool>("EnableFilter");
-
-            // check if the filter is enabled
             if (mEnableFilter) {
 
-                // retrieve newThresholds
-                double[][] newThresholds = newParameters.getValue<double[][]>("Thresholds");
-
-                // transfer the settings
-                mConfigInputChannels = new int[newThresholds[0].Length];        // 0 = channel 1
-                mConfigOutputChannels = new int[newThresholds[0].Length];        // 0 = channel 1
-                mConfigThresholds = new double[newThresholds[0].Length];
-                mConfigDirections = new int[newThresholds[0].Length];
-                for (int row = 0; row < newThresholds[0].Length; ++row ) {
-                    mConfigInputChannels[row] = (int)newThresholds[0][row];
-                    mConfigOutputChannels[row] = (int)newThresholds[1][row];
-                    mConfigThresholds[row] = newThresholds[2][row];
-                    mConfigDirections[row] = (int)newThresholds[3][row];
+                // retrieve and transfer the thresholds
+                double[][] newThresholds = newParameters.getValue<double[][]>("Thresholding");
+                if (newThresholds == null || newThresholds.Length == 0) {
+                    mChannels = new int[0];
+                    mThresholds = new double[0];
+                    mDirections = new int[0];
+                } else {
+                    mChannels = new int[newThresholds[0].Length];
+                    mThresholds = new double[newThresholds[0].Length];
+                    mDirections = new int[newThresholds[0].Length];
+                    for (int row = 0; row < newThresholds[0].Length; ++row ) {
+                        mChannels[row] = (int)newThresholds[0][row] - 1;
+                        mThresholds[row] = newThresholds[1][row];
+                        mDirections[row] = (int)newThresholds[2][row];
+                    }
                 }
 
             }
@@ -341,14 +282,13 @@ namespace Palmtree.Filters {
             logger.Debug("Enabled: " + mEnableFilter);
             logger.Debug("Output channels: " + outputFormat.numChannels);
             if (mEnableFilter) {
-                string strThresholds = "Thresholds: ";
-                if (mConfigInputChannels != null) {
-                    for (int i = 0; i < mConfigInputChannels.Length; i++) {
-                        strThresholds += "[" + mConfigInputChannels[i] + ", " + mConfigOutputChannels[i] + ", " + mConfigThresholds[i] + ", " + mConfigDirections[i] + "]";
+                string strThresholds = "Thresholding: ";
+                if (mChannels != null) {
+                    for (int i = 0; i < mChannels.Length; i++) {
+                        strThresholds += "[" + mChannels[i] + ", " + mThresholds[i] + ", " + mDirections[i] + "]";
                     }
-                } else {
+                } else
                     strThresholds += "-";
-                }
                 logger.Debug(strThresholds);
             }
 
@@ -372,53 +312,49 @@ namespace Palmtree.Filters {
         }
 
         public void process(double[] input, out double[] output) {
-            
-            // create an output package
-            output = new double[outputFormat.numChannels * outputFormat.numSamples];
 
             // check if the filter is enabled
-            if (mEnableFilter) {
-                // filter enabled
+            if (mEnableFilter && mChannels.Length > 0) {
+                // filter enabled and channels to threshold
                 
+                // create an output package
+                output = new double[outputFormat.numChannels * outputFormat.numSamples];
 
+                // if there are channels that only need to pass through untouched, then make a copy of the input matrix and only threshold specific values
+                // if all channels need to be thresholded, then this copy can be skipped because all values will be overwritten anyway.
+                if (mChannels.Length != inputFormat.numChannels)
+                    Buffer.BlockCopy(input, 0, output, 0, input.Length * sizeof(double));
+
+                // loop over the samples (in steps of the number of channels)
                 int totalSamples = inputFormat.numSamples * inputFormat.numChannels;
-                int outSample = 0;
-                for (int inSample = 0; inSample < totalSamples; inSample += inputFormat.numChannels) {
+                for (int sample = 0; sample < totalSamples; sample += inputFormat.numChannels) {
 
-                    // loop through the config rows and accumilate the input channels into the output channels
-                    for (uint row = 0; row < mConfigThresholds.Length; ++row)      
-                        output[outSample + mConfigOutputChannels[row] - 1] += input[inSample + mConfigInputChannels[row] - 1];
-
-		            // thresholding
-		            for (uint channel = 0; channel < outputFormat.numChannels; ++channel) {
-
+		            // threshold only 
+		            for (uint i = 0; i < mChannels.Length; ++i) {
+                        
                         // check if the direction is positive and the output value is higher than the threshold, or
                         // if the direction is negative and the output value is lower than the threshold
-                        if ((mConfigDirections[channel] <  0 && output[outSample + channel] < mConfigThresholds[channel]) || 
-                            (mConfigDirections[channel] >= 0 && output[outSample + channel] > mConfigThresholds[channel])) {
+                        if ((mDirections[i] <  0 && output[sample + mChannels[i]] < mThresholds[i]) || 
+                            (mDirections[i] >= 0 && output[sample + mChannels[i]] > mThresholds[i])) {
 
-				            output[outSample + channel] = 1;
+				            output[sample + mChannels[i]] = 1;
 
 			            } else {
 	
-				            output[outSample + channel] = 0;
+				            output[sample + mChannels[i]] = 0;
 
                         }
 
                     }
-
-                    // move the output sample index (the number of channels between input and output can differ)
-                    outSample += outputFormat.numChannels;
-
+                    
                 }
 
             } else {
-                // filter disabled
+                // filter disabled or no channels that require thresholding
 
-                // TODO: reason if we can just pass reference?
-                // copy the input straight through
-                Buffer.BlockCopy(input, 0, output, 0, input.Length * sizeof(double));
-
+                // pass reference
+                output = input;
+                
             }
 
             // handle the data logging of the output (both to file and for visualization)
