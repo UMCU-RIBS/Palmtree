@@ -455,13 +455,13 @@ namespace Palmtree.Filters {
 
         public void process(double[] input, out double[] output) {
 
-            // create an output package
-            output = new double[input.Length];
-
             // check if the filter is enabled
             if (mEnableFilter) {
                 // filter enabled
-                
+
+                // create an output package
+                output = new double[input.Length];
+    
                 int totalSamples = inputFormat.numSamples * inputFormat.numChannels;
                 for (int sample = 0; sample < totalSamples; sample += inputFormat.numChannels) {
 
@@ -478,15 +478,13 @@ namespace Palmtree.Filters {
             } else {
                 // filter disabled
 
-                // TODO: reason if we can just pass reference?
-                // copy the input straight through
-                Buffer.BlockCopy(input, 0, output, 0, input.Length * sizeof(double));
+                // pass reference
+                output = input;
 
             }
 
             // handle the data logging of the output (both to file and for visualization)
             processOutputLogging(output);
-
 
         }
         

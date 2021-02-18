@@ -270,8 +270,8 @@ namespace Palmtree.Filters {
     
             }
 
-            // copy the input straight through
-            Buffer.BlockCopy(input, 0, output, 0, input.Length * sizeof(double));
+            // pass reference
+            output = input;
 
             // handle the data logging of the output (both to file and for visualization)
             processOutputLogging(output);
