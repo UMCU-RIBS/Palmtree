@@ -1,7 +1,7 @@
 ﻿/**
  * ClickTranslatorFilter class
  * 
- * ...
+ * This filter allows for the translation of channel input to (binary) clicks given a specific active periode, threshold and refractory period, other channels pass through untouched.
  * 
  * 
  * Copyright (C) 2017:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
@@ -32,19 +32,22 @@ namespace Palmtree.Filters {
     /// </summary>
     public class ClickTranslatorFilter : FilterBase, IFilter {
 
-        private new const int CLASS_VERSION = 3;
+        private new const int CLASS_VERSION         = 4;
 
-        private int[] activePeriod = null;                               // time window of buffer used for determining clicks
-        private int[] mBufferSize = null;                                // now equals the activeperiod variable, can be used to enlarge the buffer but only use the last part (activeperiod)
-        private int[] startActiveBlock = null;                           // now is always 0 since the activeperiod and buffersize are equal, is used when the buffer is larger than the activeperiod
-        private double[] activeRateThreshold = null;                     // threshold above which the values must be (in activePeriod) to send click
-        private int[] clickRefractoryPeriod = null;                      // the refractory period that should be waited before a new click can be triggered
-        private int[] keySequenceRefractoryPeriod = null;                // the refractory period that should be waited before a new click can be triggered
-        private int[] clickRefractoryCounter = null;                     // counter to count down the samples for refractory (after a normal click)
-        private int[] keySequenceRefractoryCounter = null;               // counter to count down the samples for refractory (after the keysequence)
+        // configuration variables
+        private int[] mChannels                     = null;     // the channels that need to be thresholded (0-based)
+        private int[] mActivePeriod                 = null;     // time window of buffer used for determining clicks
+        private int[] mRefractoryPeriod             = null;     // the refractory period that should be waited before a new click can be triggered
+        private double[] mActiveRateThreshold       = null;     // threshold above which the values must be (in activePeriod) to send click
 
-        private RingBuffer[] mDataBuffers = null;                        // an array of ringbuffers, a ringbuffer for every channel
-        private bool[] activeState = null;
+        private int[] startActiveBlock              = null;     // now is always 0 since the activeperiod and buffersize are equal, is used when the buffer is larger than the activeperiod
+        private int[] mBufferSize                   = null;     // now equals the activeperiod variable, can be used to enlarge the buffer but only use the last part (activeperiod)
+        
+        // worker variables
+        private int[] refractoryCounter             = null;     // counter to count down the samples for refractory (after a normal click)
+        private RingBuffer[] mDataBuffers           = null;     // an array of ringbuffers, a ringbuffer for every channel
+        private bool[] activeState                  = null;
+
 
         public ClickTranslatorFilter(string filterName) {
 
@@ -70,9 +73,9 @@ namespace Palmtree.Filters {
                 "0");
 
             parameters.addParameter<double[][]>(
-                "ChannelParameters",
-                "Specifies click parameters per channel. Each row represents an input channel, with the following paramters:\nActivePeriod: Time window of buffer used for determining clicks (in samples or seconds).\nActiveRateClickThreshold: The threshold above which the average value (of ActivePeriod) in active state should get to send a 'click' and put the channel into inactive state.\nClickRefractoryPeriod: Time window after click in which no click will be translated (in samples or seconds).\nKeySequenceRefractoryPeriod: Time window after key sequence in which no click will be translated (in samples or seconds).",
-                "", "", "0.4s,0.4s;0.5,0.5;3.6s,3.6s;3.6s,3.6s", new string[] { "ActivePeriod", "ActiveRateClickThreshold", "ClickRefractoryPeriod", "KeySequenceRefractoryPeriod" });
+                "Translators",
+                "Specifies which channels are click-translated, the other channels pass through untouched.\n\nChannel: the channel (1...n) to which click-translation will be applied.\nActivePeriod: Time window of buffer used for determining clicks (in samples or seconds).\nActiveRateThreshold: The threshold above which the average value (of ActivePeriod) in active state should get to send a 'click' and put the channel into inactive state.\nRefractoryPeriod: Time window after click in which no click will be translated (in samples or seconds).",
+                "", "", "1,2;0.4s,0.4s;0.5,0.5;3.6s,3.6s", new string[] { "Channel", "ActivePeriod", "ActiveRateThreshold", "RefractoryPeriod" });
 
             // message
             logger.Info("Filter created (version " + CLASS_VERSION + ")");
@@ -188,32 +191,38 @@ namespace Palmtree.Filters {
 
             }
 
-            // check if we are resetting the filter
-            if (resetFilter) {
 
-                // message
-                logger.Debug("Filter reset");
 
-                // clear the data buffers
-                for (int i = 0; i < inputFormat.numChannels; i++)
-                    mDataBuffers[i].Clear();
+            // TODO: take into account the resetFilter parameter (and different degrees of
+            //       resetFilter (0 = as little reset as possible, 1 = reset all, >1: specific resets (enums)
+            //       current just resets all
 
-                // reset the refractory periods
-                Array.Clear(clickRefractoryCounter, 0, clickRefractoryCounter.Length);
-                Array.Clear(keySequenceRefractoryCounter, 0, keySequenceRefractoryCounter.Length);
 
-                // allow for clicks
-                for (uint i = 0; i < inputFormat.numChannels; i++) activeState[i] = true;
+            // message
+            logger.Debug("Filter reset");
 
-            } else {
+            // reset the refractory periods
+            Array.Clear(refractoryCounter, 0, refractoryCounter.Length);
 
-                // todo: resize the mDataBuffer according to the configuration, now just recreating instead
-                mDataBuffers = new RingBuffer[inputFormat.numChannels];
-                for (uint i = 0; i < inputFormat.numChannels; i++) 
-                    mDataBuffers[i] = new RingBuffer((uint)mBufferSize[i]);
+            // loop over the input channels
+            for (uint i = 0; i < inputFormat.numChannels; i++) {
+                    
+                // set the state initially to active
+                activeState[i] = true;
 
+                // if the channel should be translated, then either resize or clear out the buffer
+                uint newSize = 0;
+                for (uint j = 0; j < mChannels.Length; j++) {
+                    if (mChannels[j] == i) {
+                        newSize = (uint)mBufferSize[i];
+                        break;
+                    }
+                }
+                if (mDataBuffers[i].Size() != newSize)  mDataBuffers[i] = new RingBuffer(newSize);
+                else                                    mDataBuffers[i].Clear();
+                
             }
-
+            
             // return success
             return true;
 
@@ -226,45 +235,53 @@ namespace Palmtree.Filters {
 
             // 
             // TODO: parameters.checkminimum, checkmaximum
-
-            // filter is enabled/disabled
+            
+            // if the filter is enabled
             bool newEnableFilter = newParameters.getValue<bool>("EnableFilter");
-
-            // check if the filter is enabled
             if (newEnableFilter) {
-                // check channel parameters. First check the sample-based paramters (all except ActiveRateClickThreshold), then check ActiveRateClickThreshold seperately
-                int[][] newChannelParams = newParameters.getValueInSamples<int[][]>("ChannelParameters");
-                if (newChannelParams.Length != 4 || newChannelParams[0].Length != inputFormat.numChannels) {
-                    logger.Error("Channel parameters must have 4 columns (ActivePeriod, ActiveRateClickThreshold, ClickRefractoryPeriod, KeySequenceRefractoryPeriod), and exactly one row for each input channel");
+
+                // retrieve the translators parameter values
+                // ActivePeriod and RefractoryPeriod in samples; ignore the columns 0='Channel' and 2='ActiveRateThreshold', which are not specified in samples
+                double[][] newTranslators = newParameters.getValueInSamples<double[][]>("Translators", new int[] { 0, 2 });
+                if (newTranslators.Length != 0 && newTranslators.Length != 4) {
+                    logger.Error("Translating parameter must have 4 columns (Channel, ActivePeriod, ActiveRateThreshold, RefractoryPeriod)");
                     return false;
                 }
+                if (newTranslators.Length > 0) {
+                    for (int row = 0; row < newTranslators[0].Length; ++row) {
+                    
+                        // check the channel indices (1...#chan and not double)
+                        if (newTranslators[0][row] < 1 || newTranslators[0][row] % 1 != 0) {
+                            logger.Error("Channels indices must be positive integers (note that the channel numbering is 1-based)");
+                            return false;
+                        }
+                        if (newTranslators[0][row] > inputFormat.numChannels) {
+                            logger.Error("One of the channel indices (value " + newTranslators[0][row] + ") exceeds the number of channels coming into the filter (" + inputFormat.numChannels + ")");
+                            return false;
+                        }
+                        for (int j = 0; j < newTranslators[0].Length; ++j ) {
+                            if (row != j && newTranslators[0][row] == newTranslators[0][j]) {
+                                logger.Error("One of the channel indices (value " + newTranslators[0][row] + ") occurs twice. A channel can only be thresholded once.");
+                                return false;
+                            }
+                        }
 
-                // loop through the rows to check parameters except ActiveRateClickThreshold
-                for (int row = 0; row < newChannelParams[0].Length; ++row) {
-
-                    if (newChannelParams[0][row] < 1) {
-                        logger.Error("The ActivePeriod parameter for channel " + (row + 1) + " specifies a zero-sized buffer");
-                        return false;
-                    }
-                    if (newChannelParams[2][row] < 1) {
-                        logger.Error("The ClickRefractoryPeriod parameter must be at least 1 sample, this is not the case for channel " + (row + 1));
-                        return false;
-                    }
-                    if (newChannelParams[3][row] < 1) {
-                        logger.Error("The KeySequenceRefractoryPeriod parameter must be at least 1 sample, this is not the case for channel " + (row + 1));
-                        return false;
-                    }
-
-                }
-
-                // check ActiveRateClickThreshold. First retrieve parameter again, now without calculating to samples, then loop through the rows
-                double[][] ActiveRateClickThreshold = newParameters.getValue<double[][]>("ChannelParameters");
-
-                // loop through the rows
-                for (int row = 0; row < ActiveRateClickThreshold[0].Length; ++row) {
-                    if (ActiveRateClickThreshold[1][row] > 1 || ActiveRateClickThreshold[1][row] < 0) {
-                        logger.Error("The ActiveRateClickThreshold for channel " + (row + 1) + " is outside [0 1]");
-                        return false;
+                        // check active-period, refractory-periode (in samples)
+                        if (newTranslators[1][row] < 1) {
+                            logger.Error("The ActivePeriod parameter for channel " + newTranslators[0][row] + " specifies a zero-sized buffer");
+                            return false;
+                        }
+                        if (newTranslators[3][row] < 1) {
+                            logger.Error("The RefractoryPeriod parameter must be (convert to) at least 1 sample, this is not the case for channel " + newTranslators[0][row]);
+                            return false;
+                        }
+                        
+                        // check ActiveRateThreshold (as double)
+                        if (newTranslators[2][row] > 1 || newTranslators[2][row] < 0) {
+                            logger.Error("The ActiveRateThreshold for channel " + newTranslators[0][row] + " is outside [0 1]");
+                            return false;
+                        }
+                        
                     }
                 }
 
@@ -279,49 +296,45 @@ namespace Palmtree.Filters {
          * transfer the given parameter set to local variables
          **/
         private void transferParameters(Parameters newParameters) {
-            // filter is enabled/disabled
-            mEnableFilter = newParameters.getValue<bool>("EnableFilter");
 
-            // check if the filter is enabled
+            // if the filter is enabled
+            mEnableFilter = newParameters.getValue<bool>("EnableFilter");
             if (mEnableFilter) {
 
-                // retrieve parameters in samples to transfer activePeriod, clickRefractoryPeriod and keysequenceRefractoryPeriod
-                int[][] newChannelParams = newParameters.getValueInSamples<int[][]>("ChannelParameters");
+                // retrieve the translators parameter values
+                // ActivePeriod and RefractoryPeriod in samples; ignore the columns 0='Channel' and 2='ActiveRateThreshold', which are not specified in samples
+                double[][] newTranslators = newParameters.getValueInSamples<double[][]>("Translators", new int[] { 0, 2 });
+                if (newTranslators == null || newTranslators.Length == 0) {
+                    mChannels = new int[0];
+                    mActivePeriod = new int[0];
+                    mRefractoryPeriod = new int[0];
+                    mActiveRateThreshold = new double[0];
 
-                // initialize the local variable arrays on the correct size
-                activePeriod = new int[newChannelParams[0].Length];
-                mBufferSize = new int[newChannelParams[0].Length];
-                startActiveBlock = new int[newChannelParams[0].Length];
-                clickRefractoryPeriod = new int[newChannelParams[0].Length];
-                keySequenceRefractoryPeriod = new int[newChannelParams[0].Length];
-                activeRateThreshold = new double[newChannelParams[0].Length];
-                activeState = new bool[newChannelParams[0].Length];
-                clickRefractoryCounter = new int[newChannelParams[0].Length];
-                keySequenceRefractoryCounter = new int[newChannelParams[0].Length];
+                    mBufferSize = new int[0];
+                    startActiveBlock = new int[0];
 
-                // loop through values of parameters and store in local variables
-                for (int row = 0; row < newChannelParams[0].Length; ++row) {
+                } else {
+                    mChannels = new int[newTranslators[0].Length];
+                    mActivePeriod = new int[newTranslators[0].Length];
+                    mRefractoryPeriod = new int[newTranslators[0].Length];
+                    mActiveRateThreshold = new double[newTranslators[0].Length];
 
-                    // store the activePeriod
-                    activePeriod[row] = newChannelParams[0][row];
-                    mBufferSize[row] = activePeriod[row];
-                    startActiveBlock[row] = mBufferSize[row] - activePeriod[row];
+                    mBufferSize = new int[newTranslators[0].Length];
+                    startActiveBlock = new int[newTranslators[0].Length];
 
-                    // store the clickRefractoryPeriod
-                    clickRefractoryPeriod[row] = newChannelParams[2][row];
+                    for (int row = 0; row < newTranslators[0].Length; ++row ) {
+                        mChannels[row] = (int)newTranslators[0][row] - 1;
+                        mActivePeriod[row] = (int)newTranslators[1][row];
+                        mActiveRateThreshold[row] = newTranslators[2][row];
+                        mRefractoryPeriod[row] = (int)newTranslators[3][row];
 
-                    // store the KeysequenceRefractoryPeriod
-                    keySequenceRefractoryPeriod[row] = newChannelParams[3][row];
+                        mBufferSize[row] = mActivePeriod[row];    
+                        startActiveBlock[row] = mBufferSize[row] - mActivePeriod[row];
 
+                    }
+                    
                 }
-
-                // retrieve parameter again, now without calculating to samples, then loop through the rows to transfer activeRateThreshold
-                double[][] ActiveRateClickThreshold = newParameters.getValue<double[][]>("ChannelParameters");
-
-                // loop through the rows and transfer to local parameter
-                for (int row = 0; row < ActiveRateClickThreshold[0].Length; ++row) {
-                    activeRateThreshold[row] = ActiveRateClickThreshold[1][row];
-                }
+                
             }
 
         }
@@ -334,11 +347,14 @@ namespace Palmtree.Filters {
             logger.Debug("Enabled: " + mEnableFilter);
             logger.Debug("Output channels: " + outputFormat.numChannels);
             if (mEnableFilter) {
-                string strChannelParams = "Channel parameters per channel: ";
-                for (uint i = 0; i < inputFormat.numChannels; i++) {
-                    strChannelParams += " channel " + (i + 1) + ": ActivePeriod: " + activePeriod[i] + ", ActiveRateClickThreshold: " + activeRateThreshold[i] + ", clickRefractoryPeriod: " + clickRefractoryPeriod[i] + ", keySequenceRefractoryPeriod: " + keySequenceRefractoryPeriod[i] + " .";
-                }
-                logger.Debug(strChannelParams);
+                string strTranslating = "Thresholding: ";
+                if (mChannels != null) {
+                    for (int i = 0; i < mChannels.Length; i++) {
+                        strTranslating += "[" + (mChannels[i] + 1) + ", AP: " + mActivePeriod[i] + ", ART" + mActiveRateThreshold[i] + ", RefrPer: " + mRefractoryPeriod[i] + "]";
+                    }
+                } else
+                    strTranslating += "-";
+                logger.Debug(strTranslating);
             }
 
         }
@@ -347,20 +363,31 @@ namespace Palmtree.Filters {
 
             // check if the filter is enabled
             if (mEnableFilter) {
-
-                // create the data buffers
+                
+                // initialize worker variables
                 mDataBuffers = new RingBuffer[inputFormat.numChannels];
+                refractoryCounter = new int[inputFormat.numChannels];
+                activeState = new bool[inputFormat.numChannels];
 
-                // set databuffer size to specified buffersize per channel and set the states for each channel initially to active
+                // loop over the input channels
                 for (uint i = 0; i < inputFormat.numChannels; i++) {
-                    mDataBuffers[i] = new RingBuffer((uint)mBufferSize[i]);
+                    
+                    // set the state initially to active
                     activeState[i] = true;
+
+                    // initialize the channel buffer
+                    //
+                    // if the channel should be translated, make sure a buffer is initialized
+                    // to the buffer size, elsewise initialize an empty buffer
+                    uint channelFound = 0;
+                    for (channelFound = 0; channelFound < mChannels.Length; channelFound++)
+                        if (mChannels[channelFound] == i)
+                            break;
+                    if (channelFound < mChannels.Length)    mDataBuffers[i] = new RingBuffer((uint)mBufferSize[channelFound]);
+                    else                                    mDataBuffers[i] = new RingBuffer(0);
+                    
                 }
-
-                // reset the refractory periods
-                Array.Clear(clickRefractoryCounter, 0, clickRefractoryCounter.Length);
-                Array.Clear(keySequenceRefractoryCounter, 0, keySequenceRefractoryCounter.Length);
-
+                
             }
 
         }
@@ -368,11 +395,11 @@ namespace Palmtree.Filters {
         public void start() {
 
             // set the state to active for all channels
-            for (uint i = 0; i < inputFormat.numChannels; i++)      activeState[i] = true;
+            for (uint i = 0; i < inputFormat.numChannels; i++)
+                activeState[i] = true;
 
             // reset the refractory periods
-            Array.Clear(clickRefractoryCounter, 0, clickRefractoryCounter.Length);
-            Array.Clear(keySequenceRefractoryCounter, 0, keySequenceRefractoryCounter.Length);
+            Array.Clear(refractoryCounter, 0, refractoryCounter.Length);
 
         }
 
@@ -391,15 +418,13 @@ namespace Palmtree.Filters {
                 
                 // set refractory period on by copying respective refractory periods to the counters for each channel
                 for (uint i = 0; i < inputFormat.numChannels; i++)      activeState[i] = false;
-                Array.Copy(clickRefractoryPeriod, clickRefractoryCounter, clickRefractoryPeriod.Length);
-                Array.Copy(keySequenceRefractoryPeriod, keySequenceRefractoryCounter, keySequenceRefractoryPeriod.Length);
+                Array.Copy(mRefractoryPeriod, refractoryCounter, mRefractoryPeriod.Length);
 
             } else {                                    
                 
                 // set refractory period off by clearing respective refractory counters for each channel
                 for (uint i = 0; i < inputFormat.numChannels; i++)      activeState[i] = true;
-                Array.Clear(clickRefractoryCounter, 0, clickRefractoryCounter.Length);
-                Array.Clear(keySequenceRefractoryCounter, 0, keySequenceRefractoryCounter.Length);
+                Array.Clear(refractoryCounter, 0, refractoryCounter.Length);
 
             }
 
@@ -411,116 +436,86 @@ namespace Palmtree.Filters {
         
         public void process(double[] input, out double[] output) {
 
-            // create an output package
-            output = new double[input.Length];
-
             // check if the filter is enabled
-            if (mEnableFilter) {
-                // filter enabled
+            if (mEnableFilter && mChannels.Length > 0) {
+                // filter enabled and channels to translate
                 
+                // create an output package
+                output = new double[outputFormat.numChannels * outputFormat.numSamples];
+
+                // if there are channels that only need to pass through untouched, then make a copy of the input matrix and only translate specific values
+                // if all channels need to be translated, then this copy can be skipped because all values will be overwritten anyway.
+                if (mChannels.Length != inputFormat.numChannels)
+                    Buffer.BlockCopy(input, 0, output, 0, input.Length * sizeof(double));
+                
+                // loop over the samples (in steps of the number of channels)
                 int totalSamples = inputFormat.numSamples * inputFormat.numChannels;
                 for (int sample = 0; sample < totalSamples; sample += inputFormat.numChannels) {
 
-                    double[] singleRow = new double[inputFormat.numChannels];
-                    Buffer.BlockCopy(input, sample * sizeof(double), singleRow, 0, inputFormat.numChannels * sizeof(double));
+		            // translate only the channels that are configured as such
+		            for (uint i = 0; i < mChannels.Length; ++i) {
+                        int channel = mChannels[i];
+                        
+                        // add new sample to buffer
+                        mDataBuffers[channel].Put(input[sample + channel]);
 
-                    double[] singleRowOout = new double[inputFormat.numChannels];
-                    processSample(singleRow, out singleRowOout);
+                        // reference buffer
+                        double[] data = mDataBuffers[channel].Data();
 
-                    Buffer.BlockCopy(singleRowOout, 0, output, sample * sizeof(double), inputFormat.numChannels * sizeof(double));
+                        // if ready for click (active state)
+                        if (activeState[channel]) {
 
+                            //compute average over active time-window length
+                            double activeRate = 0;
+                            for (int j = startActiveBlock[channel]; j < data.Length; ++j)        // deliberately using Length/Count here, we want to take the entire size of the buffer, not just the (ringbuffer) filled ones
+                                activeRate += data[j];
+                            activeRate /= (mBufferSize[channel] - startActiveBlock[channel]);
+
+                            // compare average to active threshold 
+                            // the first should always be 1
+                            if ((activeRate >= mActiveRateThreshold[channel]) && (data[0] == 1)) {
+
+                                // output a click
+                                output[sample + channel] = 1;
+
+                                // refractory from the click
+                                activeState[channel]        = false;
+                                refractoryCounter[channel]  = mRefractoryPeriod[channel];
+
+                            } else
+                                output[sample + channel]    = 0;
+
+                        } else {
+                            // not ready for click (inactive state)
+
+                            // inactive_state stops after set refractory period
+                            output[sample + channel] = 0;
+
+                            // count down the refractory counters
+                            if (refractoryCounter[channel] > 0)        refractoryCounter[channel]--;
+
+                            // check if the counters reached 0, then allow for clicks again
+                            if (refractoryCounter[channel] == 0)
+                                activeState[channel] = true;
+
+                        }
+
+                    }
                 }
-
+                
             } else {
-                // filter disabled
+                // filter disabled or no channels that require translating
 
-                // TODO: reason if we can just pass reference?
-                // copy the input straight through
-                Buffer.BlockCopy(input, 0, output, 0, input.Length * sizeof(double));
-
+                // pass reference
+                output = input;
+                
             }
 
             // handle the data logging of the output (both to file and for visualization)
             processOutputLogging(output);
 
-
         }
-
-        public void processSample(double[] input, out double[] output) {
-
-            // create an output sample
-            output = new double[outputFormat.numChannels];
-            
-            // check if a keysequence was made
-            if (Globals.getValue<bool>("KeySequenceActive")) {
-
-                // reset the click refractory periods (in case this one is longer than the escape refractory, we should be able to listen for clicks after the keysequence)
-                Array.Clear(clickRefractoryCounter, 0, clickRefractoryCounter.Length);
-
-                // set the escape refractory period
-                for (uint i = 0; i < keySequenceRefractoryPeriod.Length; i++) {
-                    keySequenceRefractoryCounter[i] = keySequenceRefractoryPeriod[i] + 1;   // +1 one because in this same loop, the counter will be lowered with 1
-                }
-
-                // do not accept new keypresses
-                for (uint i = 0; i < inputFormat.numChannels; i++) activeState[i] = false;
-
-            }
-
-            // loop over channels and samples
-            for (int channel = 0; channel < inputFormat.numChannels; ++channel) {
-
-                // add new sample to buffer
-                mDataBuffers[channel].Put(input[channel]);
-
-                // reference buffer
-                double[] data = mDataBuffers[channel].Data();
-
-                // if ready for click (active state)
-                if (activeState[channel]) {
-
-                    //compute average over active time-window length
-                    double activeRate = 0;
-                    for (int j = startActiveBlock[channel]; j < data.Length; ++j) {        // deliberately using Length/Count here, we want to take the entire size of the buffer, not just the (ringbuffer) filled ones
-                        activeRate += data[j];
-                    }
-                    activeRate /= (mBufferSize[channel] - startActiveBlock[channel]);
-
-                    // compare average to active threshold 
-                    // the first should always be 1
-                    if ((activeRate >= activeRateThreshold[channel]) && (data[0] == 1)) {
-
-                        // output a click
-                        output[channel] = 1;
-
-                        // refractory from the click
-                        activeState[channel] = false;
-                        clickRefractoryCounter[channel] = clickRefractoryPeriod[channel];
-
-                    } else
-                        output[channel] = 0;
-
-                } else {
-                    // not ready for click (inactive state)
-
-                    // inactive_state stops after set refractory period
-                    output[channel] = 0;
-
-                    // count down the refractory counters
-                    if (clickRefractoryCounter[channel] > 0)        clickRefractoryCounter[channel]--;
-                    if (keySequenceRefractoryCounter[channel] > 0)  keySequenceRefractoryCounter[channel]--;
-
-                    // check if the counters reached 0, then allow for clicks again
-                    if (clickRefractoryCounter[channel] == 0 && keySequenceRefractoryCounter[channel] == 0) {
-                        activeState[channel] = true;
-                    }
-
-                }
-
-            }
-            
-        }
-
+        
         public void destroy() {
 
             // stop the filter
