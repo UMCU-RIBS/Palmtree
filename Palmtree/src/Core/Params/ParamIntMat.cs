@@ -101,13 +101,17 @@ namespace Palmtree.Core.Params {
         }
 
         public T getValueInSamples<T>() {
+            return getValueInSamples<T>(null);
+        }
+        
+        public T getValueInSamples<T>(int[] ignoreColumns) {
 
             Type paramType = typeof(T);
             if (paramType == typeof(int[][])) {
                 // request to return as int[][]
 
                 // return value
-                return (T)Convert.ChangeType(getValueInSamples(), typeof(int[][]));
+                return (T)Convert.ChangeType(getValueInSamples(ignoreColumns), typeof(int[][]));
 
             } else {
                 // request to return as other
@@ -121,12 +125,28 @@ namespace Palmtree.Core.Params {
         }
 
         public int[][] getValueInSamples() {
+            return getValueInSamples(null);
+        }
+
+        public int[][] getValueInSamples(int[] ignoreColumns) {
 
             // create an matrix of values (in samples) to return
             int[][] retValues = new int[values.Length][];
 
             // loop through the columns
             for (int c = 0; c < units.Length; c++) {
+
+                // check if column should be ignored, if so skip
+                if (ignoreColumns != null && ignoreColumns.Length > 0) {
+                    bool ignoreColumn = false;
+                    for (int j = 0; j < ignoreColumns.Length; j++) {
+                        if (c == ignoreColumns[j]) {
+                            ignoreColumn = true;
+                            break;
+                        }
+                    }
+                    if (ignoreColumn)   continue;
+                }
 
                 // create array of values (in samples) for this column
                 retValues[c] = new int[values[c].Length];

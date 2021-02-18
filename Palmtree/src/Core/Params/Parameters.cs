@@ -306,6 +306,39 @@ namespace Palmtree.Core.Params {
 
         }
 
+        public T getValueInSamples<T>(string paramName, int[] ignoreColumns) {
+
+            lock (lockParameters) {    
+            
+                // try to retrieve the parameter
+                iParam param = getParameter(paramName);
+                if (param == null) {
+
+                    // message and return 0
+                    logger.Error("Could not find parameter '" + paramName + "' in parameter set '" + paramSetName + "', returning 0");
+                    return (T)Convert.ChangeType(0, typeof(T));
+
+                }
+                    
+                // if int[][] or double[][] matrix then get values in samples while ignoring columns
+                if (param.GetType() == typeof(ParamDoubleMat) || param.GetType() == typeof(double[][])) {
+                    return ((ParamDoubleMat)param).getValueInSamples<T>(ignoreColumns);
+
+                } else if (param.GetType() == typeof(ParamIntMat) || param.GetType() == typeof(int[][])) {
+                    return ((ParamIntMat)param).getValueInSamples<T>(ignoreColumns);
+
+                } else {
+
+                    // message and return 0
+                    logger.Error("Could not retrieve the value in samples for parameter '" + paramName + "' (parameter set: '" + paramSetName + "'), the getValueInSamples functionality with ignoreColumns can only be used for matrix parameters (int[][] or double[][]). Returning 0");
+                    return (T)Convert.ChangeType(0, typeof(T));
+
+                }
+                
+            }
+
+        }
+
         public int getValueInSamples(string paramName) {
             return getValueInSamples<int>(paramName);
         }
