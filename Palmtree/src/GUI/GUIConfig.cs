@@ -20,7 +20,6 @@ using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
-using Palmtree.Core;
 using Palmtree.Core.Helpers;
 using Palmtree.Core.Params;
 
@@ -346,7 +345,7 @@ namespace Palmtree.GUI {
                 newGrid.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
                 newGrid.Name = "grd" + panel.Name + param.Name;
                 newGrid.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
-                newGrid.Size = new System.Drawing.Size(420, 144);
+                newGrid.Size = new System.Drawing.Size(650, 144);
                 newGrid.AllowUserToAddRows = false;
                 newGrid.AllowUserToDeleteRows = false;
                 newGrid.AllowUserToResizeRows = false;
