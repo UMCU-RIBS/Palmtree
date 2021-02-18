@@ -321,8 +321,8 @@ namespace Palmtree.Filters {
                         
                         // check if the direction is positive and the output value is higher than the threshold, or
                         // if the direction is negative and the output value is lower than the threshold
-                        if ((mDirections[i] <  0 && output[sample + mChannels[i]] < mThresholds[i]) || 
-                            (mDirections[i] >= 0 && output[sample + mChannels[i]] > mThresholds[i])) {
+                        if ((mDirections[i] <  0 && input[sample + mChannels[i]] < mThresholds[i]) || 
+                            (mDirections[i] >= 0 && input[sample + mChannels[i]] > mThresholds[i])) {
 
 				            output[sample + mChannels[i]] = 1;
 
