@@ -1,7 +1,7 @@
 ﻿/**
  * ThresholdClassifierFilter class
  * 
- * This filters allow for the thresholding (binarizing) of specific channels, other channels pass through untouched.
+ * This filter allows for the thresholding (binarizing) of specific channels, other channels pass through untouched.
  * 
  * 
  * Copyright (C) 2017:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
@@ -61,7 +61,7 @@ namespace Palmtree.Filters {
 
             parameters.addParameter <double[][]>  (
                 "Thresholding",
-                "Specifies which channels are thresholded, the other channels pass through untouched.\n\nChannel: the channel (1...n) to which thresholding will be applied.\nThreshold: the threshold above (>) or under (<) which the channel output will become 1 or 0\nDirection: the direction of the thresholding. If the direction value is negative (<0) then input values smaller than\nthe threshold will result in true; if positive (>= 0) then input values larger than the threshold will result in true.\n",
+                "Specifies which channels are thresholded, the other channels pass through untouched.\n\nChannel: the channel (1...n) to which thresholding will be applied.\nThreshold: the threshold above (>) or under (<) which the channel output will become 1 or 0\nDirection: the direction of the thresholding. If the direction value is negative (<0) then input values smaller than\nthe threshold will result in true; if positive (>= 0) then input values larger than the threshold will result in true.",
                 "", "", "1,2;0.45,0.45;1,1", new string[] { "Channel", "Threshold", "Direction" });
 
             // message
@@ -177,19 +177,6 @@ namespace Palmtree.Filters {
                 printLocalConfiguration();
 
             }
-
-            // TODO: take resetFilter into account (currently always resets the buffers on initialize
-            //          but when set not to reset, the buffers should be resized while retaining their values!)
-
-            if (resetFilter) {
-
-                // message
-                logger.Debug("Filter reset");
-
-            }
-
-            // initialize the variables (if needed)
-            initialize();
             
             // return success
             return true;
@@ -208,28 +195,28 @@ namespace Palmtree.Filters {
             bool newEnableFilter = newParameters.getValue<bool>("EnableFilter");
             if (newEnableFilter) {
 
-                // check thresholds
-                double[][] newThresholds = newParameters.getValue<double[][]>("Thresholding");
-		        if (newThresholds.Length != 0 && newThresholds.Length != 3) {
-                    logger.Error("Threshold parameter must have 3 columns (Channel, Threshold, Direction)");
+                // check thresholding parameters
+                double[][] newThresholding = newParameters.getValue<double[][]>("Thresholding");
+		        if (newThresholding.Length != 0 && newThresholding.Length != 3) {
+                    logger.Error("Thresholding parameter must have 3 columns (Channel, Threshold, Direction)");
                     return false;
                 }
                 
                 // check the channel indices (1...#chan and not double)
-                if (newThresholds.Length > 0) {
-                    for (int row = 0; row < newThresholds[0].Length; ++row ) {
+                if (newThresholding.Length > 0) {
+                    for (int row = 0; row < newThresholding[0].Length; ++row ) {
 
-                        if (newThresholds[0][row] < 1 || newThresholds[0][row] % 1 != 0) {
+                        if (newThresholding[0][row] < 1 || newThresholding[0][row] % 1 != 0) {
                             logger.Error("Channels indices must be positive integers (note that the channel numbering is 1-based)");
                             return false;
                         }
-                        if (newThresholds[0][row] > inputFormat.numChannels) {
-                            logger.Error("One of the channel indices (value " + newThresholds[0][row] + ") exceeds the number of channels coming into the filter (" + inputFormat.numChannels + ")");
+                        if (newThresholding[0][row] > inputFormat.numChannels) {
+                            logger.Error("One of the channel indices (value " + newThresholding[0][row] + ") exceeds the number of channels coming into the filter (" + inputFormat.numChannels + ")");
                             return false;
                         }
-                        for (int j = 0; j < newThresholds[0].Length; ++j ) {
-                            if (row != j && newThresholds[0][row] == newThresholds[0][j]) {
-                                logger.Error("One of the channel indices (value " + newThresholds[0][row] + ") occurs twice. A channel can only be thresholded once.");
+                        for (int j = 0; j < newThresholding[0].Length; ++j ) {
+                            if (row != j && newThresholding[0][row] == newThresholding[0][j]) {
+                                logger.Error("One of the channel indices (value " + newThresholding[0][row] + ") occurs twice. A channel can only be thresholded once.");
                                 return false;
                             }
                         }
@@ -285,7 +272,7 @@ namespace Palmtree.Filters {
                 string strThresholds = "Thresholding: ";
                 if (mChannels != null) {
                     for (int i = 0; i < mChannels.Length; i++) {
-                        strThresholds += "[" + mChannels[i] + ", " + mThresholds[i] + ", " + mDirections[i] + "]";
+                        strThresholds += "[Ch: " + (mChannels[i] + 1) + ", Thr: " + mThresholds[i] + ", Dir: " + mDirections[i] + "]";
                     }
                 } else
                     strThresholds += "-";
@@ -329,7 +316,7 @@ namespace Palmtree.Filters {
                 int totalSamples = inputFormat.numSamples * inputFormat.numChannels;
                 for (int sample = 0; sample < totalSamples; sample += inputFormat.numChannels) {
 
-		            // threshold only 
+		            // threshold only the channels that are configured as such
 		            for (uint i = 0; i < mChannels.Length; ++i) {
                         
                         // check if the direction is positive and the output value is higher than the threshold, or
