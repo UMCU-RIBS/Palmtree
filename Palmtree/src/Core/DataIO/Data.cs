@@ -36,10 +36,10 @@ namespace Palmtree.Core.DataIO {
     public static class Data {
 
         private const string CLASS_NAME                         = "Data";
-        private const int CLASS_VERSION                         = 2;
+        private const int CLASS_VERSION                         = 3;
 
         private const string RUN_SUFFIX                         = "Run_";                       // suffix used to append to created files
-        private const int MAX_EVENT_LOGLEVELS                   = 4;                            // maximal event log level that is available
+        private const int MAX_EVENT_LOGLEVELS                   = 3;                            // maximal event log level that is available
 
         private static Logger logger                            = LogManager.GetLogger("Data");
         private static Parameters parameters = ParameterManager.GetParameters("Data", Parameters.ParamSetTypes.Data);
@@ -199,7 +199,7 @@ namespace Palmtree.Core.DataIO {
             parameters.addParameter<int[]>(
                 "EventLoggingLevels",
                 "Indicate which levels of event logging are allowed.\n(leave empty to log all levels)\n\nNote: whether events are logged or not is also dependent on the runtime configuration of the modules. It is possible\nthat the user, though an application module user-interface, sets certain events to be or not be logged.",
-                "0");
+                "0,1,2");
 
             parameters.addParameter<bool>(
                 "LogPluginInput",
@@ -619,6 +619,10 @@ namespace Palmtree.Core.DataIO {
                             Dictionary<string, Parameters> localParamSets = ParameterManager.getParameterSetsClone();
                             ParameterManager.saveParameterFile(Path.Combine(sessionDir, fileName + ".prm"), localParamSets);
 
+                            // set the start epoch and start the run stopwatch
+                            runStartEpoch = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                            runStopWatch = Stopwatch.StartNew();
+
                             // check if we want to log events
                             if (mLogEvents) {
 
@@ -651,7 +655,7 @@ namespace Palmtree.Core.DataIO {
                                     }
 
                                     // build event header string
-                                    string eventHeader = "Time " + "ID_src_sample " + "ID_dat_sample " + "Event_code " + "Event_value";
+                                    string eventHeader = "Time "+ "Elapsed " + "src_sample_ID " + "dat_sample_ID " + "Event_code " + "Event_value";
 
                                     // write header to event file
                                     try {
@@ -663,10 +667,6 @@ namespace Palmtree.Core.DataIO {
                                 }
 
                             }
-
-                            // set the start epoch and start the run stopwatch
-                            runStartEpoch = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                            runStopWatch = Stopwatch.StartNew();
 
                             // check if we want to log the source input
                             if (mLogSourceInput && numSourceInputStreams > 0) {
@@ -1431,14 +1431,17 @@ namespace Palmtree.Core.DataIO {
                 int levelIndex = Array.IndexOf(mEventLoggingLevels, level);
                 if (levelIndex > -1) {
 
-                    // get time of event
+                    // get the data-time of event
                     DateTime eventTime = DateTime.Now;
+                    
+                    // claculate the milliseconds since the start of the run
+                    double eventRunElapsedTime = runStopWatch.ElapsedTicks / ticksPerMillisecond;
 
                     // if no value given, log '-'for value to keep consistent number of fields per row in event file 
                     if (string.IsNullOrEmpty(value)) value = "-";
 
                     // construct event String    
-                    string eventOut = eventTime.ToString("yyyyMMdd_HHmmss_fff") + " " + strsourceSamplePackageCounter + " " + strDataSampleCounter + " " + text + " " + value;
+                    string eventOut = eventTime.ToString("yyyyMMdd_HHmmss_fff") + " " + eventRunElapsedTime + " " + strsourceSamplePackageCounter + " " + strDataSampleCounter + " " + text + " " + value;
 
                     // write event to event file
                     if (eventStreamWriters.Count > levelIndex && eventStreamWriters[levelIndex] != null) {
