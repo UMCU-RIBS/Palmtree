@@ -34,12 +34,12 @@ namespace Palmtree.Applications {
         /// <returns>A Parameter object defining the configuration parameters</returns>
         Parameters getParameters();
 
-        /// <summary>Configure the application module. Called upon by "set configuration" in the GUI</summary>
+        /// <summary>Configure the application module. Called upon by the "Set config and init" button in the GUI</summary>
         /// <param name="input">Reference to a PackageFormat object which defines the incoming sample streams</param>
         /// <returns>A boolean, either true for a succesfull configuration, or false upon failure</returns>
         bool configure(ref SamplePackageFormat input);
 
-        /// <summary>Initialize the application module. Called upon by "set configuration" in the GUI</summary>
+        /// <summary>Initialize the application module. Called upon by the "Set config and init" button in the GUI</summary>
         void initialize();
 
         /// <summary>Start the application module. Called upon by "Start" in the GUI</summary>
@@ -53,7 +53,7 @@ namespace Palmtree.Applications {
         bool isStarted();
 
         /// <summary>Process new incoming samples</summary>
-        /// <param name="input">An array containing the new samples, each position the array represents one input channel</param>
+        /// <param name="input">A reference to an array containing one or more input samples for one or more channels</param>
         void process(double[] input);
 
         /// <summary>

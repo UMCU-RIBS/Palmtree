@@ -42,7 +42,7 @@ namespace Palmtree.Applications {
         bool AppChild_isRunning();
 
         /// <summary>Process new incoming samples, these are forwarded by the parent application module</summary>
-        /// <param name="input">An array containing the new samples, each position the array represents one input channel</param>
+        /// <param name="input">A reference to an array containing one or more input samples for one or more channels</param>
         void AppChild_process(double[] input, bool connectionLost);
 
         /// <summary>
