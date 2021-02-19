@@ -34,19 +34,27 @@ namespace Palmtree.Filters {
 
         private new const int CLASS_VERSION         = 4;
 
+		public new enum ResetOptions:int {
+			Minimal = 0,                                        // reset the minimum, trying to retain as much of the information in the filter as possible
+			Complete = 1,                                       // perform a complete reset of filter information
+            StartFullRefractoryPeriod = 100,                    // starts the full refractory period on all translated channels
+            StopRefractoryPeriod = 110,                         // immediately stops the refractory period on all translated channels
+		};
+
         // configuration variables
         private int[] mChannels                     = null;     // the channels that need to be thresholded (0-based)
         private int[] mActivePeriod                 = null;     // time window of buffer used for determining clicks
         private int[] mRefractoryPeriod             = null;     // the refractory period that should be waited before a new click can be triggered
         private double[] mActiveRateThreshold       = null;     // threshold above which the values must be (in activePeriod) to send click
 
-        private int[] startActiveBlock              = null;     // now is always 0 since the activeperiod and buffersize are equal, is used when the buffer is larger than the activeperiod
+        private int[] mStartActiveBlock             = null;     // now is always 0 since the activeperiod and buffersize are equal, is used when the buffer is larger than the activeperiod
         private int[] mBufferSize                   = null;     // now equals the activeperiod variable, can be used to enlarge the buffer but only use the last part (activeperiod)
         
-        // worker variables
-        private int[] refractoryCounter             = null;     // counter to count down the samples for refractory (after a normal click)
-        private RingBuffer[] mDataBuffers           = null;     // an array of ringbuffers, a ringbuffer for every channel
-        private bool[] activeState                  = null;
+        // worker variables (every element in these arrays represents one input channel; however whether that element is used is determined by the configuration variables)
+        private int[] refractoryCounter             = null;     // counter to count down the samples for refractory (after a normal click); 
+        private RingBuffer[] dataBuffers            = null;     // buffer to hold the input values that clicks are determined upon
+        private bool[] activeState                  = null;     // whether a specific channel is open to clicks (true/active = open to click, false = in refractory period)
+
 
 
         public ClickTranslatorFilter(string filterName) {
@@ -126,16 +134,11 @@ namespace Palmtree.Filters {
 
         }
 
-
-        /**
-         *  Re-configure the filter settings on the fly (during runtime) using the given parameterset. 
-         *  Checks if the new settings have adjustments that cannot be applied to a running filter
-         *  (most likely because they would adjust the number of expected output channels, which would have unforseen consequences for the next filter)
-         *  
-         *  The local parameter is left untouched so it is easy to revert back to the original configuration parameters
-         *  The functions handles both the configuration and initialization of filter related variables.
-         **/
-        public bool configureRunningFilter(Parameters newParameters, bool resetFilter) {
+        /// <summary>Re-configure and/or reset the configration parameters of the filter (defined in the newParameters argument) on-the-fly.</summary>
+        /// <param name="newParameters">Parameter object that defines the configuration parameters to be set. Set to NULL to leave the configuration parameters untouched.</param>
+        /// <param name="resetOption">Filter reset options. 0 will reset the minimum; 1 will perform a complete reset of filter information. > 1 for custom resets.</param>
+        /// <returns>A boolean, either true for a succesfull re-configuration, or false upon failure</returns>
+        public bool configureRunningFilter(Parameters newParameters, int resetOption) {
 
             // check if new parameters are given (only a reset is also an option)
             if (newParameters != null) {
@@ -189,40 +192,69 @@ namespace Palmtree.Filters {
                 // print configuration
                 printLocalConfiguration();
 
+
+
+                // 
+                // re-init worker variables if needed (take resetFilter into account
+                // 
+
+                // TODO: currently just resetting buffers.
+                //       activestate and refractory are managed below seperately (to take into account resetFilter
+
+                
+                for (uint i = 0; i < inputFormat.numChannels; i++) {
+                    
+                    // here, the resetoption should be taken into account to determine whether or not reset the activestate (of the newly added channels) 
+                    // set the state initially to active
+                    //activeState[i] = true;
+                    
+                    // if the channel should be translated, then either resize or clear out the buffer
+                    uint newSize = 0;
+                    for (uint j = 0; j < mChannels.Length; j++) {
+                        if (mChannels[j] == i) {
+                            newSize = (uint)mBufferSize[i];
+                            break;
+                        }
+                    }
+                    if (dataBuffers[i].Size() != newSize)   dataBuffers[i] = new RingBuffer(newSize);
+                    else                                    dataBuffers[i].Clear();
+                
+                }
+
             }
 
+            //
+            // reset the refractory-period and active-state depending on the reset-option
+            // 
 
+            if (resetOption == (int)ResetOptions.StartFullRefractoryPeriod) {
 
-            // TODO: take into account the resetFilter parameter (and different degrees of
-            //       resetFilter (0 = as little reset as possible, 1 = reset all, >1: specific resets (enums)
-            //       current just resets all
-
-
-            // message
-            logger.Debug("Filter reset");
-
-            // reset the refractory periods
-            Array.Clear(refractoryCounter, 0, refractoryCounter.Length);
-
-            // loop over the input channels
-            for (uint i = 0; i < inputFormat.numChannels; i++) {
-                    
-                // set the state initially to active
-                activeState[i] = true;
-
-                // if the channel should be translated, then either resize or clear out the buffer
-                uint newSize = 0;
-                for (uint j = 0; j < mChannels.Length; j++) {
-                    if (mChannels[j] == i) {
-                        newSize = (uint)mBufferSize[i];
-                        break;
-                    }
+                // start the refractory period and set the state to not open to clicks on all translating channels
+		        for (uint i = 0; i < mChannels.Length; ++i) {
+                    refractoryCounter[mChannels[i]] = mRefractoryPeriod[mChannels[i]];
+                    activeState[mChannels[i]] = false;
                 }
-                if (mDataBuffers[i].Size() != newSize)  mDataBuffers[i] = new RingBuffer(newSize);
-                else                                    mDataBuffers[i].Clear();
+
+            } else if (resetOption == (int)ResetOptions.Minimal) {
+
+                // leave the activestate and refractoryperiods alone
+
+
+            } else {
+                // either the reset option is set to:
+                //   - stop the refractory period on all translating channels, or
+                //   - complete reset
+
+                // set the refractor period to 0 and state as open to clicks on all translating channels
+		        for (uint i = 0; i < mChannels.Length; ++i) {
+                    int channel = mChannels[i];
+                    refractoryCounter[channel] = 0;
+                    activeState[mChannels[i]] = true;
+
+                }
                 
             }
-            
+
             // return success
             return true;
 
@@ -311,7 +343,7 @@ namespace Palmtree.Filters {
                     mActiveRateThreshold = new double[0];
 
                     mBufferSize = new int[0];
-                    startActiveBlock = new int[0];
+                    mStartActiveBlock = new int[0];
 
                 } else {
                     mChannels = new int[newTranslators[0].Length];
@@ -320,7 +352,7 @@ namespace Palmtree.Filters {
                     mActiveRateThreshold = new double[newTranslators[0].Length];
 
                     mBufferSize = new int[newTranslators[0].Length];
-                    startActiveBlock = new int[newTranslators[0].Length];
+                    mStartActiveBlock = new int[newTranslators[0].Length];
 
                     for (int row = 0; row < newTranslators[0].Length; ++row ) {
                         mChannels[row] = (int)newTranslators[0][row] - 1;
@@ -329,7 +361,7 @@ namespace Palmtree.Filters {
                         mRefractoryPeriod[row] = (int)newTranslators[3][row];
 
                         mBufferSize[row] = mActivePeriod[row];    
-                        startActiveBlock[row] = mBufferSize[row] - mActivePeriod[row];
+                        mStartActiveBlock[row] = mBufferSize[row] - mActivePeriod[row];
 
                     }
                     
@@ -350,7 +382,7 @@ namespace Palmtree.Filters {
                 string strTranslating = "Thresholding: ";
                 if (mChannels != null) {
                     for (int i = 0; i < mChannels.Length; i++) {
-                        strTranslating += "[" + (mChannels[i] + 1) + ", AP: " + mActivePeriod[i] + ", ART" + mActiveRateThreshold[i] + ", RefrPer: " + mRefractoryPeriod[i] + "]";
+                        strTranslating += "[" + (mChannels[i] + 1) + ", AP (smpls): " + mActivePeriod[i] + ", ART: " + mActiveRateThreshold[i] + ", RefrPer (smpls): " + mRefractoryPeriod[i] + "]";
                     }
                 } else
                     strTranslating += "-";
@@ -365,7 +397,7 @@ namespace Palmtree.Filters {
             if (mEnableFilter) {
                 
                 // initialize worker variables
-                mDataBuffers = new RingBuffer[inputFormat.numChannels];
+                dataBuffers = new RingBuffer[inputFormat.numChannels];
                 refractoryCounter = new int[inputFormat.numChannels];
                 activeState = new bool[inputFormat.numChannels];
 
@@ -383,8 +415,8 @@ namespace Palmtree.Filters {
                     for (channelFound = 0; channelFound < mChannels.Length; channelFound++)
                         if (mChannels[channelFound] == i)
                             break;
-                    if (channelFound < mChannels.Length)    mDataBuffers[i] = new RingBuffer((uint)mBufferSize[channelFound]);
-                    else                                    mDataBuffers[i] = new RingBuffer(0);
+                    if (channelFound < mChannels.Length)    dataBuffers[i] = new RingBuffer((uint)mBufferSize[channelFound]);
+                    else                                    dataBuffers[i] = new RingBuffer(0);
                     
                 }
                 
@@ -410,29 +442,6 @@ namespace Palmtree.Filters {
         public bool isStarted() {
             return false;
         }
-
-        // set or unset refractory period
-        public void setRefractoryPeriod(bool on) {
-
-            if (on) {
-                
-                // set refractory period on by copying respective refractory periods to the counters for each channel
-                for (uint i = 0; i < inputFormat.numChannels; i++)      activeState[i] = false;
-                Array.Copy(mRefractoryPeriod, refractoryCounter, mRefractoryPeriod.Length);
-
-            } else {                                    
-                
-                // set refractory period off by clearing respective refractory counters for each channel
-                for (uint i = 0; i < inputFormat.numChannels; i++)      activeState[i] = true;
-                Array.Clear(refractoryCounter, 0, refractoryCounter.Length);
-
-            }
-
-            logger.Error("Set refractory period " + on);
-            printLocalConfiguration();
-
-        }
-
         
         public void process(double[] input, out double[] output) {
 
@@ -457,19 +466,19 @@ namespace Palmtree.Filters {
                         int channel = mChannels[i];
                         
                         // add new sample to buffer
-                        mDataBuffers[channel].Put(input[sample + channel]);
+                        dataBuffers[channel].Put(input[sample + channel]);
 
                         // reference buffer
-                        double[] data = mDataBuffers[channel].Data();
+                        double[] data = dataBuffers[channel].Data();
 
                         // if ready for click (active state)
                         if (activeState[channel]) {
 
                             //compute average over active time-window length
                             double activeRate = 0;
-                            for (int j = startActiveBlock[channel]; j < data.Length; ++j)        // deliberately using Length/Count here, we want to take the entire size of the buffer, not just the (ringbuffer) filled ones
+                            for (int j = mStartActiveBlock[channel]; j < data.Length; ++j)        // deliberately using Length/Count here, we want to take the entire size of the buffer, not just the (ringbuffer) filled ones
                                 activeRate += data[j];
-                            activeRate /= (mBufferSize[channel] - startActiveBlock[channel]);
+                            activeRate /= (mBufferSize[channel] - mStartActiveBlock[channel]);
 
                             // compare average to active threshold 
                             // the first should always be 1

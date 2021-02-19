@@ -824,15 +824,21 @@ namespace Palmtree.Core {
 
         }
 
-        /**
-         * Static function to adjust a filter's settings on the fly (during runtime)
-         * 
-         * 
-         **/
-        public static void configureRunningFilter(Parameters newParameters, bool resetFilter = false) {
-            configureRunningFilter(newParameters.ParamSetName, newParameters, resetFilter);    // use the name of the parameter set as the filterName (should be equal)
+        /// <summary>Re-configure and/or reset the configration parameters of the filter (defined in the newParameters argument) on-the-fly.</summary>
+        /// <param name="newParameters">Parameter object that defines the configuration parameters to be set. Also used to indicate which filter to re-configure and/or reset.</param>
+        /// <param name="resetOption">Filter reset options. 0 will reset the minimum; 1 will perform a complete reset of filter information. > 1 for custom resets.</param>
+        /// <returns>A boolean, either true for a succesfull re-configuration, or false upon failure</returns>
+        public static void configureRunningFilter(Parameters newParameters, int resetOption = 0) {
+            if (newParameters == null)  return;
+            configureRunningFilter(newParameters.ParamSetName, newParameters, resetOption);    // use the name of the parameter set as the filterName (should be equal)
         }
-        public static bool configureRunningFilter(string filterName, Parameters newParameters, bool resetFilter = false) {
+
+        /// <summary>Re-configure and/or reset the configration parameters of the indicated filter (by name) on-the-fly.</summary>
+        /// <param name="filterName">The name of the filter to re-configure and/or reset.</param>
+        /// <param name="newParameters">Parameter object that defines the configuration parameters to be set. Set to NULL to leave the configuration parameters untouched.</param>
+        /// <param name="resetOption">Filter reset options. 0 will reset the minimum; 1 will perform a complete reset of filter information. > 1 for custom resets.</param>
+        /// <returns>A boolean, either true for a succesfull re-configuration, or false upon failure</returns>
+        public static bool configureRunningFilter(string filterName, Parameters newParameters, int resetOption = 0) {
 
             // find the filter, and return a reference to its paremeters
             IFilter filter = null;
@@ -855,14 +861,22 @@ namespace Palmtree.Core {
             }
             
             // apply the new parameters to the running filter
-            return filter.configureRunningFilter(newParameters, resetFilter);
+            return filter.configureRunningFilter(newParameters, resetOption);
 
         }
-        public static void configureRunningFilter(Parameters[] newParameters, bool resetFilter = false) {
-            for (int i = 0; i < newParameters.Length; i++)      configureRunningFilter(newParameters[i], resetFilter);
+
+        /// <summary>Re-configure and/or reset the configration parameters of a array of filters (defined in the newParameters argument) on-the-fly.</summary>
+        /// <param name="newParameters">Parameter objects that define the configuration parameters to be set.</param>
+        /// <param name="resetOption">Filter reset options. 0 will reset the minimum; 1 will perform a complete reset of filter information. > 1 for custom resets.</param>
+        /// <returns>A boolean, either true for a succesfull re-configuration, or false upon failure</returns>
+        public static void configureRunningFilter(Parameters[] newParameters, int resetOption = 0) {
+            for (int i = 0; i < newParameters.Length; i++)      
+                configureRunningFilter(newParameters[i], resetOption);
         }
-        public static void configureRunningFilter(Parameters[] newParameters, bool[] resetFilter) {
-            for (int i = 0; i < newParameters.Length; i++)      configureRunningFilter(newParameters[i], (i < resetFilter.Length ? resetFilter[i] : false));
+
+        public static void configureRunningFilter(Parameters[] newParameters, int[] resetOption) {
+            for (int i = 0; i < newParameters.Length; i++)      
+                configureRunningFilter(newParameters[i], (i < resetOption.Length ? resetOption[i] : 0));
         }
 
     }

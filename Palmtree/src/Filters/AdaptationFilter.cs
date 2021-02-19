@@ -170,15 +170,11 @@ namespace Palmtree.Filters {
             
         }
 
-        /**
-         *  Re-configure the filter settings on the fly (during runtime) using the given parameterset. 
-         *  Checks if the new settings have adjustments that cannot be applied to a running filter
-         *  (most likely because they would adjust the number of expected output channels, which would have unforseen consequences for the next filter)
-         *  
-         *  The local parameter is left untouched so it is easy to revert back to the original configuration parameters
-         *  The functions handles both the configuration and initialization of filter related variables.
-         **/
-        public bool configureRunningFilter(Parameters newParameters, bool resetFilter) {
+        /// <summary>Re-configure and/or reset the configration parameters of the filter (defined in the newParameters argument) on-the-fly.</summary>
+        /// <param name="newParameters">Parameter object that defines the configuration parameters to be set. Set to NULL to leave the configuration parameters untouched.</param>
+        /// <param name="resetOption">Filter reset options. 0 will reset the minimum; 1 will perform a complete reset of filter information. > 1 for custom resets.</param>
+        /// <returns>A boolean, either true for a succesfull re-configuration, or false upon failure</returns>
+        public bool configureRunningFilter(Parameters newParameters, int resetOption) {
             
             // check if new parameters are given (only a reset is also an option)
             if (newParameters != null) {
@@ -237,12 +233,6 @@ namespace Palmtree.Filters {
             // TODO: take resetFilter into account (currently always resets the buffers on initialize
             //          but when set not to reset, the buffers should be resized while retaining their values!)
 
-            if (resetFilter) {
-
-                // message
-                logger.Debug("Filter reset");
-
-            }
 
             // initialize the variables
             initialize();

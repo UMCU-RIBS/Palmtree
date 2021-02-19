@@ -127,7 +127,6 @@ namespace CMoleTask {
         private List<bool> helpClickVector = null;
         private int posHelpPercentage = 0;                                          // percentage of samples that will be corrected: if a false negative no-click is made during such a sample, it will be corrected into a true positive
         private int negHelpPercentage = 0;                                          // percentage of samples that will be corrected: if a false positive click is made during such a sample, it will be corected into a true negative 
-        ClickTranslatorFilter clickTranslator = null;                               // reference to clicktranslator filter to set or unset refractoryPeriod
 
         // dynamic mode
         private bool firstUpdate = true;
@@ -488,10 +487,6 @@ namespace CMoleTask {
                     return false;
                 }
 
-                // get reference to clickTranslator filter from mainThread
-                List<IFilter> filters = MainThread.getFilters();
-                for (int i = 0; i < filters.Count; i++)  if (filters[i].getName() == "ClickTranslator") clickTranslator = (ClickTranslatorFilter)filters[i];
-
             }
 
             // retrieve parameters for dynamic mode 
@@ -833,8 +828,8 @@ namespace CMoleTask {
 
                             // if we changed click, set or unset refractoryperiod accordingly and give feedback
                             if (newClick != click) {
-                                if (newClick)   clickTranslator.setRefractoryPeriod(true);
-                                else            clickTranslator.setRefractoryPeriod(false);
+                                if (newClick)   MainThread.configureRunningFilter("clickTranslator", null, (int)ClickTranslatorFilter.ResetOptions.StartFullRefractoryPeriod);
+                                else            MainThread.configureRunningFilter("clickTranslator", null, (int)ClickTranslatorFilter.ResetOptions.StopRefractoryPeriod);
 
                                 logger.Info("At sample " + waitCounter + " in this column the click is: " + click + " and is adjusted to: " + newClick);
                                 Data.logEvent(2, "clickAdjusted", click + ";" + newClick);

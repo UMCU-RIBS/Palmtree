@@ -122,7 +122,7 @@ namespace Palmtree.Filters {
          *  The local parameter is left untouched so it is easy to revert back to the original configuration parameters
          *  The functions handles both the configuration and initialization of filter related variables.
          **/
-        public bool configureRunningFilter(Parameters newParameters, bool resetFilter) {
+        public bool configureRunningFilter(Parameters newParameters, int resetOption) {
             
             // check if new parameters are given (only a reset is also an option)
             if (newParameters != null) {

@@ -26,6 +26,13 @@ namespace Palmtree.Filters {
     /// </summary>
     public class FilterBase {
 
+		public enum ResetOptions:int {
+			Minimal = 0,                                        // reset the minimum, trying to retain as much of the information in the filter as possible
+			Complete = 1                                        // perform a complete reset of filter information
+                                                                // More specific reset options can be specified per filter and passed using options > 1, in such cases
+                                                                // overwriting the FilterBase.ResetOptions enum in the specific filter implementation is encouraged.
+		};
+
         protected int CLASS_VERSION                 = -1;
 
         protected string filterName                 = "";
