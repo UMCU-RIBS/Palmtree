@@ -358,7 +358,7 @@ namespace Palmtree.Core.DataIO {
         public static void registerPipelineInput(SamplePackageFormat inputFormat) {
 
             // store the pipeline sample rate per second (Hz)
-            pipelineSampleRate = inputFormat.packageRate;
+            pipelineSampleRate = inputFormat.packageRate * inputFormat.numSamples;
             
             // check if the pipeline input streams should be logged
             if (mLogPipelineInputStreams) {
