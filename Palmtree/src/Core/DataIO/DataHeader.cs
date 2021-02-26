@@ -27,7 +27,8 @@ namespace Palmtree.Core.DataIO {
         public int version                              = 0;                // data format version
         public string code                              = "";               // data code (src, dat or other)
 
-        public double sampleRate                        = 0;                // the sample rate (in Hz)
+        public double sampleRate                        = 0;                // the sample rate (in Hz); in source-data this is the rate (in Hz) at which the source provides sample measurements
+                                                                            //                          in pipeline-data this is the total number of samples in Hz (over packages) that are expected to come into the pipeline
         public int numPlaybackStreams                   = 0;                // number of playback input streams         (needs to be > 0 for playback)
         public int numStreams                           = 0;                // total number of streams per sample       (used in version 1 as a worker variable, in version 2 a data variable)
 
