@@ -446,14 +446,7 @@ namespace FollowTask {
                 }
 
             }
-
-            /*
-                // other parameters
-                State("Running");
-                State("ConnectionLost");
-                State("KeySequenceActive");
-            */
-
+            
             return true;
 
         }
