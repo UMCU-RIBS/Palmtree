@@ -51,6 +51,23 @@ namespace Palmtree.Core.Helpers {
             return mData;
         }
 
+        public bool[] DataSequential() {
+            bool[] retArr;
+            if (mWrapped) {
+                retArr = new bool[mData.Length];
+                if (mCursor == 0)
+                    Array.Copy(mData, 0, retArr, 0, mData.Length);
+                else {
+                    Array.Copy(mData, mCursor, retArr, 0, mData.Length - mCursor);
+                    Array.Copy(mData, 0, retArr, mData.Length - mCursor, mCursor);
+                }
+            } else {
+                retArr = new bool[mCursor];
+                Array.Copy(mData, 0, retArr, 0, mCursor);
+            }
+            return retArr;
+        }
+
         public void Put(bool inData) {
 
             if (mData.Length > 0)    mData[mCursor] = inData;
