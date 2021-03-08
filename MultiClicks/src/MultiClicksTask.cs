@@ -25,6 +25,7 @@ using Palmtree.Core.Helpers;
 using Palmtree.Core.Params;
 using Palmtree.Core.DataIO;
 using System.Collections.Specialized;
+using Palmtree.Filters;
 
 namespace MultiClicksTask {
 
@@ -42,7 +43,7 @@ namespace MultiClicksTask {
 			EndText
 		};
 
-        private const int CLASS_VERSION = 2;
+        private const int CLASS_VERSION = 3;
         private const string CLASS_NAME = "MultiClicksTask";
         private const string CONNECTION_LOST_SOUND = "sounds\\connectionLost.wav";
 
@@ -115,8 +116,8 @@ namespace MultiClicksTask {
         private TaskStates previousTaskState = TaskStates.Wait;
         private int currentBlock = MultiClicksView.noBlock;                             // the current block which is in line with X of the cursor (so the middle)
         private int previousBlock = MultiClicksView.noBlock;                            // the previous block that was in line with X of the cursor
-        private bool keySequenceActive = false;                                         // flag to hold whether the keysequence is active
-        private bool keySequenceWasPressed = false;
+        private bool keySequenceState = false;                                          // flag to hold whether the keysequence is active
+        private bool keySequencePreviousState = false;
 
 
         private float[] storedBlockPositions = null;                                    // to store the previous block positions while suspended
@@ -824,20 +825,25 @@ namespace MultiClicksTask {
                                 if (mCursorColorRule == 2) {
                                     // 2. Hitcolor on input - Escape color on escape
 
-                                    // only in non UNP-menu tasks
+                                    // check whether the task is independent (i.e. not a child application)
+                                    // note: when the taskparent has a parent application, that application will use the key-sequence
                                     if (!childApplication) {
 
-                                        // retrieve the keysequenceactive global
-                                        keySequenceActive = Globals.getValue<bool>("KeySequenceActive");
+                                        // check if the escape-state has changed
+                                        keySequenceState = Globals.getValue<bool>("KeySequenceActive");
+                                        if (keySequenceState != keySequencePreviousState) {
 
-                                        // log if the escapestate has changed
-                                        if (keySequenceActive != keySequenceWasPressed) {
-                                            Data.logEvent(2, "EscapeChange", (keySequenceActive) ? "1" : "0");
-                                            keySequenceWasPressed = keySequenceActive;
+                                            // log and update
+                                            Data.logEvent(2, "EscapeChange", (keySequenceState) ? "1" : "0");
+                                            keySequencePreviousState = keySequenceState;
+
+                                            // starts the full refractory period on all translated channels
+                                            MainThread.configureRunningFilter("ClickTranslator", null, (int)ClickTranslatorFilter.ResetOptions.StartFullRefractoryPeriod);
+
                                         }
 
                                         // check if a keysequence input comes in or a click input comes in
-                                        if (keySequenceActive) {
+                                        if (keySequenceState) {
 
                                             // set the color
                                             view.setCursorColorSetting(2);
