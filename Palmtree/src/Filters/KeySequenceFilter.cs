@@ -8,7 +8,7 @@
  * Concept:             UNP Team                    (neuroprothese@umcutrecht.nl)
  * Author(s):           Max van den Boom            (info@maxvandenboom.nl)
  * 
- * Adapted from:        Meron Vermaas              (m.vermaas-2@umcutrecht.nl)
+ * Adapted from:        Meron Vermaas               (m.vermaas-2@umcutrecht.nl)
  * 
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or (at your option) any later version. This program is distributed in the hope that it will be useful, but
@@ -31,7 +31,7 @@ namespace Palmtree.Filters {
     /// </summary>
     public class KeySequenceFilter : FilterBase, IFilter {
 
-        private new const int CLASS_VERSION = 2;
+        private new const int CLASS_VERSION = 3;
 
         private int filterInputChannel = 1;							// input channel
         private double mThreshold = 0;                              // 
@@ -39,10 +39,9 @@ namespace Palmtree.Filters {
         private bool[] mSequence = null;                            // 
 
         private BoolRingBuffer mDataBuffer = null;                  // a boolean ringbuffer to hold the last samples in
-        private int mCompareCounter = 0;
 
-        private bool keySequenceActive = false;
-        private bool keySequenceWasPressed = false;
+        private bool keySequenceState = false;
+        private bool keySequencePreviousState = false;
 
         public KeySequenceFilter(string filterName) {
 
@@ -84,7 +83,7 @@ namespace Palmtree.Filters {
             
             parameters.addParameter <bool[]>  (
                 "Sequence",
-                "Sequence activation pattern and amount of samples needed",
+                "Sequence activation pattern and amount of samples needed.\nThe pattern is matched chronological order (i.e. the first value in the pattern is matched against the most recent sample)",
                 "", "", "1,1,1,1,1,1");
 
             // message
@@ -303,8 +302,8 @@ namespace Palmtree.Filters {
 
             // set the key-sequence as not active
             Globals.setValue<bool>("KeySequenceActive", "0");
-            keySequenceActive = false;
-            keySequenceWasPressed = false;
+            keySequenceState = false;
+            keySequencePreviousState = false;
 
             // check if the filter is enabled
             if (mEnableFilter) {
@@ -320,8 +319,8 @@ namespace Palmtree.Filters {
 
             // set the key-sequence as not active
             Globals.setValue<bool>("KeySequenceActive", "0");
-            keySequenceActive = false;
-            keySequenceWasPressed = false;
+            keySequenceState = false;
+            keySequencePreviousState = false;
 
         }
 
@@ -338,9 +337,8 @@ namespace Palmtree.Filters {
 
         public void process(double[] input, out double[] output) {
             
-            // check if the filter is enabled
+            // if the filter is enabled
             if (mEnableFilter) {
-                // filter enabled
                 
                 int totalSamples = inputFormat.numSamples * inputFormat.numChannels;
                 for (int sample = 0; sample < totalSamples; sample += inputFormat.numChannels) {
@@ -373,47 +371,41 @@ namespace Palmtree.Filters {
             if (mDataBuffer.Fill() == mSequence.Length) {
 
                 // reset compare counter
-                mCompareCounter = 0;
-
-                // check the ringbuffer against the keysequence
-                for (int i = 0; i < mDataBuffer.Fill(); ++i) {
-
-                    // check if sequence and input are the same
-                    if (mDataBuffer.Data()[i] == mSequence[i])
+                int mCompareCounter = 0;
+                
+                // check if sequence and input are the same
+                bool[] clickData = mDataBuffer.Data();
+                uint seqLength = (uint)mSequence.Length;
+                uint ringpos = 0;
+                for (uint i = 0; i < mSequence.Length; ++i) {
+                    ringpos = (mDataBuffer.CursorPos() - i + seqLength - 1) % seqLength;
+                    if (clickData[i] == mSequence[ringpos])
                         mCompareCounter++;
-
                 }
 
                 // check if proportion of comparison between keysequence and ringbuffer is met
                 // set the KeySequenceActive global variable accordingly
                 if ((double)mCompareCounter / mSequence.Length >= mProportionCorrect)
-                    keySequenceActive = true;
+                    keySequenceState = true;
                 else
-                    keySequenceActive = false;
+                    keySequenceState = false;
 
                 // check if the escapestate has changed
-                if (keySequenceActive != keySequenceWasPressed) {
+                if (keySequenceState != keySequencePreviousState) {
 
                     // set the global
-                    Globals.setValue<bool>("KeySequenceActive", (keySequenceActive ? "1" : "0"));
+                    Globals.setValue<bool>("KeySequenceActive", (keySequenceState ? "1" : "0"));
 
-                    // log if the escapestate has changed
-                    Data.logEvent(1, "KeySequenceChange", (keySequenceActive) ? "1" : "0");
+                    // log the change in escape-state
+                    Data.logEvent(1, "KeySequenceChange", (keySequenceState) ? "1" : "0");
 
                     // update the flag
-                    keySequenceWasPressed = keySequenceActive;
+                    keySequencePreviousState = keySequenceState;
 
                 }
 
-            } else {
-
-                // TODO: setValue is not always necessary, only call setValue if the value (locally stored) changes
-                Globals.setValue<bool>("KeySequenceActive", "0");
-                keySequenceActive = false;
-                keySequenceWasPressed = false;
-
             }
-                
+
         }
 
         public void destroy() {
