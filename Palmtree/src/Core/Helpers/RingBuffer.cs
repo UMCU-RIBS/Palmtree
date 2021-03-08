@@ -84,6 +84,7 @@ namespace Palmtree.Core.Helpers {
         public void Clear() {
             mCursor = 0;
             mWrapped = false;
+            Array.Clear(mData, 0, mData.Length);
         }
 
     }

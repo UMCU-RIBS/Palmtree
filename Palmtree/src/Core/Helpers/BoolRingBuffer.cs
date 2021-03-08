@@ -14,6 +14,7 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details. You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+using System;
 
 namespace Palmtree.Core.Helpers {
 
@@ -62,6 +63,7 @@ namespace Palmtree.Core.Helpers {
         public void Clear() {
             mCursor = 0;
             mWrapped = false;
+            Array.Clear(mData, 0, mData.Length);
         }
 
     }
