@@ -29,7 +29,7 @@ namespace Palmtree.Filters {
     /// </summary>
     public class AdaptationFilter : FilterBase, IFilter {
 
-        private new const int CLASS_VERSION = 2;
+        private new const int CLASS_VERSION = 3;
 
         private int[] mAdaptation = null;
         private int mBufferSize = 0;                        // time window of past data per buffer that enters into statistic
@@ -634,9 +634,17 @@ namespace Palmtree.Filters {
 				for(uint i = 0; i < dataLength; ++i )       SSQ += (data[i] - statMeans[channel]) * (data[i] - statMeans[channel]);
                 statStds[channel] = Math.Sqrt(SSQ / dataLength);
 
-                // flag the statistics for this channel as set
-                statSet[channel] = true;
+                // check if we are not applying adaptation to this channel
+                if (!statSet[channel]) {
 
+                    // check/warn std
+                    if (statStds[channel] == 0)
+                        logger.Warn("Channel " + channel + " has a standard deviation of 0, not scaling");
+
+                    // flag the statistics for this channel as set
+                    statSet[channel] = true;
+
+                }
             }
 
         }
