@@ -40,7 +40,7 @@ namespace CMoleTask {
 			CountDown,
 			ColumnSelect,
 			ColumnSelected,
-            EscapeCue,
+            EscapeTrial,
 			EndText
 		};
 
@@ -53,7 +53,7 @@ namespace CMoleTask {
             FalseNegativeEscape
         };
 
-        private const int CLASS_VERSION = 4;
+        private const int CLASS_VERSION = 5;
         private const string CLASS_NAME = "CMoleTask";
         private const string CONNECTION_LOST_SOUND = "sounds\\connectionLost.wav";
 
@@ -87,8 +87,8 @@ namespace CMoleTask {
         private int taskStartDelay = 0;                                            // the run start delay in sample blocks
         private int countdownTime = 0;                                             // the time the countdown takes in sample blocks
 
-        private bool keySequenceActive = false;
-        private bool keySequenceWasPressed = false;
+        private bool keySequenceState = false;
+        private bool keySequencePreviousState = false;
         private int waitCounter = 0;
         private int columnSelectDelay = 0;
         private int columnSelectedDelay = 0;
@@ -111,11 +111,11 @@ namespace CMoleTask {
         private int currentColumnID = 0;
         private int numberOfMoles = 1;
         private int numberOfEscapes = 0;
-        private int escapeInterval = 0;                                             // minimal amount of moles between consecutive escape cues
+        private int escapeInterval = 0;                                             // minimal amount of moles between consecutive escape trials
         private int escapeDuration = 0;                                             
-        private List<int> cueSequence = new List<int>(0);		                    // the cue sequence being used in the task (can either be given by input or generated)
+        private List<int> trialSequencePositions = new List<int>(0);		        // the cue sequence being used in the task (can either be given by input or generated)
         private int currentMoleIndex = -1;							                // specify the position of the mole (grid index)
-        private int currentCueIndex = 0;						                    // specify the position in the random sequence of trials
+        private int currentTrial = 0;						                        // specify the position in the sequence of trials
         private int countdownCounter = 0;					                        // the countdown timer
         private int score = 0;						                                // the score of the user hitting a mole
         private int scoreEscape = 0;						                        // the score of the user creating escapes
@@ -273,22 +273,22 @@ namespace CMoleTask {
 
             parameters.addParameter<int>(
                 "NumberOfEscapes",
-                "Amount of Escape cues presented",
+                "Amount of escape trials presented",
                 "1", "", "2");
 
             parameters.addParameter<int>(
                 "EscapeInterval",
-                "Minimum amount of moles between consecutive Escape cues",
+                "Minimum amount of moles between consecutive escape trials",
                 "1", "", "2");
 
             parameters.addParameter<double>(
                 "EscapeDuration",
-                "Amount of time escape cue is presented",
+                "Amount of time an escape trial is presented",
                 "0", "", "3s");
 
             parameters.addParameter<int[]>(
                 "TrialSequence",
-                "Fixed sequence in which targets should be presented (leave empty for random). \nNote. the 'NumberOfTrials' parameter will be overwritten with the amount of values entered here",
+                "Fixed sequence in which moles and escapes should be presented (leave empty for random).\nNote. the parameters ('NumberOfMoles', 'MinimalMoleDistance', 'MinimalMoleDistance'\n'NumberOfMoles') that are normally used to generate the trials sequence will be ignored",
                 "0", "", "");
 
             parameters.addParameter<bool>(
@@ -432,18 +432,18 @@ namespace CMoleTask {
                 return false;
             }
 
-            // retrieve the number of escape cues and interval between cues
+            // retrieve the number of escape trials and interval between trials
             numberOfEscapes = newParameters.getValue<int>("NumberOfEscapes");
             escapeInterval = newParameters.getValue<int>("EscapeInterval");
             if ( ((numberOfEscapes-1) * escapeInterval) > numberOfMoles) {
-                logger.Error("To present " + numberOfEscapes + " Escape cues with " + escapeInterval + " moles between the cues, at least " + ((numberOfEscapes - 1) * escapeInterval) + " moles are needed. Adjust 'Number of moles' parameter accordingly");
+                logger.Error("To present " + numberOfEscapes + " escape trials with a minimum of " + escapeInterval + " moles between the escapes, at least " + ((numberOfEscapes - 1) * escapeInterval) + " moles are needed. Adjust 'Number of moles' parameter accordingly");
                 return false;
             }
 
-            // retrieve how long escape cue is presented 
+            // retrieve how long an escape trial is presented 
             escapeDuration = newParameters.getValueInSamples("EscapeDuration");
             if (escapeDuration <= 0 ) {
-                logger.Error("Escape cue must be presented at least one sample.");
+                logger.Error("The escape trial duration must be at least one sample.");
                 return false;
             }
 
@@ -564,16 +564,16 @@ namespace CMoleTask {
 		            // trialSequence not set in parameters, generate
 		            
 		            // Generate targetlist
-		            generateCueSequence();
+		            generateTrialSequence();
 
 	            } else {
 		            // trialsequence is set in parameters
 
                     // clear the trials
-		            if (cueSequence.Count != 0)		cueSequence.Clear();
+		            if (trialSequencePositions.Count != 0)		trialSequencePositions.Clear();
                 
 		            // transfer the fixed trial sequence
-                    cueSequence = new List<int>(fixedTrialSequence);
+                    trialSequencePositions = new List<int>(fixedTrialSequence);
 
 	            }	            
             }
@@ -616,7 +616,7 @@ namespace CMoleTask {
             if (!childApplication) {
                 
                 // store the generated sequence in the output parameter xml
-                Data.adjustXML(CLASS_NAME, "TrialSequence", string.Join(" ", cueSequence));
+                Data.adjustXML(CLASS_NAME, "TrialSequence", string.Join(" ", trialSequencePositions));
                 
             }
 
@@ -745,17 +745,21 @@ namespace CMoleTask {
 	            // check if the task is pauzed, do not process any further if this is the case
 	            if (taskPaused)		    return;
                 
-                // checked if there is a escape made
-                keySequenceActive = Globals.getValue<bool>("KeySequenceActive");
+                // check if the escape-state has changed
+                keySequenceState = Globals.getValue<bool>("KeySequenceActive");
+                if (keySequenceState != keySequencePreviousState) {
 
-                // log if the escapestate has changed
-                if (keySequenceActive != keySequenceWasPressed) {
-                    Data.logEvent(2, "EscapeChange", (keySequenceActive) ? "1" : "0");
-                    keySequenceWasPressed = keySequenceActive;
+                    // log and update
+                    Data.logEvent(2, "EscapeChange", (keySequenceState) ? "1" : "0");
+                    keySequencePreviousState = keySequenceState;
+
+                    // starts the full refractory period on all translated channels
+                    MainThread.configureRunningFilter("ClickTranslator", null, (int)ClickTranslatorFilter.ResetOptions.StartFullRefractoryPeriod);
+
                 }
 
                 // check if there is a click
-                bool click = (input == 1 && !keySequenceActive);
+                bool click = (input == 1 && !keySequenceState);
 
                 // use the task state
                 switch (taskState) {
@@ -790,7 +794,7 @@ namespace CMoleTask {
 				            view.setCountDown(-1);
 
 				            // begin first trial, and set the mole and selectionbox at the right position
-				            currentCueIndex = 0;
+				            currentTrial = 0;
                             currentColumnID = 0;
 
                             // Show hole grid and score
@@ -801,7 +805,7 @@ namespace CMoleTask {
                             Data.logEvent(2, "TrialStart ", CLASS_NAME);
 
                             // set next cue and corresponding state
-                            setCueAndState(cueSequence[currentCueIndex]);
+                            setCueAndState(trialSequencePositions[currentTrial]);
 			            }
 
 			            break;
@@ -828,8 +832,8 @@ namespace CMoleTask {
 
                             // if we changed click, set or unset refractoryperiod accordingly and give feedback
                             if (newClick != click) {
-                                if (newClick)   MainThread.configureRunningFilter("clickTranslator", null, (int)ClickTranslatorFilter.ResetOptions.StartFullRefractoryPeriod);
-                                else            MainThread.configureRunningFilter("clickTranslator", null, (int)ClickTranslatorFilter.ResetOptions.StopRefractoryPeriod);
+                                if (newClick)   MainThread.configureRunningFilter("ClickTranslator", null, (int)ClickTranslatorFilter.ResetOptions.StartFullRefractoryPeriod);
+                                else            MainThread.configureRunningFilter("ClickTranslator", null, (int)ClickTranslatorFilter.ResetOptions.StopRefractoryPeriod);
 
                                 logger.Info("At sample " + waitCounter + " in this column the click is: " + click + " and is adjusted to: " + newClick);
                                 Data.logEvent(2, "clickAdjusted", click + ";" + newClick);
@@ -849,7 +853,7 @@ namespace CMoleTask {
                             // if time to highlight column has passed
                             if (waitCounter == 0) {
 
-                                // if we missed a mole, store a false negative, and go to next cue
+                                // if we missed a mole, store a false negative, and go to next trial
                                 if (containsMole) {
 
                                     // store false negative
@@ -858,16 +862,16 @@ namespace CMoleTask {
                                     // sotre as event
                                     Data.logEvent(2, "FalseNegative", currentColumnID.ToString());
 
-                                    // increase cue index
-                                    currentCueIndex++;
+                                    // increase trial index
+                                    currentTrial++;
 
                                     // advance to next cell, if the end of row has been reached, reset column id
                                     currentColumnID++;
                                     if (currentColumnID >= holeColumns) currentColumnID = 0;
 
-                                    // if at end of cue sequence, go to Endtext state, otherwise set next cue and correpsonding state
-                                    if (currentCueIndex == cueSequence.Count)       setState(TaskStates.EndText);
-                                    else                                            setCueAndState(cueSequence[currentCueIndex]);
+                                    // if at end of trial sequence, go to Endtext state, otherwise set mole and correpsonding state
+                                    if (currentTrial == trialSequencePositions.Count)   setState(TaskStates.EndText);
+                                    else                                                setCueAndState(trialSequencePositions[currentTrial]);
 
                                     // if in dynamic mode, adjust dynamic parameter and check if we need to stop task because enough correct responses have been given
                                     if (taskMode == 3) updateParameter();
@@ -907,12 +911,12 @@ namespace CMoleTask {
                                 Data.logEvent(2, "TruePositive", currentColumnID.ToString());
 
                                 // go to next trial in the sequence and set mole and selectionbox
-                                currentCueIndex++;
+                                currentTrial++;
                                 currentColumnID++;
                                 if (currentColumnID >= holeColumns) currentColumnID = 0;
 
                                 // check whether at the end of trial sequence
-                                if (currentCueIndex == cueSequence.Count) {
+                                if (currentTrial == trialSequencePositions.Count) {
 
                                     // update score and show end text
                                     updateScore();
@@ -920,8 +924,8 @@ namespace CMoleTask {
 
                                 } else {
 
-                                    // set next cue and corresponding state
-                                    setCueAndState(cueSequence[currentCueIndex]);
+                                    // set mole and corresponding state
+                                    setCueAndState(trialSequencePositions[currentTrial]);
 
                                 }
 
@@ -949,14 +953,14 @@ namespace CMoleTask {
 
 			            break;
 
-                    // escape cue is presented
-                    case TaskStates.EscapeCue:
+                    // escape trial is presented
+                    case TaskStates.EscapeTrial:
 
-                        // if escape cue has been presented for the complete duration, log false negative and go to next mole or escape
-                        if (waitCounter == 0 || keySequenceActive) {
+                        // if escape trial has been presented for the complete duration, log false negative and go to next mole or escape
+                        if (waitCounter == 0 || keySequenceState) {
 
                             // store or true positive or false negative depending on whether an escape sequence was made, and store events
-                            if (keySequenceActive) {
+                            if (keySequenceState) {
                                 posAndNegs.Add(scoreTypes.TruePositiveEscape);
                                 Data.logEvent(2, "TruePositiveEscape", "");
                             } else {
@@ -968,9 +972,9 @@ namespace CMoleTask {
                             view.setEscape(false);
 
                             // go to next trial in the sequence and check whether at the end of trial sequence
-                            currentCueIndex++;
-                            if (currentCueIndex == cueSequence.Count)   setState(TaskStates.EndText);       
-                            else                                        setCueAndState(cueSequence[currentCueIndex]);
+                            currentTrial++;
+                            if (currentTrial == trialSequencePositions.Count)   setState(TaskStates.EndText);       
+                            else                                                setCueAndState(trialSequencePositions[currentTrial]);
 
                             // if in dynamic mode, adjust dynamic parameter and check if we need to stop task because enough correct responses have been given
                             if (taskMode == 3) updateParameter();
@@ -1065,12 +1069,12 @@ namespace CMoleTask {
             // show the grid and set the mole
             if (previousTaskState == TaskStates.ColumnSelect || previousTaskState == TaskStates.ColumnSelected) {
 			
-			    // show the grid and reset the current cue
+			    // show the grid and reset the current mole and state
 			    view.setGrid(true);
-			    setCueAndState(cueSequence[currentCueIndex]);
+			    setCueAndState(trialSequencePositions[currentTrial]);
 		    }
 	    
-	        // set the previous gamestate
+	        // set the previous state
 	        setState(previousTaskState);
 
 	        // set task as not longer pauzed
@@ -1095,7 +1099,7 @@ namespace CMoleTask {
         public void updateParameter() {
 
             // if not in dynamic mode or if there no scores to base parameter update on, exit
-            if (taskMode != 3 && posAndNegs.Count > 0) return;
+            if (taskMode != 3 && posAndNegs.Count > 0)      return;
 
             // retrieve last score to base parameter update on
             scoreTypes lastScore = posAndNegs[posAndNegs.Count - 1];
@@ -1206,6 +1210,7 @@ namespace CMoleTask {
                     else if (paramType == "double[]")   localParam = dynamicParameterSet.getValue<double[]>(param);
                     else if (paramType == "double[][]") localParam = dynamicParameterSet.getValue<double[][]>(param);
                     else if (paramType == "samples")    localParam = dynamicParameterSet.getValueInSamples(param);               
+
                 }
 
                 // prevent from retrieving value from parameter set again
@@ -1345,7 +1350,7 @@ namespace CMoleTask {
             if (tpEsc + fnEsc > 0)      scoreEscape = (int)Math.Floor((tpEsc / (tpEsc + fnEsc)) * 100.0);
 
             // push to view
-            if(view != null)    view.setScore(posAndNegs, score, scoreEscape);
+            if (view != null)    view.setScore(posAndNegs, score, scoreEscape);
 
         } 
 
@@ -1397,8 +1402,8 @@ namespace CMoleTask {
 
                     break;
 
-                // escape cue is being shown
-                case TaskStates.EscapeCue:
+                // escape trial is being shown
+                case TaskStates.EscapeTrial:
 
                     view.selectRow(-1, false);
                     view.selectCell(-1, -1, false);
@@ -1474,12 +1479,7 @@ namespace CMoleTask {
 
                     // select cell
                     view.selectCell(currentRowID, currentColumnID, false);
-
-           
-                    // log event that column is highlighted, and whether the column is empty(no mole), blank(no mole and no pile of dirt), or contains a mole
-                    //if(containsMole)    Data.logEvent(2, "MoleColumn ", currentColumnID.ToString());
-                    //else                Data.logEvent(2, "EmptyColumn ", currentColumnID.ToString());
-
+                    
                     // set waitcounter
                     waitCounter = columnSelectDelay == 0 ? columnSelectDelay : columnSelectDelay - 1;
 
@@ -1547,18 +1547,18 @@ namespace CMoleTask {
             if (fixedTrialSequence.Length == 0) {
 
 		        // generate new targetlist
-		        generateCueSequence();
+		        generateTrialSequence();
 
 	        }
 
         }
 
-        private void generateCueSequence() {
+        private void generateTrialSequence() {
 
             // create trial sequence array with <numTrials> and temporary lists for moles and escapes
             List<int> molesSequence = new List<int>(new int[numberOfMoles]);
             List<int> escapeSequence = new List<int>(new int[numberOfEscapes]);
-            cueSequence = new List<int>(new int[numberOfMoles+numberOfEscapes]);
+            trialSequencePositions = new List<int>(new int[numberOfMoles+numberOfEscapes]);
 
             // create random moles sequence using minimal and maximal mole distance settings. Sequence contains cell number, ie at which cell the mole will appear
             for (int i = 0; i < numberOfMoles; i++) {
@@ -1588,17 +1588,17 @@ namespace CMoleTask {
             }
 
             // combine moles and escape sequences into cue sequence. First insert -1 at the indices at which escapes are presented,
-            for (int i = 0; i < escapeSequence.Count; i++) { cueSequence[escapeSequence[i]] = -1; }
+            for (int i = 0; i < escapeSequence.Count; i++) { trialSequencePositions[escapeSequence[i]] = -1; }
 
             // then insert cell numbers of moles at indices of cue sequence at which no escape is presented
             int m = 0;                                      // counter for molesequence
-            for (int i = 0; i < cueSequence.Count; i++) {
-                if (cueSequence[i] == 0) {
-                    cueSequence[i] = molesSequence[m];
+            for (int i = 0; i < trialSequencePositions.Count; i++) {
+                if (trialSequencePositions[i] == 0) {
+                    trialSequencePositions[i] = molesSequence[m];
                     m++;
                 }
 
-                //logger.Info(cueSequence[i]);
+                //logger.Info(trialSequencePositions[i]);
 
             }
         }
@@ -1641,7 +1641,7 @@ namespace CMoleTask {
             // if index is -1, place escape, otherwise place mole at given index
             if (currentMoleIndex == -1) {
                 view.setEscape(true);
-                setState(TaskStates.EscapeCue);
+                setState(TaskStates.EscapeTrial);
             } else {
                 holes[currentMoleIndex].type = MoleCell.CellType.Mole;
                 setState(TaskStates.ColumnSelect);
