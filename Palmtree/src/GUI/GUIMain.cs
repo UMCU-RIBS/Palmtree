@@ -127,6 +127,17 @@ namespace Palmtree.GUI {
             }
 
         }
+        
+        public void modalMessageDelegate(string text, string caption, MessageBoxButtons buttons, MessageBoxIcon icon) {
+            if (this.IsHandleCreated && !this.IsDisposed) {
+                try {
+                    // close the form on the forms thread
+                    this.Invoke((MethodInvoker)delegate {
+                        MessageBox.Show(this, text, caption, buttons, icon);
+                    });
+                } catch (Exception) { }
+            }
+        }
 
         public void closeDelegate() {
 

@@ -326,6 +326,14 @@ namespace Palmtree.Core {
             
                 // continue to run as the main thread
                 mainThread.run();
+                
+            } else {
+                // on failure
+
+                string errMessage = "Error while initializing modules, inspect the log for more information";
+                logger.Error(errMessage);
+                if (!nogui)
+                    gui.modalMessageDelegate(errMessage, "Initialization error", MessageBoxButtons.OK, MessageBoxIcon.Error);
 
             }
 
