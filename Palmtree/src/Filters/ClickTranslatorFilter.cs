@@ -32,7 +32,7 @@ namespace Palmtree.Filters {
     /// </summary>
     public class ClickTranslatorFilter : FilterBase, IFilter {
 
-        private new const int CLASS_VERSION         = 4;
+        private new const int CLASS_VERSION         = 5;
 
 		public new enum ResetOptions:int {
 			Minimal = 0,                                        // reset the minimum, trying to retain as much of the information in the filter as possible
@@ -482,7 +482,7 @@ namespace Palmtree.Filters {
 
                             // compare average to active threshold 
                             // the first should always be 1
-                            if ((activeRate >= mActiveRateThreshold[channel]) && (data[0] == 1)) {
+                            if (activeRate >= mActiveRateThreshold[channel]) {
 
                                 // output a click
                                 output[sample + channel] = 1;
@@ -499,12 +499,9 @@ namespace Palmtree.Filters {
 
                             // inactive_state stops after set refractory period
                             output[sample + channel] = 0;
-
-                            // count down the refractory counters
-                            if (refractoryCounter[channel] > 0)        refractoryCounter[channel]--;
-
-                            // check if the counters reached 0, then allow for clicks again
-                            if (refractoryCounter[channel] == 0)
+                            
+                            // count down the refractory counter and check if we can allow clicks again
+                            if (--refractoryCounter[channel] <= 0)
                                 activeState[channel] = true;
 
                         }
