@@ -1,4 +1,6 @@
 FROM mcr.microsoft.com/dotnet/framework/sdk:4.8
+
+WORKDIR C:\\Palmtree
 COPY . .
 
-RUN msbuild AllProjects.sln
+CMD ["msbuild", "-m", "AllProjects.sln", "/property:Configuration=Release"]
