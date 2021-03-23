@@ -76,13 +76,19 @@ namespace Palmtree.Core.Params {
         }
 
         public iParam addParameter<T>(string name, string desc) {
-            return addParameter<T>(name, "", desc, "", "", "", new string[0]);
+            return addParameter<T>(name, "", desc, "", "", "");
         }        
+        public iParam addParameter<T>(string name, string desc, string[] options) {
+            return addParameter<T>(name, "", desc, "", "", "", options);
+        }
         public iParam addParameter<T>(string name, string desc, string stdValue) {
             return addParameter<T>(name, "", desc, "", "", stdValue, new string[0]);
         }
-        public iParam addParameter<T>(string name, string desc, string[] options) {
-            return addParameter<T>(name, "", desc, "", "", "", options);
+        public iParam addParameter<T>(string name, string desc, string stdValue, string[] options) {
+            return addParameter<T>(name, "", desc, "", "", stdValue, options);
+        }
+        public iParam addParameter<T>(string name, string desc, string minValue, string maxValue) {
+            return addParameter<T>(name, "", desc, minValue, maxValue, "", new string[0]);
         }
         public iParam addParameter<T>(string name, string desc, string minValue, string maxValue, string stdValue) {
             return addParameter<T>(name, "", desc, minValue, maxValue, stdValue, new string[0]);
@@ -93,11 +99,18 @@ namespace Palmtree.Core.Params {
         public iParam addParameter<T>(string name, string desc, string minValue, string maxValue, string stdValue, string[] options) {
             return addParameter<T>(name, "", desc, minValue, maxValue, stdValue, options);
         }
+        public iParam addParameter<T>(string name, string desc, string minValue, string maxValue, string stdValue, string[] options, Param.ParamSideButton[] buttons) {
+            return addParameter<T>(name, "", desc, minValue, maxValue, stdValue, options, buttons);
+        }
+
         public iParam addParameter<T>(string name, string group, string desc, string minValue, string maxValue, string stdValue) {
             return addParameter<T>(name, group, desc, minValue, maxValue, stdValue, new string[0]);
         }
         public iParam addParameter<T>(string name, string group, string desc, string minValue, string maxValue, string stdValue, string[] options) {
-
+            return addParameter<T>(name, group, desc, minValue, maxValue, stdValue, options, null);
+        }
+        public iParam addParameter<T>(string name, string group, string desc, string minValue, string maxValue, string stdValue, string[] options, Param.ParamSideButton[] buttons) {
+            
             lock (lockParameters) {
 
                 // check if a parameter with that name already exists, return without adding if this is the case
@@ -105,10 +118,23 @@ namespace Palmtree.Core.Params {
                     logger.Warn("A parameter with the name '" + name + "' already exists in parameter set '" + paramSetName + "', not added.");
                     return null;
                 }
+                
+                // retrieve the type of parameter
+                Type paramType = typeof(T);
+
+                // only allow for side buttons on string types
+                if (buttons != null && buttons.Length != 0) {
+                    if (!(paramType == typeof(ParamString) || paramType == typeof(string) || paramType == typeof(String))) {
+                        logger.Warn("Discarding extra buttons for parameter '" + name + "' in parameter set '" + paramSetName + "', extra buttons are only allowed for parameters of the String-type");
+                        buttons = null;
+                    } else if (paramType == typeof(ParamFileString)) {
+                        logger.Warn("Discarding extra buttons for parameter '" + name + "' in parameter set '" + paramSetName + "', only a browse button will be added for a parameter of the type FileString");
+                        buttons = null;
+                    }
+                }
 
                 // create a new parameter and transfer the properties
                 iParam param = null;
-                Type paramType = typeof(T);
                 if (paramType == typeof(ParamBool) || paramType == typeof(bool) || paramType == typeof(Boolean)) {
 
                     param = new ParamBool(name, group, this, desc, stdValue, options);
@@ -147,7 +173,7 @@ namespace Palmtree.Core.Params {
 
                 } else if (paramType == typeof(ParamString) || paramType == typeof(string) || paramType == typeof(String)) {
 
-                    param = new ParamString(name, group, this, desc, stdValue, options);
+                    param = new ParamString(name, group, this, desc, stdValue, options, buttons);
 
                 } else if (paramType == typeof(ParamFileString)) {
 

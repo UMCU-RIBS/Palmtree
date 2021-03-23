@@ -18,23 +18,35 @@ using System;
 namespace Palmtree.Core.Params {
 
     /// <summary>
-    /// The <c>Param</c> class.
+    /// Param class.
     /// 
     /// ...
     /// </summary>
     public abstract class Param {
 
         protected static Logger logger = LogManager.GetLogger("Parameter");
+        
+        public struct ParamSideButton {
+            public string name;
+            public EventHandler clickEvent;
+            public int width;
+            public ParamSideButton(string name, int width, EventHandler clickEvent) {
+                this.name = name;
+                this.width = width;
+                this.clickEvent = clickEvent;
+            }
+        }
 
         // parameter properties
-        protected string name = "";
-        protected string group = "";
-        protected string desc = "";
-        protected string stdValue = "";
-        protected string minValue = "";
-        protected string maxValue = "";
-        protected string[] options = new string[0];
-        protected Parameters parentSet = null;
+        protected string name                       = "";
+        protected string group                      = "";
+        protected string desc                       = "";
+        protected string stdValue                   = "";
+        protected string minValue                   = "";
+        protected string maxValue                   = "";
+        protected string[] options                  = new string[0];
+        protected ParamSideButton[] buttons         = null;
+        protected Parameters parentSet              = null;
 
         public Param(string name, string group, Parameters parentSet, string desc, string stdValue, string[] options) {
             this.name = name;
@@ -46,18 +58,30 @@ namespace Palmtree.Core.Params {
             if (this.options == null) this.options = new string[0];
         }
 
+        public Param(string name, string group, Parameters parentSet, string desc, string stdValue, string[] options, ParamSideButton[] buttons) {
+            this.name = name;
+            this.group = group;
+            this.parentSet = parentSet;
+            this.desc = desc;
+            this.stdValue = stdValue;
+            this.options = options;
+            if (this.options == null) this.options = new string[0];
+            this.buttons = buttons;
+        }
+
         protected string getParentSetName() {
             if (parentSet == null)      return "unknown";
             return parentSet.ParamSetName;
         }
 
-        public string   Name      {   get {   return this.name;       }   }
-        public string   Group     {   get {   return this.group;      }   }
-        public string   Desc      {   get {   return this.desc;       }   }
-        public string   MinValue  {   get {   return this.minValue;   }   }
-        public string   MaxValue  {   get {   return this.maxValue;   }   }
-        public string   StdValue  {   get {   return this.stdValue;   }   }
-        public string[] Options   {   get {   return this.options;    }   }
+        public string   Name                    {   get {   return this.name;       }   }
+        public string   Group                   {   get {   return this.group;      }   }
+        public string   Desc                    {   get {   return this.desc;       }   }
+        public string   MinValue                {   get {   return this.minValue;   }   }
+        public string   MaxValue                {   get {   return this.maxValue;   }   }
+        public string   StdValue                {   get {   return this.stdValue;   }   }
+        public string[] Options                 {   get {   return this.options;    }   }
+        public ParamSideButton[] Buttons        {   get {   return this.buttons;    }   }
 
     }
 

@@ -29,6 +29,11 @@ namespace Palmtree.Core.Params {
             minValue = "";
             maxValue = "";
         }
+        
+        public ParamString(string name, string group, Parameters parentSet, string desc, string stdValue, string[] options, ParamSideButton[] buttons) : base(name, group, parentSet, desc, stdValue, options, buttons) {
+            minValue = "";
+            maxValue = "";
+        }
 
         public string getValue() {
             return this.value;

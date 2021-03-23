@@ -233,7 +233,7 @@ namespace Palmtree.GUI {
 
                     // create and add a combobox
                     ComboBox newCmb = new ComboBox();
-                    newCmb.Name = "txt" + panel.Name + param.Name;
+                    newCmb.Name = "cmb" + panel.Name + param.Name;
                     newCmb.Location = new Point(labelWidth + 20, y + itemTopPadding - 3);
                     newCmb.Size = new System.Drawing.Size(320, 20);
                     newCmb.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
@@ -267,39 +267,73 @@ namespace Palmtree.GUI {
 
             } else if (param is ParamBoolArr || param is ParamIntArr || param is ParamDoubleArr || param is ParamString) {
 
-                // create and add a textbox
-                TextBox newTxt = new TextBox();
-                newTxt.Name = "txt" + panel.Name + param.Name;
-                newTxt.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
-                newTxt.Size = new System.Drawing.Size((param is ParamFileString ? 480 : 340), 20);
-                newTxt.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
-                panel.Controls.Add(newTxt);
-                paramControl.control = newTxt;
-                itemHeight = 20;
 
-                if (param is ParamFileString) {
+                int elementWidth = 0;
+
+                if (param is ParamString && param.Options.Length != 0) {
+                    // string with emulated options
+
+                    elementWidth = 320;
+
+                    // create and add a combobox
+                    ComboBox newCmb = new ComboBox();
+                    newCmb.Name = "cmb" + panel.Name + param.Name;
+                    newCmb.Location = new Point(labelWidth + 20, y + itemTopPadding - 3);
+                    newCmb.Size = new System.Drawing.Size(elementWidth, 20);
+                    newCmb.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
+                    for (int i = 0; i < param.Options.Length; i++)  newCmb.Items.Add(param.Options[i]);
+                    panel.Controls.Add(newCmb);
+                    paramControl.control = newCmb;
+                    itemHeight = 22;
+
+                } else {
+                    // bool-, int- or double-array or string without emulated options
+
+                    elementWidth = (param is ParamFileString ? 480 : 340);
+
+                    // create and add a textbox
+                    TextBox newTxt = new TextBox();
+                    newTxt.Name = "txt" + panel.Name + param.Name;
+                    newTxt.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
+                    newTxt.Size = new System.Drawing.Size(elementWidth, 20);
+                    newTxt.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
+                    panel.Controls.Add(newTxt);
+                    paramControl.control = newTxt;
+                    itemHeight = 20;
+
+                    // if FileString parameter, add a browse option
+                    if (param is ParamFileString) {
                     
-                    // create and add a button
-                    Button newBtn = new Button();
-                    newBtn.Name = "btn" + panel.Name + param.Name;
-                    newBtn.Location = new Point(labelWidth + newTxt.Size.Width + 20, y + itemTopPadding - 2);
-                    newBtn.Size = new System.Drawing.Size(40, 23);
-                    newBtn.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
-                    newBtn.Text = "...";
-                    newBtn.Click += (sender, e) => {
+                        // create and add a button
+                        Button newBtn = new Button();
+                        newBtn.Name = "btn" + panel.Name + param.Name;
+                        newBtn.Location = new Point(labelWidth + elementWidth + 20, y + itemTopPadding - 2);
+                        newBtn.Size = new System.Drawing.Size(40, 23);
+                        newBtn.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
+                        newBtn.Text = "...";
+                        newBtn.Click += (sender, e) => {
 
-                        // open file dialog to open dat file
-                        OpenFileDialog dlgLoadDatFile = new OpenFileDialog();
+                            // open file dialog to open dat file
+                            OpenFileDialog dlgLoadDatFile = new OpenFileDialog();
 
-                        // set initial directory (or the closest we can get)
-                        string folder = newTxt.Text;
-                        bool tryFolder = true;
-                        while (tryFolder) {
-                            try {
-                                FileAttributes attr = File.GetAttributes(folder);
-                                if ((attr & FileAttributes.Directory) == FileAttributes.Directory)
-                                    tryFolder = false;
-                                else {
+                            // set initial directory (or the closest we can get)
+                            string folder = newTxt.Text;
+                            bool tryFolder = true;
+                            while (tryFolder) {
+                                try {
+                                    FileAttributes attr = File.GetAttributes(folder);
+                                    if ((attr & FileAttributes.Directory) == FileAttributes.Directory)
+                                        tryFolder = false;
+                                    else {
+                                        int lastIndex = folder.LastIndexOf('\\');
+                                        if (lastIndex == -1) {
+                                            tryFolder = false;
+                                            folder = "";
+                                        } else
+                                            folder = folder.Substring(0, lastIndex);
+                                    }
+                                } catch (Exception) {
+                                    if (folder.Length > 0) folder = folder.Substring(0, folder.Length - 1);
                                     int lastIndex = folder.LastIndexOf('\\');
                                     if (lastIndex == -1) {
                                         tryFolder = false;
@@ -307,36 +341,55 @@ namespace Palmtree.GUI {
                                     } else
                                         folder = folder.Substring(0, lastIndex);
                                 }
-                            } catch (Exception) {
-                                if (folder.Length > 0) folder = folder.Substring(0, folder.Length - 1);
-                                int lastIndex = folder.LastIndexOf('\\');
-                                if (lastIndex == -1) {
-                                    tryFolder = false;
-                                    folder = "";
-                                } else
-                                    folder = folder.Substring(0, lastIndex);
+
+                            }
+                            if (string.IsNullOrEmpty(folder)) dlgLoadDatFile.InitialDirectory = Directory.GetCurrentDirectory();
+                            else dlgLoadDatFile.InitialDirectory = folder;
+
+                            // 
+                            dlgLoadDatFile.Filter = "All files (*.*)|*.*";
+                            dlgLoadDatFile.RestoreDirectory = true;            // restores current directory to the previously selected directory, potentially beneficial if other code relies on the currently set directory
+
+                            // check if ok has been clicked on the dialog
+                            if (dlgLoadDatFile.ShowDialog() == DialogResult.OK) {
+
+                                newTxt.Text = dlgLoadDatFile.FileName;
+
                             }
 
-                        }
-                        if (string.IsNullOrEmpty(folder)) dlgLoadDatFile.InitialDirectory = Directory.GetCurrentDirectory();
-                        else dlgLoadDatFile.InitialDirectory = folder;
+                        };
+                        panel.Controls.Add(newBtn);
+                        paramControl.additionalControl1 = newBtn;
 
-                        // 
-                        dlgLoadDatFile.Filter = "All files (*.*)|*.*";
-                        dlgLoadDatFile.RestoreDirectory = true;            // restores current directory to the previously selected directory, potentially beneficial if other code relies on the currently set directory
-
-                        // check if ok has been clicked on the dialog
-                        if (dlgLoadDatFile.ShowDialog() == DialogResult.OK) {
-
-                            newTxt.Text = dlgLoadDatFile.FileName;
-
-                        }
-
-                    };
-                    panel.Controls.Add(newBtn);
-                    paramControl.additionalControl1 = newBtn;
-
+                    }
+                
                 }
+
+                // on 
+                if (param is ParamString && !(param is ParamFileString)) {
+                    Param.ParamSideButton[] sideButtons = ((ParamString)param).Buttons;
+                    if (sideButtons != null) {
+                        int buttonLeft = labelWidth + elementWidth + 25;
+
+                        // create and add buttons
+                        for (int iButton = 0; iButton < sideButtons.Length; iButton++) {
+                            Button newBtn = new Button();
+                            newBtn.Name = "btn" + panel.Name + param.Name + "Side" + iButton;
+                            newBtn.Location = new Point(buttonLeft, y + itemTopPadding - 2);
+                            newBtn.Size = new System.Drawing.Size(sideButtons[iButton].width, 23);
+                            newBtn.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
+                            newBtn.Text = sideButtons[iButton].name;
+                            if (sideButtons[iButton].clickEvent != null)
+                                newBtn.Click += sideButtons[iButton].clickEvent;
+                            panel.Controls.Add(newBtn);
+                            paramControl.additionalControl1 = newBtn;
+
+                            buttonLeft += sideButtons[iButton].width + 5;
+                        }
+
+                    }
+                }
+
 
             } else if (param is ParamBoolMat || param is ParamIntMat || param is ParamDoubleMat || param is ParamStringMat) {
 
@@ -537,16 +590,20 @@ namespace Palmtree.GUI {
                     CheckBox chk = (CheckBox)paramControls[i].control;
                     chk.Checked = ((ParamBool)param).Value;
                     
-                } else if ((param is ParamInt && param.Options.Length != 0) || (param is ParamDouble && param.Options.Length != 0)) {                    
-                    
-                    // int/double emulated options
-                    ComboBox cmb = (ComboBox)paramControls[i].control;
-                    int intValue = 0;
-                    int.TryParse(param.getValue(), NumberStyles.AllowDecimalPoint, Parameters.NumberCulture, out intValue);
-                    if (intValue > param.Options.Length)    intValue = 0;
-                    cmb.SelectedIndex = intValue;
+                } else if ((param is ParamInt && param.Options.Length != 0) || (param is ParamDouble && param.Options.Length != 0) || (param is ParamString && param.Options.Length != 0)) {                    
+                    // int/double/string emulated options
 
-                } else if ((param is ParamInt && param.Options.Length == 0) || (param is ParamDouble && param.Options.Length == 0) || param is ParamBoolArr || param is ParamIntArr || param is ParamDoubleArr || param is ParamString) {
+                    ComboBox cmb = (ComboBox)paramControls[i].control;
+                    if (param is ParamString) {
+                        cmb.Text = param.getValue();
+                    } else {
+                        int intValue = 0;
+                        int.TryParse(param.getValue(), NumberStyles.AllowDecimalPoint, Parameters.NumberCulture, out intValue);
+                        if (intValue > param.Options.Length)    intValue = 0;
+                        cmb.SelectedIndex = intValue;
+                    }
+
+                } else if ((param is ParamInt && param.Options.Length == 0) || (param is ParamDouble && param.Options.Length == 0) || (param is ParamString && param.Options.Length == 0) || param is ParamBoolArr || param is ParamIntArr || param is ParamDoubleArr) {
 
                     TextBox txt = (TextBox)paramControls[i].control;
                     txt.Text = param.getValue();
@@ -613,17 +670,24 @@ namespace Palmtree.GUI {
                         }
                     }
                     
-                } else if ((param is ParamInt && param.Options.Length != 0) || (param is ParamDouble && param.Options.Length != 0)) {
+                } else if ((param is ParamInt && param.Options.Length != 0) || (param is ParamDouble && param.Options.Length != 0) || (param is ParamString && param.Options.Length != 0)) {
 
                     // int/double emulated options
                     ComboBox cmb = (ComboBox)paramControls[i].control;
+
+                    // retrieve the value to test or save
+                    string cmbValue = "";
+                    if (param is ParamString)
+                        cmbValue = cmb.Text;
+                    else
+                        cmbValue = cmb.SelectedIndex.ToString();
 
                     // testing or saving
                     if (!saveFields) {
                         // testing
 
                         // try to parse the text
-                        if (!param.tryValue(cmb.SelectedIndex.ToString())) {
+                        if (!param.tryValue(cmbValue)) {
                             
                             // flag
                             hasError = true;
@@ -642,7 +706,7 @@ namespace Palmtree.GUI {
                     } else {
                         // saving
 
-                        if (!param.setValue(cmb.SelectedIndex.ToString())) {
+                        if (!param.setValue(cmbValue)) {
 
                             // flag
                             hasError = true;
@@ -655,7 +719,7 @@ namespace Palmtree.GUI {
 
                     }
 
-                } else if ((param is ParamInt && param.Options.Length == 0) || (param is ParamDouble && param.Options.Length == 0) || param is ParamBoolArr || param is ParamIntArr || param is ParamDoubleArr || param is ParamString) {
+                } else if ((param is ParamInt && param.Options.Length == 0) || (param is ParamDouble && param.Options.Length == 0) || (param is ParamString && param.Options.Length == 0) || param is ParamBoolArr || param is ParamIntArr || param is ParamDoubleArr) {
                     TextBox txt = (TextBox)paramControls[i].control;
 
                     // testing or saving
