@@ -8,7 +8,7 @@
  * Concept:             UNP Team                    (neuroprothese@umcutrecht.nl)
  * Author(s):           Max van den Boom            (info@maxvandenboom.nl)
  * 
- * Adapted from:        Meron Vermaas              (m.vermaas-2@umcutrecht.nl)
+ * Adapted from:        Meron Vermaas               (m.vermaas-2@umcutrecht.nl)
  * 
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or (at your option) any later version. This program is distributed in the hope that it will be useful, but
@@ -46,7 +46,7 @@ namespace MoleTask {
 			EndText
 		};
 
-        private const int CLASS_VERSION = 3;
+        private const int CLASS_VERSION = 4;
         private const string CLASS_NAME = "MoleTask";
         private const string CONNECTION_LOST_SOUND = "sounds\\connectionLost.wav";
 
@@ -68,39 +68,35 @@ namespace MoleTask {
         private bool connectionWasLost = false;						                // flag to hold whether the connection has been lost (should be reset after being re-connected)
 
         // task input parameters
-        private int mWindowLeft = 0;
-        private int mWindowTop = 0;
-        private int mWindowWidth = 800;
-        private int mWindowHeight = 600;
-        private int mWindowRedrawFreqMax = 0;
-        private RGBColorFloat mWindowBackgroundColor = new RGBColorFloat(0f, 0f, 0f);
+        private int windowLeft = 0;
+        private int windowTop = 0;
+        private int windowWidth = 800;
+        private int windowHeight = 600;
+        private int windowRedrawFreqMax = 0;
+        private RGBColorFloat windowBackgroundColor = new RGBColorFloat(0f, 0f, 0f);
         //private bool mWindowed = true;
         //private int mFullscreenMonitor = 0;
-        
 
         private int taskInputChannel = 1;											// input channel to use
-        private int mTaskFirstRunStartDelay = 0;                                    // the first run start delay in sample blocks
-        private int mTaskStartDelay = 0;                                            // the run start delay in sample blocks
-        private int mCountdownTime = 0;                                             // the time the countdown takes in sample blocks
-
-        private int mWaitCounter = 0;
-        private int mRowSelectDelay = 0;
-        private int mRowSelectedDelay = 0;
-        private int mColumnSelectDelay = 0;
-        private int mColumnSelectedDelay = 0;
+        private int taskFirstRunStartDelay = 0;                                     // the first run start delay in sample blocks
+        private int taskStartDelay = 0;                                             // the run start delay in sample blocks
+        private int countdownTime = 0;                                              // the time the countdown takes in sample blocks
+        
+        private int rowSelectDelay = 0;
+        private int rowSelectedDelay = 0;
+        private int columnSelectDelay = 0;
+        private int columnSelectedDelay = 0;
         private int configHoleRows = 0;
         private int configHoleColumns = 0;
         private int[] fixedTrialSequence = new int[0];					            // target sequence (input parameter)
 
 
         // task (active) variables
-        private List<MoleCell> holes = new List<MoleCell>(0);
         private TaskStates taskState = TaskStates.Wait;
-        private TaskStates previousTaskState = TaskStates.Wait;
-
+        private int waitCounter = 0;
         private bool allowExit = false;
-        private int holeRows = 0;
-        private int holeColumns = 0;
+        private int numRows = 0;
+        private int numColumns = 0;
         private int currentRowID = 0;
         private int currentColumnID = 0;
         private int numberOfTrials = 1;
@@ -181,12 +177,12 @@ namespace MoleTask {
 
             parameters.addParameter<int>(
                 "TaskFirstRunStartDelay",
-                "Amount of time before the task starts (on the first run of the task)",
+                "Amount of time before the task (or the countdown) starts on the first run of the task",
                 "0", "", "5s");
 
             parameters.addParameter<int>(
                 "TaskStartDelay",
-                "Amount of time before the task starts (after the first run of the task)",
+                "Amount of time before the task (or the countdown) starts after the first run of the task",
                 "0", "", "5s");
 
             parameters.addParameter<int>(
@@ -236,7 +232,7 @@ namespace MoleTask {
 
             parameters.addParameter<int[]>(
                 "TrialSequence",
-                "Fixed sequence in which targets should be presented (leave empty for random). \nNote. the 'NumberOfTrials' parameter will be overwritten with the amount of values entered here",
+                "Fixed sequence in which moles should be presented (leave empty for random).\nNote. the parameters that are normally used to generate the trials sequence ('NumberOfTrials') will be ignored",
                 "0", "", "");
 
         }
@@ -287,23 +283,23 @@ namespace MoleTask {
 
 
             // retrieve window settings
-            mWindowLeft = newParameters.getValue<int>("WindowLeft");
-            mWindowTop = newParameters.getValue<int>("WindowTop");
-            mWindowWidth = newParameters.getValue<int>("WindowWidth");
-            mWindowHeight = newParameters.getValue<int>("WindowHeight");
-            mWindowRedrawFreqMax = newParameters.getValue<int>("WindowRedrawFreqMax");
-            mWindowBackgroundColor = newParameters.getValue<RGBColorFloat>("WindowBackgroundColor");
+            windowLeft = newParameters.getValue<int>("WindowLeft");
+            windowTop = newParameters.getValue<int>("WindowTop");
+            windowWidth = newParameters.getValue<int>("WindowWidth");
+            windowHeight = newParameters.getValue<int>("WindowHeight");
+            windowRedrawFreqMax = newParameters.getValue<int>("WindowRedrawFreqMax");
+            windowBackgroundColor = newParameters.getValue<RGBColorFloat>("WindowBackgroundColor");
             //mWindowed = true;           // fullscreen not implemented, so always windowed
             //mFullscreenMonitor = 0;     // fullscreen not implemented, default to 0 (does nothing)
-            if (mWindowRedrawFreqMax < 0) {
+            if (windowRedrawFreqMax < 0) {
                 logger.Error("The maximum window redraw frequency can be no smaller then 0");
                 return false;
             }
-            if (mWindowWidth < 1) {
+            if (windowWidth < 1) {
                 logger.Error("The window width can be no smaller then 1");
                 return false;
             }
-            if (mWindowHeight < 1) {
+            if (windowHeight < 1) {
                 logger.Error("The window height can be no smaller then 1");
                 return false;
             }
@@ -320,16 +316,16 @@ namespace MoleTask {
             }
 
             // retrieve the task delays 
-            mTaskFirstRunStartDelay = newParameters.getValueInSamples("TaskFirstRunStartDelay");
-            mTaskStartDelay = newParameters.getValueInSamples("TaskStartDelay");
-            if (mTaskFirstRunStartDelay < 0 || mTaskStartDelay < 0) {
+            taskFirstRunStartDelay = newParameters.getValueInSamples("TaskFirstRunStartDelay");
+            taskStartDelay = newParameters.getValueInSamples("TaskStartDelay");
+            if (taskFirstRunStartDelay < 0 || taskStartDelay < 0) {
                 logger.Error("Start delays cannot be less than 0");
                 return false;
             }
 
             // retrieve the countdown time
-            mCountdownTime = newParameters.getValueInSamples("CountdownTime");
-            if (mCountdownTime < 0) {
+            countdownTime = newParameters.getValueInSamples("CountdownTime");
+            if (countdownTime < 0) {
                 logger.Error("Countdown time cannot be less than 0");
                 return false;
             }
@@ -343,11 +339,11 @@ namespace MoleTask {
             }
 
             // retrieve selection delays
-            mRowSelectDelay = newParameters.getValueInSamples("RowSelectDelay");
-            mRowSelectedDelay = newParameters.getValueInSamples("RowSelectedDelay");
-            mColumnSelectDelay = newParameters.getValueInSamples("ColumnSelectDelay");
-            mColumnSelectedDelay = newParameters.getValueInSamples("ColumnSelectedDelay");
-            if (mRowSelectDelay < 1 || mRowSelectedDelay < 1 || mColumnSelectDelay < 1 || mColumnSelectedDelay < 1) {
+            rowSelectDelay = newParameters.getValueInSamples("RowSelectDelay");
+            rowSelectedDelay = newParameters.getValueInSamples("RowSelectedDelay");
+            columnSelectDelay = newParameters.getValueInSamples("ColumnSelectDelay");
+            columnSelectedDelay = newParameters.getValueInSamples("ColumnSelectedDelay");
+            if (rowSelectDelay < 1 || rowSelectedDelay < 1 || columnSelectDelay < 1 || columnSelectedDelay < 1) {
                 logger.Error("The 'RowSelectDelay', 'RowSelectedDelay', 'ColumnSelectDelay', 'ColumnSelectedDelay' parameters should not be less than 1");
                 return false;
             }
@@ -387,22 +383,8 @@ namespace MoleTask {
             lock(lockView) {
 
                 // extra empty first column and row
-                holeColumns = configHoleColumns + 1;
-                holeRows = configHoleRows + 1;
-
-                // calculate the cell holes for the task
-                int numHoles = holeRows * holeColumns;
-
-                // create the array of cells for the task
-                holes = new List<MoleCell>(0);
-                for (int i = 0; i < numHoles; i++) {
-                    if ((i % holeColumns == 0 || i <= holeColumns) && (i != 2 || !allowExit))
-                        holes.Add(new MoleCell(0, 0, 0, 0, MoleCell.CellType.Empty));
-                    else if (i == 2 && allowExit)
-                        holes.Add(new MoleCell(0, 0, 0, 0, MoleCell.CellType.Exit));
-                    else
-                        holes.Add(new MoleCell(0, 0, 0, 0, MoleCell.CellType.Hole));
-                }
+                numColumns = configHoleColumns + 1;
+                numRows = configHoleRows + 1;
 
                 // check the view (thread) already exists, stop and clear the old one.
                 destroyView();
@@ -435,15 +417,15 @@ namespace MoleTask {
         private void initializeView() {
 
             // create the view
-            view = new MoleView(mWindowRedrawFreqMax, mWindowLeft, mWindowTop, mWindowWidth, mWindowHeight, false);
-            view.setBackgroundColor(mWindowBackgroundColor.getRed(), mWindowBackgroundColor.getGreen(), mWindowBackgroundColor.getBlue());
+            view = new MoleView(windowRedrawFreqMax, windowLeft, windowTop, windowWidth, windowHeight, false);
+            view.setBackgroundColor(windowBackgroundColor.getRed(), windowBackgroundColor.getGreen(), windowBackgroundColor.getBlue());
 
             // set task specific display attributes 
             view.setFixation(false);                                            // hide the fixation
             view.setCountDown(-1);                                              // hide the countdown
 
             // initialize the holes for the scene
-            view.initGridPositions(holes, holeRows, holeColumns, 10);
+            view.initGridPositions(allowExit, numRows, numColumns, 10);
 
             // start the scene thread
             view.start();
@@ -480,10 +462,17 @@ namespace MoleTask {
                 score = 0;
 
 	            // reset countdown to the countdown time
-	            countdownCounter = mCountdownTime;
+	            countdownCounter = countdownTime;
 
-	            if(mTaskStartDelay != 0 || mTaskFirstRunStartDelay != 0) {
+	            if(taskStartDelay != 0 || taskFirstRunStartDelay != 0) {
 		            // wait
+
+                    // set wait counter to startdelay
+                    if (taskFirstRunStartDelay != 0) {
+                        waitCounter = taskFirstRunStartDelay;
+                        taskFirstRunStartDelay = 0;
+                    } else
+			            waitCounter = taskStartDelay;
 
 		            // set state to wait
 		            setState(TaskStates.Wait);
@@ -606,13 +595,13 @@ namespace MoleTask {
 		            case TaskStates.Wait:
 			            // starting, pauzed or waiting
 			
-			            if(mWaitCounter == 0) {
+			            if(waitCounter == 0) {
 				
 				            // set the state to countdown
 				            setState(TaskStates.CountDown);
 
 			            } else
-				            mWaitCounter--;
+				            waitCounter--;
 
                         break;
 
@@ -660,43 +649,33 @@ namespace MoleTask {
 			            if (click) {
                             // click
 
-
-
                             setState(TaskStates.RowSelected);
-
-
-
+                            
 			            } else {
 				            // no click
 
-				            if(mWaitCounter == 0) {
-
-                                
+				            if(waitCounter == 0) {
 
                                 // Advance to next row and wrap around
                                 currentRowID++;
-					            if(currentRowID >= holeRows)		currentRowID = 0;
+					            if(currentRowID >= numRows)		currentRowID = 0;
 
 					            // select the row in the scene
 					            view.selectRow(currentRowID, false);
 
                                 // log event that row is highlighted, and whether the row is empty (no mole), blank (no mole and no pile of dirt), or contains a mole
-                                if (currentRowID == 0) {
+                                if (currentRowID == 0)
                                     Data.logEvent(2, "BlankRow ", currentRowID.ToString());
-
-                                } else if (currentRowID * holeColumns < currentMoleIndex && (currentRowID + 1) * holeColumns > currentMoleIndex) {
+                                else if (currentRowID * numColumns < currentMoleIndex && (currentRowID + 1) * numColumns > currentMoleIndex)
                                     Data.logEvent(2, "MoleRow ", currentRowID.ToString());
-
-                                } else {
+                                else
                                     Data.logEvent(2, "EmptyRow ", currentRowID.ToString());
 
-                                }
-
                                 // reset the timer
-                                mWaitCounter = mRowSelectDelay;
+                                waitCounter = rowSelectDelay;
 
 				            } else
-					            mWaitCounter--;
+					            waitCounter--;
 
 			            }
 
@@ -705,16 +684,16 @@ namespace MoleTask {
 		            case TaskStates.RowSelected:
 			            // row was selected (highlighted)
 
-			            if(mWaitCounter == 0) {
+			            if(waitCounter == 0) {
 
 				            // Start selecting columns from the top if it is the right row
 				            // OR start selecting columns if it is the first row with exit button
-				            if(currentRowID == (int)Math.Floor(((double)currentMoleIndex / holeColumns)) || ( currentRowID == 0 && allowExit))
+				            if(currentRowID == (int)Math.Floor(((double)currentMoleIndex / numColumns)) || ( currentRowID == 0 && allowExit))
 					            setState(TaskStates.ColumnSelect);
 				            else
 					            setState(TaskStates.RowSelect);
 			            } else
-				            mWaitCounter--;
+				            waitCounter--;
 
 			            break;
 
@@ -728,13 +707,13 @@ namespace MoleTask {
 			            } else {
                             
                             // if time to highlight column has passed
-                            if (mWaitCounter == 0) {
+                            if (waitCounter == 0) {
 
                                 // Advance to next row and wrap around
                                 currentColumnID++;
 
                                 // if the end of row has been reached
-					            if(currentColumnID >= holeColumns) {
+					            if(currentColumnID >= numColumns) {
                                     
                                     // reset column id
 						            currentColumnID = 0;
@@ -745,7 +724,7 @@ namespace MoleTask {
 
                                 // log event that column is highlighted, and whether the column is empty (no mole), blank (no mole and no pile of dirt), or contains a mole
                                 if (currentColumnID == 0 || currentRowID == 0) Data.logEvent(2, "BlankColumn ", currentColumnID.ToString());
-                                else if (currentMoleIndex == holeColumns * currentRowID + currentColumnID) Data.logEvent(2, "MoleColumn ", currentColumnID.ToString());
+                                else if (currentMoleIndex == numColumns * currentRowID + currentColumnID) Data.logEvent(2, "MoleColumn ", currentColumnID.ToString());
                                 else Data.logEvent(2, "EmptyColumn ", currentColumnID.ToString());
 
                                 // check if there has been looped more than two times in the row with exit button
@@ -759,11 +738,11 @@ namespace MoleTask {
 						            view.selectCell(currentRowID, currentColumnID, false);
 						
 						            // reset the timer
-						            mWaitCounter = mColumnSelectDelay;
+						            waitCounter = columnSelectDelay;
 					            }
 
 				            } else 
-					            mWaitCounter--;
+					            waitCounter--;
 
 			            }
 
@@ -772,7 +751,7 @@ namespace MoleTask {
 		            case TaskStates.ColumnSelected:
 			            // column was selected
 
-			            if(mWaitCounter == 0) {
+			            if(waitCounter == 0) {
 
                             // check if exit was selected
                             if (allowExit && currentRowID == 0 && currentColumnID == 2) {
@@ -784,13 +763,13 @@ namespace MoleTask {
                                 // stop the task
                                 // this will also call stop(), and as a result stopTask()
                                 if (childApplication)        AppChild_stop();
-                                else                    MainThread.stop(false);
+                                else                         MainThread.stop(false);
 
                             } else {
                                 // exit was not allowed nor selected
 
                                 // Check if mole is selected
-                                if (currentMoleIndex == holeColumns * currentRowID + currentColumnID) {
+                                if (currentMoleIndex == numColumns * currentRowID + currentColumnID) {
                                     // hit
 
                                     // add one to the score and display
@@ -827,14 +806,14 @@ namespace MoleTask {
                             }
 
 			            } else
-				            mWaitCounter--;
+				            waitCounter--;
 
 			            break;
 
 		            case TaskStates.EndText:
 			            // end text
 
-			            if (mWaitCounter == 0) {
+			            if (waitCounter == 0) {
 
                             // log event task is stopped
                             Data.logEvent(2, "TaskStop", CLASS_NAME + ";end");
@@ -845,24 +824,12 @@ namespace MoleTask {
                             else                    MainThread.stop(false);
 
                         } else
-				            mWaitCounter--;
+				            waitCounter--;
 
 			            break;
 
 	            }
-
-                /*
-	            #ifndef UNPMENU
-	            // log the states
-	            State("Log_State").AsUnsigned() = taskState;						// save the state
-	            State("Log_HitScore").AsUnsigned() = score;						// save the hitscore
-	            State("Log_Row").AsUnsigned() = mRowID;								// save the rowID
-	            State("Log_Column").AsUnsigned() = mColumnID;						// save the columnID
-	            State("Log_MoleIndex_s").AsSigned() = mMoleIndex;					// save the mole index
-	            State("Log_Input").AsUnsigned() = (click);							// save the input
-	            #endif
-                */
-
+                
             }
 
         }
@@ -899,10 +866,7 @@ namespace MoleTask {
 
             // set task as pauzed
             taskPauzed = true;
-
-	        // store the previous state
-	        previousTaskState = taskState;
-			
+            
             // hide everything
             view.setFixation(false);
             view.setCountDown(-1);
@@ -919,7 +883,7 @@ namespace MoleTask {
             Data.logEvent(2, "TaskResume", CLASS_NAME);
 
             // show the grid and set the mole
-            if (previousTaskState == TaskStates.RowSelect || previousTaskState == TaskStates.RowSelected || previousTaskState == TaskStates.ColumnSelect || previousTaskState == TaskStates.ColumnSelected) {
+            if (taskState == TaskStates.RowSelect || taskState == TaskStates.RowSelected || taskState == TaskStates.ColumnSelect || taskState == TaskStates.ColumnSelected) {
 			
 			    // show the grid and set the mole
 			    view.setGrid(true);
@@ -929,9 +893,20 @@ namespace MoleTask {
 			    view.setScore(score);
 
 		    }
-	    
+
+            // store the exact position of the "cursor"
+            // (setState will reset the position)
+	        int resumeRowID = currentRowID;
+			int resumeColumnID = currentColumnID;
+            int resumeRowLoopCounter = rowLoopCounter;
+
 	        // set the previous state
-	        setState(previousTaskState);
+	        setState(taskState);
+
+            // restore the exact position of the "cursor" (after setState)
+            currentRowID = resumeRowID;
+			currentColumnID = resumeColumnID;
+            rowLoopCounter = resumeRowLoopCounter;
 
 	        // set task as not longer pauzed
 	        taskPauzed = false;
@@ -976,14 +951,7 @@ namespace MoleTask {
 			        setMole(-1);
                     view.setScore(-1);
                     view.setGrid(false);
-
-                    // Set wait counter to startdelay
-                    if (mTaskFirstRunStartDelay != 0) {
-                        mWaitCounter = mTaskFirstRunStartDelay;
-                        mTaskFirstRunStartDelay = 0;
-                    } else
-			            mWaitCounter = mTaskStartDelay;
-
+                    
 			        break;
 
                 case TaskStates.CountDown:
@@ -1015,13 +983,13 @@ namespace MoleTask {
                     // log event that row is highlighted, and whether the row is empty (no mole), blank (no mole and no pile of dirt), or contains a mole
                     if (currentRowID == 0)
                         Data.logEvent(2, "BlankRow ", currentRowID.ToString());
-                    else if (currentRowID * holeColumns < currentMoleIndex && (currentRowID + 1) * holeColumns > currentMoleIndex)
+                    else if (currentRowID * numColumns < currentMoleIndex && (currentRowID + 1) * numColumns > currentMoleIndex)
                         Data.logEvent(2, "MoleRow ", currentRowID.ToString());
                     else
                         Data.logEvent(2, "EmptyRow ", currentRowID.ToString());
 
                     // 
-                    mWaitCounter = mRowSelectDelay;
+                    waitCounter = rowSelectDelay;
 
 			        break;
 
@@ -1032,11 +1000,11 @@ namespace MoleTask {
                     view.selectRow(currentRowID, true);
 
                     // row has been clicked. Check whether it was on a row that contains a mole or not
-                    if (currentRowID * holeColumns < currentMoleIndex && (currentRowID + 1) * holeColumns > currentMoleIndex) Data.logEvent(2, "RowClick ", "1");
+                    if (currentRowID * numColumns < currentMoleIndex && (currentRowID + 1) * numColumns > currentMoleIndex) Data.logEvent(2, "RowClick ", "1");
                     else Data.logEvent(2, "RowClick ", "0");
 
                     // 
-                    mWaitCounter = mRowSelectedDelay;
+                    waitCounter = rowSelectedDelay;
 
 			        break;
 
@@ -1051,14 +1019,14 @@ namespace MoleTask {
 
                     // log event that column is highlighted, and whether the column is empty(no mole), blank(no mole and no pile of dirt), or contains a mole
                     if (currentColumnID == 0 || currentRowID == 0) Data.logEvent(2, "BlankColumn ", currentColumnID.ToString());
-                    else if (currentMoleIndex == holeColumns * currentRowID + currentColumnID) Data.logEvent(2, "MoleColumn ", currentColumnID.ToString());
+                    else if (currentMoleIndex == numColumns * currentRowID + currentColumnID) Data.logEvent(2, "MoleColumn ", currentColumnID.ToString());
                     else Data.logEvent(2, "EmptyColumn ", currentColumnID.ToString());
 
                     // reset how often there was looped in this row
                     rowLoopCounter = 0;
 
                     // 
-			        mWaitCounter = mColumnSelectDelay;
+			        waitCounter = columnSelectDelay;
 
 			        break;
 
@@ -1070,11 +1038,11 @@ namespace MoleTask {
 			        view.selectCell(currentRowID, currentColumnID, true);
 
                     // log cell click event
-                    if (currentMoleIndex == holeColumns * currentRowID + currentColumnID) Data.logEvent(2, "CellClick", "1");
+                    if (currentMoleIndex == numColumns * currentRowID + currentColumnID) Data.logEvent(2, "CellClick", "1");
                     else                                                Data.logEvent(2, "CellClick", "0");
 
                     // set wait time before advancing
-                    mWaitCounter = mColumnSelectedDelay;
+                    waitCounter = columnSelectedDelay;
 
 			        break;
 
@@ -1088,7 +1056,7 @@ namespace MoleTask {
 				    view.setText("Done");
 
                     // set duration for text to be shown at the end (3s)
-                    mWaitCounter = (int)(MainThread.getPipelineSamplesPerSecond() * 3.0);
+                    waitCounter = (int)(MainThread.getPipelineSamplesPerSecond() * 3.0);
 
                     break;
 
@@ -1130,9 +1098,9 @@ namespace MoleTask {
 		        if (numberSet.Count == 0) {
 
 			        // recreate the numberset with possible positions
-                    numberSet = new List<int>(new int[((holeRows-1) * (holeColumns-1))]);
+                    numberSet = new List<int>(new int[((numRows-1) * (numColumns-1))]);
 			        for (int j = 0; j < numberSet.Count; j++)
-				        numberSet[j] = holeColumns + (int)Math.Floor((double)(j / (holeColumns - 1)) * ( (holeColumns - 1) + 1 ) + 1 + (j % (holeColumns - 1)));
+				        numberSet[j] = numColumns + (int)Math.Floor((double)(j / (numColumns - 1)) * ( (numColumns - 1) + 1 ) + 1 + (j % (numColumns - 1)));
                     
 			        // shuffle the set (and, if needed, reshuffle until the conditions are met, which are: not on the same spot, ...)
                     numberSet.Shuffle();
@@ -1153,19 +1121,12 @@ namespace MoleTask {
         }
 
         private void setMole(int index) {
-	
+	        
 	        // set mole index to variable
 	        currentMoleIndex = index;
 
-	        // hide moles
-	        for(int i = 0; i < holes.Count; i++) {
-		        if (holes[i].type == MoleCell.CellType.Mole)
-			        holes[i].type = MoleCell.CellType.Hole;
-	        }
-
-	        // set mole (if not -1)
-	        if(currentMoleIndex != -1)
-		        holes[currentMoleIndex].type = MoleCell.CellType.Mole;
+	        // set mole in the view
+            view.setMole(currentMoleIndex);
 
         }
 
@@ -1284,12 +1245,12 @@ namespace MoleTask {
 
                 // initialize the view
                 initializeView();
+                
+	            // resume the task
+	            resumeTask();
 
             }
 	
-	        // resume the task
-	        resumeTask();
-
 	        // flag task as no longer suspended
 	        umpMenuTaskSuspended = false;
 
@@ -1300,11 +1261,13 @@ namespace MoleTask {
             // flag task as suspended
             umpMenuTaskSuspended = true;
 
-            // pauze the task
-            pauzeTask();
-
-            // lock for thread safety and destroy the scene
+            // lock for thread safety
             lock (lockView) {
+
+                // pauze the task
+                pauzeTask();
+
+                // destroy the scene
                 destroyView();
             }
 

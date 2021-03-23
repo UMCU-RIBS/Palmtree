@@ -35,10 +35,9 @@ namespace MoleTask {
         private Object textureLock = new Object();                                      // threadsafety lock for texture events
 
 		private int holeTexture = 0;
-        //private int hammerTexture = 0;
 		private int moleTexture = 0;
 		private int exitTexture = 0;
-		private List<MoleCell> taskCells = new List<MoleCell>(0);	                // MoleCell objects
+		private List<MoleCell> moleCells = null;	                        // MoleCell objects
 		private int selectionX = 0;
 		private int selectionY = 0;
 		private int selectionWidth = 0;
@@ -109,7 +108,6 @@ namespace MoleTask {
                 holeTexture = (int)loadImage("images\\hole.png");
                 moleTexture = (int)loadImage("images\\mole.png");
                 exitTexture = (int)loadImage("images\\exit.png");
-                //hammerTexture = (int)loadImage("images\\hammer.bmp");
 
             }
 
@@ -125,7 +123,6 @@ namespace MoleTask {
             fixationFont.clean();
             countdownFont.clean();
 
-
             // lock for textures events (thread safety)
             lock(textureLock) {
 
@@ -136,7 +133,6 @@ namespace MoleTask {
                 glDeleteTexture(holeTexture);
                 glDeleteTexture(moleTexture);
                 glDeleteTexture(exitTexture);
-                //glDeleteTexture(hammerTexture);
 	            
             }
 
@@ -180,10 +176,10 @@ namespace MoleTask {
 	        if(showGrid) {
                 
 		        // loop through the holes	
-		        for (int i = 0; i < taskCells.Count; i++) {
+		        for (int i = 0; i < moleCells.Count; i++) {
 
 			        // retrieve hole reference
-			        MoleCell cell = taskCells[i];
+			        MoleCell cell = moleCells[i];
                     
 			        if (cell.type == MoleCell.CellType.Hole || cell.type == MoleCell.CellType.Mole || cell.type == MoleCell.CellType.Exit ) {
 
@@ -381,10 +377,21 @@ namespace MoleTask {
 	
         }
 
-        public void initGridPositions(List<MoleCell> cells, int holeRows, int holeColumns, int spacing) {
+        public void initGridPositions(bool allowExit, int holeRows, int holeColumns, int spacing) {
+            
+            // calculate the cell holes for the task
+            int numHoles = holeRows * holeColumns;
 
-	        // Store pointer to holes array (for drawing later)
-	        taskCells = cells;
+            // create the array of cells for the task
+            moleCells = new List<MoleCell>(0);
+            for (int i = 0; i < numHoles; i++) {
+                if ((i % holeColumns == 0 || i <= holeColumns) && (i != 2 || !allowExit))
+                    moleCells.Add(new MoleCell(0, 0, 0, 0, MoleCell.CellType.Empty));
+                else if (i == 2 && allowExit)
+                    moleCells.Add(new MoleCell(0, 0, 0, 0, MoleCell.CellType.Exit));
+                else
+                    moleCells.Add(new MoleCell(0, 0, 0, 0, MoleCell.CellType.Hole));
+            }
 	
 	        // Store hole parameters for drawing later
 	        this.holeRows = holeRows;
@@ -403,14 +410,14 @@ namespace MoleTask {
 	        holeOffsetY =  (getContentHeight() - holeRows * holeSize - spacing * (holeRows+1)) / 2;
 	
 	        // Loop through the holes
-	        for(int i = 0; i < cells.Count; i++) {
+	        for(int i = 0; i < moleCells.Count; i++) {
 
 		        // calculate the row and column index (0 based)
 		        int row = (int)Math.Floor((double)(i / holeColumns));
 		        int column = i - (row * holeColumns);
 
 		        // retrieve the reference to the hole
-		        MoleCell cell = cells[i];
+		        MoleCell cell = moleCells[i];
 		
 		        // Set position and size
 		        cell.x = holeOffsetX + spacing + column * (holeSize + spacing);
@@ -435,10 +442,17 @@ namespace MoleTask {
 	        showCountDown = count;
         }
 
+        // set the mole (-1 is no mole)
+        public void setMole(int index) { 
+	        for(int i = 0; i < moleCells.Count; i++) {
+                if (i == index)     moleCells[i].type = MoleCell.CellType.Mole;
+                else                moleCells[i].type = MoleCell.CellType.Hole;
+	        }
+        }
+        
         public bool resourcesLoaded() {
             return isStarted();		    // in this task resources are loaded upon initialization of the scene (not on the fly during the scene loop), so this suffices
         }
-
 
     }
 
