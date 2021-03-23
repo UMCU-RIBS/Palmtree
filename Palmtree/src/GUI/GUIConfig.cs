@@ -467,13 +467,13 @@ namespace Palmtree.GUI {
                             logger.Error("Could not read matrix values from file '" + dlgOpenDatFile.FileName + "'");
                             return;
                         }
-
+                        
                         // try to interpret the value
                         iParam interpret = null;
-                        if (param is ParamBoolMat)      interpret = new ParamBoolMat("", "", null, "", "", null);
-                        if (param is ParamIntMat)       interpret = new ParamIntMat("", "", null, "", "", null);
-                        if (param is ParamDoubleMat)    interpret = new ParamDoubleMat("", "", null, "", "", null);
-                        if (param is ParamStringMat)    interpret = new ParamStringMat("", "", null, "", "", null);
+                        if (param is ParamBoolMat)      interpret = new ParamBoolMat("", "", null, "", "", param.Options);
+                        if (param is ParamIntMat)       interpret = new ParamIntMat("", "", null, "", "", param.Options);
+                        if (param is ParamDoubleMat)    interpret = new ParamDoubleMat("", "", null, "", "", param.Options);
+                        if (param is ParamStringMat)    interpret = new ParamStringMat("", "", null, "", "", param.Options);
                         if (!interpret.tryValue(strMat)) {
                             logger.Error("Could not interpret matrix values from file '" + dlgOpenDatFile.FileName + "'");
                         }
