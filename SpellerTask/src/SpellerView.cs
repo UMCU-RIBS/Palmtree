@@ -6,6 +6,7 @@
  * 
  * Copyright (C) 2017:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Author(s):           Benny van der Vijgh         (benny@vdvijgh.nl)
+ *                      Max van den Boom            (info@maxvandenboom.nl)
  * 
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or (at your option) any later version. This program is distributed in the hope that it will be useful, but
@@ -32,9 +33,8 @@ namespace SpellerTask {
         private Object textureLock = new Object();                                      // threadsafety lock for texture events
         private bool showConnectionLost = false;
 
-        // task specific
+        // task specific    
         private int score = -1;									                        // the score that is being shown (-1 = do not show score)
-        private bool showScore = false;
 
         // visual elements
 		private int exitTexture = 0;
@@ -54,12 +54,12 @@ namespace SpellerTask {
 		private int selectionY = 0;
 		private int selectionWidth = 0;
 		private int selectionHeight = 0;
-		private int holeSize = 0;
+		private int characterCellSize = 0;
 		private int spacing = 0;
-		private int holeRows = 0;
-		private int holeColumns = 0;
-		private int holeOffsetX = 0;
-		private int holeOffsetY = 0;
+		private int numCharacterRows = 0;
+		private int numCharacterColumns = 0;
+		private int charactersOffsetX = 0;
+		private int charactersOffsetY = 0;
 		private bool mSelected = false;
         private bool showGrid = false;
 
@@ -136,6 +136,7 @@ namespace SpellerTask {
 
             // clear the fonts
             textFont.clean();
+            inputFont.clean();
             scoreFont.clean();
             fixationFont.clean();
             countdownFont.clean();
@@ -186,10 +187,10 @@ namespace SpellerTask {
 	        // Check if we should draw grid
 	        if(showGrid) {
                 
-		        // loop through the holes	
+		        // loop through the cells	
 		        for (int i = 0; i < taskCells.Count; i++) {
 
-			        // retrieve hole reference
+			        // retrieve cell reference
 			        SpellerCell cell = taskCells[i];
                     
                     // if cell is of a type that requires drawing
@@ -218,28 +219,28 @@ namespace SpellerTask {
 
                             glBindTexture2D(exitTexture);
 
-                            // draw hole
+                            // draw cell
                             glBeginTriangles();
 
-                            // vertex 0
-                            glTexCoord2(1.0f, 1.0f);
-                            glVertex3(cell.x + cell.width, cell.y + cell.height, 0.0f);
+                                // vertex 0
+                                glTexCoord2(1.0f, 1.0f);
+                                glVertex3(cell.x + cell.width, cell.y + cell.height, 0.0f);
 
-                            glTexCoord2(1.0f, 0.0f);
-                            glVertex3(cell.x + cell.width, cell.y, 0.0f);
+                                glTexCoord2(1.0f, 0.0f);
+                                glVertex3(cell.x + cell.width, cell.y, 0.0f);
 
-                            glTexCoord2(0.0f, 0.0f);
-                            glVertex3(cell.x, cell.y, 0.0f);
+                                glTexCoord2(0.0f, 0.0f);
+                                glVertex3(cell.x, cell.y, 0.0f);
 
-                            //vertex 1
-                            glTexCoord2(0.0f, 1.0f);
-                            glVertex3(cell.x, cell.y + cell.height, 0.0f);
+                                //vertex 1
+                                glTexCoord2(0.0f, 1.0f);
+                                glVertex3(cell.x, cell.y + cell.height, 0.0f);
 
-                            glTexCoord2(1.0f, 1.0f);
-                            glVertex3(cell.x + cell.width, cell.y + cell.height, 0.0f);
+                                glTexCoord2(1.0f, 1.0f);
+                                glVertex3(cell.x + cell.width, cell.y + cell.height, 0.0f);
 
-                            glTexCoord2(0.0f, 0.0f);
-                            glVertex3(cell.x, cell.y, 0.0f);
+                                glTexCoord2(0.0f, 0.0f);
+                                glVertex3(cell.x, cell.y, 0.0f);
 
                             glEnd();
                         }
@@ -267,7 +268,7 @@ namespace SpellerTask {
 
             // TODO, use bool instead of value to determine whether to draw
             // write the score text
-            if (score > -1 && showScore) {
+            if (score > -1) {
 
 		        glColor3(1f, 1f, 1f);
                 scoreFont.printLine(getContentWidth() - scoreFont.height * 9, 5, ("Score: " + score));
@@ -305,7 +306,7 @@ namespace SpellerTask {
                 glColor3(1f, 1f, 1f);
 
                 // print the text
-                textFont.printLine((getContentWidth() - cueTextWidth) / 2, (spacing + textFont.height)*3, inputText);
+                textFont.printLine((getContentWidth() - cueTextWidth) / 2, (spacing + textFont.height) * 3, inputText);
 
             }
 
@@ -373,27 +374,19 @@ namespace SpellerTask {
             cueText = text;
 
             // if not empty, determine the width once
-            if (!String.IsNullOrEmpty(cueText)) cueTextWidth = textFont.getTextWidth(cueText);
+            if (!String.IsNullOrEmpty(cueText)) 
+                cueTextWidth = textFont.getTextWidth(cueText);
         }
 
-        public void setShowScore(bool show) {
-            showScore = show;
-        }
+        public void setInputText(string text) {
 
-        // update the current input text
-        public void updateInputText(string text, bool backspace) {
-
-            // if backspace was pressed and there are characters to remove, remove last character; if no backspace is pressed, add inputted character at the end of input text
-            if (backspace & inputText.Length > 0) inputText = inputText.Remove(inputText.Length - 1);
-            else { inputText = inputText + text; }
+            // set the text
+            inputText = text;
 
             // if not empty, determine the width once
-            if (!String.IsNullOrEmpty(inputText))
+            if (!String.IsNullOrEmpty(inputText)) 
                 inputTextWidth = textFont.getTextWidth(inputText);
-        }
 
-        public void resetInputText() {
-            inputText = "";
         }
 
         // read the current input text
@@ -422,10 +415,10 @@ namespace SpellerTask {
 
 	        } else {
 
-		        selectionX = holeOffsetX + spacing / 2;
-		        selectionY = holeOffsetY + rowID * (holeSize + spacing)  + spacing / 2;
-		        selectionWidth = holeColumns * (holeSize + spacing);
-		        selectionHeight = holeSize + spacing; 
+		        selectionX = charactersOffsetX + spacing / 2;
+		        selectionY = charactersOffsetY + rowID * (characterCellSize + spacing)  + spacing / 2;
+		        selectionWidth = numCharacterColumns * (characterCellSize + spacing);
+		        selectionHeight = characterCellSize + spacing; 
 
 		        mSelected = selected;
 
@@ -445,11 +438,11 @@ namespace SpellerTask {
 
 	        } else {
 
-		        selectionX = holeOffsetX + columnID * (holeSize + spacing) + spacing / 2;
-		        selectionY = holeOffsetY + rowID * (holeSize + spacing) + spacing / 2;
+		        selectionX = charactersOffsetX + columnID * (characterCellSize + spacing) + spacing / 2;
+		        selectionY = charactersOffsetY + rowID * (characterCellSize + spacing) + spacing / 2;
 
-		        selectionWidth = holeSize + spacing;
-		        selectionHeight = holeSize + spacing;
+		        selectionWidth = characterCellSize + spacing;
+		        selectionHeight = characterCellSize + spacing;
 
 		        mSelected = selected;
 
@@ -457,44 +450,44 @@ namespace SpellerTask {
 	
         }
 
-        public void initGridPositions(List<SpellerCell> cells, int holeRows, int holeColumns, int spacing) {
+        public void initGridPositions(List<SpellerCell> cells, int numRows, int numColumns, int spacing) {
 
-	        // Store pointer to holes array (for drawing later)
+	        // Store pointer to cells array (for drawing later)
 	        taskCells = cells;
 	
-	        // Store hole parameters for drawing later
-	        this.holeRows = holeRows;
-	        this.holeColumns = holeColumns;
+	        // Store the cell parameters for drawing later
+	        this.numCharacterRows = numRows;
+	        this.numCharacterColumns = numColumns;
 	        this.spacing = spacing;
 
-            // Calculate maximum possible size of holes, using 0.7 of total height for grid, first 0.3 part of height is reserved for cue and input
-            holeOffsetX = 0; holeOffsetY = 0;
-	        if  ( getContentWidth() / holeColumns > (0.7 * getContentHeight()) / holeRows )
-		        holeSize = (int)Math.Floor((double)(( (0.7 * getContentHeight()) - (spacing * (holeRows + 1)) ) / holeRows));
+            // Calculate maximum possible size of cells, using 0.7 of total height for grid, first 0.3 part of height is reserved for cue and input
+            charactersOffsetX = 0; charactersOffsetY = 0;
+	        if  ( getContentWidth() / numColumns > (0.7 * getContentHeight()) / numRows )
+		        characterCellSize = (int)Math.Floor((double)(( (0.7 * getContentHeight()) - (spacing * (numRows + 1)) ) / numRows));
 	        else
-		        holeSize = (int)Math.Floor((double)(( getContentWidth() - (spacing * (holeColumns + 1)) ) / holeColumns));
+		        characterCellSize = (int)Math.Floor((double)(( getContentWidth() - (spacing * (numColumns + 1)) ) / numColumns));
 
-	        // set the x and y offset. x offset is determined by centering the holes around the horizontal center, y offset is determined by the fact that the first 0.3 part of height is reserved for cue and input, so grid starts here
-	        holeOffsetX =  (getContentWidth() - holeColumns * holeSize - spacing * (holeColumns+1)) / 2;
-            //holeOffsetY =  getContentHeight() - holeRows * holeSize - spacing * (holeRows+1);
-            holeOffsetY = (int)(0.3 * getContentHeight());
+	        // set the x and y offset. x offset is determined by centering the cells around the horizontal center, y offset is determined by the fact that the first 0.3 part of height is reserved for cue and input, so grid starts here
+	        charactersOffsetX =  (getContentWidth() - numColumns * characterCellSize - spacing * (numColumns + 1)) / 2;
+            //charactersOffsetY =  getContentHeight() - numRows * characterCellSize - spacing * (numRows + 1);
+            charactersOffsetY = (int)(0.3 * getContentHeight());
 
-            // Loop through the holes
+            // Loop through the cells
             for (int i = 0; i < cells.Count; i++) {
 
 		        // calculate the row and column index (0 based)
-		        int row = (int)Math.Floor((double)(i / holeColumns));
-		        int column = i - (row * holeColumns);
+		        int row = (int)Math.Floor((double)(i / numColumns));
+		        int column = i - (row * numColumns);
 
-		        // retrieve the reference to the hole
+		        // retrieve the reference to the cell
 		        SpellerCell cell = cells[i];
 		
 		        // Set position and size
-		        cell.x = holeOffsetX + spacing + column * (holeSize + spacing);
-		        cell.y = holeOffsetY + spacing + row * (holeSize + spacing);
+		        cell.x = charactersOffsetX + spacing + column * (characterCellSize + spacing);
+		        cell.y = charactersOffsetY + spacing + row * (characterCellSize + spacing);
 
-		        cell.height = holeSize;
-		        cell.width = holeSize;
+		        cell.height = characterCellSize;
+		        cell.width = characterCellSize;
 
 	        }	
 	
