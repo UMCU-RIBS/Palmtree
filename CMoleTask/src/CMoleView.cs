@@ -113,28 +113,28 @@ namespace CMoleTask {
         protected override void load() {
 
             // initialize the text font
-            textFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 20), "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ. ");
+            textFont.init(this, AppDomain.CurrentDomain.BaseDirectory + "\\fonts\\ariblk.ttf", (uint)(getContentHeight() / 20), "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ. ");
 
             // initialize the countdown, text and fixation fonts
-            countdownFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 7), "1234567890");
-            fixationFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 10), "+");
+            countdownFont.init(this, AppDomain.CurrentDomain.BaseDirectory + "\\fonts\\ariblk.ttf", (uint)(getContentHeight() / 7), "1234567890");
+            fixationFont.init(this, AppDomain.CurrentDomain.BaseDirectory + "\\fonts\\ariblk.ttf", (uint)(getContentHeight() / 10), "+");
 
             // initialize the score font
-            scoreFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 30), "EscapeScore: 0123456789%");
+            scoreFont.init(this, AppDomain.CurrentDomain.BaseDirectory + "\\fonts\\ariblk.ttf", (uint)(getContentHeight() / 30), "EscapeScore: 0123456789%");
 
             // lock for textures events (thread safety)
             lock(textureLock) {
 
                 // load the connection lost texture
-                connectionLostTexture = (int)loadImage("images\\nosignal.png");
+                connectionLostTexture = (int)loadImage(AppDomain.CurrentDomain.BaseDirectory + "\\images\\nosignal.png");
 
                 // Load textures
-                holeTexture = (int)loadImage("images\\hole.png");
-                moleTexture = (int)loadImage("images\\mole.png");
-                exitTexture = (int)loadImage("images\\exit.png");
-                escapeTexture = (int)loadImage("images\\escape.png");
-                moleLaughTexture = (int)loadImage("images\\mole_new_laughing2.png");
-                moleWhackedTexture = (int)loadImage("images\\mole_new_whacked2.png");
+                holeTexture = (int)loadImage(AppDomain.CurrentDomain.BaseDirectory + "\\images\\hole.png");
+                moleTexture = (int)loadImage(AppDomain.CurrentDomain.BaseDirectory + "\\images\\mole.png");
+                exitTexture = (int)loadImage(AppDomain.CurrentDomain.BaseDirectory + "\\images\\exit.png");
+                escapeTexture = (int)loadImage(AppDomain.CurrentDomain.BaseDirectory + "\\images\\escape.png");
+                moleLaughTexture = (int)loadImage(AppDomain.CurrentDomain.BaseDirectory + "\\images\\mole_new_laughing2.png");
+                moleWhackedTexture = (int)loadImage(AppDomain.CurrentDomain.BaseDirectory + "\\images\\mole_new_whacked2.png");
 
 
             }

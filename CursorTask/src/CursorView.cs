@@ -14,6 +14,7 @@
  */
 using NLog;
 using System;
+using System.IO;
 using Palmtree.Core;
 using Palmtree.Core.Helpers;
 using Palmtree.Views;
@@ -119,21 +120,23 @@ namespace CursorTask {
 
 
         protected override void load() {
-            
+
+            string fontPath = AppDomain.CurrentDomain.BaseDirectory + "\\fonts\\ariblk.ttf";
+
             // initialize the Palmtree font
-            textFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 20), "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.- 0123456789%");
+            textFont.init(this, fontPath, (uint)(getContentHeight() / 20), "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.- 0123456789%");
 
             // initialize the taks fonts
-            cueFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 30), "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,- 0123456789()");
-            scoreFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 30), "Score: 0123456789");
-            countdownFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 7), "1234567890");
-            fixationFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 10), "+");
+            cueFont.init(this, fontPath, (uint)(getContentHeight() / 30), "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,- 0123456789()");
+            scoreFont.init(this, fontPath, (uint)(getContentHeight() / 30), "Score: 0123456789");
+            countdownFont.init(this, fontPath, (uint)(getContentHeight() / 7), "1234567890");
+            fixationFont.init(this, fontPath, (uint)(getContentHeight() / 10), "+");
 
             // lock for textures events (thread safety)
             lock (textureLock) {
 
                 // load the connection lost texture
-                connectionLostTexture = (int)loadImage("images\\nosignal.png");
+                connectionLostTexture = (int)loadImage(AppDomain.CurrentDomain.BaseDirectory + "\\images\\nosignal.png");
 
             }
 
