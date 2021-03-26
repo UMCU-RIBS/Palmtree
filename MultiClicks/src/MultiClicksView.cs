@@ -94,20 +94,20 @@ namespace MultiClicksTask {
         protected override void load() {
 
             // initialize the text font
-            textFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 20), "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ. ");
+            textFont.init(this, AppDomain.CurrentDomain.BaseDirectory + "\\fonts\\ariblk.ttf", (uint)(getContentHeight() / 20), "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ. ");
 
 	        // initialize the countdown, text and fixation fonts
-            countdownFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 7), "1234567890");
-            fixationFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 10), "+");
+            countdownFont.init(this, AppDomain.CurrentDomain.BaseDirectory + "\\fonts\\ariblk.ttf", (uint)(getContentHeight() / 7), "1234567890");
+            fixationFont.init(this, AppDomain.CurrentDomain.BaseDirectory + "\\fonts\\ariblk.ttf", (uint)(getContentHeight() / 10), "+");
 
 	        // initialize the score font
-            scoreFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 30), "Score: 0123456789");
+            scoreFont.init(this, AppDomain.CurrentDomain.BaseDirectory + "\\fonts\\ariblk.ttf", (uint)(getContentHeight() / 30), "Score: 0123456789");
 
             // lock for textures events (thread safety)
             lock(textureLock) {
 
                 // load the connection lost texture
-                connectionLostTexture = (int)loadImage("images\\nosignal.png");
+                connectionLostTexture = (int)loadImage(AppDomain.CurrentDomain.BaseDirectory + "\\images\\nosignal.png");
 
             }
 

@@ -44,13 +44,13 @@ namespace LocalizerTask {
         protected override void load() {
 
             // initialize the showText font
-            showTextFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 20), @"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,?!:\=+*#@-/()<>");
+            showTextFont.init(this, AppDomain.CurrentDomain.BaseDirectory + "\\fonts\\ariblk.ttf", (uint)(getContentHeight() / 20), @"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,?!:\=+*#@-/()<>");
             
             // lock for textures events (thread safety)
             lock (textureLock) {
 
                 // load the connection lost texture
-                connectionLostTexture = (int)loadImage("images\\nosignal.png");
+                connectionLostTexture = (int)loadImage(AppDomain.CurrentDomain.BaseDirectory + "\\images\\nosignal.png");
             }
         }
 

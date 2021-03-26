@@ -74,7 +74,7 @@ namespace SpellerTask {
         private uint cueTextY = 0;                                      // standard Y location of cue text
 
         // font parameters
-        private string inputFontFont = "fonts\\ariblk.ttf";
+        private string inputFontFont = AppDomain.CurrentDomain.BaseDirectory + "\\fonts\\ariblk.ttf";
         private uint inputFontheight = 20;
         private string inputFontInputs = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ._ ";
 
@@ -94,7 +94,7 @@ namespace SpellerTask {
             cueTextY = textFontSize;
 
             // init textfont to standard dimensions
-            textFont.init(this, "fonts\\ariblk.ttf", textFontSize, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789%?._ ");
+            textFont.init(this, AppDomain.CurrentDomain.BaseDirectory + "\\fonts\\ariblk.ttf", textFontSize, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789%?._ ");
 
             // if we have information about the length of the longest cue, check if standard dimensions allow all cues to be displayed properly. Do so by testing if longest cue, if existing of wide characters ('W'), fits in the view. If too large, adjust font size
             if (longestCue != -1) {
@@ -106,16 +106,16 @@ namespace SpellerTask {
                     textFontSize = (uint)Math.Round((double)textFontSize * decreaseFactor);
 
                     // re-init textFont
-                    textFont.init(this, "fonts\\ariblk.ttf", textFontSize, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789%?._ ");
+                    textFont.init(this, AppDomain.CurrentDomain.BaseDirectory + "\\fonts\\ariblk.ttf", textFontSize, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789%?._ ");
                 }
             }
 
             // initialize the countdown, text and fixation fonts
-            countdownFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 7), "1234567890");
-            fixationFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 10), "+");
+            countdownFont.init(this, AppDomain.CurrentDomain.BaseDirectory + "\\fonts\\ariblk.ttf", (uint)(getContentHeight() / 7), "1234567890");
+            fixationFont.init(this, AppDomain.CurrentDomain.BaseDirectory + "\\fonts\\ariblk.ttf", (uint)(getContentHeight() / 10), "+");
 
             // initialize the score font
-            scoreFont.init(this, "fonts\\ariblk.ttf", (uint)(getContentHeight() / 30), "Score: 0123456789");
+            scoreFont.init(this, AppDomain.CurrentDomain.BaseDirectory + "\\fonts\\ariblk.ttf", (uint)(getContentHeight() / 30), "Score: 0123456789");
 
             // initialize the text font
             inputFont.init(this, inputFontFont, (uint)(getContentHeight() / inputFontheight), inputFontInputs);
@@ -124,10 +124,10 @@ namespace SpellerTask {
             lock (textureLock) {
 
                 // load the connection lost texture
-                connectionLostTexture = (int)loadImage("images\\nosignal.png");
+                connectionLostTexture = (int)loadImage(AppDomain.CurrentDomain.BaseDirectory + "\\images\\nosignal.png");
 
                 // Load textures
-                exitTexture = (int)loadImage("images\\exit.png");
+                exitTexture = (int)loadImage(AppDomain.CurrentDomain.BaseDirectory + "\\images\\exit.png");
             }
 
         }

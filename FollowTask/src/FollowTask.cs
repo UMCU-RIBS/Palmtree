@@ -1377,6 +1377,7 @@ namespace FollowTask {
             newParameters.setValue("WindowLeft", parentParameters.getValue<int>("WindowLeft"));
             newParameters.setValue("WindowTop", parentParameters.getValue<int>("WindowTop"));
 
+            string imagePath = AppDomain.CurrentDomain.BaseDirectory;
             // set child task standard settings
             inputFormat.numChannels = 1;
             newParameters.setValue("WindowBackgroundColor", "0;0;0");
@@ -1396,7 +1397,7 @@ namespace FollowTask {
             newParameters.setValue("TargetWidthMode", 1);
             newParameters.setValue("TargetHeightMode", 1);
             newParameters.setValue("Targets", "25,25,25,75,75,75;50,50,50,50,50,50;2,2,2,3,5,7");
-            newParameters.setValue("TargetTextures", "images\\sky.bmp,images\\sky.bmp,images\\sky.bmp,images\\grass.bmp,images\\grass.bmp,images\\grass.bmp");
+            newParameters.setValue("TargetTextures", String.Format("{0}\\images\\sky.bmp,{0}\\images\\sky.bmp,{0}\\images\\sky.bmp,{0}\\images\\grass.bmp,{0}\\images\\grass.bmp,{0}\\images\\grass.bmp",imagePath));
             newParameters.setValue("TrialSequence", "");
 
             // get parameter values from app.config

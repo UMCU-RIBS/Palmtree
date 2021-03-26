@@ -1,0 +1,8 @@
+version: "3.9"
+services:
+  palmtree:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - $PWD:C:\Palmtree
