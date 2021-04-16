@@ -287,18 +287,23 @@ namespace SpellerTask {
 
 	        }
 
-            // TODO, use bool instead of value to determine whether to draw
             // check if cues should be shown
             if (cueText.Length != 0) {
 
                 // set the text to white
                 glColor3(1f, 1f, 1f);
+                
+                float yCueText = Math.Max(spacing + cueTextY, spacing + textFont.height);
 
                 // print the text
-                textFont.printLine((getContentWidth() - cueTextWidth) / 2, Math.Max(spacing + cueTextY, spacing + textFont.height), cueText);            // show line at minum height from above, in case font is small 
+                textFont.printLine((getContentWidth() - cueTextWidth) / 2, yCueText, cueText);            // show line at minum height from above, in case font is small 
+                
+                drawLine(   20, yCueText + textFont.height * 1.8f, 
+                            getContentWidth() - 20, yCueText + textFont.height * 1.8f,
+                            2, false, 1, 1 ,1);
+
             }
 
-            // TODO, use bool instead of value to determine whether to draw
             // check if input should be shown
             if (inputText.Length != 0) {
 
