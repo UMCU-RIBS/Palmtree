@@ -605,6 +605,7 @@ namespace Palmtree.Views {
         public void glBeginTriangles()   {   gl.Begin(OpenGL.GL_TRIANGLES);  }
         public void glBeginPolygon()     {   gl.Begin(OpenGL.GL_POLYGON);    }
         public void glBeginLineLoop()    {   gl.Begin(OpenGL.GL_LINE_LOOP);  }
+        public void glBeginLines()       {   gl.Begin(OpenGL.GL_LINES);  }
         public void glEnd()              {   gl.End();                       }
 
         public uint loadImage(string file) {

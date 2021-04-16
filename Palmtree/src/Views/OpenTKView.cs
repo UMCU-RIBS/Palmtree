@@ -754,6 +754,7 @@ namespace Palmtree.Views {
         public void glBeginTriangles()   {   GL.Begin(PrimitiveType.Triangles); }
         public void glBeginPolygon()     {   GL.Begin(PrimitiveType.Polygon);   }
         public void glBeginLineLoop()    {   GL.Begin(PrimitiveType.LineLoop);  }
+        public void glBeginLines()       {   GL.Begin(PrimitiveType.Lines);  }
         public void glEnd()              {   GL.End();                          }
 
 
