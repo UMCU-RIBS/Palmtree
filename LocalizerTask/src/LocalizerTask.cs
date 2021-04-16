@@ -53,6 +53,7 @@ namespace LocalizerTask {
         private int waitCounter = 0;                                        // counter for task state Start and Wait, used to determine time left in this state
 
         // view
+        private SamplePackageFormat inputFormat = null;
         private LocalizerView view = null;                                  // view for task
         private Object lockView = new Object();                             // threadsafety lock for all event on the view
         private int windowLeft = 0;                                         // position of window from left of screen
@@ -200,6 +201,8 @@ namespace LocalizerTask {
                 return false;
             }
 
+            // store a reference to the input format
+            inputFormat = input;
             
             // PARAMETER TRANSFER 
 
@@ -379,10 +382,12 @@ namespace LocalizerTask {
 
             // retrieve the connectionlost global
             connectionLost = Globals.getValue<bool>("ConnectionLost");
-
-            // process input
-            process();
-
+            
+            // process
+            int totalSamples = inputFormat.numSamples * inputFormat.numChannels;
+            for (int sample = 0; sample < totalSamples; sample += inputFormat.numChannels)
+                process();
+            
         }
 
         public void process() {
@@ -447,10 +452,10 @@ namespace LocalizerTask {
                 switch (taskState) {
 
                     case TaskStates.Start:
-
+                        
                         // wait until timer reaches zero, then go to Run state
-                        if (waitCounter == 0)   setState(TaskStates.Run);
-                        else                    waitCounter--;
+                        if (--waitCounter <= 0)
+                            setState(TaskStates.Run);
 
                         break;
 
@@ -495,8 +500,8 @@ namespace LocalizerTask {
                     case TaskStates.Wait:
 
                         // if there is time left to wait, decrease time, otherwise return to Run state
-                        if (waitCounter != 0)   waitCounter--;
-                        else                    setState(TaskStates.Run);
+                        if (--waitCounter <= 0)
+                            setState(TaskStates.Run);
 
                         break;
                         
@@ -679,6 +684,7 @@ namespace LocalizerTask {
                     stop();
                 }
             }
+            
         }
 
         public void destroy() {
