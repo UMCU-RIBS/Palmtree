@@ -908,6 +908,12 @@ namespace MoleTask {
 			currentColumnID = resumeColumnID;
             rowLoopCounter = resumeRowLoopCounter;
 
+            // highlight the row or cell in the view
+            if (taskState == TaskStates.RowSelect)      view.selectRow(currentRowID, false);
+            if (taskState == TaskStates.RowSelected)    view.selectRow(currentRowID, true);
+            if (taskState == TaskStates.ColumnSelect)   view.selectCell(currentRowID, currentColumnID, false);
+            if (taskState == TaskStates.ColumnSelected) view.selectCell(currentRowID, currentColumnID, true);
+
 	        // set task as not longer pauzed
 	        taskPauzed = false;
 
