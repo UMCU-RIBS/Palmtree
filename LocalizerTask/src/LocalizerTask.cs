@@ -49,7 +49,6 @@ namespace LocalizerTask {
         private bool connectionWasLost = false;						        // flag to hold whether the connection has been lost (should be reset after being re-connected)
 
         private TaskStates taskState = TaskStates.None;                     // holds current task state
-        private TaskStates previousTaskState = TaskStates.None;             // holds previous task state
         private int waitCounter = 0;                                        // counter for task state Start and Wait, used to determine time left in this state
 
         // view
@@ -539,10 +538,7 @@ namespace LocalizerTask {
 
             // check if there is a view to modify
             if (view == null) return;
-
-            // store the previous state
-            previousTaskState = taskState;
-
+            
             // transfer state
             taskState = state;
 
@@ -635,6 +631,8 @@ namespace LocalizerTask {
             // log event task is paused
             Data.logEvent(2, "TaskPause", CLASS_NAME);
             
+            // hide everything
+            view.setText("");
 
         }
         private void resumeTask() {
@@ -643,7 +641,8 @@ namespace LocalizerTask {
             Data.logEvent(2, "TaskResume", CLASS_NAME);
 
             // set the previous state
-            setState(previousTaskState);
+            setState(taskState);
+
         }
 
         private void setStimulus() {
