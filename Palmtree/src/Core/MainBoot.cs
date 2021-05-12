@@ -337,14 +337,15 @@ namespace Palmtree.Core {
 
             }
 
+            
             // check if there is a gui, and close it by delegate
             if (gui != null) {
                 gui.closeDelegate();
                 gui = null;
+                Thread.Sleep(100);   // allow GUI threads to terminate, before calling Application.Exit()
             }
             
             // stop all the winforms (Informs all message pumps that they must terminate, and then closes all application windows after the messages have been processed.)
-            // TODO: sometimes sticks on this, ever since GUIVisualization was added
             Application.Exit();
 
             // exit the environment

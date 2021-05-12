@@ -328,7 +328,6 @@ namespace Palmtree.GUI {
             if (configApplied) {
 
                 // start the system
-                //mainThread.start();
                 MainThread.start();
 
                 // update the main information
