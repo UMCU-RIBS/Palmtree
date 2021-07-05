@@ -21,9 +21,28 @@ using System.IO;
 using System.Xml;
 using Palmtree.Core.Events;
 using Palmtree.Core.Params;
+using WebSocketSharp;
+using WebSocketSharp.Server;
+using System.Text.Json;
 
 namespace Palmtree.Core.DataIO {
 
+public class WSIO : WebSocketBehavior
+    {
+        private static NLog.Logger logger                            = LogManager.GetLogger("Data");
+
+        public class DataStruct {
+            public string eventState {get; set;}
+            public string eventCode {get; set;}
+        }
+
+        protected override void OnMessage(MessageEventArgs e)
+        {
+            DataStruct dataStruct = JsonSerializer.Deserialize<DataStruct>(e.Data);
+            Data.logEvent(1, dataStruct.eventState, dataStruct.eventCode);
+            // Send("Received");
+        }
+    }
     /// <summary>
     /// Data class
     /// Takes care of data storage and visualization.
@@ -34,6 +53,7 @@ namespace Palmtree.Core.DataIO {
     ///       providing slightly better performance (important since the Data class is called upon very frequently)
     /// </summary>
     public static class Data {
+        public static WebSocketServer wssv;
 
         private const string CLASS_NAME                         = "Data";
         private const int CLASS_VERSION                         = 3;
@@ -41,7 +61,7 @@ namespace Palmtree.Core.DataIO {
         private const string RUN_SUFFIX                         = "Run_";                       // suffix used to append to created files
         private const int MAX_EVENT_LOGLEVELS                   = 3;                            // maximal event log level that is available
 
-        private static Logger logger                            = LogManager.GetLogger("Data");
+        private static NLog.Logger logger                            = LogManager.GetLogger("Data");
         private static Parameters parameters = ParameterManager.GetParameters("Data", Parameters.ParamSetTypes.Data);
         private static Random rand = new Random(Guid.NewGuid().GetHashCode());                  // setup a random number generator
         private static double ticksPerMillisecond = Stopwatch.Frequency / 1000.0;               // calculate and set the ticks-per-millisecond (to be used later)
@@ -205,6 +225,13 @@ namespace Palmtree.Core.DataIO {
                 "LogPluginInput",
                 "Enable/disable plugin input logging.\n\nNote: when there is no plugin input then no plugin data file will be created nor will there be any logging of plugin input",
                 "1");
+                parameters.addParameter<bool>(
+                "WSPORT",
+                "Enable/disable plugin input logging.\n\nNote: when there is no plugin input then no plugin data file will be created nor will there be any logging of plugin input",
+                "21122");
+           wssv = new WebSocketServer("ws://localhost:21122");
+            wssv.AddWebSocketService<WSIO>("/");
+            wssv.Start();
 
         }
 
@@ -1442,6 +1469,7 @@ namespace Palmtree.Core.DataIO {
 
                     // construct event String    
                     string eventOut = eventTime.ToString("yyyyMMdd_HHmmss_fff") + " " + eventRunElapsedTime + " " + strsourceSamplePackageCounter + " " + strDataSampleCounter + " " + text + " " + value;
+                wssv.WebSocketServices["/"].Sessions.Broadcast(eventOut);
 
                     // write event to event file
                     if (eventStreamWriters.Count > levelIndex && eventStreamWriters[levelIndex] != null) {

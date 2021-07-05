@@ -1,4 +1,4 @@
-﻿/**
+/**
  * WSIOFilter class
  * 
  * ...
@@ -15,21 +15,28 @@
 using NLog;
 using Palmtree.Core;
 using Palmtree.Core.Params;
+
 using System;
+using System.Linq;
+using WebSocketSharp;
+using WebSocketSharp.Server;
+
+
 
 namespace Palmtree.Filters {
+    public class WSIO : WebSocketBehavior
+    {
+        protected override void OnMessage(MessageEventArgs e)
+        {
 
-    /// <summary>
-    /// WSIOFilter class
-    /// 
-    /// ...
-    /// </summary>
+            Send("Received");
+        }
+    }
     public class WSIOFilter : FilterBase, IFilter {
 
         private new const int CLASS_VERSION = 1;
-        
+        WebSocketServer wssv;
         public WSIOFilter(string filterName) {
-
             // set class version
             base.CLASS_VERSION = CLASS_VERSION;
 
@@ -43,7 +50,7 @@ namespace Palmtree.Filters {
             // define the parameters
             parameters.addParameter <bool>  (
                 "EnableFilter",
-                "Enable TimeSmoothing Filter",
+                "Enable WSIO Filter",
                 "1");
 
             parameters.addParameter<bool>(
@@ -54,8 +61,15 @@ namespace Palmtree.Filters {
             // message
             logger.Info("Filter created (version " + CLASS_VERSION + ")");
 
+            parameters.addParameter<double>(
+                "Websocket port",
+                "Port to send data out onto",
+                "23535");
+
+            wssv = new WebSocketServer("ws://localhost:21100");
+            wssv.AddWebSocketService<WSIO>("/");
         }
-        
+
         /**
          * Configure the filter. Checks the values and application logic of the
          * parameters and, if valid, transfers the configuration parameters to local variables
@@ -228,8 +242,7 @@ namespace Palmtree.Filters {
 
             // check if the filter is enabled
             if (mEnableFilter) {
-
-            
+                wssv.Start();
             }
             
             // return success
@@ -255,16 +268,30 @@ namespace Palmtree.Filters {
             output = new double[input.Length];
             
             // check if the filter is enabled
-            if (mEnableFilter) {
-                // filter enabled
+            output = input;
 
-                // TODO: send input-package to anywhere...
-                
-    
+            if (mEnableFilter) {
+                byte[] result = new byte[0];
+                output.Select(n => {
+                    BitConverter.GetBytes(n).ToArray().Select(m =>
+                    {
+                        result = result.Append(m).ToArray();
+                        
+                        return m;
+                    }).ToArray();
+
+                    return n;
+                 }).ToArray();
+
+                result = result.Prepend(Convert.ToByte(outputFormat.packageRate)).ToArray();
+                result = result.Prepend(Convert.ToByte(outputFormat.numSamples)).ToArray();
+                result = result.Prepend(Convert.ToByte(outputFormat.numChannels)).ToArray();
+
+                wssv.WebSocketServices["/"].Sessions.Broadcast(result);
+
             }
 
             // pass reference
-            output = input;
 
             // handle the data logging of the output (both to file and for visualization)
             processOutputLogging(output);
@@ -272,6 +299,8 @@ namespace Palmtree.Filters {
         }
         
         public void destroy() {
+            wssv.Stop();
+
 
             // stop the filter
             // Note: At this point stop will probably have been called from the mainthread before destroy, however there is a slight
