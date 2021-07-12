@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Data static class
  * 
  * This static class handles all the data and event output from the source-, filter- and application-modules
@@ -21,28 +21,10 @@ using System.IO;
 using System.Xml;
 using Palmtree.Core.Events;
 using Palmtree.Core.Params;
-using WebSocketSharp;
-using WebSocketSharp.Server;
-using System.Text.Json;
 
 namespace Palmtree.Core.DataIO {
 
-public class WSIO : WebSocketBehavior
-    {
-        private static NLog.Logger logger                            = LogManager.GetLogger("Data");
 
-        public class DataStruct {
-            public string eventState {get; set;}
-            public string eventCode {get; set;}
-        }
-
-        protected override void OnMessage(MessageEventArgs e)
-        {
-            DataStruct dataStruct = JsonSerializer.Deserialize<DataStruct>(e.Data);
-            Data.logEvent(1, dataStruct.eventState, dataStruct.eventCode);
-            // Send("Received");
-        }
-    }
     /// <summary>
     /// Data class
     /// Takes care of data storage and visualization.
@@ -53,7 +35,9 @@ public class WSIO : WebSocketBehavior
     ///       providing slightly better performance (important since the Data class is called upon very frequently)
     /// </summary>
     public static class Data {
-        public static WebSocketServer wssv;
+        public delegate void OnEventLogged(string eventMessage);
+        public static event OnEventLogged eventLogged;
+        
 
         private const string CLASS_NAME                         = "Data";
         private const int CLASS_VERSION                         = 3;
@@ -225,16 +209,9 @@ public class WSIO : WebSocketBehavior
                 "LogPluginInput",
                 "Enable/disable plugin input logging.\n\nNote: when there is no plugin input then no plugin data file will be created nor will there be any logging of plugin input",
                 "1");
-                parameters.addParameter<bool>(
-                "WSPORT",
-                "Enable/disable plugin input logging.\n\nNote: when there is no plugin input then no plugin data file will be created nor will there be any logging of plugin input",
-                "21122");
-           wssv = new WebSocketServer("ws://localhost:21122");
-            wssv.AddWebSocketService<WSIO>("/");
-            wssv.Start();
+
 
         }
-
         public static int getClassVersion() {
             return CLASS_VERSION;
         }
@@ -1469,8 +1446,10 @@ public class WSIO : WebSocketBehavior
 
                     // construct event String    
                     string eventOut = eventTime.ToString("yyyyMMdd_HHmmss_fff") + " " + eventRunElapsedTime + " " + strsourceSamplePackageCounter + " " + strDataSampleCounter + " " + text + " " + value;
-                wssv.WebSocketServices["/"].Sessions.Broadcast(eventOut);
-
+                    if(eventLogged != null)
+                    {
+                        eventLogged(eventOut);
+                    }
                     // write event to event file
                     if (eventStreamWriters.Count > levelIndex && eventStreamWriters[levelIndex] != null) {
 
