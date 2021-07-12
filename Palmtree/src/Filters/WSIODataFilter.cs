@@ -1,4 +1,4 @@
-/**
+﻿/**
  * WSIOFilter class
  * 
  * ...
@@ -14,6 +14,7 @@
  */
 using NLog;
 using Palmtree.Core;
+using Palmtree.Core.DataIO;
 using Palmtree.Core.Params;
 
 using System;
@@ -22,21 +23,48 @@ using WebSocketSharp;
 using WebSocketSharp.Server;
 
 
+// public class WSIO : WebSocketBehavior
+//     {
+//         private static NLog.Logger logger                            = LogManager.GetLogger("Data");
 
-namespace Palmtree.Filters {
-    public class WSIO2 : WebSocketBehavior
+//         public class DataStruct {
+//             public string eventState {get; set;}
+//             public string eventCode {get; set;}
+//         }
+
+//         protected override void OnMessage(MessageEventArgs e)
+//         {
+//             DataStruct dataStruct = JsonSerializer.Deserialize<DataStruct>(e.Data);
+//             Data.logEvent(1, dataStruct.eventState, dataStruct.eventCode);
+//             // Send("Received");
+//         }
+//     }
+namespace Palmtree.Filters
+{
+    public class WSIO : WebSocketBehavior
     {
-        protected override void OnMessage(MessageEventArgs e)
-        {
+        private static NLog.Logger logger = LogManager.GetLogger("Data");
 
-            Send("Received");
+        public class DataStruct
+        {
+            public string eventState { get; set; }
+            public string eventCode { get; set; }
         }
+
+        //protected override void OnMessage(MessageEventArgs e)
+        //{
+        //    //DataStruct dataStruct = JsonSerializer.Deserialize<DataStruct>(e.Data);
+        //    //Data.logEvent(1, dataStruct.eventState, dataStruct.eventCode);
+        //    Send("Received");
+        //}
     }
-    public class WSIOFilter : FilterBase, IFilter {
+    public class WSIODataFilter : FilterBase, IFilter
+    {
+        public static WebSocketServer wssv;
 
         private new const int CLASS_VERSION = 1;
-        WebSocketServer wssv;
-        public WSIOFilter(string filterName) {
+        public WSIODataFilter(string filterName)
+        {
             // set class version
             base.CLASS_VERSION = CLASS_VERSION;
 
@@ -48,7 +76,7 @@ namespace Palmtree.Filters {
             parameters = ParameterManager.GetParameters(filterName, Parameters.ParamSetTypes.Filter);
 
             // define the parameters
-            parameters.addParameter <bool>  (
+            parameters.addParameter<bool>(
                 "EnableFilter",
                 "Enable WSIO Filter",
                 "1");
@@ -58,11 +86,14 @@ namespace Palmtree.Filters {
                 "Log the filter's intermediate and output data streams. See 'Data' tab for more settings on sample stream logging.",
                 "0");
 
-
             parameters.addParameter<double>(
                 "WebsocketPort",
                 "Port to send data out onto",
-                "21100");
+                "21122");
+
+
+            Data.eventLogged += Data_onEventLogged;
+
 
         }
 
@@ -71,17 +102,20 @@ namespace Palmtree.Filters {
          * parameters and, if valid, transfers the configuration parameters to local variables
          * (initialization of the filter is done later by the initialize function)
          **/
-        public bool configure(ref SamplePackageFormat input, out SamplePackageFormat output) {
+        public bool configure(ref SamplePackageFormat input, out SamplePackageFormat output)
+        {
 
             // check sample-major ordered input
-            if (input.valueOrder != SamplePackageFormat.ValueOrder.SampleMajor) {
+            if (input.valueOrder != SamplePackageFormat.ValueOrder.SampleMajor)
+            {
                 logger.Error("This filter is designed to work only with sample-major ordered input");
                 output = null;
                 return false;
             }
 
             // retrieve the number of input channels
-            if (input.numChannels <= 0) {
+            if (input.numChannels <= 0)
+            {
                 logger.Error("Number of input channels cannot be 0");
                 output = null;
                 return false;
@@ -93,9 +127,9 @@ namespace Palmtree.Filters {
             // store a references to the input and output format
             inputFormat = input;
             outputFormat = output;
-            
+
             // check the values and application logic of the parameters
-            if (!checkParameters(parameters))   return false;
+            if (!checkParameters(parameters)) return false;
 
             // transfer the parameters to local variables
             transferParameters(parameters);
@@ -111,14 +145,18 @@ namespace Palmtree.Filters {
 
         }
 
+
+
         /// <summary>Re-configure and/or reset the configration parameters of the filter (defined in the newParameters argument) on-the-fly.</summary>
         /// <param name="newParameters">Parameter object that defines the configuration parameters to be set. Set to NULL to leave the configuration parameters untouched.</param>
         /// <param name="resetOption">Filter reset options. 0 will reset the minimum; 1 will perform a complete reset of filter information. > 1 for custom resets.</param>
         /// <returns>A boolean, either true for a succesfull re-configuration, or false upon failure</returns>
-        public bool configureRunningFilter(Parameters newParameters, int resetOption) {
-            
+        public bool configureRunningFilter(Parameters newParameters, int resetOption)
+        {
+
             // check if new parameters are given (only a reset is also an option)
-            if (newParameters != null) {
+            if (newParameters != null)
+            {
 
                 //
                 // no pre-check on the number of output channels is needed here, the number of output
@@ -128,9 +166,14 @@ namespace Palmtree.Filters {
                 // check the values and application logic of the parameters
                 if (!checkParameters(newParameters)) return false;
 
+
+
+
+
                 // retrieve and check the LogDataStreams parameter
                 bool newLogDataStreams = newParameters.getValue<bool>("LogDataStreams");
-                if (!mLogDataStreams && newLogDataStreams) {
+                if (!mLogDataStreams && newLogDataStreams)
+                {
                     // logging was (in the initial configuration) switched off and is trying to be switched on
                     // (refuse, it cannot be switched on, because sample streams have to be registered during the first configuration)
 
@@ -146,7 +189,8 @@ namespace Palmtree.Filters {
                 transferParameters(newParameters);
 
                 // apply change in the logging of sample streams
-                if (mLogDataStreams && mLogDataStreamsRuntime && !newLogDataStreams) {
+                if (mLogDataStreams && mLogDataStreamsRuntime && !newLogDataStreams)
+                {
                     // logging was (in the initial configuration) switched on and is currently on but wants to be switched off (resulting in 0's being output)
 
                     // message
@@ -155,7 +199,9 @@ namespace Palmtree.Filters {
                     // switch logging off (to zeros)
                     mLogDataStreamsRuntime = false;
 
-                } else if (mLogDataStreams && !mLogDataStreamsRuntime && newLogDataStreams) {
+                }
+                else if (mLogDataStreams && !mLogDataStreamsRuntime && newLogDataStreams)
+                {
                     // logging was (in the initial configuration) switched on and is currently off but wants to be switched on (resume logging)
 
                     // message
@@ -187,7 +233,8 @@ namespace Palmtree.Filters {
         /**
          * check the values and application logic of the given parameter set
          **/
-        private bool checkParameters(Parameters newParameters) {
+        private bool checkParameters(Parameters newParameters)
+        {
 
 
             // TODO: parameters.checkminimum, checkmaximum
@@ -196,8 +243,9 @@ namespace Palmtree.Filters {
             bool newEnableFilter = newParameters.getValue<bool>("EnableFilter");
 
             // check if the filter is enabled
-            if (newEnableFilter) {
-                
+            if (newEnableFilter)
+            {
+
 
             }
 
@@ -209,93 +257,98 @@ namespace Palmtree.Filters {
         /**
          * transfer the given parameter set to local variables
          **/
-        private void transferParameters(Parameters newParameters) {
+        private void transferParameters(Parameters newParameters)
+        {
 
             // filter is enabled/disabled
             mEnableFilter = newParameters.getValue<bool>("EnableFilter");
 
             // check if the filter is enabled
-            if (mEnableFilter) {
-                
+            if (mEnableFilter)
+            {
+
             }
 
         }
 
-        private void printLocalConfiguration() {
+        private void printLocalConfiguration()
+        {
 
             // debug output
             logger.Debug("--- Filter configuration: " + filterName + " ---");
             logger.Debug("Input channels: " + inputFormat.numChannels);
             logger.Debug("Enabled: " + mEnableFilter);
             logger.Debug("Output channels: " + outputFormat.numChannels);
-            if (mEnableFilter) {
+            if (mEnableFilter)
+            {
 
             }
 
         }
 
-        public void initialize() {
+        public void initialize()
+        {
 
             // check if the filter is enabled
-            if (mEnableFilter) {
+            if (mEnableFilter)
+            {
                 double wsPort = parameters.getValue<double>("WebsocketPort");
                 wssv = new WebSocketServer("ws://localhost:" + wsPort);
-                wssv.AddWebSocketService<WSIO2>("/");
+                wssv.AddWebSocketService<WSIO>("/");
             }
 
         }
 
-        public void start() {
+        public void start()
+        {
             wssv.Start();
         }
 
-        public void stop() {
+        public void stop()
+        {
             wssv.Stop();
 
         }
 
-        public bool isStarted() {
+        public bool isStarted()
+        {
             return false;
         }
 
-        public void process(double[] input, out double[] output) {
-            
+        public void process(double[] input, out double[] output)
+        {
+
             // create the output package
             output = new double[input.Length];
             // check if the filter is enabled
             output = input;
 
-            if (mEnableFilter) {
-                byte[] result = new byte[0];
-                output.Select(n => {
-                    BitConverter.GetBytes(n).ToArray().Select(m =>
-                    {
-                        result = result.Append(m).ToArray();
-                        
-                        return m;
-                    }).ToArray();
+            if (mEnableFilter)
+            {
 
-                    return n;
-                 }).ToArray();
-
-                result = result.Prepend(Convert.ToByte(outputFormat.packageRate)).ToArray();
-                result = result.Prepend(Convert.ToByte(outputFormat.numSamples)).ToArray();
-                result = result.Prepend(Convert.ToByte(outputFormat.numChannels)).ToArray();
-
-                if (wssv.IsListening)
-                {
-                    wssv.WebSocketServices["/"].Sessions.Broadcast(result);
-                }
             }
 
             // pass reference
 
             // handle the data logging of the output (both to file and for visualization)
             processOutputLogging(output);
-            
+
         }
-        
-        public void destroy() {
+
+        private void Data_onEventLogged(string message)
+        {
+            if (wssv.IsListening)
+            {
+
+                wssv.WebSocketServices["/"].Sessions.Broadcast(message);
+            }
+
+        }
+
+
+
+        public void destroy()
+        {
             wssv.Stop();
 
 
