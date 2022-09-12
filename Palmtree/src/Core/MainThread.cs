@@ -898,6 +898,12 @@ namespace Palmtree.Core {
         //       multiple devices, therefore "interface/header" assemblies are used.
         private static Assembly resolveEventHandler(object sender, ResolveEventArgs args) {
             AssemblyName assemblyName = new AssemblyName(args.Name);
+            
+            // if a resources assembly is loaded, return null to let the default handler resolve it
+            // Note: Since .NET Framework 4, the ResolveEventHandler event is raised for all assemblies, including resource assemblies
+            if (assemblyName.Name.EndsWith(".resources")) {
+                return null;
+            }
 
             // define the assemblies that are resolved by name (case-insensitive)
             // optionally provide the public-key for additional checks
