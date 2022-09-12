@@ -14,7 +14,6 @@
  */
 using NLog;
 using System;
-using System.IO;
 using Palmtree.Core;
 using Palmtree.Core.Helpers;
 using Palmtree.Views;
