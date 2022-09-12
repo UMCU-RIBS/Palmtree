@@ -1127,7 +1127,7 @@ namespace CMoleTask {
                     // dynamic parameter: threshold
                     case 1:
                         filter = "ThresholdClassifier";
-                        param = "Thresholds";
+                        param = "Thresholding";
                         paramType = "double[][]";
                         increaseType = scoreTypes.FalsePositive;
                         decreaseType = scoreTypes.FalseNegative;
