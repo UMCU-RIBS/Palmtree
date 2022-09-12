@@ -22,10 +22,13 @@ using System.Diagnostics;
 using System.Threading;
 using Palmtree.Applications;
 using Palmtree.Filters;
+using Palmtree.Core.Helpers;
 using Palmtree.Core.Params;
 using Palmtree.Sources;
 using Palmtree.Plugins;
 using Palmtree.Core.DataIO;
+using System.IO;
+using System.Reflection;
 using System.Windows.Forms;
 
 namespace Palmtree.Core {
@@ -94,12 +97,16 @@ namespace Palmtree.Core {
         public static int getClassVersion() {
             return CLASS_VERSION;
         }
-
+        
         public bool initPipeline(string sourceType, List<string[]> filtersTypes, Type applicationType) {
+            
+            // Add an event handler to allow for "interface/header" assemblies. 
+            AppDomain currentDomain = AppDomain.CurrentDomain;
+            currentDomain.AssemblyResolve += new ResolveEventHandler(resolveEventHandler);    
             
             // constuct the Data static class (this makes sure that the Data parameterset is created for configuration)
             Data.construct();
-            
+
             // retrieve the source type and create and instance
             try {
                 source = (ISource)Activator.CreateInstance(Type.GetType(sourceType));
@@ -879,6 +886,64 @@ namespace Palmtree.Core {
                 configureRunningFilter(newParameters[i], (i < resetOption.Length ? resetOption[i] : 0));
         }
 
+        // This handler is called only when the common language runtime tries to bind to the assembly and fails.
+        // Using this handler we can intercept the - expected - unsuccesfull runtime binding of Palmtree to the
+        // DLLs of the "interface/header" assemblies (ISummitAPI, ...) and substitute them with loading the
+        // actual 3th party DLLs, so binding them purely by <assemblyName>.dll; Effectively having the assembly
+        // projects function as C header files would for libraries. In order for this to work, the DLLs from the
+        // "interface/header" assemblies should never be included in the Palmtree outputput folder.
+        // 
+        // Note: The sole reason for using stubs/interfaces is because we cannot include some 3th party DLLS with
+        //       the project, as a result the open-source project would not compile without them. Palmtree supports
+        //       multiple devices, therefore "interface/header" assemblies are used.
+        private static Assembly resolveEventHandler(object sender, ResolveEventArgs args) {
+            AssemblyName assemblyName = new AssemblyName(args.Name);
+
+            // define the assemblies that are resolved by name (case-insensitive)
+            // optionally provide the public-key for additional checks
+            string[][] rebindAssemblies = new string[][] {
+                                                        new string[] { "Medtronic.SummitAPI",           ""},
+                                                        new string[] { "Medtronic.TelemetryM",          ""},
+                                                        new string[] { "Medtronic.NeuroStim.Olympus",   ""}
+                                                    };
+
+            // check if the assembly is setup to be resolved
+            int[] bindIdx = ArrayHelper.jaggedArrayCompare(assemblyName.Name, rebindAssemblies, null, new int[]{0}, true);
+            if (bindIdx == null) {
+                logger.Error("Assembly '" + assemblyName.Name + "' is not setup to be rebound to a DLL. Assembly resolve failed.");
+                return null;
+            }
+
+            // check if a dll file with the assembly name exists in the current assembly's path
+            string folderPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            string assemblyPath = Path.Combine(folderPath, assemblyName.Name + ".dll");
+            if (!File.Exists(assemblyPath)) {
+                logger.Error("Could not find assembly DLL: '" + assemblyPath + ". Resolve failed.");
+                return null;
+            }
+
+            // try to load the assembly
+            Assembly assembly = null;
+            try {
+                assembly = Assembly.LoadFrom(assemblyPath);
+
+                // TODO: optional extra checks to verify 
+                // add check to publickey, to ensure they are indeed the genuine 3th Party DLLs
+            
+                // success
+                return assembly;
+
+           } catch (FileLoadException e) {
+                logger.Error("Error while loading asssembly '" + assemblyName.Name + "': " + e.Message);
+            } catch (FileNotFoundException e) {
+                logger.Error("Error while loading asssembly '" + assemblyName.Name + "': " + e.Message);
+            } catch (BadImageFormatException e) {
+                logger.Error("Error while loading asssembly '" + assemblyName.Name + "': " + e.Message);
+            };
+            
+            return null;
+        }
+        
     }
 
 }
