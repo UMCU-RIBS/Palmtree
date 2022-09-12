@@ -153,7 +153,7 @@ namespace Palmtree.GUI {
 
                     // add an empty label at the end to create dummy space
                     Label newLbl = new Label();
-                    newLbl.Name = "lbl" + newPanel.Name + "EndDummy";
+                    newLbl.Name = newPanel.Name + "_lblEndDummy";
                     newLbl.Location = new Point(10, y);
                     newLbl.Size = new System.Drawing.Size(labelWidth, 20);
                     newLbl.Text = "";
@@ -186,7 +186,7 @@ namespace Palmtree.GUI {
 
             // create and add a label
             Label newLbl = new Label();
-            newLbl.Name = "lbl" + panel.Name + param.Name;
+            newLbl.Name = panel.Name + "_lbl" + param.Name;
             newLbl.Location = new Point(10, y + itemTopPadding);
             newLbl.Size = new System.Drawing.Size(labelWidth, 20);
             newLbl.Text = param.Name;
@@ -204,7 +204,7 @@ namespace Palmtree.GUI {
 
                 // create and add a checkbox
                 CheckBox newChk = new CheckBox();
-                newChk.Name = "chk" + panel.Name + param.Name;
+                newChk.Name = panel.Name + "_chk" + param.Name;
                 newChk.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
                 newChk.Text = "";
                 newChk.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
@@ -220,7 +220,7 @@ namespace Palmtree.GUI {
 
                     // create and add a textbox
                     TextBox newTxt = new TextBox();
-                    newTxt.Name = "txt" + panel.Name + param.Name;
+                    newTxt.Name = panel.Name + "_txt" + param.Name;
                     newTxt.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
                     newTxt.Size = new System.Drawing.Size(200, 20);
                     newTxt.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
@@ -233,7 +233,7 @@ namespace Palmtree.GUI {
 
                     // create and add a combobox
                     ComboBox newCmb = new ComboBox();
-                    newCmb.Name = "cmb" + panel.Name + param.Name;
+                    newCmb.Name = panel.Name + "_cmb" + param.Name;
                     newCmb.Location = new Point(labelWidth + 20, y + itemTopPadding - 3);
                     newCmb.Size = new System.Drawing.Size(320, 20);
                     newCmb.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
@@ -249,7 +249,7 @@ namespace Palmtree.GUI {
 
                 PictureBox newPic = new PictureBox();
                 newPic.BorderStyle = BorderStyle.FixedSingle;
-                newPic.Name = "pic" + panel.Name + param.Name;
+                newPic.Name = panel.Name + "_pic" + param.Name;
                 newPic.Location = new Point(labelWidth + 20, y + itemTopPadding - 1);
                 newPic.Size = new System.Drawing.Size(40, 20);
                 newPic.Click += (sender, e) => {
@@ -277,7 +277,7 @@ namespace Palmtree.GUI {
 
                     // create and add a combobox
                     ComboBox newCmb = new ComboBox();
-                    newCmb.Name = "cmb" + panel.Name + param.Name;
+                    newCmb.Name = panel.Name + "_cmb" + param.Name;
                     newCmb.Location = new Point(labelWidth + 20, y + itemTopPadding - 3);
                     newCmb.Size = new System.Drawing.Size(elementWidth, 20);
                     newCmb.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
@@ -293,7 +293,7 @@ namespace Palmtree.GUI {
 
                     // create and add a textbox
                     TextBox newTxt = new TextBox();
-                    newTxt.Name = "txt" + panel.Name + param.Name;
+                    newTxt.Name = panel.Name + "_txt" + param.Name;
                     newTxt.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
                     newTxt.Size = new System.Drawing.Size(elementWidth, 20);
                     newTxt.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
@@ -306,7 +306,7 @@ namespace Palmtree.GUI {
                     
                         // create and add a button
                         Button newBtn = new Button();
-                        newBtn.Name = "btn" + panel.Name + param.Name;
+                        newBtn.Name = panel.Name + "_btn" + param.Name;
                         newBtn.Location = new Point(labelWidth + elementWidth + 20, y + itemTopPadding - 2);
                         newBtn.Size = new System.Drawing.Size(40, 23);
                         newBtn.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
@@ -374,7 +374,7 @@ namespace Palmtree.GUI {
                         // create and add buttons
                         for (int iButton = 0; iButton < sideButtons.Length; iButton++) {
                             Button newBtn = new Button();
-                            newBtn.Name = "btn" + panel.Name + param.Name + "Side" + iButton;
+                            newBtn.Name = panel.Name + "_btn" + param.Name + "Side" + iButton;
                             newBtn.Location = new Point(buttonLeft, y + itemTopPadding - 2);
                             newBtn.Size = new System.Drawing.Size(sideButtons[iButton].width, 23);
                             newBtn.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
@@ -396,7 +396,7 @@ namespace Palmtree.GUI {
                 // add the data grid
                 DataGridView newGrid = new DataGridView();
                 newGrid.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-                newGrid.Name = "grd" + panel.Name + param.Name;
+                newGrid.Name = panel.Name + "_grd" + param.Name;
                 newGrid.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
                 newGrid.Size = new System.Drawing.Size(650, 144);
                 newGrid.AllowUserToAddRows = false;
@@ -415,14 +415,14 @@ namespace Palmtree.GUI {
                 NumericUpDown newColumns = new System.Windows.Forms.NumericUpDown();
 
                 // rows
-                newLblRows.Name = "lbl" + panel.Name + param.Name + "Rows";
+                newLblRows.Name = panel.Name + "_lbl" + param.Name + "Rows";
                 newLblRows.Location = new Point(labelWidth + 20, newGrid.Location.Y + newGrid.Size.Height + 7);
                 newLblRows.Size = new System.Drawing.Size(50, 20);
                 newLblRows.Text = "Rows:";
                 newLblRows.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
                 newLblRows.Parent = panel;
                 newLblRows.TextAlign = ContentAlignment.TopRight;
-                newRows.Name = "num" + panel.Name + param.Name + "Rows";
+                newRows.Name = panel.Name + "_num" + param.Name + "Rows";
                 newRows.Location = new Point(labelWidth + 75, newGrid.Location.Y + newGrid.Size.Height + 5);
                 newRows.Size = new System.Drawing.Size(50, 20);
                 newRows.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
@@ -437,7 +437,7 @@ namespace Palmtree.GUI {
                 panel.Controls.Add(newRows);
 
                 // colums
-                newLblColumns.Name = "lbl" + panel.Name + param.Name + "Colums";
+                newLblColumns.Name = panel.Name + "_lbl" + param.Name + "Colums";
                 newLblColumns.Location = new Point(labelWidth + 140, newGrid.Location.Y + newGrid.Size.Height + 7);
                 newLblColumns.Size = new System.Drawing.Size(80, 20);
                 newLblColumns.Text = "Columns:";
@@ -445,7 +445,7 @@ namespace Palmtree.GUI {
                 newLblColumns.Parent = panel;
                 newLblColumns.TextAlign = ContentAlignment.TopRight;
                 newLblColumns.Visible = (param.Options.Length == 0);
-                newColumns.Name = "num" + panel.Name + param.Name + "Columns";
+                newColumns.Name = panel.Name + "_num" + param.Name + "Columns";
                 newColumns.Location = new Point(labelWidth + 225, newGrid.Location.Y + newGrid.Size.Height + 5);
                 newColumns.Size = new System.Drawing.Size(50, 20);
                 newColumns.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
@@ -463,7 +463,7 @@ namespace Palmtree.GUI {
 
                 // create and add a save button
                 Button newBtnSave = new Button();
-                newBtnSave.Name = "btn" + panel.Name + param.Name + "Save";
+                newBtnSave.Name = panel.Name + "_btn" + param.Name + "Save";
                 newBtnSave.Size = new System.Drawing.Size(40, 23);
                 newBtnSave.Location = new Point(newGrid.Location.X + newGrid.Size.Width - newBtnSave.Size.Width, newGrid.Location.Y + newGrid.Size.Height + 7);
                 newBtnSave.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
@@ -496,7 +496,7 @@ namespace Palmtree.GUI {
 
                 // create and add a load button
                 Button newBtnLoad = new Button();
-                newBtnLoad.Name = "btn" + panel.Name + param.Name + "Load";
+                newBtnLoad.Name = panel.Name + "_btn" + param.Name + "Load";
                 newBtnLoad.Size = new System.Drawing.Size(40, 23);
                 newBtnLoad.Location = new Point(newBtnSave.Location.X - newBtnLoad.Size.Width - 4, newGrid.Location.Y + newGrid.Size.Height + 7);
                 newBtnLoad.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
