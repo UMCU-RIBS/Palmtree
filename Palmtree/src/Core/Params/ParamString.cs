@@ -83,7 +83,7 @@ namespace Palmtree.Core.Params {
         public T getValueInSamples<T>() {
 
             // message
-            logger.Error("Trying to retrieve the value in samples for string parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') in number of samples, cannot convert a boolean, returning 0");
+            logger.Error("Trying to retrieve the value in samples for string parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') in number of samples, cannot convert a string. Returning empty string");
 
             // return value
             return (T)Convert.ChangeType(Parameters.emptyValue<T>(), typeof(T));

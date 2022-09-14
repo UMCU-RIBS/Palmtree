@@ -55,14 +55,18 @@ namespace Palmtree.GUI {
                 for (int i = 0; i < parameters.Count; i++) {
                     iParam param = parameters[i];
 
-                    paramInfo += "+++++ " + Environment.NewLine;
+                    // check if the parameter is not a seperator
+                    if (param.GetType() != typeof(ParamSeperator)) {
+                        
+                        paramInfo += "+++++ " + Environment.NewLine;
+                        paramInfo += "Name: " + param.Name + Environment.NewLine;
+                        paramInfo += "Desc: " + param.Desc + Environment.NewLine;
+                        paramInfo += "MinValue: " + param.MinValue + Environment.NewLine;
+                        paramInfo += "MaxValue: " + param.MaxValue + Environment.NewLine;
+                        paramInfo += "StdValue: " + param.StdValue + Environment.NewLine;
+                        paramInfo += "Options: " + string.Join(", ", param.Options) + Environment.NewLine;
 
-                    paramInfo += "Name: " + param.Name + Environment.NewLine;
-                    paramInfo += "Desc: " + param.Desc + Environment.NewLine;
-                    paramInfo += "MinValue: " + param.MinValue + Environment.NewLine;
-                    paramInfo += "MaxValue: " + param.MaxValue + Environment.NewLine;
-                    paramInfo += "StdValue: " + param.StdValue + Environment.NewLine;
-                    paramInfo += "Options: " + string.Join(", ", param.Options) + Environment.NewLine;
+                    }
 
                     paramInfo += Environment.NewLine;
 

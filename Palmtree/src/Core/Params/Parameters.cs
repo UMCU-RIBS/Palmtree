@@ -70,11 +70,7 @@ namespace Palmtree.Core.Params {
         public List<iParam> getParameters() {
             return paramList;
         }
-
-        public int getNumberOfParameters() {
-            return paramList.Count;
-        }
-
+        
         public iParam addParameter<T>(string name, string desc) {
             return addParameter<T>(name, "", desc, "", "", "");
         }        
@@ -102,7 +98,6 @@ namespace Palmtree.Core.Params {
         public iParam addParameter<T>(string name, string desc, string minValue, string maxValue, string stdValue, string[] options, Param.ParamSideButton[] buttons) {
             return addParameter<T>(name, "", desc, minValue, maxValue, stdValue, options, buttons);
         }
-
         public iParam addParameter<T>(string name, string group, string desc, string minValue, string maxValue, string stdValue) {
             return addParameter<T>(name, group, desc, minValue, maxValue, stdValue, new string[0]);
         }
@@ -273,14 +268,26 @@ namespace Palmtree.Core.Params {
             }
 
         }
+        public iParam addSeperator(string text) {
+            return addSeperator(text, "");
+        }
+        public iParam addSeperator(string text, string group) {
+            
+            // create a seperator parameter
+            iParam param = new ParamSeperator(text, group, this);
+            
+            // add the seperator to the list
+            paramList.Add(param);
+            return param;
 
+        }
+        
         private iParam getParameter(string paramName) {
 
             // try to find the parameter by name
             for (int i = 0; i < paramList.Count; i++) {
-                if (paramList[i].Name.Equals(paramName)) {
+                if (paramList[i].GetType() != typeof(ParamSeperator) && paramList[i].Name.Equals(paramName))
                     return paramList[i];
-                }
             }
 
             // return

@@ -226,6 +226,10 @@ namespace Palmtree.Core.Params {
                 for (int p = 0; p < parameters.Count; p++) {
                     iParam parameter = parameters[p];
 
+                    // skip seperator parameters, these are only for esthetics
+                    if (parameter.GetType() == typeof(ParamSeperator))
+                        continue;
+
                     // create param node 
                     XmlNode paramNode = paramFile.CreateElement("param");
 
