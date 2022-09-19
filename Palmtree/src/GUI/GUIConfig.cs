@@ -122,6 +122,9 @@ namespace Palmtree.GUI {
                 newPanel.Size = new Size(newTab.Width, newTab.Height);
                 newPanel.Name = "pnl" + entry.Key;
                 newPanel.AutoScroll = true;
+                newPanel.MouseClick += new MouseEventHandler(delegate(object sender, MouseEventArgs e) {
+                    clearFocusToPanel(newPanel);
+                });
                 newTab.Controls.Add(newPanel);
 
                 // TODO: check grouping etc
@@ -158,6 +161,9 @@ namespace Palmtree.GUI {
                     newLbl.Size = new System.Drawing.Size(labelWidth, 20);
                     newLbl.Text = "";
                     newLbl.Parent = newPanel;
+                    newLbl.MouseClick += new MouseEventHandler(delegate(object sender, MouseEventArgs e) {
+                        clearFocusToPanel(newPanel);
+                    });
                     newPanel.Controls.Add(newLbl);
 
                 }
@@ -177,9 +183,14 @@ namespace Palmtree.GUI {
             // resume the tabcontrol layout
             tabControl.ResumeLayout(false);
 
+            // upon changing the tab, clear the selection for datagrid controls and set the focus to the panel
+            tabControl.SelectedIndexChanged += new EventHandler(delegate(object sender, EventArgs e) {
+                clearFocusToPanel((Panel)tabControl.SelectedTab.Controls[0]);
+            });
+
         }
         
-        private void addConfigItemToControl(TabPage tab, Control panel, ref ParamControl paramControl, ref int y) {
+        private void addConfigItemToControl(TabPage tab, Panel panel, ref ParamControl paramControl, ref int y) {
 
             // retrieve reference to the global parameter
             iParam param = paramControl.globalParam;
@@ -197,6 +208,9 @@ namespace Palmtree.GUI {
                 newSep.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
                 newSep.Parent = panel;
                 newSep.TextAlign = ContentAlignment.TopRight;
+                newSep.MouseClick += new MouseEventHandler(delegate(object sender, MouseEventArgs e) {
+                    clearFocusToPanel(panel);
+                });
                 panel.Controls.Add(newSep);
                 itemHeight = 20;
 
@@ -211,6 +225,9 @@ namespace Palmtree.GUI {
                 newLbl.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
                 newLbl.Parent = panel;
                 newLbl.TextAlign = ContentAlignment.TopRight;
+                newLbl.MouseClick += new MouseEventHandler(delegate(object sender, MouseEventArgs e) {
+                    clearFocusToPanel(panel);
+                });
                 ToolTip tt = new ToolTip();
                 tt.AutoPopDelay = 15000;
                 tt.InitialDelay = 200;
@@ -253,6 +270,11 @@ namespace Palmtree.GUI {
                         ComboBox newCmb = new ComboBox();
                         newCmb.DropDownStyle = ComboBoxStyle.DropDownList;
                         newCmb.Name = panel.Name + "_cmb" + param.Name;
+                        newCmb.SelectedValueChanged += new EventHandler(delegate(object sender, EventArgs e) {
+                            // after changing make sure the combobox loses focus, this prevents scrolling
+                            // or keypresses from accidentally changing the selection
+                            panel.Focus();
+                        });
                         newCmb.Location = new Point(labelWidth + 20, y + itemTopPadding - 3);
                         newCmb.Size = new System.Drawing.Size(320, 20);
                         newCmb.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
@@ -384,7 +406,7 @@ namespace Palmtree.GUI {
                 
                     }
 
-                    // on 
+                    // 
                     if (param is ParamString && !(param is ParamFileString)) {
                         Param.ParamSideButton[] sideButtons = ((ParamString)param).Buttons;
                         if (sideButtons != null) {
@@ -441,6 +463,9 @@ namespace Palmtree.GUI {
                     newLblRows.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
                     newLblRows.Parent = panel;
                     newLblRows.TextAlign = ContentAlignment.TopRight;
+                    newLblRows.MouseClick += new MouseEventHandler(delegate(object sender, MouseEventArgs e) {
+                        clearFocusToPanel(panel);
+                    });
                     newRows.Name = panel.Name + "_num" + param.Name + "Rows";
                     newRows.Location = new Point(labelWidth + 75, newGrid.Location.Y + newGrid.Size.Height + 5);
                     newRows.Size = new System.Drawing.Size(50, 20);
@@ -464,6 +489,9 @@ namespace Palmtree.GUI {
                     newLblColumns.Parent = panel;
                     newLblColumns.TextAlign = ContentAlignment.TopRight;
                     newLblColumns.Visible = (param.Options.Length == 0);
+                    newLblColumns.MouseClick += new MouseEventHandler(delegate(object sender, MouseEventArgs e) {
+                        clearFocusToPanel(panel);
+                    });
                     newColumns.Name = panel.Name + "_num" + param.Name + "Columns";
                     newColumns.Location = new Point(labelWidth + 225, newGrid.Location.Y + newGrid.Size.Height + 5);
                     newColumns.Size = new System.Drawing.Size(50, 20);
@@ -563,6 +591,10 @@ namespace Palmtree.GUI {
                     paramControl.additionalControl2 = newColumns;
 
                     itemHeight = 180;
+                    
+                    newGrid.LostFocus += new EventHandler(delegate(object sender, EventArgs e) {
+                        clearFocusToPanel(panel);
+                    });
 
                 }
 
@@ -584,6 +616,8 @@ namespace Palmtree.GUI {
             }
 
             grid.ClearSelection();
+            grid.CurrentCell = null;
+
         }
 
         private void GUIConfig_Load(object sender, EventArgs e) {
@@ -979,9 +1013,13 @@ namespace Palmtree.GUI {
             if (maxRows > 0) grdRows.Value = maxRows;
             else grdRows.Value = 0;
 
-            // set the values
+            // loop over the columns
             for (int c = 0; c < columns; c++) {
 
+                // ensure that each column is not sortable
+                grd.Columns[c].SortMode = DataGridViewColumnSortMode.NotSortable;
+
+                // set the values
                 if (param is ParamBoolMat) {
                     for (int r = 0; r < boolValues[c].Length; r++) {
                         grd[c, r].Value = (boolValues[c][r] ? "1" : "0");
@@ -1005,7 +1043,6 @@ namespace Palmtree.GUI {
                 }
 
             }
-
 
         }
 
@@ -1132,8 +1169,39 @@ namespace Palmtree.GUI {
 
         }
 
+        private void clearFocusToPanel(Panel panel) {
+            
+            // for datagrids clear the selection
+            for (int i = 0; i < panel.Controls.Count; i++) {
+                if (panel.Controls[i] is DataGridView)
+                    ((DataGridView)panel.Controls[i]).CurrentCell = null;
+            }
+                    
+            // set focus to panel
+            panel.Focus();
+        
+        }
+
+        private void GUIConfig_KeyDown(object sender, KeyEventArgs e) {
+            if (e.KeyCode == Keys.Down || e.KeyCode == Keys.Up) {
+                Panel activePanel = (Panel)tabControl.SelectedTab.Controls[0];
+                if (activePanel.Focused) {
+
+                    int scrollChange = 50;
+                    if (e.KeyCode == Keys.Down)
+                        activePanel.AutoScrollPosition = new Point(0, -activePanel.AutoScrollPosition.Y + scrollChange);
+                    else
+                        activePanel.AutoScrollPosition = new Point(0, -activePanel.AutoScrollPosition.Y - scrollChange);
+                    
+                }
+            }
+        }
+
+        private void GUIConfig_Shown(object sender, EventArgs e) {
+            clearFocusToPanel((Panel)tabControl.SelectedTab.Controls[0]);
+        }
     }
-    
+
     class SeperatorLabelControl : Label {
 
         protected override void OnPaint(PaintEventArgs e) {

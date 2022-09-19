@@ -101,6 +101,7 @@
             this.Controls.Add(this.tabControl);
             this.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+            this.KeyPreview = true;
             this.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.MaximizeBox = false;
             this.MinimizeBox = false;
@@ -111,6 +112,8 @@
             this.Text = "Edit configuration";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.GUIConfig_FormClosing);
             this.Load += new System.EventHandler(this.GUIConfig_Load);
+            this.Shown += new System.EventHandler(this.GUIConfig_Shown);
+            this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.GUIConfig_KeyDown);
             this.ResumeLayout(false);
 
         }
