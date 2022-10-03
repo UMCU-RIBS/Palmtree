@@ -172,6 +172,7 @@
     <Compile Include="src\Core\Params\ParamIntArr.cs" />
     <Compile Include="src\Core\Params\ParamIntBase.cs" />
     <Compile Include="src\Core\Params\ParamIntMat.cs" />
+    <Compile Include="src\Core\Params\ParamSeperator.cs" />
     <Compile Include="src\Filters\AdaptationFilter.cs" />
     <Compile Include="src\Filters\ClickTranslatorFilter.cs" />
     <Compile Include="src\Filters\FilterBase.cs" />
