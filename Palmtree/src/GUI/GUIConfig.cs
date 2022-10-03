@@ -122,6 +122,9 @@ namespace Palmtree.GUI {
                 newPanel.Size = new Size(newTab.Width, newTab.Height);
                 newPanel.Name = "pnl" + entry.Key;
                 newPanel.AutoScroll = true;
+                newPanel.MouseClick += new MouseEventHandler(delegate(object sender, MouseEventArgs e) {
+                    clearFocusToPanel(newPanel);
+                });
                 newTab.Controls.Add(newPanel);
 
                 // TODO: check grouping etc
@@ -153,11 +156,14 @@ namespace Palmtree.GUI {
 
                     // add an empty label at the end to create dummy space
                     Label newLbl = new Label();
-                    newLbl.Name = "lbl" + newPanel.Name + "EndDummy";
+                    newLbl.Name = newPanel.Name + "_lblEndDummy";
                     newLbl.Location = new Point(10, y);
                     newLbl.Size = new System.Drawing.Size(labelWidth, 20);
                     newLbl.Text = "";
                     newLbl.Parent = newPanel;
+                    newLbl.MouseClick += new MouseEventHandler(delegate(object sender, MouseEventArgs e) {
+                        clearFocusToPanel(newPanel);
+                    });
                     newPanel.Controls.Add(newLbl);
 
                 }
@@ -177,154 +183,198 @@ namespace Palmtree.GUI {
             // resume the tabcontrol layout
             tabControl.ResumeLayout(false);
 
+            // upon changing the tab, clear the selection for datagrid controls and set the focus to the panel
+            tabControl.SelectedIndexChanged += new EventHandler(delegate(object sender, EventArgs e) {
+                clearFocusToPanel((Panel)tabControl.SelectedTab.Controls[0]);
+            });
+
         }
         
-        private void addConfigItemToControl(TabPage tab, Control panel, ref ParamControl paramControl, ref int y) {
+        private void addConfigItemToControl(TabPage tab, Panel panel, ref ParamControl paramControl, ref int y) {
 
             // retrieve reference to the global parameter
             iParam param = paramControl.globalParam;
-
-            // create and add a label
-            Label newLbl = new Label();
-            newLbl.Name = "lbl" + panel.Name + param.Name;
-            newLbl.Location = new Point(10, y + itemTopPadding);
-            newLbl.Size = new System.Drawing.Size(labelWidth, 20);
-            newLbl.Text = param.Name;
-            newLbl.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
-            newLbl.Parent = panel;
-            newLbl.TextAlign = ContentAlignment.TopRight;
-            ToolTip tt = new ToolTip();
-            tt.AutoPopDelay = 15000;
-            tt.InitialDelay = 200;
-            tt.SetToolTip(newLbl, param.Desc);
-            panel.Controls.Add(newLbl);
-
+            
             int itemHeight = 0;
-            if (param is ParamBool) {
-
-                // create and add a checkbox
-                CheckBox newChk = new CheckBox();
-                newChk.Name = "chk" + panel.Name + param.Name;
-                newChk.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
-                newChk.Text = "";
-                newChk.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
-                panel.Controls.Add(newChk);
-                paramControl.control = newChk;
+            if (param is ParamSeperator) {
+                
+                // create and add a label
+                SeperatorLabelControl newSep = new SeperatorLabelControl();
+                newSep.Name = panel.Name + "_sep" + param.Name + "_y" + y;
+                newSep.Location = new Point(50, y + itemTopPadding);
+                newSep.Size = new System.Drawing.Size(panel.Width, 20);
+                newSep.Text = param.Name + "  ";
+                newSep.ForeColor = Color.FromArgb(30, 30 ,30);
+                newSep.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
+                newSep.Parent = panel;
+                newSep.TextAlign = ContentAlignment.TopRight;
+                newSep.MouseClick += new MouseEventHandler(delegate(object sender, MouseEventArgs e) {
+                    clearFocusToPanel(panel);
+                });
+                panel.Controls.Add(newSep);
                 itemHeight = 20;
 
-            } else if (param is ParamInt || param is ParamDouble) {
+            } else {
 
-                // check if there are emulated options
-                if (param.Options.Length == 0) {
-                    // not emulated options
+                // create and add a label
+                Label newLbl = new Label();
+                newLbl.Name = panel.Name + "_lbl" + param.Name;
+                newLbl.Location = new Point(10, y + itemTopPadding);
+                newLbl.Size = new System.Drawing.Size(labelWidth, 20);
+                newLbl.Text = param.Name;
+                newLbl.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
+                newLbl.Parent = panel;
+                newLbl.TextAlign = ContentAlignment.TopRight;
+                newLbl.MouseClick += new MouseEventHandler(delegate(object sender, MouseEventArgs e) {
+                    clearFocusToPanel(panel);
+                });
+                ToolTip tt = new ToolTip();
+                tt.AutoPopDelay = 15000;
+                tt.InitialDelay = 200;
+                tt.SetToolTip(newLbl, param.Desc);
+                panel.Controls.Add(newLbl);
 
-                    // create and add a textbox
-                    TextBox newTxt = new TextBox();
-                    newTxt.Name = "txt" + panel.Name + param.Name;
-                    newTxt.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
-                    newTxt.Size = new System.Drawing.Size(200, 20);
-                    newTxt.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
-                    panel.Controls.Add(newTxt);
-                    paramControl.control = newTxt;
+                
+                if (param is ParamBool) {
+
+                    // create and add a checkbox
+                    CheckBox newChk = new CheckBox();
+                    newChk.Name = panel.Name + "_chk" + param.Name;
+                    newChk.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
+                    newChk.Text = "";
+                    newChk.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
+                    panel.Controls.Add(newChk);
+                    paramControl.control = newChk;
                     itemHeight = 20;
 
-                } else {
-                    // emulated options
+                } else if (param is ParamInt || param is ParamDouble) {
 
-                    // create and add a combobox
-                    ComboBox newCmb = new ComboBox();
-                    newCmb.Name = "cmb" + panel.Name + param.Name;
-                    newCmb.Location = new Point(labelWidth + 20, y + itemTopPadding - 3);
-                    newCmb.Size = new System.Drawing.Size(320, 20);
-                    newCmb.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
-                    for (int i = 0; i < param.Options.Length; i++)  newCmb.Items.Add(param.Options[i]);
-                    panel.Controls.Add(newCmb);
-                    paramControl.control = newCmb;
-                    itemHeight = 22;
+                    // check if there are emulated options
+                    if (param.Options.Length == 0) {
+                        // not emulated options
 
-                }
-                
-                
-            } else if (param is ParamColor) {
+                        // create and add a textbox
+                        TextBox newTxt = new TextBox();
+                        newTxt.Name = panel.Name + "_txt" + param.Name;
+                        newTxt.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
+                        newTxt.Size = new System.Drawing.Size(200, 20);
+                        newTxt.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
+                        panel.Controls.Add(newTxt);
+                        paramControl.control = newTxt;
+                        itemHeight = 20;
 
-                PictureBox newPic = new PictureBox();
-                newPic.BorderStyle = BorderStyle.FixedSingle;
-                newPic.Name = "pic" + panel.Name + param.Name;
-                newPic.Location = new Point(labelWidth + 20, y + itemTopPadding - 1);
-                newPic.Size = new System.Drawing.Size(40, 20);
-                newPic.Click += (sender, e) => {
-                    ColorDialog clrDialog = new ColorDialog();
-                    clrDialog.AllowFullOpen = true;
-                    clrDialog.ShowHelp = false;
-                    clrDialog.Color = newPic.BackColor;
-                    if (clrDialog.ShowDialog() == DialogResult.OK) {
-                        newPic.BackColor = clrDialog.Color;
+                    } else {
+                        // emulated options
+
+                        // create and add a combobox
+                        ComboBox newCmb = new ComboBox();
+                        newCmb.DropDownStyle = ComboBoxStyle.DropDownList;
+                        newCmb.Name = panel.Name + "_cmb" + param.Name;
+                        newCmb.SelectedValueChanged += new EventHandler(delegate(object sender, EventArgs e) {
+                            // after changing make sure the combobox loses focus, this prevents scrolling
+                            // or keypresses from accidentally changing the selection
+                            panel.Focus();
+                        });
+                        newCmb.Location = new Point(labelWidth + 20, y + itemTopPadding - 3);
+                        newCmb.Size = new System.Drawing.Size(320, 20);
+                        newCmb.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
+                        for (int i = 0; i < param.Options.Length; i++)  newCmb.Items.Add(param.Options[i]);
+                        panel.Controls.Add(newCmb);
+                        paramControl.control = newCmb;
+                        itemHeight = 22;
+
                     }
-                };
-                panel.Controls.Add(newPic);
-                paramControl.control = newPic;
-                itemHeight = 20;
+                
+                
+                } else if (param is ParamColor) {
 
-            } else if (param is ParamBoolArr || param is ParamIntArr || param is ParamDoubleArr || param is ParamString) {
-
-
-                int elementWidth = 0;
-
-                if (param is ParamString && param.Options.Length != 0) {
-                    // string with emulated options
-
-                    elementWidth = 320;
-
-                    // create and add a combobox
-                    ComboBox newCmb = new ComboBox();
-                    newCmb.Name = "cmb" + panel.Name + param.Name;
-                    newCmb.Location = new Point(labelWidth + 20, y + itemTopPadding - 3);
-                    newCmb.Size = new System.Drawing.Size(elementWidth, 20);
-                    newCmb.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
-                    for (int i = 0; i < param.Options.Length; i++)  newCmb.Items.Add(param.Options[i]);
-                    panel.Controls.Add(newCmb);
-                    paramControl.control = newCmb;
-                    itemHeight = 22;
-
-                } else {
-                    // bool-, int- or double-array or string without emulated options
-
-                    elementWidth = (param is ParamFileString ? 480 : 340);
-
-                    // create and add a textbox
-                    TextBox newTxt = new TextBox();
-                    newTxt.Name = "txt" + panel.Name + param.Name;
-                    newTxt.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
-                    newTxt.Size = new System.Drawing.Size(elementWidth, 20);
-                    newTxt.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
-                    panel.Controls.Add(newTxt);
-                    paramControl.control = newTxt;
+                    PictureBox newPic = new PictureBox();
+                    newPic.BorderStyle = BorderStyle.FixedSingle;
+                    newPic.Name = panel.Name + "_pic" + param.Name;
+                    newPic.Location = new Point(labelWidth + 20, y + itemTopPadding - 1);
+                    newPic.Size = new System.Drawing.Size(40, 20);
+                    newPic.Click += (sender, e) => {
+                        ColorDialog clrDialog = new ColorDialog();
+                        clrDialog.AllowFullOpen = true;
+                        clrDialog.ShowHelp = false;
+                        clrDialog.Color = newPic.BackColor;
+                        if (clrDialog.ShowDialog() == DialogResult.OK) {
+                            newPic.BackColor = clrDialog.Color;
+                        }
+                    };
+                    panel.Controls.Add(newPic);
+                    paramControl.control = newPic;
                     itemHeight = 20;
 
-                    // if FileString parameter, add a browse option
-                    if (param is ParamFileString) {
+                } else if (param is ParamBoolArr || param is ParamIntArr || param is ParamDoubleArr || param is ParamString) {
+
+
+                    int elementWidth = 0;
+
+                    if (param is ParamString && param.Options.Length != 0) {
+                        // string with emulated options
+
+                        elementWidth = 320;
+
+                        // create and add a combobox
+                        ComboBox newCmb = new ComboBox();
+                        newCmb.Name = panel.Name + "_cmb" + param.Name;
+                        newCmb.Location = new Point(labelWidth + 20, y + itemTopPadding - 3);
+                        newCmb.Size = new System.Drawing.Size(elementWidth, 20);
+                        newCmb.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
+                        for (int i = 0; i < param.Options.Length; i++)  newCmb.Items.Add(param.Options[i]);
+                        panel.Controls.Add(newCmb);
+                        paramControl.control = newCmb;
+                        itemHeight = 22;
+
+                    } else {
+                        // bool-, int- or double-array or string without emulated options
+
+                        elementWidth = (param is ParamFileString ? 480 : 340);
+
+                        // create and add a textbox
+                        TextBox newTxt = new TextBox();
+                        newTxt.Name = panel.Name + "_txt" + param.Name;
+                        newTxt.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
+                        newTxt.Size = new System.Drawing.Size(elementWidth, 20);
+                        newTxt.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
+                        panel.Controls.Add(newTxt);
+                        paramControl.control = newTxt;
+                        itemHeight = 20;
+
+                        // if FileString parameter, add a browse option
+                        if (param is ParamFileString) {
                     
-                        // create and add a button
-                        Button newBtn = new Button();
-                        newBtn.Name = "btn" + panel.Name + param.Name;
-                        newBtn.Location = new Point(labelWidth + elementWidth + 20, y + itemTopPadding - 2);
-                        newBtn.Size = new System.Drawing.Size(40, 23);
-                        newBtn.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
-                        newBtn.Text = "...";
-                        newBtn.Click += (sender, e) => {
+                            // create and add a button
+                            Button newBtn = new Button();
+                            newBtn.Name = panel.Name + "_btn" + param.Name;
+                            newBtn.Location = new Point(labelWidth + elementWidth + 20, y + itemTopPadding - 2);
+                            newBtn.Size = new System.Drawing.Size(40, 23);
+                            newBtn.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
+                            newBtn.Text = "...";
+                            newBtn.Click += (sender, e) => {
 
-                            // open file dialog to open dat file
-                            OpenFileDialog dlgLoadDatFile = new OpenFileDialog();
+                                // open file dialog to open dat file
+                                OpenFileDialog dlgLoadDatFile = new OpenFileDialog();
 
-                            // set initial directory (or the closest we can get)
-                            string folder = newTxt.Text;
-                            bool tryFolder = true;
-                            while (tryFolder) {
-                                try {
-                                    FileAttributes attr = File.GetAttributes(folder);
-                                    if ((attr & FileAttributes.Directory) == FileAttributes.Directory)
-                                        tryFolder = false;
-                                    else {
+                                // set initial directory (or the closest we can get)
+                                string folder = newTxt.Text;
+                                bool tryFolder = true;
+                                while (tryFolder) {
+                                    try {
+                                        FileAttributes attr = File.GetAttributes(folder);
+                                        if ((attr & FileAttributes.Directory) == FileAttributes.Directory)
+                                            tryFolder = false;
+                                        else {
+                                            int lastIndex = folder.LastIndexOf('\\');
+                                            if (lastIndex == -1) {
+                                                tryFolder = false;
+                                                folder = "";
+                                            } else
+                                                folder = folder.Substring(0, lastIndex);
+                                        }
+                                    } catch (Exception) {
+                                        if (folder.Length > 0) folder = folder.Substring(0, folder.Length - 1);
                                         int lastIndex = folder.LastIndexOf('\\');
                                         if (lastIndex == -1) {
                                             tryFolder = false;
@@ -332,224 +382,227 @@ namespace Palmtree.GUI {
                                         } else
                                             folder = folder.Substring(0, lastIndex);
                                     }
-                                } catch (Exception) {
-                                    if (folder.Length > 0) folder = folder.Substring(0, folder.Length - 1);
-                                    int lastIndex = folder.LastIndexOf('\\');
-                                    if (lastIndex == -1) {
-                                        tryFolder = false;
-                                        folder = "";
-                                    } else
-                                        folder = folder.Substring(0, lastIndex);
+
+                                }
+                                if (string.IsNullOrEmpty(folder)) dlgLoadDatFile.InitialDirectory = Directory.GetCurrentDirectory();
+                                else dlgLoadDatFile.InitialDirectory = folder;
+
+                                // 
+                                dlgLoadDatFile.Filter = "All files (*.*)|*.*";
+                                dlgLoadDatFile.RestoreDirectory = true;            // restores current directory to the previously selected directory, potentially beneficial if other code relies on the currently set directory
+
+                                // check if ok has been clicked on the dialog
+                                if (dlgLoadDatFile.ShowDialog() == DialogResult.OK) {
+
+                                    newTxt.Text = dlgLoadDatFile.FileName;
+
                                 }
 
-                            }
-                            if (string.IsNullOrEmpty(folder)) dlgLoadDatFile.InitialDirectory = Directory.GetCurrentDirectory();
-                            else dlgLoadDatFile.InitialDirectory = folder;
-
-                            // 
-                            dlgLoadDatFile.Filter = "All files (*.*)|*.*";
-                            dlgLoadDatFile.RestoreDirectory = true;            // restores current directory to the previously selected directory, potentially beneficial if other code relies on the currently set directory
-
-                            // check if ok has been clicked on the dialog
-                            if (dlgLoadDatFile.ShowDialog() == DialogResult.OK) {
-
-                                newTxt.Text = dlgLoadDatFile.FileName;
-
-                            }
-
-                        };
-                        panel.Controls.Add(newBtn);
-                        paramControl.additionalControl1 = newBtn;
-
-                    }
-                
-                }
-
-                // on 
-                if (param is ParamString && !(param is ParamFileString)) {
-                    Param.ParamSideButton[] sideButtons = ((ParamString)param).Buttons;
-                    if (sideButtons != null) {
-                        int buttonLeft = labelWidth + elementWidth + 25;
-
-                        // create and add buttons
-                        for (int iButton = 0; iButton < sideButtons.Length; iButton++) {
-                            Button newBtn = new Button();
-                            newBtn.Name = "btn" + panel.Name + param.Name + "Side" + iButton;
-                            newBtn.Location = new Point(buttonLeft, y + itemTopPadding - 2);
-                            newBtn.Size = new System.Drawing.Size(sideButtons[iButton].width, 23);
-                            newBtn.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
-                            newBtn.Text = sideButtons[iButton].name;
-                            if (sideButtons[iButton].clickEvent != null)
-                                newBtn.Click += sideButtons[iButton].clickEvent;
+                            };
                             panel.Controls.Add(newBtn);
                             paramControl.additionalControl1 = newBtn;
 
-                            buttonLeft += sideButtons[iButton].width + 5;
+                        }
+                
+                    }
+
+                    // 
+                    if (param is ParamString && !(param is ParamFileString)) {
+                        Param.ParamSideButton[] sideButtons = ((ParamString)param).Buttons;
+                        if (sideButtons != null) {
+                            int buttonLeft = labelWidth + elementWidth + 25;
+
+                            // create and add buttons
+                            for (int iButton = 0; iButton < sideButtons.Length; iButton++) {
+                                Button newBtn = new Button();
+                                newBtn.Name = panel.Name + "_btn" + param.Name + "Side" + iButton;
+                                newBtn.Location = new Point(buttonLeft, y + itemTopPadding - 2);
+                                newBtn.Size = new System.Drawing.Size(sideButtons[iButton].width, 23);
+                                newBtn.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
+                                newBtn.Text = sideButtons[iButton].name;
+                                if (sideButtons[iButton].clickEvent != null)
+                                    newBtn.Click += sideButtons[iButton].clickEvent;
+                                panel.Controls.Add(newBtn);
+                                paramControl.additionalControl1 = newBtn;
+
+                                buttonLeft += sideButtons[iButton].width + 5;
+                            }
+
+                        }
+                    }
+
+
+                } else if (param is ParamBoolMat || param is ParamIntMat || param is ParamDoubleMat || param is ParamStringMat) {
+
+                    // add the data grid
+                    DataGridView newGrid = new DataGridView();
+                    newGrid.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+                    newGrid.Name = panel.Name + "_grd" + param.Name;
+                    newGrid.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
+                    newGrid.Size = new System.Drawing.Size(650, 144);
+                    newGrid.AllowUserToAddRows = false;
+                    newGrid.AllowUserToDeleteRows = false;
+                    newGrid.AllowUserToResizeRows = false;
+                    newGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+                    newGrid.RowHeadersVisible = false;
+                    newGrid.DefaultCellStyle.FormatProvider = Parameters.NumberCulture;
+                    newGrid.AllowUserToOrderColumns = (param.Options.Length == 0);
+                    panel.Controls.Add(newGrid);
+
+                    // 
+                    Label newLblRows = new Label();
+                    Label newLblColumns = new Label();
+                    NumericUpDown newRows = new System.Windows.Forms.NumericUpDown();
+                    NumericUpDown newColumns = new System.Windows.Forms.NumericUpDown();
+
+                    // rows
+                    newLblRows.Name = panel.Name + "_lbl" + param.Name + "Rows";
+                    newLblRows.Location = new Point(labelWidth + 20, newGrid.Location.Y + newGrid.Size.Height + 7);
+                    newLblRows.Size = new System.Drawing.Size(50, 20);
+                    newLblRows.Text = "Rows:";
+                    newLblRows.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
+                    newLblRows.Parent = panel;
+                    newLblRows.TextAlign = ContentAlignment.TopRight;
+                    newLblRows.MouseClick += new MouseEventHandler(delegate(object sender, MouseEventArgs e) {
+                        clearFocusToPanel(panel);
+                    });
+                    newRows.Name = panel.Name + "_num" + param.Name + "Rows";
+                    newRows.Location = new Point(labelWidth + 75, newGrid.Location.Y + newGrid.Size.Height + 5);
+                    newRows.Size = new System.Drawing.Size(50, 20);
+                    newRows.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
+                    newRows.ReadOnly = true;
+                    newRows.GotFocus += (sender, e) => { newRows.Enabled = false; newRows.Enabled = true; };
+                    newRows.MouseWheel += (sender, e) => { ((HandledMouseEventArgs)e).Handled = true; };
+                    newRows.KeyPress += (sender, e) => { e.Handled = true; };
+                    newRows.Cursor = Cursors.Arrow;
+                    newRows.BackColor = Color.White;
+                    newRows.ValueChanged += (sender, e) => { gridResize(newGrid, (int)newColumns.Value, (int)newRows.Value); };
+                    panel.Controls.Add(newLblRows);
+                    panel.Controls.Add(newRows);
+
+                    // colums
+                    newLblColumns.Name = panel.Name + "_lbl" + param.Name + "Colums";
+                    newLblColumns.Location = new Point(labelWidth + 140, newGrid.Location.Y + newGrid.Size.Height + 7);
+                    newLblColumns.Size = new System.Drawing.Size(80, 20);
+                    newLblColumns.Text = "Columns:";
+                    newLblColumns.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
+                    newLblColumns.Parent = panel;
+                    newLblColumns.TextAlign = ContentAlignment.TopRight;
+                    newLblColumns.Visible = (param.Options.Length == 0);
+                    newLblColumns.MouseClick += new MouseEventHandler(delegate(object sender, MouseEventArgs e) {
+                        clearFocusToPanel(panel);
+                    });
+                    newColumns.Name = panel.Name + "_num" + param.Name + "Columns";
+                    newColumns.Location = new Point(labelWidth + 225, newGrid.Location.Y + newGrid.Size.Height + 5);
+                    newColumns.Size = new System.Drawing.Size(50, 20);
+                    newColumns.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
+                    newColumns.ReadOnly = true;
+                    newColumns.GotFocus += (sender, e) => { newColumns.Enabled = false; newColumns.Enabled = true; };
+                    newColumns.MouseWheel += (sender, e) => { ((HandledMouseEventArgs)e).Handled = true; };
+                    newColumns.KeyPress += (sender, e) => { e.Handled = true; };
+                    newColumns.Cursor = Cursors.Arrow;
+                    newColumns.BackColor = Color.White;
+                    newColumns.ValueChanged += (sender, e) => { gridResize(newGrid, (int)newColumns.Value, (int)newRows.Value); };
+                    newColumns.Visible = (param.Options.Length == 0);
+                    panel.Controls.Add(newLblColumns);
+                    panel.Controls.Add(newColumns);
+
+
+                    // create and add a save button
+                    Button newBtnSave = new Button();
+                    newBtnSave.Name = panel.Name + "_btn" + param.Name + "Save";
+                    newBtnSave.Size = new System.Drawing.Size(40, 23);
+                    newBtnSave.Location = new Point(newGrid.Location.X + newGrid.Size.Width - newBtnSave.Size.Width, newGrid.Location.Y + newGrid.Size.Height + 7);
+                    newBtnSave.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
+                    newBtnSave.Text = "Save";
+                    newBtnSave.Click += (sender, e) => {
+
+                        // retrieve the values as string
+                        string strMat = gridToString(newGrid);
+
+                        // open file dialog to save file
+                        SaveFileDialog dlgSaveDatFile = new SaveFileDialog();
+                        dlgSaveDatFile.Filter = "Matrix files (*.mat)|*.mat|All files (*.*)|*.*";
+                        dlgSaveDatFile.RestoreDirectory = true;            // restores current directory to the previously selected directory, potentially beneficial if other code relies on the currently set directory
+
+                        // check if ok has been clicked on the dialog
+                        if (dlgSaveDatFile.ShowDialog() == DialogResult.OK) {
+                        
+                            // write the values as text to a file
+                            try { 
+                                File.WriteAllText(dlgSaveDatFile.FileName, strMat);
+                            } catch (Exception) {
+                                logger.Error("Could not write matrix values to file '" + dlgSaveDatFile.FileName +  "'");
+                                return;
+                            }
+
                         }
 
-                    }
+                    };
+                    panel.Controls.Add(newBtnSave);
+
+                    // create and add a load button
+                    Button newBtnLoad = new Button();
+                    newBtnLoad.Name = panel.Name + "_btn" + param.Name + "Load";
+                    newBtnLoad.Size = new System.Drawing.Size(40, 23);
+                    newBtnLoad.Location = new Point(newBtnSave.Location.X - newBtnLoad.Size.Width - 4, newGrid.Location.Y + newGrid.Size.Height + 7);
+                    newBtnLoad.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
+                    newBtnLoad.Text = "Load";
+                    newBtnLoad.Click += (sender, e) => {
+
+                        // open file dialog to open file
+                        OpenFileDialog dlgOpenDatFile = new OpenFileDialog();
+                        dlgOpenDatFile.Filter = "Matrix files (*.mat)|*.mat|All files (*.*)|*.*";
+                        dlgOpenDatFile.RestoreDirectory = true;            // restores current directory to the previously selected directory, potentially beneficial if other code relies on the currently set directory
+
+                        // check if ok has been clicked on the dialog
+                        if (dlgOpenDatFile.ShowDialog() == DialogResult.OK) {
+
+                            string strMat = "";
+
+                            // read the values from the file
+                            try {
+                                strMat = File.ReadAllText(dlgOpenDatFile.FileName);
+                            } catch (Exception) {
+                                logger.Error("Could not read matrix values from file '" + dlgOpenDatFile.FileName + "'");
+                                return;
+                            }
+                        
+                            // try to interpret the value
+                            iParam interpret = null;
+                            if (param is ParamBoolMat)      interpret = new ParamBoolMat("", "", null, "", "", param.Options);
+                            if (param is ParamIntMat)       interpret = new ParamIntMat("", "", null, "", "", param.Options);
+                            if (param is ParamDoubleMat)    interpret = new ParamDoubleMat("", "", null, "", "", param.Options);
+                            if (param is ParamStringMat)    interpret = new ParamStringMat("", "", null, "", "", param.Options);
+                            if (!interpret.tryValue(strMat)) {
+                                logger.Error("Could not interpret matrix values from file '" + dlgOpenDatFile.FileName + "'");
+                            }
+                            interpret.setValue(strMat);
+
+                            // apply the values to the grid
+                            paramValuesToGrid(newGrid, newColumns, newRows, interpret);
+
+                        }
+                    };
+                    panel.Controls.Add(newBtnLoad);
+
+                    paramControl.control = newGrid;
+                    paramControl.additionalControl1 = newRows;
+                    paramControl.additionalControl2 = newColumns;
+
+                    itemHeight = 180;
+                    
+                    newGrid.LostFocus += new EventHandler(delegate(object sender, EventArgs e) {
+                        clearFocusToPanel(panel);
+                    });
+
                 }
-
-
-            } else if (param is ParamBoolMat || param is ParamIntMat || param is ParamDoubleMat || param is ParamStringMat) {
-
-                // add the data grid
-                DataGridView newGrid = new DataGridView();
-                newGrid.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-                newGrid.Name = "grd" + panel.Name + param.Name;
-                newGrid.Location = new Point(labelWidth + 20, y + itemTopPadding - 2);
-                newGrid.Size = new System.Drawing.Size(650, 144);
-                newGrid.AllowUserToAddRows = false;
-                newGrid.AllowUserToDeleteRows = false;
-                newGrid.AllowUserToResizeRows = false;
-                newGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-                newGrid.RowHeadersVisible = false;
-                newGrid.DefaultCellStyle.FormatProvider = Parameters.NumberCulture;
-                newGrid.AllowUserToOrderColumns = (param.Options.Length == 0);
-                panel.Controls.Add(newGrid);
-
-                // 
-                Label newLblRows = new Label();
-                Label newLblColumns = new Label();
-                NumericUpDown newRows = new System.Windows.Forms.NumericUpDown();
-                NumericUpDown newColumns = new System.Windows.Forms.NumericUpDown();
-
-                // rows
-                newLblRows.Name = "lbl" + panel.Name + param.Name + "Rows";
-                newLblRows.Location = new Point(labelWidth + 20, newGrid.Location.Y + newGrid.Size.Height + 7);
-                newLblRows.Size = new System.Drawing.Size(50, 20);
-                newLblRows.Text = "Rows:";
-                newLblRows.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
-                newLblRows.Parent = panel;
-                newLblRows.TextAlign = ContentAlignment.TopRight;
-                newRows.Name = "num" + panel.Name + param.Name + "Rows";
-                newRows.Location = new Point(labelWidth + 75, newGrid.Location.Y + newGrid.Size.Height + 5);
-                newRows.Size = new System.Drawing.Size(50, 20);
-                newRows.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
-                newRows.ReadOnly = true;
-                newRows.GotFocus += (sender, e) => { newRows.Enabled = false; newRows.Enabled = true; };
-                newRows.MouseWheel += (sender, e) => { ((HandledMouseEventArgs)e).Handled = true; };
-                newRows.KeyPress += (sender, e) => { e.Handled = true; };
-                newRows.Cursor = Cursors.Arrow;
-                newRows.BackColor = Color.White;
-                newRows.ValueChanged += (sender, e) => { gridResize(newGrid, (int)newColumns.Value, (int)newRows.Value); };
-                panel.Controls.Add(newLblRows);
-                panel.Controls.Add(newRows);
-
-                // colums
-                newLblColumns.Name = "lbl" + panel.Name + param.Name + "Colums";
-                newLblColumns.Location = new Point(labelWidth + 140, newGrid.Location.Y + newGrid.Size.Height + 7);
-                newLblColumns.Size = new System.Drawing.Size(80, 20);
-                newLblColumns.Text = "Columns:";
-                newLblColumns.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
-                newLblColumns.Parent = panel;
-                newLblColumns.TextAlign = ContentAlignment.TopRight;
-                newLblColumns.Visible = (param.Options.Length == 0);
-                newColumns.Name = "num" + panel.Name + param.Name + "Columns";
-                newColumns.Location = new Point(labelWidth + 225, newGrid.Location.Y + newGrid.Size.Height + 5);
-                newColumns.Size = new System.Drawing.Size(50, 20);
-                newColumns.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
-                newColumns.ReadOnly = true;
-                newColumns.GotFocus += (sender, e) => { newColumns.Enabled = false; newColumns.Enabled = true; };
-                newColumns.MouseWheel += (sender, e) => { ((HandledMouseEventArgs)e).Handled = true; };
-                newColumns.KeyPress += (sender, e) => { e.Handled = true; };
-                newColumns.Cursor = Cursors.Arrow;
-                newColumns.BackColor = Color.White;
-                newColumns.ValueChanged += (sender, e) => { gridResize(newGrid, (int)newColumns.Value, (int)newRows.Value); };
-                newColumns.Visible = (param.Options.Length == 0);
-                panel.Controls.Add(newLblColumns);
-                panel.Controls.Add(newColumns);
-
-
-                // create and add a save button
-                Button newBtnSave = new Button();
-                newBtnSave.Name = "btn" + panel.Name + param.Name + "Save";
-                newBtnSave.Size = new System.Drawing.Size(40, 23);
-                newBtnSave.Location = new Point(newGrid.Location.X + newGrid.Size.Width - newBtnSave.Size.Width, newGrid.Location.Y + newGrid.Size.Height + 7);
-                newBtnSave.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
-                newBtnSave.Text = "Save";
-                newBtnSave.Click += (sender, e) => {
-
-                    // retrieve the values as string
-                    string strMat = gridToString(newGrid);
-
-                    // open file dialog to save file
-                    SaveFileDialog dlgSaveDatFile = new SaveFileDialog();
-                    dlgSaveDatFile.Filter = "Matrix files (*.mat)|*.mat|All files (*.*)|*.*";
-                    dlgSaveDatFile.RestoreDirectory = true;            // restores current directory to the previously selected directory, potentially beneficial if other code relies on the currently set directory
-
-                    // check if ok has been clicked on the dialog
-                    if (dlgSaveDatFile.ShowDialog() == DialogResult.OK) {
-                        
-                        // write the values as text to a file
-                        try { 
-                            File.WriteAllText(dlgSaveDatFile.FileName, strMat);
-                        } catch (Exception) {
-                            logger.Error("Could not write matrix values to file '" + dlgSaveDatFile.FileName +  "'");
-                            return;
-                        }
-
-                    }
-
-                };
-                panel.Controls.Add(newBtnSave);
-
-                // create and add a load button
-                Button newBtnLoad = new Button();
-                newBtnLoad.Name = "btn" + panel.Name + param.Name + "Load";
-                newBtnLoad.Size = new System.Drawing.Size(40, 23);
-                newBtnLoad.Location = new Point(newBtnSave.Location.X - newBtnLoad.Size.Width - 4, newGrid.Location.Y + newGrid.Size.Height + 7);
-                newBtnLoad.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
-                newBtnLoad.Text = "Load";
-                newBtnLoad.Click += (sender, e) => {
-
-                    // open file dialog to open file
-                    OpenFileDialog dlgOpenDatFile = new OpenFileDialog();
-                    dlgOpenDatFile.Filter = "Matrix files (*.mat)|*.mat|All files (*.*)|*.*";
-                    dlgOpenDatFile.RestoreDirectory = true;            // restores current directory to the previously selected directory, potentially beneficial if other code relies on the currently set directory
-
-                    // check if ok has been clicked on the dialog
-                    if (dlgOpenDatFile.ShowDialog() == DialogResult.OK) {
-
-                        string strMat = "";
-
-                        // read the values from the file
-                        try {
-                            strMat = File.ReadAllText(dlgOpenDatFile.FileName);
-                        } catch (Exception) {
-                            logger.Error("Could not read matrix values from file '" + dlgOpenDatFile.FileName + "'");
-                            return;
-                        }
-                        
-                        // try to interpret the value
-                        iParam interpret = null;
-                        if (param is ParamBoolMat)      interpret = new ParamBoolMat("", "", null, "", "", param.Options);
-                        if (param is ParamIntMat)       interpret = new ParamIntMat("", "", null, "", "", param.Options);
-                        if (param is ParamDoubleMat)    interpret = new ParamDoubleMat("", "", null, "", "", param.Options);
-                        if (param is ParamStringMat)    interpret = new ParamStringMat("", "", null, "", "", param.Options);
-                        if (!interpret.tryValue(strMat)) {
-                            logger.Error("Could not interpret matrix values from file '" + dlgOpenDatFile.FileName + "'");
-                        }
-                        interpret.setValue(strMat);
-
-                        // apply the values to the grid
-                        paramValuesToGrid(newGrid, newColumns, newRows, interpret);
-
-                    }
-                };
-                panel.Controls.Add(newBtnLoad);
-
-                paramControl.control = newGrid;
-                paramControl.additionalControl1 = newRows;
-                paramControl.additionalControl2 = newColumns;
-
-                itemHeight = 180;
 
             }
 
-
+            // 
             y = y + itemTopPadding + itemHeight + itemBottomPadding;
-            
+
         }
 
         private void gridResize(DataGridView grid, int newColumns, int newRows) {
@@ -563,6 +616,8 @@ namespace Palmtree.GUI {
             }
 
             grid.ClearSelection();
+            grid.CurrentCell = null;
+
         }
 
         private void GUIConfig_Load(object sender, EventArgs e) {
@@ -583,7 +638,10 @@ namespace Palmtree.GUI {
                 if (local)      param = paramControls[i].localParam;
                 else            param = paramControls[i].globalParam;
 
-         
+                // skip seperator parameters, these are only for esthetics
+                if (param.GetType() == typeof(ParamSeperator))
+                    continue;
+
                 // determine type of parameter and update accordingly
                 if (param is ParamBool) {
 
@@ -638,12 +696,16 @@ namespace Palmtree.GUI {
             // loop through each paramset
             for (int i = 0; i < paramControls.Count; i++) {
 
-
                 // get the parameter reference
                 iParam param = null;
                 if (local)      param = paramControls[i].localParam;
                 else            param = paramControls[i].globalParam;
 
+                // skip seperator parameters, these are only for esthetics
+                if (param.GetType() == typeof(ParamSeperator))
+                    continue;
+
+                // 
                 if (param is ParamBool) {
                     CheckBox chk = (CheckBox)paramControls[i].control;
                     
@@ -951,9 +1013,13 @@ namespace Palmtree.GUI {
             if (maxRows > 0) grdRows.Value = maxRows;
             else grdRows.Value = 0;
 
-            // set the values
+            // loop over the columns
             for (int c = 0; c < columns; c++) {
 
+                // ensure that each column is not sortable
+                grd.Columns[c].SortMode = DataGridViewColumnSortMode.NotSortable;
+
+                // set the values
                 if (param is ParamBoolMat) {
                     for (int r = 0; r < boolValues[c].Length; r++) {
                         grd[c, r].Value = (boolValues[c][r] ? "1" : "0");
@@ -977,7 +1043,6 @@ namespace Palmtree.GUI {
                 }
 
             }
-
 
         }
 
@@ -1080,7 +1145,6 @@ namespace Palmtree.GUI {
 
             // check the fields
             if (processFields(false, true)) {
-                Dictionary<string, Parameters> test = ParameterManager.getParameterSets();
 
                 // try to save the fields
                 if (processFields(true, true)) {
@@ -1105,11 +1169,50 @@ namespace Palmtree.GUI {
 
         }
 
+        private void clearFocusToPanel(Panel panel) {
+            
+            // for datagrids clear the selection
+            for (int i = 0; i < panel.Controls.Count; i++) {
+                if (panel.Controls[i] is DataGridView)
+                    ((DataGridView)panel.Controls[i]).CurrentCell = null;
+            }
+                    
+            // set focus to panel
+            panel.Focus();
+        
+        }
+
+        private void GUIConfig_KeyDown(object sender, KeyEventArgs e) {
+            if (e.KeyCode == Keys.Down || e.KeyCode == Keys.Up) {
+                Panel activePanel = (Panel)tabControl.SelectedTab.Controls[0];
+                if (activePanel.Focused) {
+
+                    int scrollChange = 50;
+                    if (e.KeyCode == Keys.Down)
+                        activePanel.AutoScrollPosition = new Point(0, -activePanel.AutoScrollPosition.Y + scrollChange);
+                    else
+                        activePanel.AutoScrollPosition = new Point(0, -activePanel.AutoScrollPosition.Y - scrollChange);
+                    
+                }
+            }
+        }
+
+        private void GUIConfig_Shown(object sender, EventArgs e) {
+            clearFocusToPanel((Panel)tabControl.SelectedTab.Controls[0]);
+        }
     }
-    
+
+    class SeperatorLabelControl : Label {
+
+        protected override void OnPaint(PaintEventArgs e) {
+            base.OnPaint(e);
+            e.Graphics.DrawLine(new Pen(Color.FromArgb(50, 50, 50)), 
+                                0, this.Height - 1, this.Width, this.Height - 1);
+        }
+    }
+
     class NoBorderTabControl : TabControl {
         private const int TCM_ADJUSTRECT = 0x1328;
-        private const int WM_PAINT = 0xF;
 
         protected override void WndProc(ref Message m) {
 

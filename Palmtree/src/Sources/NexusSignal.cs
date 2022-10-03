@@ -531,7 +531,8 @@ namespace Palmtree.Sources {
 	
 	    /**
 	     * Returns whether the source thread is still running
-	     * Note, this is something different than actually generating
+	     * Note: 'running' just determines whether the source thread is running; start(), stop() and 
+         * isStarted() manage whether samples are retrieved from the nexus device and forwarded into Palmtree
 	     * 
 	     * @return Whether the source thread is running
 	     */

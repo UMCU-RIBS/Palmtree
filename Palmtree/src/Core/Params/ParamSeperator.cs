@@ -1,10 +1,10 @@
 ﻿/**
- * The ParamString class
+ * The ParamSeperator class
  * 
  * ...
  * 
  * 
- * Copyright (C) 2017:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Copyright (C) 2022:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Author(s):           Max van den Boom            (info@maxvandenboom.nl)
  * 
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software
@@ -17,30 +17,23 @@ using System;
 namespace Palmtree.Core.Params {
 
     /// <summary>
-    /// The <c>ParamString</c> class.
+    /// The <c>ParamSeperator</c> class.
     /// 
     /// ...
     /// </summary>
-    public class ParamString : Param, iParam {
+    public class ParamSeperator : Param, iParam {
 
         protected string value = "";
 
-        public ParamString(string name, string group, Parameters parentSet, string desc, string stdValue, string[] options) : base(name, group, parentSet, desc, stdValue, options) {
-            minValue = "";
-            maxValue = "";
+        public ParamSeperator(string name, string group, Parameters parentSet) : base(name, group, parentSet, "", "", null) {
+            value = name;
         }
-        
-        public ParamString(string name, string group, Parameters parentSet, string desc, string stdValue, string[] options, ParamSideButton[] buttons) : base(name, group, parentSet, desc, stdValue, options, buttons) {
-            minValue = "";
-            maxValue = "";
-        }
-
         public string getValue() {
-            return this.value;
+            return value;
         }
 
         public T getValue<T>() {
-
+            
             Type paramType = typeof(T);
             if(paramType == typeof(string)) {     
                 // request to return as string
@@ -56,34 +49,16 @@ namespace Palmtree.Core.Params {
                 return (T)Convert.ChangeType("", typeof(T));    
 
             }
-            
         }
 
         public T getUnit<T>() {
-
-            Type paramType = typeof(T);
-            if (paramType == typeof(Parameters.Units)) {
-                // request to return as Parameters.Units
-
-                // return value
-                Parameters.Units unit = Parameters.Units.ValueOrSamples;
-                return (T)Convert.ChangeType(unit, typeof(Parameters.Units));
-
-            } else {
-                // request to return as other
-
-                // message and return false
-                logger.Error("Could not retrieve the unit for parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') as '" + paramType.Name + "', can only return value as 'Parameters.Units'. Returning 0");
-                return (T)Convert.ChangeType(Parameters.emptyValue<T>(), typeof(T));
-
-            }
-
+            return default(T);
         }
 
         public T getValueInSamples<T>() {
 
             // message
-            logger.Error("Trying to retrieve the value in samples for string parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') in number of samples, cannot convert a string. Returning empty string");
+            logger.Error("Trying to retrieve the value in samples for a seperator with the text '" + this.Value + "' (parameter set: '" + this.getParentSetName() + "') in number of samples, cannot convert a seperator. Returning empty string");
 
             // return value
             return (T)Convert.ChangeType(Parameters.emptyValue<T>(), typeof(T));
@@ -103,28 +78,12 @@ namespace Palmtree.Core.Params {
         }
 
         public bool setValue(string value) {
-
-            // assign
-            this.value = value;
-
-            // return success
             return true;
-
         }
 
         public iParam clone() {
-            ParamString clone = new ParamString(name, group, parentSet, desc, stdValue, options);
-
-            clone.stdValue = stdValue;
-            
-            clone.minValue = minValue;
-            clone.maxValue = maxValue;
-            
-            clone.value = value;
-
-            return clone;
+            return new ParamSeperator(name, group, parentSet);
         }
-        
     }
 
 }
