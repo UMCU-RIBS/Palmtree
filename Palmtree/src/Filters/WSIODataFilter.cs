@@ -16,48 +16,13 @@ using NLog;
 using Palmtree.Core;
 using Palmtree.Core.DataIO;
 using Palmtree.Core.Params;
-
-using System;
-using System.Linq;
-using WebSocketSharp;
+using Palmtree.Filters;
 using WebSocketSharp.Server;
 
 
-// public class WSIO : WebSocketBehavior
-//     {
-//         private static NLog.Logger logger                            = LogManager.GetLogger("Data");
-
-//         public class DataStruct {
-//             public string eventState {get; set;}
-//             public string eventCode {get; set;}
-//         }
-
-//         protected override void OnMessage(MessageEventArgs e)
-//         {
-//             DataStruct dataStruct = JsonSerializer.Deserialize<DataStruct>(e.Data);
-//             Data.logEvent(1, dataStruct.eventState, dataStruct.eventCode);
-//             // Send("Received");
-//         }
-//     }
 namespace Palmtree.Filters
 {
-    public class WSIO : WebSocketBehavior
-    {
-        private static NLog.Logger logger = LogManager.GetLogger("Data");
 
-        public class DataStruct
-        {
-            public string eventState { get; set; }
-            public string eventCode { get; set; }
-        }
-
-        //protected override void OnMessage(MessageEventArgs e)
-        //{
-        //    //DataStruct dataStruct = JsonSerializer.Deserialize<DataStruct>(e.Data);
-        //    //Data.logEvent(1, dataStruct.eventState, dataStruct.eventCode);
-        //    Send("Received");
-        //}
-    }
     public class WSIODataFilter : FilterBase, IFilter
     {
         public static WebSocketServer wssv;
@@ -286,7 +251,7 @@ namespace Palmtree.Filters
 
         }
 
-        public void initialize()
+        public bool initialize()
         {
 
             // check if the filter is enabled
@@ -296,6 +261,7 @@ namespace Palmtree.Filters
                 wssv = new WebSocketServer("ws://localhost:" + wsPort);
                 wssv.AddWebSocketService<WSIO>("/");
             }
+            return true;
 
         }
 

@@ -161,6 +161,7 @@
     <Compile Include="src\Core\Params\ParamSeperator.cs" />
     <Compile Include="src\Filters\RedistributionFilter.cs" />
     <Compile Include="src\Filters\FlexKeySequenceFilter.cs" />
+    <Compile Include="src\Filters\WSIO.cs" />
     <Compile Include="src\Filters\WSIOFilter.cs" />
     <Compile Include="src\Filters\WSIODataFilter.cs" />
     <Compile Include="src\GUI\GUIMore.cs">

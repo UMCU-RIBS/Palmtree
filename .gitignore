@@ -49,3 +49,4 @@ ipch/
 *.VC.VC.opendb
 .vscode/*
 packages/*
+data/*
