@@ -6,7 +6,7 @@
  * in time-domain or power-domain) or convert time-domain input from the device to power-domain output.
  * 
  * 
- * Copyright (C) 2017:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Copyright (C) 2022:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Author(s):           Max van den Boom            (info@maxvandenboom.nl)
  *                      Benny van der Vijgh         (benny@vdvijgh.nl)
  * 
@@ -392,7 +392,7 @@ namespace Palmtree.Sources {
 
         }
 
-        public void initialize() {
+        public bool initialize() {
             
             // lock for thread safety
             lock (lockSerialPort) {
@@ -409,10 +409,10 @@ namespace Palmtree.Sources {
                 // open the serial port
                 if (!openSerialPort(comPort, deviceProtocol)) {
 
-                    // message is already given by openSerialPort
+                    // error message is already given by openSerialPort
 
-                    // return
-                    return;
+                    // return failure
+                    return false;
 
                 }
 
@@ -426,9 +426,10 @@ namespace Palmtree.Sources {
                 readCom = true;
 
             }
-
-            // flag the initialization as complete
+            
+            // flag as initialized and return success
             initialized = true;
+            return true;
 
         }
 

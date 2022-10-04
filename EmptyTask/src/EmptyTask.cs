@@ -4,7 +4,7 @@
  * ...
  * 
  * 
- * Copyright (C) 2017:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Copyright (C) 2022:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Author(s):           Max van den Boom            (info@maxvandenboom.nl)
  * 
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software
@@ -64,7 +64,7 @@ namespace EmptyTask {
             return true;
         }
 
-        public void initialize() {
+        public bool initialize() {
                     
             // lock for thread safety
             lock (lockView) {
@@ -81,6 +81,9 @@ namespace EmptyTask {
                 view.start();
 
             }
+
+            // return success
+            return true;
 
         }
 

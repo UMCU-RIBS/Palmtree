@@ -4,7 +4,7 @@
  * ...
  * 
  * 
- * Copyright (C) 2017:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Copyright (C) 2022:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Concept:             UNP Team                    (neuroprothese@umcutrecht.nl)
  * Author(s):           Benny van der Vijgh         (benny@vdvijgh.nl)
  * 
@@ -308,7 +308,7 @@ namespace LocalizerTask {
             return true;
         }
 
-        public void initialize() {
+        public bool initialize() {
                     
             // lock for thread safety
             lock (lockView) {
@@ -320,6 +320,9 @@ namespace LocalizerTask {
                 initializeView();
 
             }
+
+            // return success
+            return true;
 
         }
 

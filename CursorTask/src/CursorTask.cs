@@ -4,7 +4,7 @@
  * ...
  * 
  * 
- * Copyright (C) 2017:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Copyright (C) 2022:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Author(s):           Max van den Boom            (info@maxvandenboom.nl)
  * 
  * Adapted from:        BCI2000 (Schalk Lab, www.schalklab.org) and Erik Aarnoutse (E.J.Aarnoutse@umcutrecht.nl)
@@ -523,7 +523,7 @@ namespace CursorTask {
             return true;
         }
 
-        public void initialize() {
+        public bool initialize() {
                     
             // lock for thread safety
             lock (lockView) {
@@ -553,6 +553,9 @@ namespace CursorTask {
                 }
 
             }
+
+            // return success
+            return true;
 
         }
 

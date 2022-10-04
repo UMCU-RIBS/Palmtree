@@ -4,7 +4,7 @@
  * This file declares an interface which all application modules are supposed to implement.
  * 
  * 
- * Copyright (C) 2017:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Copyright (C) 2022:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Author(s):           Max van den Boom            (info@maxvandenboom.nl)
  * 
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software
@@ -40,7 +40,8 @@ namespace Palmtree.Applications {
         bool configure(ref SamplePackageFormat input);
 
         /// <summary>Initialize the application module. Called upon by the "Set config and init" button in the GUI</summary>
-        void initialize();
+        /// <returns>A boolean, either true for a succesfull initialization, or false upon failure</returns>
+        bool initialize();
 
         /// <summary>Start the application module. Called upon by "Start" in the GUI</summary>
         void start();

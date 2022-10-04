@@ -4,7 +4,7 @@
  * ...
  * 
  * 
- * Copyright (C) 2020:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Copyright (C) 2022:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Concept:             UNP Team                    (neuroprothese@umcutrecht.nl)
  * Author(s):           Benny van der Vijgh         (benny@vdvijgh.nl)
  * 
@@ -348,7 +348,7 @@ namespace Palmtree.Filters {
             }
         }
 
-        public void initialize() {
+        public bool initialize() {
 
             // check if the filter is enabled
             if (mEnableFilter) {
@@ -358,6 +358,9 @@ namespace Palmtree.Filters {
                 // set size of buffers equal to amount of clicks that need to be detected, times the maximal allowed interval between clicks
                 for (uint i = 0; i < mDataBuffers.Length; i++) mDataBuffers[i] = new RingBuffer((uint)(amountOfClicks * maxInterval));
             }
+            
+            // return success
+            return true;
 
         }
 

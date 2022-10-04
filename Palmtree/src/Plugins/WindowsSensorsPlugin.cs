@@ -4,7 +4,7 @@
  * ...
  * 
  * 
- * Copyright (C) 2017:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Copyright (C) 2022:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Author(s):           Benny van der Vijgh         (benny@vdvijgh.nl)
  *                      Max van den Boom            (info@maxvandenboom.nl)
  * 
@@ -200,10 +200,11 @@ namespace Palmtree.Plugins {
 
         }
 
-        public void initialize() {
+        public bool initialize() {
 
-            // flag the initialization as complete
+            // flag as initialized and return success
             initialized = true;
+            return true;
 
         }
 

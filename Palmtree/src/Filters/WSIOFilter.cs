@@ -4,7 +4,7 @@
  * ...
  * 
  * 
- * Copyright (C) 2021:  Crone Lab, John Hopkins (Baltimore, USA) & external contributors
+ * Copyright (C) 2022:  Crone Lab, John Hopkins (Baltimore, USA) & external contributors
  * Author(s):           Christopher Coogan          (ccoogan2@jhmi.edu)
  * 
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software
@@ -224,13 +224,16 @@ namespace Palmtree.Filters {
 
         }
 
-        public void initialize() {
+        public bool initialize() {
 
             // check if the filter is enabled
             if (mEnableFilter) {
 
             
             }
+            
+            // return success
+            return true;
 
         }
 

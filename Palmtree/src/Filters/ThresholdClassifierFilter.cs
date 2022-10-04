@@ -4,7 +4,7 @@
  * This filter allows for the thresholding (binarizing) of specific channels, other channels pass through untouched.
  * 
  * 
- * Copyright (C) 2017:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Copyright (C) 2022:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Author(s):           Max van den Boom            (info@maxvandenboom.nl)
  * 
  * Adapted from:        Patrik Andersson (andersson.j.p@gmail.com)
@@ -281,10 +281,12 @@ namespace Palmtree.Filters {
 
         }
 
-        public void initialize() {
+        public bool initialize() {
+            
+            // return success
+            return true;
 
         }
-
 
         public void start() {
             

@@ -4,7 +4,7 @@
  * ...
  * 
  * 
- * Copyright (C) 2017:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Copyright (C) 2022:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Concept:             UNP Team                    (neuroprothese@umcutrecht.nl)
  * Author(s):           Benny van der Vijgh         (benny@vdvijgh.nl)
  *                      Max van den Boom            (info@maxvandenboom.nl)
@@ -468,7 +468,7 @@ namespace SpellerTask {
 
         }
 
-        public void initialize() {
+        public bool initialize() {
                                 
             // lock for thread safety
             lock(lockView) {
@@ -510,6 +510,10 @@ namespace SpellerTask {
                 // initialize the view
                 initializeView();
             }
+
+            // return success
+            return true;
+
         }
 
         private void initializeView() {

@@ -4,7 +4,7 @@
  * This filter allows for the translation of channel input to (binary) clicks given a specific active periode, threshold and refractory period, other channels pass through untouched.
  * 
  * 
- * Copyright (C) 2017:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Copyright (C) 2022:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Concept:             UNP Team                    (neuroprothese@umcutrecht.nl)
  * Author(s):           Max van den Boom            (info@maxvandenboom.nl)
  *                      Benny van der Vijgh         (benny@vdvijgh.nl)
@@ -391,7 +391,7 @@ namespace Palmtree.Filters {
 
         }
 
-        public void initialize() {
+        public bool initialize() {
 
             // check if the filter is enabled
             if (mEnableFilter) {
@@ -421,7 +421,10 @@ namespace Palmtree.Filters {
                 }
                 
             }
-
+            
+            // return success
+            return true;
+            
         }
 
         public void start() {

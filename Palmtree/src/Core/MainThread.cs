@@ -4,7 +4,7 @@
  * ...
  * 
  * 
- * Copyright (C) 2017:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Copyright (C) 2022:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Author(s):           Max van den Boom            (info@maxvandenboom.nl)
  * 
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software
@@ -146,16 +146,14 @@ namespace Palmtree.Core {
         /**
          * Configures the system (the source, pipeline filters and application)
          **/
-        public static bool configureSystem() {
-            
+        public static bool configureSystem() {            
             
             // configure the data object
             if (!Data.configure()) {
 
-                // mesage
+                // mesage, flag and return failure
                 logger.Error("An error occured while configuring the data class, stopped");
-
-                // return failure and go no further
+                systemConfigured = false;
                 return false;
 
             }
@@ -166,13 +164,9 @@ namespace Palmtree.Core {
                 // configure the filter
                 if (!plugins[i].configure()) {
 
-                    // message
+                    // message, flag and return failure
                     logger.Error("An error occured while configuring plugin '" + plugins[i].getName() + "', stopped");
-
-                    // flag as not configured
                     systemConfigured = false;
-
-                    // return failure and go no further
                     return false;
 
                 }
@@ -182,16 +176,14 @@ namespace Palmtree.Core {
             // configure source (this will also give the output format information)
             SamplePackageFormat packageFormat = null;
             if (source != null) {
-
-                // configure the source
                 if (!source.configure(out packageFormat)) {
 
-                    // message and return failure
+                    // message, flag and return failure
                     logger.Error("An error occured while configuring source, stopped");
+                    systemConfigured = false;
                     return false;
 
                 }
-
             }
 
             // register the pipeline input based on the output format of the source
@@ -207,14 +199,9 @@ namespace Palmtree.Core {
                 // configure the filter
                 if (!filters[i].configure(ref packageFormat, out outputFormat)) {
                     
-                    // message
+                    // message, flag and return failure
                     logger.Error("An error occured while configuring filter '" + filters[i].GetType().Name + "', stopped");
-
-
-                    // flag as not configured
                     systemConfigured = false;
-
-                    // return failure and go no further
                     return false;
 
                 }
@@ -226,24 +213,18 @@ namespace Palmtree.Core {
 
             // configure the application
             if (application != null) {
-                
-                // configure the application
                 if (!application.configure(ref packageFormat)) {
 
-                    // message
+                    // message, flag and return failure
                     logger.Error("An error occured while configuring application, stopped");
-
-                    // return failure and go no further
+                    systemConfigured = false;
                     return false;
 
                 }
-
             }
 
-            // flag as configured
+            // flag as configured and return success
             systemConfigured = true;
-
-            // return success
             return true;
 
         }
@@ -251,7 +232,7 @@ namespace Palmtree.Core {
         /**
          * Returns whether the system was configured
          * 
-         * @return Whether the system was configured
+         * @return True if the system is configured, false if not configured
          */
         public static bool isSystemConfigured() {
             return systemConfigured;
@@ -262,35 +243,76 @@ namespace Palmtree.Core {
          * 
          * 
          **/
-        public static void initializeSystem() {
+        public static bool initializeSystem() {
 
             // check if the system was configured and initialized
             if (!systemConfigured) {
 
-                // message
+                // message, flag and return failure
                 logger.Error("Could not initialize the system, first make sure it is configured correctly");
-
-                return;
+                systemInitialized = false;
+                return false;
 
             }
 
             // initialize the plugins
-            for (int i = 0; i < plugins.Count; i++)     plugins[i].initialize();
+            for (int i = 0; i < plugins.Count; i++) {
+                if (!plugins[i].initialize()) {
 
-            // initialize source, filter and view
-            if (source != null)                         source.initialize();
-            for (int i = 0; i < filters.Count; i++)     filters[i].initialize();
-            if (application != null)                    application.initialize();
+                    // message, flag and return failure
+                    logger.Error("An error occured while initializing plugin '" + plugins[i].getName() + "', stopped");
+                    systemInitialized = false;
+                    return false;
 
-            // flag as initialized
+                }
+            }
+
+            // initialize the source
+            if (source != null) {
+                if (!source.initialize()) {
+                    
+                    // message and return failure
+                    logger.Error("An error occured while initializing source, stopped");
+                    systemInitialized = false;
+                    return false;
+
+                }
+            }
+
+            // initialize the filters
+            for (int i = 0; i < filters.Count; i++) {
+                if (!filters[i].initialize()) {
+
+                    // message, flag and return failure
+                    logger.Error("An error occured while initializing filter '" + filters[i].GetType().Name + "', stopped");
+                    systemInitialized = false;
+                    return false;
+
+                }
+            }
+            
+            // initialize the application
+            if (application != null) {
+                if (!application.initialize()) {
+
+                    // message, flag and return failure
+                    logger.Error("An error occured while initializing application, stopped");
+                    systemInitialized = false;
+                    return false;
+
+                }
+            }
+
+            // flag as initialized and return success
             systemInitialized = true;
+            return true;
 
         }
 
 	    /**
 	     * Returns whether the system was initialized
 	     * 
-	     * @return Whether the system was initialized
+	     * @return True if the system is initialized, false if not initialized
 	     */
 	    public static bool isSystemInitialized() {
             return systemInitialized;
@@ -306,27 +328,19 @@ namespace Palmtree.Core {
             // (not locked for performance/deadlock reasons, as it concerns the main loop)
             if (!running)   return;
 
-            // check if the system was configured and initialized
+            // check if the system is not configured and initialized
             if (!systemConfigured || !systemInitialized) {
-
-                // message
                 logger.Error("Could not start system, first configure and initialize");
-
                 return;
-
             }
             
             // lock for thread safety
-            lock(lockStarted) {
+            lock (lockStarted) {
 
                 // check if the system is not started (return if already started)
                 if (started) {
-
-                    // message
                     logger.Error("Could not start system, system is already started");
-
                     return;
-
                 }
                 
                 // start the data

@@ -4,7 +4,7 @@
  * ...
  * 
  * 
- * Copyright (C) 2017:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Copyright (C) 2022:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Concept:             UNP Team                    (neuroprothese@umcutrecht.nl)
  * Author(s):           Max van den Boom            (info@maxvandenboom.nl)
  * 
@@ -260,7 +260,7 @@ namespace Palmtree.Filters {
 
         }
 
-        public void initialize() {
+        public bool initialize() {
 
             // check if the filter is enabled
             if (mEnableFilter) {
@@ -274,6 +274,9 @@ namespace Palmtree.Filters {
                 for (int i = 0; i < inputFormat.numChannels; i++)     mDataBuffers[i] = new RingBuffer(bufferSize);
             
             }
+            
+            // return success
+            return true;
 
         }
 

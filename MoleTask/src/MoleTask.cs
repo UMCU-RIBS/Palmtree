@@ -4,7 +4,7 @@
  * ...
  * 
  * 
- * Copyright (C) 2017:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Copyright (C) 2022:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Concept:             UNP Team                    (neuroprothese@umcutrecht.nl)
  * Author(s):           Max van den Boom            (info@maxvandenboom.nl)
  * 
@@ -377,7 +377,7 @@ namespace MoleTask {
 
         }
 
-        public void initialize() {
+        public bool initialize() {
                                 
             // lock for thread safety
             lock(lockView) {
@@ -410,8 +410,11 @@ namespace MoleTask {
 
 	            }
 	            
-
             }
+
+            // return success
+            return true;
+
         }
 
         private void initializeView() {
