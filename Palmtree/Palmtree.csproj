@@ -117,6 +117,7 @@
     <Compile Include="src\Core\Helpers\AppConfigHelper.cs" />
     <Compile Include="src\Core\Helpers\ARFilter.cs" />
     <Compile Include="src\Core\Helpers\ArrayHelper.cs" />
+    <Compile Include="src\Core\Helpers\ProgressPopup.cs" />
     <Compile Include="src\Core\Helpers\SignalHelper.cs" />
     <Compile Include="src\Core\Helpers\DoubleConverter.cs" />
     <Compile Include="src\Core\Helpers\ListMessageBox.cs">
