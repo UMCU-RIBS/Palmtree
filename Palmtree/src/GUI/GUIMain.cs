@@ -289,6 +289,10 @@ namespace Palmtree.GUI {
         }
 
         private void btnSetConfig_Click(object sender, EventArgs e) {
+			
+            // disable the button
+            btnEditConfig.Enabled = false;
+            btnSetConfig.Enabled = false;
 
             // check if a visualization form is created (and not closed)
             if (frmVisualization != null && !frmVisualization.IsDisposed) {
@@ -319,6 +323,10 @@ namespace Palmtree.GUI {
                 updateMainInformation();
 
             }
+
+            // re-enable the button
+            btnEditConfig.Enabled = true;
+            btnSetConfig.Enabled = true;
 
         }
 
