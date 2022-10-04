@@ -58,8 +58,11 @@ namespace Palmtree.Filters {
                 "Log the filter's intermediate and output data streams. See 'Data' tab for more settings on sample stream logging.",
                 "0");
 
-            // message
-            logger.Info("Filter created (version " + CLASS_VERSION + ")");
+
+            parameters.addParameter<double>(
+                "WebsocketPort",
+                "Port to send data out onto",
+                "21100");
 
             parameters.addParameter<double>(
                 "WebsocketPort",
@@ -267,7 +270,6 @@ namespace Palmtree.Filters {
             
             // create the output package
             output = new double[input.Length];
-            
             // check if the filter is enabled
             output = input;
 
