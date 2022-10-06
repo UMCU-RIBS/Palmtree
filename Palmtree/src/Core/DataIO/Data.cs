@@ -34,6 +34,8 @@ namespace Palmtree.Core.DataIO {
     ///       providing slightly better performance (important since the Data class is called upon very frequently)
     /// </summary>
     public static class Data {
+        public delegate void OnEventLogged(string eventMessage);
+        public static event OnEventLogged eventLogged;
 
         private const string CLASS_NAME                         = "Data";
         private const int CLASS_VERSION                         = 3;
@@ -1442,7 +1444,9 @@ namespace Palmtree.Core.DataIO {
 
                     // construct event String    
                     string eventOut = eventTime.ToString("yyyyMMdd_HHmmss_fff") + " " + eventRunElapsedTime + " " + strsourceSamplePackageCounter + " " + strDataSampleCounter + " " + text + " " + value;
-
+                    if(eventLogged != null) {
+                        eventLogged(eventOut);
+                    }
                     // write event to event file
                     if (eventStreamWriters.Count > levelIndex && eventStreamWriters[levelIndex] != null) {
 

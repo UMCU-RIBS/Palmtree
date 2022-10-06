@@ -15,7 +15,10 @@
 using NLog;
 using Palmtree.Core;
 using Palmtree.Core.Params;
+using Palmtree.Core.DataIO;
+using WebSocketSharp.Server;
 using System;
+using System.Linq;
 
 namespace Palmtree.Filters {
 
@@ -25,6 +28,8 @@ namespace Palmtree.Filters {
     /// ...
     /// </summary>
     public class WSIOFilter : FilterBase, IFilter {
+        public static WebSocketServer wssv_data;
+        public static WebSocketServer wssv_event;
 
         private new const int CLASS_VERSION = 1;
         
@@ -41,9 +46,9 @@ namespace Palmtree.Filters {
             parameters = ParameterManager.GetParameters(filterName, Parameters.ParamSetTypes.Filter);
 
             // define the parameters
-            parameters.addParameter <bool>  (
+            parameters.addParameter<bool>(
                 "EnableFilter",
-                "Enable TimeSmoothing Filter",
+                "Enable WSIO Filter",
                 "1");
 
             parameters.addParameter<bool>(
@@ -51,11 +56,19 @@ namespace Palmtree.Filters {
                 "Log the filter's intermediate and output data streams. See 'Data' tab for more settings on sample stream logging.",
                 "0");
 
-            // message
-            logger.Info("Filter created (version " + CLASS_VERSION + ")");
+            parameters.addParameter<double>(
+                "Data_WebsocketPort",
+                "Port to send data out onto",
+                "21111");
+            parameters.addParameter<double>(
+                "Event_WebsocketPort",
+                "Port to send data out onto",
+                "21112");
+
+            Data.eventLogged += Data_onEventLogged;
 
         }
-        
+
         /**
          * Configure the filter. Checks the values and application logic of the
          * parameters and, if valid, transfers the configuration parameters to local variables
@@ -83,7 +96,7 @@ namespace Palmtree.Filters {
             // store a references to the input and output format
             inputFormat = input;
             outputFormat = output;
-            
+
             // check the values and application logic of the parameters
             if (!checkParameters(parameters))   return false;
 
@@ -106,7 +119,7 @@ namespace Palmtree.Filters {
         /// <param name="resetOption">Filter reset options. 0 will reset the minimum; 1 will perform a complete reset of filter information. > 1 for custom resets.</param>
         /// <returns>A boolean, either true for a succesfull re-configuration, or false upon failure</returns>
         public bool configureRunningFilter(Parameters newParameters, int resetOption) {
-            
+
             // check if new parameters are given (only a reset is also an option)
             if (newParameters != null) {
 
@@ -163,7 +176,7 @@ namespace Palmtree.Filters {
 
             // TODO: take resetFilter into account (currently always resets the buffers on initialize
             //          but when set not to reset, the buffers should be resized while retaining their values!)
-            
+
 
             // initialize the variables
             initialize();
@@ -187,7 +200,7 @@ namespace Palmtree.Filters {
 
             // check if the filter is enabled
             if (newEnableFilter) {
-                
+
 
             }
 
@@ -206,7 +219,7 @@ namespace Palmtree.Filters {
 
             // check if the filter is enabled
             if (mEnableFilter) {
-                
+
             }
 
         }
@@ -228,20 +241,27 @@ namespace Palmtree.Filters {
 
             // check if the filter is enabled
             if (mEnableFilter) {
+                double wsPort_data = parameters.getValue<double>("Data_WebsocketPort");
+                double wsPort_event = parameters.getValue<double>("Event_WebsocketPort");
 
-            
+                wssv_data = new WebSocketServer("ws://localhost:" + wsPort_data);
+                wssv_event = new WebSocketServer("ws://localhost:" + wsPort_event);
+
+                wssv_data.AddWebSocketService<WSIO>("/");
+                wssv_event.AddWebSocketService<WSIO>("/");
             }
-            
-            // return success
             return true;
 
         }
 
         public void start() {
-            
+            wssv_data.Start();
+            wssv_event.Start();
         }
 
         public void stop() {
+            wssv_data.Stop();
+            wssv_event.Stop();
 
         }
 
@@ -250,28 +270,55 @@ namespace Palmtree.Filters {
         }
 
         public void process(double[] input, out double[] output) {
-            
+
             // create the output package
             output = new double[input.Length];
-            
-            // check if the filter is enabled
-            if (mEnableFilter) {
-                // filter enabled
 
-                // TODO: send input-package to anywhere...
-                
-    
+            // check if the filter is enabled
+            output = input;
+            if (mEnableFilter) {
+                byte[] result = new byte[0];
+                output.Select(n =>
+                {
+                    BitConverter.GetBytes(n).ToArray().Select(m =>
+                    {
+                        result = result.Append(m).ToArray();
+
+                        return m;
+                    }).ToArray();
+
+                    return n;
+                }).ToArray();
+
+                result = result.Prepend(Convert.ToByte(outputFormat.packageRate)).ToArray();
+                result = result.Prepend(Convert.ToByte(outputFormat.numSamples)).ToArray();
+                result = result.Prepend(Convert.ToByte(outputFormat.numChannels)).ToArray();
+
+                if (wssv_data.IsListening)
+                {
+                    wssv_data.WebSocketServices["/"].Sessions.Broadcast(result);
+                }
             }
 
             // pass reference
-            output = input;
 
             // handle the data logging of the output (both to file and for visualization)
             processOutputLogging(output);
-            
+
         }
-        
+
+        private void Data_onEventLogged(string message)
+        {
+            if (wssv_event.IsListening)
+            {
+                wssv_event.WebSocketServices["/"].Sessions.Broadcast(message);
+            }
+        }
+
         public void destroy() {
+            wssv_data.Stop();
+            wssv_event.Stop();
+
 
             // stop the filter
             // Note: At this point stop will probably have been called from the mainthread before destroy, however there is a slight
