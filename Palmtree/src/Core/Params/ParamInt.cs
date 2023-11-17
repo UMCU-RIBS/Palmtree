@@ -187,7 +187,7 @@ namespace Palmtree.Core.Params {
             if (this.options.Length > 0 && unit == Parameters.Units.Seconds) {
 
                 // message
-                logger.Warn("Parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') has a list of options, yet the value set to be in seconds, this is unlikely to be correct");
+                logger.Warn("Parameter '" + this.Name + "' (parameter set: '" + this.getParentSetName() + "') has a list of options, yet the value is set to be in seconds, this is unlikely to be correct");
                     
             }
 

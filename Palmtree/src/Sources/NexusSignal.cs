@@ -1,7 +1,7 @@
 ﻿/**
  * NexusSignal class
  * 
- * This class provides a source module that connects to a Nexus device (i.e. Activa RC+S) using a COM-port and streams data
+ * This class provides a source module that connects to a Nexus device (i.e. Activa PC+S) using a COM-port and streams data
  * samples from the device into Palmtree. This module can output data straight from the device as the device provides it (both 
  * in time-domain or power-domain) or convert time-domain input from the device to power-domain output.
  * 
@@ -1113,13 +1113,8 @@ namespace Palmtree.Sources {
                 } catch (Exception e) {
                     logger.Error("exception");
                     logger.Error(e.Message);
-
-				    //fprintf(hNotes,"zero bytes read: Buffer %d, ",(unsigned char)buf[0]);
-			        //buf[0]=1;
-
-			        //fprintf(hNotes,"Error reading serial port %d, ",rv);
+                    
 			        len = 0;
-
                     SerialPortNet.ClearCommError(handle, out errorFlags, out comStat);
 
                     return -1;
@@ -1280,9 +1275,6 @@ namespace Palmtree.Sources {
                         packet.packetcount = 5;
                         packet.extract_pos = 0;
 
-                        //#ifdef DEBUG
-                        //if (hNotes != NULL) fprintf(hNotes,"%d sync, ",actbyte);
-                        //#endif
                     } else {
                         
                         packet.readstate=0;
@@ -1355,10 +1347,7 @@ namespace Palmtree.Sources {
 
         // parse packet in P4 format
         private void parse_byte_P4(byte actbyte) {
-            //char temp[200];
-            //sprintf(temp, "P4: byte=%02x  state=%02d  pos=%02d", actbyte, packet.readstate, packet.extract_pos);
-            //bciout << temp << endl;
-
+            
             switch (packet.readstate) {
                 case 0:
 
