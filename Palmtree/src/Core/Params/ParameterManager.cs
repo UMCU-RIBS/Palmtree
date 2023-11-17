@@ -226,8 +226,8 @@ namespace Palmtree.Core.Params {
                 for (int p = 0; p < parameters.Count; p++) {
                     iParam parameter = parameters[p];
 
-                    // skip seperator parameters, these are only for esthetics
-                    if (parameter.GetType() == typeof(ParamSeperator))
+                    // skip header and spacing parameters, these are only for esthetics
+                    if (parameter.GetType() == typeof(ParamHeader) || parameter.GetType() == typeof(ParamSpacing))
                         continue;
 
                     // create param node 

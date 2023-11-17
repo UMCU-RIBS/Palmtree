@@ -55,8 +55,8 @@ namespace Palmtree.GUI {
                 for (int i = 0; i < parameters.Count; i++) {
                     iParam param = parameters[i];
 
-                    // check if the parameter is not a seperator
-                    if (param.GetType() != typeof(ParamSeperator)) {
+                    // check if the parameter is not a header nor spacing
+                    if (param.GetType() != typeof(ParamHeader) && param.GetType() != typeof(ParamSpacing)) {
                         
                         paramInfo += "+++++ " + Environment.NewLine;
                         paramInfo += "Name: " + param.Name + Environment.NewLine;

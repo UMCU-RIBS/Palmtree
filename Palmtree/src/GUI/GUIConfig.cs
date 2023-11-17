@@ -196,10 +196,10 @@ namespace Palmtree.GUI {
             iParam param = paramControl.globalParam;
             
             int itemHeight = 0;
-            if (param is ParamSeperator) {
+            if (param is ParamHeader) {
                 
                 // create and add a label
-                SeperatorLabelControl newSep = new SeperatorLabelControl();
+                HeaderLabelControl newSep = new HeaderLabelControl();
                 newSep.Name = panel.Name + "_sep" + param.Name + "_y" + y;
                 newSep.Location = new Point(50, y + itemTopPadding);
                 newSep.Size = new System.Drawing.Size(panel.Width, 20);
@@ -213,6 +213,14 @@ namespace Palmtree.GUI {
                 });
                 panel.Controls.Add(newSep);
                 itemHeight = 20;
+
+            } else if (param is ParamSpacing) {
+                
+                // set the value as height
+                
+                int intValue = param.getValue<int>();
+                if (intValue > 0)
+                    itemHeight = intValue;
 
             } else {
 
@@ -601,7 +609,11 @@ namespace Palmtree.GUI {
             }
 
             // 
-            y = y + itemTopPadding + itemHeight + itemBottomPadding;
+            if (param is ParamSpacing)
+                y = y + itemHeight;
+            else
+                y = y + itemTopPadding + itemHeight + itemBottomPadding;
+            
 
         }
 
@@ -638,8 +650,8 @@ namespace Palmtree.GUI {
                 if (local)      param = paramControls[i].localParam;
                 else            param = paramControls[i].globalParam;
 
-                // skip seperator parameters, these are only for esthetics
-                if (param.GetType() == typeof(ParamSeperator))
+                // skip header and spacing parameters, these are only for esthetics
+                if (param.GetType() == typeof(ParamHeader) || param.GetType() == typeof(ParamSpacing))
                     continue;
 
                 // determine type of parameter and update accordingly
@@ -701,8 +713,8 @@ namespace Palmtree.GUI {
                 if (local)      param = paramControls[i].localParam;
                 else            param = paramControls[i].globalParam;
 
-                // skip seperator parameters, these are only for esthetics
-                if (param.GetType() == typeof(ParamSeperator))
+                // skip header and spacing parameters, these are only for esthetics
+                if (param.GetType() == typeof(ParamHeader) || param.GetType() == typeof(ParamSpacing))
                     continue;
 
                 // 

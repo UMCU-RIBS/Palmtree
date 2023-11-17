@@ -268,15 +268,30 @@ namespace Palmtree.Core.Params {
             }
 
         }
-        public iParam addSeperator(string text) {
-            return addSeperator(text, "");
+
+        public iParam addHeader(string text) {
+            return addHeader(text, "");
         }
-        public iParam addSeperator(string text, string group) {
+        public iParam addHeader(string text, string group) {
             
-            // create a seperator parameter
-            iParam param = new ParamSeperator(text, group, this);
+            // create a header parameter
+            iParam param = new ParamHeader(text, group, this);
             
-            // add the seperator to the list
+            // add the header to the list
+            paramList.Add(param);
+            return param;
+
+        }
+
+        public iParam addSpacing(int height) {
+            return addSpacing(height, "");
+        }
+        public iParam addSpacing(int height, string group) {
+            
+            // create a spacing parameter
+            iParam param = new ParamSpacing(height, group, this);
+            
+            // add the spacing to the list
             paramList.Add(param);
             return param;
 
@@ -286,11 +301,14 @@ namespace Palmtree.Core.Params {
 
             // try to find the parameter by name
             for (int i = 0; i < paramList.Count; i++) {
-                if (paramList[i].GetType() != typeof(ParamSeperator) && paramList[i].Name.Equals(paramName))
+                if (paramList[i].GetType() != typeof(ParamHeader) && 
+                    paramList[i].GetType() != typeof(ParamSpacing) && 
+                    paramList[i].Name.Equals(paramName))
+                    
                     return paramList[i];
             }
 
-            // return
+            // return not found
             return null;
 
         }

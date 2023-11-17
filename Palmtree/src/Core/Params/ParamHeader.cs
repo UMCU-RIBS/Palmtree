@@ -1,5 +1,5 @@
 ﻿/**
- * The ParamSeperator class
+ * The ParamHeader class
  * 
  * ...
  * 
@@ -17,15 +17,15 @@ using System;
 namespace Palmtree.Core.Params {
 
     /// <summary>
-    /// The <c>ParamSeperator</c> class.
+    /// The <c>ParamHeader</c> class.
     /// 
     /// ...
     /// </summary>
-    public class ParamSeperator : Param, iParam {
+    public class ParamHeader : Param, iParam {
 
         protected string value = "";
 
-        public ParamSeperator(string name, string group, Parameters parentSet) : base(name, group, parentSet, "", "", null) {
+        public ParamHeader(string name, string group, Parameters parentSet) : base(name, group, parentSet, "", "", null) {
             value = name;
         }
         public string getValue() {
@@ -58,7 +58,7 @@ namespace Palmtree.Core.Params {
         public T getValueInSamples<T>() {
 
             // message
-            logger.Error("Trying to retrieve the value in samples for a seperator with the text '" + this.Value + "' (parameter set: '" + this.getParentSetName() + "') in number of samples, cannot convert a seperator. Returning empty string");
+            logger.Error("Trying to retrieve the value in samples on header paremeter with the text '" + this.Value + "' (parameter set: '" + this.getParentSetName() + "'), cannot convert a header. Returning empty string");
 
             // return value
             return (T)Convert.ChangeType(Parameters.emptyValue<T>(), typeof(T));
@@ -82,7 +82,7 @@ namespace Palmtree.Core.Params {
         }
 
         public iParam clone() {
-            return new ParamSeperator(name, group, parentSet);
+            return new ParamHeader(name, group, parentSet);
         }
     }
 
