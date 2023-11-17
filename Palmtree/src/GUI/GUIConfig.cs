@@ -1214,7 +1214,7 @@ namespace Palmtree.GUI {
         }
     }
 
-    class SeperatorLabelControl : Label {
+    class HeaderLabelControl : Label {
 
         protected override void OnPaint(PaintEventArgs e) {
             base.OnPaint(e);
