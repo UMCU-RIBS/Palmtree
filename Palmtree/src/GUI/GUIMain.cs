@@ -289,10 +289,15 @@ namespace Palmtree.GUI {
         }
 
         private void btnSetConfig_Click(object sender, EventArgs e) {
-			
+            
+            // message
+            logger.Info("User pressed 'Set config' button");
+
             // disable the button
             btnEditConfig.Enabled = false;
             btnSetConfig.Enabled = false;
+            btnStart.Enabled = false;
+            btnStop.Enabled = false;
 
             // check if a visualization form is created (and not closed)
             if (frmVisualization != null && !frmVisualization.IsDisposed) {
@@ -331,6 +336,8 @@ namespace Palmtree.GUI {
         }
 
         private void btnStart_Click(object sender, EventArgs e) {
+            
+            logger.Info("User pressed 'Start' button");
 
             // check if there is a main thread
             if (configApplied) {
@@ -347,6 +354,8 @@ namespace Palmtree.GUI {
 
         private void btnStop_Click(object sender, EventArgs e) {
             
+            logger.Info("User pressed 'Stop' button");
+
             // stop the system
             MainThread.stop(true);
 
