@@ -198,11 +198,13 @@
     <Compile Include="src\Plugins\WindowsSensorsPlugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="src\Filters\TimeSmoothingFilter.cs" />
+    <Compile Include="src\Sources\Blackrock.cs" />
     <Compile Include="src\Sources\NexusSignal.cs" />
     <Compile Include="src\Sources\GenerateSignal.cs" />
     <Compile Include="src\Sources\KeypressSignal.cs" />
     <Compile Include="src\Sources\PlaybackSignal.cs" />
     <Compile Include="src\Sources\ISource.cs" />
+    <Compile Include="src\Sources\Wrappers\Cerelink.cs" />
     <Compile Include="src\Views\glFreeTypeFont.cs" />
     <Compile Include="src\Views\IOpenGLFunctions.cs" />
     <Compile Include="src\Views\SharpGLView.cs">

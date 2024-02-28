@@ -42,6 +42,7 @@ namespace Palmtree.Core {
                                                         new string[] { "GenerateSignal",            "Palmtree.Sources.GenerateSignal"},
                                                         new string[] { "KeypressSignal",            "Palmtree.Sources.KeypressSignal"},
                                                         new string[] { "NexusSignal",               "Palmtree.Sources.NexusSignal" },
+                                                        new string[] { "Blackrock",                 "Palmtree.Sources.Blackrock" },
                                                         new string[] { "PlaybackSignal",            "Palmtree.Sources.PlaybackSignal" }
                                                     };
 
