@@ -63,7 +63,7 @@ namespace Palmtree.Sources {
         private int nspSamplingRate = 0;                                                // NSP sampling-rate group index (set by config)
         private int nspFiltering = 0;                                                   // NSP filter index (set by config)
         private double dataRetrievalRateHz = 0.0;                                       // rate of the data-buffer retrievals (from NSP) in Hz
-        private int inputSamplesPerPackage = 0;                                              // the number of samples per package (based on NSP sampling freq and data-buffer retrievals)
+        private int numSamplesPerRetrieval = 0;                                         // theoretical number of samples per retrieval from NSP (based on NSP sampling freq and data-buffer retrievals)
         private int minSamplesPerRetrieval = 0;                                         // the minimum number of samples at each retrieval to be accepted
         private ValueOrder sampleValueOrder = ValueOrder.SampleMajor;                   // the value order/layout
         private double inputSampleRate = 0;                                             // input sample rate of source
@@ -152,8 +152,8 @@ namespace Palmtree.Sources {
 
             parameters.addParameter<int>(
                 "TransformNumSamples",
-                "The number of samples to produce per Incoming retrieval (per package)",
-                "1", "", "5");
+                "The number of samples to calculate from the each incoming retrieval (number of samples per package)",
+                "1", "", "10");
 
             parameters.addParameter<int>(
                 "TranformModelOrder",
@@ -162,7 +162,7 @@ namespace Palmtree.Sources {
 
             parameters.addParameter<double[][]>(
                "TransformInputOutput",
-               "Frequency bins for which the power in the input signal will be determined. Each bin will be outputted as a seperate output channel.\nEach row describes one bin by specifiying the id of the corresponding output channel, the lower and upper frequncy limit of the bin, and the amount of evaluations performed in this bin.",
+               "Frequency bins for which the power in the input signal will be determined.\nEach bin will be outputted as a seperate output channel.\nEach row describes one bin by specifiying the index (1-based) of the input channel, output channel, the lower and upper frequncy limit of the bin, and the amount of evaluations performed in this bin.",
                "", "", "1;1;15;25;10", new string[] { "Input", "Output", "Lower limit", "Upper limit", "Evaluations"  });
 
 
@@ -253,31 +253,27 @@ namespace Palmtree.Sources {
             dataRetrievalRateHz = 1000.0 / dataRetrievalIntervalMs;
 
             // calculate the (theoretical) samples per package (reality might deviate slightly, but we'll crop or pad for now)
-            inputSamplesPerPackage = (int)(sampleGroups[nspSamplingRate].sampleRate / dataRetrievalRateHz);      // calculated based on sample rate / dataRetrievalRateHz
-            if (inputSamplesPerPackage <= 0) {
+            numSamplesPerRetrieval = (int)(sampleGroups[nspSamplingRate].sampleRate / dataRetrievalRateHz);      // calculated based on sample rate / dataRetrievalRateHz
+            if (numSamplesPerRetrieval <= 0) {
                 logger.Error("Number of samples per package cannot be 0");
                 output = null;
                 return false;
             }
-            if (inputSamplesPerPackage > 65535) {
+            if (numSamplesPerRetrieval > 65535) {
                 logger.Error("Number of samples per package cannot be higher than 65535");
                 output = null;
                 return false;
             }
 
             // determine the minimum number of samples that are expected from the NSP in order to be sent through
-            minSamplesPerRetrieval = (int)(inputSamplesPerPackage * 0.95);
+            minSamplesPerRetrieval = (int)(numSamplesPerRetrieval * 0.95);
 
             // calculate the input sample rate
-            inputSampleRate = dataRetrievalRateHz * inputSamplesPerPackage;
+            inputSampleRate = dataRetrievalRateHz * numSamplesPerRetrieval;
 
             // retrieve the sample value order
             //sampleValueOrder = (parameters.getValue<int>("ValueOrder") == 0 ? ValueOrder.ChannelMajor : ValueOrder.SampleMajor);
             sampleValueOrder = ValueOrder.SampleMajor;
-
-            // log input as sourceinput
-            for (int i = 0; i < numInputChannels; i++)
-                Data.registerSourceInputStream(("Br_Input_Ch" + (i + 1)), inputSamplesPerPackage, dataRetrievalRateHz);
 
             // 
             transformToPower = parameters.getValue<bool>("TransformToPower");
@@ -289,21 +285,24 @@ namespace Palmtree.Sources {
                 outputSampleRate = inputSampleRate;
 
                 // create a sampleformat
-                output = new SamplePackageFormat(numOutputChannels, inputSamplesPerPackage, dataRetrievalRateHz, sampleValueOrder);
+                output = new SamplePackageFormat(numOutputChannels, numSamplesPerRetrieval, dataRetrievalRateHz, sampleValueOrder);
+
+                // log input as sourceinput
+                for (int i = 0; i < numInputChannels; i++)
+                    Data.registerSourceInputStream(("Br_Input_Ch" + (i + 1)), numSamplesPerRetrieval, dataRetrievalRateHz);
 
             } else {
                 // output power domain
-
                 
-                // get the number of output samples per package
+                // get the number of output samples after transformation
                 transformNumSamples = parameters.getValue<int>("TransformNumSamples");
                 if (transformNumSamples < 1) {
-                    logger.Error("The number of output samples per retrieval/package cannot be lower than 1");
+                    logger.Error("The number of samples after transformation (per retrieval/package) cannot be lower than 1, adjust the TransformNumSamples parameter");
                     output = null;
                     return false;
                 }
-                if (transformNumSamples > inputSamplesPerPackage) {
-                    logger.Error("The number of output samples per retrieval/package cannot be higher than the number of incoming samples per package (" + inputSamplesPerPackage + ")");
+                if (transformNumSamples > numSamplesPerRetrieval) {
+                    logger.Error("The number of samples after transformation (per retrieval/package) cannot be higher than the number of incoming samples per package (" + numSamplesPerRetrieval + "), adjust the TransformNumSamples parameter");
                     output = null;
                     return false;
                 }
@@ -311,7 +310,7 @@ namespace Palmtree.Sources {
                 // transfer the model order
                 transformModelOrder = parameters.getValue<int>("TranformModelOrder");
                 if (transformModelOrder < 1 || transformNumSamples < transformModelOrder) {
-                    logger.Error("Model order must be at least 1 and lower than the number of output samples per retrieval/package, in this case " + transformNumSamples.ToString() + ".");
+                    logger.Error("Transform model order must be at least 1 and lower than the number of output samples per retrieval/package, in this case " + transformNumSamples.ToString() + ".");
                     output = null;
                     return false;
                 }
@@ -320,10 +319,10 @@ namespace Palmtree.Sources {
                 outputSampleRate = dataRetrievalRateHz * transformNumSamples;
 
                 // transfer inputOutput information
-                transformInputOutput = parameters.getValue<double[][]>("InputOutput");
+                transformInputOutput = parameters.getValue<double[][]>("TransformInputOutput");
 
                 // if at least one output is defined, retrieve needed information on input and output channels and get maximal value of defined output channels
-                if (transformInputOutput[0].Length >= 1) {
+                if (transformInputOutput.Length >= 1) {
 
                     // init vars
                     transInputChannels = new int[transformInputOutput[0].Length];
@@ -336,7 +335,7 @@ namespace Palmtree.Sources {
                         numOutputChannels = Math.Max(numOutputChannels, (int)transformInputOutput[1][i]);  
                     }
                 } else {
-                    logger.Error("No output channels defined.");
+                    logger.Error("No output channels were defined according to the TransformInputOutput parameter");
                     output = null;
                     return false;
                 }
@@ -380,6 +379,10 @@ namespace Palmtree.Sources {
 
                 // create a sampleformat
                 output = new SamplePackageFormat(numOutputChannels, transformNumSamples, dataRetrievalRateHz, sampleValueOrder);
+
+                // log input as sourceinput
+                for (int i = 0; i < numOutputChannels; i++)
+                    Data.registerSourceInputStream(("Br_Input_Ch" + (i + 1)), transformNumSamples, dataRetrievalRateHz);
 
             }
 
@@ -729,6 +732,7 @@ namespace Palmtree.Sources {
                         // lock and acquire samples
                         lock (lockCerelink) {
                             if (cerelinkOpen) {
+
                                 UInt32 time;
                                 Int16[][] data;
                                 if (Cerelink.fetchTrialContinuousData(true, out time, out data)) {
@@ -745,38 +749,120 @@ namespace Palmtree.Sources {
                                                 //Console.WriteLine("time: " + time);
                                                 
                                                 // initialize an array
-                                                double[] samples = new double[numOutputChannels * inputSamplesPerPackage];
+                                                double[] samples = new double[numInputChannels * numSamplesPerRetrieval];
 
                                                 // transfer values
                                                 // TODO: more efficitient, multiple improvements possible
                                                 if (sampleValueOrder == ValueOrder.SampleMajor) {
-                                                    for (int iSmpl = 0; iSmpl < inputSamplesPerPackage; iSmpl++) {
-                                                        for (int iCh = 0; iCh < numOutputChannels; iCh++)
+                                                    for (int iSmpl = 0; iSmpl < numSamplesPerRetrieval; iSmpl++) {
+                                                        for (int iCh = 0; iCh < numInputChannels; iCh++)
                                                             if (iSmpl > numSamples - 1)
-                                                                samples[iSmpl * numOutputChannels + iCh] = data[iCh][numSamples - 1];      // simply repeat last to fill in the missing samples
+                                                                samples[iSmpl * numInputChannels + iCh] = data[iCh][numSamples - 1];      // simply repeat last to fill in the missing samples
                                                             else
-                                                                samples[iSmpl * numOutputChannels + iCh] = data[iCh][iSmpl];
+                                                                samples[iSmpl * numInputChannels + iCh] = data[iCh][iSmpl];
      
 
                                                     }
                                                 } else {
-                                                    for (int iSmpl = 0; iSmpl < inputSamplesPerPackage; iSmpl++) {
-                                                        for (int iCh = 0; iCh < numOutputChannels; iCh++)
+                                                    for (int iSmpl = 0; iSmpl < numSamplesPerRetrieval; iSmpl++) {
+                                                        for (int iCh = 0; iCh < numInputChannels; iCh++)
                                                             if (iSmpl > numSamples - 1)
-                                                                samples[iCh * inputSamplesPerPackage + iSmpl] = data[iCh][numSamples - 1];      // simply repeat last to fill in the missing samples
+                                                                samples[iCh * numSamplesPerRetrieval + iSmpl] = data[iCh][numSamples - 1];      // simply repeat last to fill in the missing samples
                                                             else
-                                                                samples[iCh * inputSamplesPerPackage + iSmpl] = data[iCh][iSmpl];
+                                                                samples[iCh * numSamplesPerRetrieval + iSmpl] = data[iCh][iSmpl];
 
                                                     }
                                                 }
 
-                                                // log as sourceinput
+                                                // log as source input
                                                 Data.logSourceInputValues(samples);
 
-                                                                                                
-                                                // TODO: to power domain, inject ARFilter
+                                                //
                                                 if (transformToPower) {
+                                                    // power domain, transform
 
+
+                                                    double[] retSample = new double[numOutputChannels * transformNumSamples];
+
+
+                                                    // to create the number of expected samples, simply split the incoming data
+                                                    int numPerPart = numSamplesPerRetrieval / transformNumSamples;
+                                                    for (int part = 0; part < transformNumSamples; part++) {
+
+                                                        int startIndex = part * numPerPart;
+                                                        //Console.WriteLine("part: " + part);
+                                                        //Console.WriteLine("startIndex: " + startIndex);
+
+
+                                                        // process the seperate input channel buffers
+                                                        for (int channel = 0; channel < numInputChannels; channel++) {
+
+                                                            // check if this buffer contains data (+1 because in GUI channels are 1-based)
+                                                            if (Array.IndexOf(transInputChUniq, channel + 1) != -1) {
+
+                                                                // init var
+                                                                double[] powerSpec = null;
+
+                                                                if (arFilters[channel] != null) {
+
+                                                                    
+                                                                    // TODO: just Array.Copy from input array, no need to convert to double again
+                                                                    int endIndex = startIndex + numPerPart;
+                                                                    double[] partData = new double[numPerPart];
+                                                                    int counter = 0;
+                                                                    for (int iSmpl = startIndex; iSmpl < endIndex; iSmpl++) {
+                                                                        if (sampleValueOrder == ValueOrder.SampleMajor) {
+                                                                            partData[counter] = samples[iSmpl * numInputChannels + channel];
+                                                                        } else {
+                                                                            partData[counter] = samples[channel * numSamplesPerRetrieval + iSmpl];
+                                                                        }
+
+                                                                        counter++;
+                                                                    }
+
+                                                                    // fill buffer of corresponding ARFilter if ARFilter is allowed to run 
+                                                                    if (arFilters[channel].AllowRun)    arFilters[channel].Data = partData;
+
+                                                                    // determine linearModel on data if ARFilter is allowed to run
+                                                                    if (arFilters[channel].AllowRun)    arFilters[channel].createLinPredModel();
+
+                                                                    // determine power spectrum if ARFilter is allowed to run
+                                                                    if (arFilters[channel].AllowRun)    powerSpec = arFilters[channel].estimatePowerSpectrum();
+
+                                                                    // find output channels corresponding to bins in powerSpec
+                                                                    int[] indices = Extensions.findIndices(transInputChannels, (channel + 1));
+
+                                                                    
+                                                                    // transfer values from powerSpec to correct indices in retSample (minus 1 because values in outputChannels are 1-based because user-input)
+                                                                    if (sampleValueOrder == ValueOrder.SampleMajor) {
+
+                                                                        for (int i = 0; i < indices.Length; i++) {
+                                                                            int iCh = transOutputChannels[indices[i]] - 1;
+                                                                            retSample[part * numOutputChannels + iCh] = powerSpec[i];
+
+                                                                        }
+
+                                                                    } else {
+                                                                        for (int i = 0; i < indices.Length; i++) {
+                                                                            int iCh = transOutputChannels[indices[i]] - 1;
+                                                                            retSample[iCh * numSamplesPerRetrieval + part] = powerSpec[i];
+                                                                        }
+
+                                                                    }
+
+                                                                } else {
+
+                                                                    // message
+                                                                    logger.Error("ARFilter for input channel " + channel + " is not initialized. Check code.");
+
+                                                                }
+
+                                                            }
+                                    
+                                                        }
+                                                    }
+                                                    MainThread.eventNewSample(retSample);
+                                                    //Console.WriteLine(retSample.ToString());
 
 
                                                 } else { 
