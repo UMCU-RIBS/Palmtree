@@ -41,6 +41,9 @@ namespace Palmtree.Sources {
         private const int NUM_FE_ANALOG_IN_CHANS = 256;                                 // number of (analog) front-end analog-in channels (should be 0-255 on NSP)
         private const int NUM_ANALOG_IN_CHANS = 16;                                     // number of (analog) analog-in channels (should be 256-271 on NSP)
 
+        private const int LIMIT_TO_FIRST_CHANS = 128;                                   // temporary constant to limit the number streamed of channels
+
+
         private const int threadLoopDelayNoProc = 200;                                  // thread loop delay when not processing (1000ms / 5 run times per second = rest 200ms)
         
 
@@ -91,9 +94,6 @@ namespace Palmtree.Sources {
         private int[] transOutputChannels = null;
 
 
-
-
-
         public Blackrock() {
 
             // add preliminary continuous sampling-rate groups (0-5)
@@ -140,7 +140,7 @@ namespace Palmtree.Sources {
             parameters.addParameter<int> (
                 "DataRetrievalInterval",
                 "Interval (in ms) at which the data that is buffered on NSP will be retrieved.\nRetrieving the data should happen before the buffer on the NSP overflows, which happens after a bit more than 3 seconds, data is lost otherwise.\nIt is recommended to retrieve more often (set a lower interval) at higher sampling rate to prevent data congestion.",
-                "100", "3000", "1000");
+                "100", "3000", "500");
 
 
             parameters.addHeader("Signal Transformation");
@@ -190,7 +190,7 @@ namespace Palmtree.Sources {
         }
 
         public double getInputSamplesPerSecond() {
-            return 0;
+            return inputSampleRate;
         }
 
         /**
@@ -217,7 +217,7 @@ namespace Palmtree.Sources {
         public bool configure(out SamplePackageFormat output) {
 
             // set the number of input channels to be same number as the front-end analog-in channels
-            numInputChannels = NUM_FE_ANALOG_IN_CHANS;
+            numInputChannels = LIMIT_TO_FIRST_CHANS;
 
             // retrieve the NSP sampling rate 
             nspSamplingRate = parameters.getValue<int>("NSPSamplingRate") + 1;
@@ -275,6 +275,10 @@ namespace Palmtree.Sources {
             //sampleValueOrder = (parameters.getValue<int>("ValueOrder") == 0 ? ValueOrder.ChannelMajor : ValueOrder.SampleMajor);
             sampleValueOrder = ValueOrder.SampleMajor;
 
+            // log input as sourceinput
+            for (int i = 0; i < numInputChannels; i++)
+                Data.registerSourceInputStream(("Br_Input_Ch" + (i + 1)), numSamplesPerRetrieval, dataRetrievalRateHz);
+
             // 
             transformToPower = parameters.getValue<bool>("TransformToPower");
             if (!transformToPower) {
@@ -286,10 +290,6 @@ namespace Palmtree.Sources {
 
                 // create a sampleformat
                 output = new SamplePackageFormat(numOutputChannels, numSamplesPerRetrieval, dataRetrievalRateHz, sampleValueOrder);
-
-                // log input as sourceinput
-                for (int i = 0; i < numInputChannels; i++)
-                    Data.registerSourceInputStream(("Br_Input_Ch" + (i + 1)), numSamplesPerRetrieval, dataRetrievalRateHz);
 
             } else {
                 // output power domain
@@ -379,10 +379,6 @@ namespace Palmtree.Sources {
 
                 // create a sampleformat
                 output = new SamplePackageFormat(numOutputChannels, transformNumSamples, dataRetrievalRateHz, sampleValueOrder);
-
-                // log input as sourceinput
-                for (int i = 0; i < numOutputChannels; i++)
-                    Data.registerSourceInputStream(("Br_Input_Ch" + (i + 1)), transformNumSamples, dataRetrievalRateHz);
 
             }
 
@@ -528,21 +524,30 @@ namespace Palmtree.Sources {
                     chanInfo.spkfilter = 0;
                     chanInfo.spkgroup = 0;
 
-                    // check type of analog-in channel
-                    if (Cerelink.isChannelFEAnalogIn(ref chanInfo)) {
-                        // front-end analog-in channel
+                    // check if within first x channels
+                    if (i < LIMIT_TO_FIRST_CHANS) {
 
-                        // stream by setting the sampling group, also set filter
-                        chanInfo.smpgroup = (uint)nspSamplingRate;
-                        chanInfo.smpfilter = (uint)nspFiltering;
+                        // check type of analog-in channel
+                        if (Cerelink.isChannelFEAnalogIn(ref chanInfo)) {
+                            // front-end analog-in channel
+
+                            // stream by setting the sampling group, also set filter
+                            chanInfo.smpgroup = (uint)nspSamplingRate;
+                            chanInfo.smpfilter = (uint)nspFiltering;
                     
-                    } else {
-                        // non-front-end analog-in channel
+                        } else {
+                            // non-front-end analog-in channel
 
+                            // do not stream, by setting the sampling group to 0, also set filter to 0
+                            chanInfo.smpgroup = 0;
+                            chanInfo.smpfilter = 0;
+
+                        }
+
+                    } else {
                         // do not stream, by setting the sampling group to 0, also set filter to 0
                         chanInfo.smpgroup = 0;
                         chanInfo.smpfilter = 0;
-
                     }
 
                     // set the channel configuration
@@ -774,7 +779,10 @@ namespace Palmtree.Sources {
                                                     }
                                                 }
 
-                                                // log as source input
+                                                // release original data matrix
+                                                data = null;
+
+                                                // log incoming data as source streams
                                                 Data.logSourceInputValues(samples);
 
                                                 //
@@ -782,17 +790,13 @@ namespace Palmtree.Sources {
                                                     // power domain, transform
 
 
-                                                    double[] retSample = new double[numOutputChannels * transformNumSamples];
+                                                    double[] pwrSamples = new double[numOutputChannels * transformNumSamples];
 
 
                                                     // to create the number of expected samples, simply split the incoming data
                                                     int numPerPart = numSamplesPerRetrieval / transformNumSamples;
                                                     for (int part = 0; part < transformNumSamples; part++) {
-
                                                         int startIndex = part * numPerPart;
-                                                        //Console.WriteLine("part: " + part);
-                                                        //Console.WriteLine("startIndex: " + startIndex);
-
 
                                                         // process the seperate input channel buffers
                                                         for (int channel = 0; channel < numInputChannels; channel++) {
@@ -805,15 +809,15 @@ namespace Palmtree.Sources {
 
                                                                 if (arFilters[channel] != null) {
 
-                                                                    
-                                                                    // TODO: just Array.Copy from input array, no need to convert to double again
                                                                     int endIndex = startIndex + numPerPart;
                                                                     double[] partData = new double[numPerPart];
+
                                                                     int counter = 0;
                                                                     for (int iSmpl = startIndex; iSmpl < endIndex; iSmpl++) {
                                                                         if (sampleValueOrder == ValueOrder.SampleMajor) {
                                                                             partData[counter] = samples[iSmpl * numInputChannels + channel];
                                                                         } else {
+                                                                            // TODO: just Array.Copy from input array on ChannelMajor
                                                                             partData[counter] = samples[channel * numSamplesPerRetrieval + iSmpl];
                                                                         }
 
@@ -831,21 +835,20 @@ namespace Palmtree.Sources {
 
                                                                     // find output channels corresponding to bins in powerSpec
                                                                     int[] indices = Extensions.findIndices(transInputChannels, (channel + 1));
-
                                                                     
                                                                     // transfer values from powerSpec to correct indices in retSample (minus 1 because values in outputChannels are 1-based because user-input)
                                                                     if (sampleValueOrder == ValueOrder.SampleMajor) {
 
                                                                         for (int i = 0; i < indices.Length; i++) {
                                                                             int iCh = transOutputChannels[indices[i]] - 1;
-                                                                            retSample[part * numOutputChannels + iCh] = powerSpec[i];
+                                                                            pwrSamples[part * numOutputChannels + iCh] = powerSpec[i];
 
                                                                         }
 
                                                                     } else {
                                                                         for (int i = 0; i < indices.Length; i++) {
                                                                             int iCh = transOutputChannels[indices[i]] - 1;
-                                                                            retSample[iCh * numSamplesPerRetrieval + part] = powerSpec[i];
+                                                                            pwrSamples[iCh * numSamplesPerRetrieval + part] = powerSpec[i];
                                                                         }
 
                                                                     }
@@ -861,12 +864,13 @@ namespace Palmtree.Sources {
                                     
                                                         }
                                                     }
-                                                    MainThread.eventNewSample(retSample);
-                                                    //Console.WriteLine(retSample.ToString());
-
+                
+                                                    // pass power data to pipeline
+                                                    MainThread.eventNewSample(pwrSamples);
 
                                                 } else { 
-                                                    // time-freq domain, just pass through
+                                                    // time-freq domain, just pass through to pipeline
+
                                                     MainThread.eventNewSample(samples);
 
                                                 }
