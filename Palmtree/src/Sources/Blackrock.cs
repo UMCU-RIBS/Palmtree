@@ -275,6 +275,9 @@ namespace Palmtree.Sources {
             //sampleValueOrder = (parameters.getValue<int>("ValueOrder") == 0 ? ValueOrder.ChannelMajor : ValueOrder.SampleMajor);
             sampleValueOrder = ValueOrder.SampleMajor;
 
+            // register to include the source-input timestamps
+            Data.registerSourceInputTime(true);
+
             // log input as sourceinput
             for (int i = 0; i < numInputChannels; i++)
                 Data.registerSourceInputStream(("Br_Input_Ch" + (i + 1)), numSamplesPerRetrieval, dataRetrievalRateHz);
@@ -746,7 +749,7 @@ namespace Palmtree.Sources {
                                             int numSamples = data[0].Length;
 
                                             // check if at least 95% of expected amount of samples is there
-                                            // (prevents start package of a couple of samples and in time-domain the generation of too much data)
+                                            // (prevents start package of a couple of samples, and in time-domain the generation of too much data)
                                             if (numSamples > minSamplesPerRetrieval) {
 
                                                 //
@@ -754,27 +757,21 @@ namespace Palmtree.Sources {
                                                 //Console.WriteLine("time: " + time);
                                                 
                                                 // initialize an array
-                                                double[] samples = new double[numInputChannels * numSamplesPerRetrieval];
+                                                double[] samples = new double[numInputChannels * numSamples];
 
-                                                // transfer values
+                                                // transfer values (cast to doubles)
                                                 // TODO: more efficitient, multiple improvements possible
                                                 if (sampleValueOrder == ValueOrder.SampleMajor) {
-                                                    for (int iSmpl = 0; iSmpl < numSamplesPerRetrieval; iSmpl++) {
+                                                    for (int iSmpl = 0; iSmpl < numSamples; iSmpl++) {
                                                         for (int iCh = 0; iCh < numInputChannels; iCh++)
-                                                            if (iSmpl > numSamples - 1)
-                                                                samples[iSmpl * numInputChannels + iCh] = data[iCh][numSamples - 1];      // simply repeat last to fill in the missing samples
-                                                            else
-                                                                samples[iSmpl * numInputChannels + iCh] = data[iCh][iSmpl];
+                                                            samples[iSmpl * numInputChannels + iCh] = data[iCh][iSmpl];
      
 
                                                     }
                                                 } else {
-                                                    for (int iSmpl = 0; iSmpl < numSamplesPerRetrieval; iSmpl++) {
+                                                    for (int iSmpl = 0; iSmpl < numSamples; iSmpl++) {
                                                         for (int iCh = 0; iCh < numInputChannels; iCh++)
-                                                            if (iSmpl > numSamples - 1)
-                                                                samples[iCh * numSamplesPerRetrieval + iSmpl] = data[iCh][numSamples - 1];      // simply repeat last to fill in the missing samples
-                                                            else
-                                                                samples[iCh * numSamplesPerRetrieval + iSmpl] = data[iCh][iSmpl];
+                                                            samples[iCh * numSamples + iSmpl] = data[iCh][iSmpl];
 
                                                     }
                                                 }
@@ -783,15 +780,13 @@ namespace Palmtree.Sources {
                                                 data = null;
 
                                                 // log incoming data as source streams
-                                                Data.logSourceInputValues(samples);
+                                                Data.logSourceInputValues(samples, (double)time);
 
                                                 //
                                                 if (transformToPower) {
                                                     // power domain, transform
 
-
                                                     double[] pwrSamples = new double[numOutputChannels * transformNumSamples];
-
 
                                                     // to create the number of expected samples, simply split the incoming data
                                                     int numPerPart = numSamplesPerRetrieval / transformNumSamples;
