@@ -599,10 +599,6 @@ namespace Palmtree.GUI {
                     paramControl.additionalControl2 = newColumns;
 
                     itemHeight = 180;
-                    
-                    newGrid.LostFocus += new EventHandler(delegate(object sender, EventArgs e) {
-                        clearFocusToPanel(panel);
-                    });
 
                 }
 
