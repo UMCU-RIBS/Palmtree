@@ -4,7 +4,7 @@
  * ...
  * 
  * 
- * Copyright (C) 2022:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Copyright (C) 2024:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Concept:             UNP Team                    (neuroprothese@umcutrecht.nl)
  * Author(s):           Benny van der Vijgh         (benny@vdvijgh.nl)
  * 
@@ -686,8 +686,7 @@ namespace CMoleTask {
             connectionLost = Globals.getValue<bool>("ConnectionLost");
 
             // process
-            int totalSamples = inputFormat.numSamples * inputFormat.numChannels;
-            for (int sample = 0; sample < totalSamples; sample += inputFormat.numChannels)
+            for (int sample = 0; sample < input.Length; sample += inputFormat.numChannels)
                 process(sample + input[taskInputChannel - 1]);
 
         }
@@ -808,7 +807,7 @@ namespace CMoleTask {
                             // log event countdown is started
                             Data.logEvent(2, "TrialStart ", CLASS_NAME);
 
-                            // set next cue and corresponding state
+                            // set mole and corresponding state
                             setCueAndState(trialSequencePositions[currentTrial]);
 			            }
 

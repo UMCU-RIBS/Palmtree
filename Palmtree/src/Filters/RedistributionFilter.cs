@@ -1,10 +1,10 @@
 ﻿/**
  * RedistributionFilter class
  * 
- * ...
+ * Filter to re-order, redistribute and combine channels by applying weight to the signal in each channel
  * 
  * 
- * Copyright (C) 2022:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Copyright (C) 2024:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Author(s):           Max van den Boom            (info@maxvandenboom.nl)
  * 
  * Adapted from:        BCI2000 (Schalk Lab, www.schalklab.org)
@@ -24,7 +24,7 @@ namespace Palmtree.Filters {
     /// <summary>
     /// RedistributionFilter class.
     /// 
-    /// ...
+    /// Filter to re-order, redistribute and combine channels by applying weight to the signal in each channel
     /// </summary>
     public class RedistributionFilter : FilterBase, IFilter {
 
@@ -365,11 +365,9 @@ namespace Palmtree.Filters {
                 // filter enabled
                 
                 // create an output package
-                output = new double[outputFormat.numChannels * outputFormat.numSamples];
-
-                int totalSamples = inputFormat.numSamples * inputFormat.numChannels;
+                output = new double[input.Length];
                 int outSample = 0;
-                for (int inSample = 0; inSample < totalSamples; inSample += inputFormat.numChannels) {
+                for (int inSample = 0; inSample < input.Length; inSample += inputFormat.numChannels) {
                     
                     // loop through the config rows and accumilate the input channels ( * the weight) into the output channels
                     for (uint row = 0; row < mConfigWeights.Length; ++row)

@@ -41,8 +41,15 @@ namespace Palmtree.Core.DataIO {
         public long fileStartEpoch                      = 0;                // the start epoch of the run data-set      (only used in version 2)
         public List<byte> streamDataTypes               = new List<byte>(0);   // store, for each stream, the data type     (currently not used, but stored anyway; 0 = double)
         public List<ushort> streamDataSamplesPerPackage = new List<ushort>(0); // store, for each stream, the number of samples per call/package  (not used in source/.src data, the number of samples is allowed to vary per package; is used in pipeline/.dat data)
-        
+
+        // version 3 variable - source data-file only
+        public bool includesSourceInputTime = false;                        // whether a source input timestamp is included in the source-data file
+
+
+        //
         // worker variables, induced
+        //
+
         public long posDataStart                        = 0;                // position (counted in bytes) to the start of the data in the file
 
         public int rowSize                              = 0;                // the size (in bytes) of one row

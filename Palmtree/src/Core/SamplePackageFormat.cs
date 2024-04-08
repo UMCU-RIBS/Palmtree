@@ -29,7 +29,7 @@ namespace Palmtree.Core {
         }
 
         public int numChannels = 1;                                 // number of sampling-channels in each package
-        public int numSamples = 1;                                  // number of samples in each package
+        public int numSamples = 1;                                  // theoretical number of samples in each package (might vary)
         public double packageRate = 5;                              // (estimated) rate at which packages are passed (in packages per second/hz)
         public ValueOrder valueOrder = ValueOrder.SampleMajor;      // if SampleMajor, then the input is ordered by sample first (sample elements contiguously in memory) and channels second (i.e. <smpl0 - ch0> - <smpl0 - ch1> ...)
                                                                     // if ChannelMajor, then the input is ordered by channel first (channel elements contiguously in memory) and samples second (i.e. <smpl0 - ch0> - <smpl1 - ch0> ...)

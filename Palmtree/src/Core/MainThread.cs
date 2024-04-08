@@ -576,11 +576,11 @@ namespace Palmtree.Core {
 
                         }
 
-                        // check if there is a sample to process
+                        // check if there is a sample-package to process
                         if (samplePackage != null) {
                             double[] output = null;
 
-                            // Announce the sample at the beginning of the pipeline
+                            // Announce the sample-package at the beginning of the pipeline
                             Data.pipelineProcessingStart();
 
                             // keep?
@@ -595,7 +595,7 @@ namespace Palmtree.Core {
                             // log for visualization (the 'LogVisualizationStreamValue' function will discard the sample if visualization is disabled)
                             //Data.logVisualizationStreamValue(sample);
 
-                            // process the sample (filters)
+                            // process the sample-package (each filter module)
                             for (int i = 0; i < filters.Count; i++) {
                                 filters[i].process(samplePackage, out output);
                                 samplePackage = output;
@@ -607,10 +607,10 @@ namespace Palmtree.Core {
                                 plugins[i].postFiltersProcess();
                             }
                             
-                            // process the sample (application)
+                            // process the sample-package (application-module)
                             if (application != null)    application.process(samplePackage);
                             
-                            // Announce the sample at the end of the pipeline
+                            // call the end of the pipeline
                             Data.pipelineProcessingEnd();
 
                             // flush all plugin buffers to file

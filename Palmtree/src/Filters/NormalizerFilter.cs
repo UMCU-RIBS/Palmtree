@@ -1,10 +1,10 @@
 ﻿/**
  * NormalizerFilter class
  * 
- * ...
+ * Filter to normalize each channel by subtracting an offset from the signal and multiplying the signal with a factor (gain)
  * 
  * 
- * Copyright (C) 2022:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Copyright (C) 2024:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Author(s):           Max van den Boom            (info@maxvandenboom.nl)
  * 
  * Adapted from:        BCI2000 (Schalk Lab, www.schalklab.org)
@@ -26,7 +26,7 @@ namespace Palmtree.Filters {
     /// <summary>
     /// NormalizerFilter class
     /// 
-    /// ...
+    /// Filter to normalize each channel by subtracting an offset from the signal and multiplying the signal with a factor (gain)
     /// </summary>
     public class NormalizerFilter : FilterBase, IFilter {
 
@@ -454,17 +454,17 @@ namespace Palmtree.Filters {
 
                 // create an output package
                 output = new double[input.Length];
-    
-                int totalSamples = inputFormat.numSamples * inputFormat.numChannels;
-                for (int sample = 0; sample < totalSamples; sample += inputFormat.numChannels) {
+
+                // loop over samples (by sets of channels)
+                for (int sample = 0; sample < input.Length; sample += inputFormat.numChannels) {
 
                     double[] singleRow = new double[inputFormat.numChannels];
                     Buffer.BlockCopy(input, sample * sizeof(double), singleRow, 0, inputFormat.numChannels * sizeof(double));
 
-                    double[] singleRowOout = new double[inputFormat.numChannels];
-                    processSample(singleRow, out singleRowOout);
+                    double[] singleRowOut = new double[inputFormat.numChannels];
+                    processSample(singleRow, out singleRowOut);
 
-                    Buffer.BlockCopy(singleRowOout, 0, output, sample * sizeof(double), inputFormat.numChannels * sizeof(double));
+                    Buffer.BlockCopy(singleRowOut, 0, output, sample * sizeof(double), inputFormat.numChannels * sizeof(double));
 
                 }
 

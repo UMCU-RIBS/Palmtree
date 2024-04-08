@@ -1,10 +1,10 @@
 ﻿/**
  * FlexKeySequenceFilter class
  * 
- * ...
+ * Filter that monitors single channel and set the global variable 'KeySequenceActive' if a specific flexible sequence occurs in the signal
  * 
  * 
- * Copyright (C) 2022:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Copyright (C) 2024:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Concept:             UNP Team                    (neuroprothese@umcutrecht.nl)
  * Author(s):           Benny van der Vijgh         (benny@vdvijgh.nl)
  * 
@@ -25,7 +25,7 @@ namespace Palmtree.Filters {
     /// <summary>
     /// FlexKeySequenceFilter class
     /// 
-    /// ...
+    /// Filter that monitors single channel and set the global variable 'KeySequenceActive' if a specific flexible sequence occurs in the signal
     /// </summary>
     public class FlexKeySequenceFilter : FilterBase, IFilter {
         private new const int CLASS_VERSION = 3;
@@ -73,6 +73,11 @@ namespace Palmtree.Filters {
                 "Channel of which clicks are used as input.",
                 "1", "", "1");
 
+            //
+            //
+            //
+            parameters.addHeader("Sequence");
+
             parameters.addParameter<int>(
                 "AmountOfClicks",
                 "Amount of clicks required to create wake-up-call.",
@@ -93,9 +98,15 @@ namespace Palmtree.Filters {
                 "Rate (between 0 and 1) of amount of well-timed clicks required to create wake-up call.",
                 "0", "", "0.9");
 
+
+            //
+            //
+            //
+            parameters.addHeader("Mean and standard devation");
+
             parameters.addParameter<bool>(
                 "CheckMeanAndStd",
-                "In addition to requiring clicks to fulfill above requirements, also require mean and sd of seperate channel to fulfill requirements in order to create wake-up call.",
+                "In addition to requiring clicks to fulfill above requirements, also require mean and standard deviation of seperate channel to fulfill requirements in order to create wake-up call.",
                 "1");
 
             parameters.addParameter<int>(
@@ -382,8 +393,7 @@ namespace Palmtree.Filters {
             if (mEnableFilter) {
                 // filter enabled
                 
-                int totalSamples = inputFormat.numSamples * inputFormat.numChannels;
-                for (int sample = 0; sample < totalSamples; sample += inputFormat.numChannels) {
+                for (int sample = 0; sample < input.Length; sample += inputFormat.numChannels) {
 
                     double[] singleRow = new double[inputFormat.numChannels];
                     Buffer.BlockCopy(input, sample * sizeof(double), singleRow, 0, inputFormat.numChannels * sizeof(double));

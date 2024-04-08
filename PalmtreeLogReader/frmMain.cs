@@ -112,13 +112,16 @@ namespace PalmtreeLogReader {
             // print header information
             strOutput = "Data file: " + txtInputFile.Text + Environment.NewLine;
             strOutput += "Header code: " + header.code + Environment.NewLine;
-            if (header.version == 2) {
+            if (header.version == 2 || header.version == 3) {
                 strOutput += "Run start epoch: " + header.runStartEpoch + Environment.NewLine;
                 strOutput += "Run file epoch: " + header.fileStartEpoch + Environment.NewLine;
             }
+            if (header.code == "src" && header.version == 3) {
+                strOutput += "Include source input time: " + header.includesSourceInputTime + Environment.NewLine;
+            }
             strOutput += "Sample rate: " + header.sampleRate + Environment.NewLine;
             strOutput += "Number of playback input streams: " + header.numPlaybackStreams + Environment.NewLine;
-            if (header.version == 2) {
+            if (header.version == 2 || header.version == 3) {
                 strOutput += "Number of streams: " + header.numStreams + Environment.NewLine;
                 for (int i = 0; i < header.numStreams; i++) {
                     strOutput += "   " + i + "  - type: " + header.streamDataTypes[i] + "  - samplesPer: " + header.streamDataSamplesPerPackage[i] + Environment.NewLine;

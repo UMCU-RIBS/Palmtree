@@ -1,10 +1,10 @@
 ﻿/**
  * The TimeSmoothingFilter class
  * 
- * ...
+ * Filter to smooths the signal - per channel - over time given specific weights
  * 
  * 
- * Copyright (C) 2022:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Copyright (C) 2024:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Concept:             UNP Team                    (neuroprothese@umcutrecht.nl)
  * Author(s):           Max van den Boom            (info@maxvandenboom.nl)
  * 
@@ -22,9 +22,9 @@ using System;
 namespace Palmtree.Filters {
 
     /// <summary>
-    /// TimeSmoothingFilter class.
+    /// TimeSmoothingFilter class
     /// 
-    /// ...
+    /// Filter to smooth the signal over time given specific weights
     /// </summary>
     public class TimeSmoothingFilter : FilterBase, IFilter {
 
@@ -300,10 +300,9 @@ namespace Palmtree.Filters {
             
                 // create the output package
                 output = new double[input.Length];
-            
+
                 // loop over samples (by sets of channels)
-                int totalSamples = inputFormat.numSamples * inputFormat.numChannels;
-                for (int sample = 0; sample < totalSamples; sample += inputFormat.numChannels) {
+                for (int sample = 0; sample < input.Length; sample += inputFormat.numChannels) {
                 
 		            // loop through every channel
                     for (int channel = 0; channel < inputFormat.numChannels; ++channel) {

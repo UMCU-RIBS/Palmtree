@@ -52,13 +52,19 @@ namespace Palmtree.Core.DataIO {
             int numColumns = 0;
 
             // add sample id column
-            if (header.version == 1)            columnNames += "Sample\t";
-            else if (header.version == 2)       columnNames += "SamplePackage\t";
+            if (header.version == 1)                                    columnNames += "Sample\t";
+            else if (header.version == 2 || header.version == 3)        columnNames += "SamplePackage\t";
             numColumns++;
 
             // add elapsed column (when not plugin)
             if (!isPlugin) {
                 columnNames += "Elapsed_ms\t";
+                numColumns++;
+            }
+
+            // add include source input time column
+            if (headerCode.Equals("src") && header.version == 3) {
+                columnNames += "Source_time\t";
                 numColumns++;
             }
 
@@ -83,12 +89,17 @@ namespace Palmtree.Core.DataIO {
             writer.Write(headerCodeBinary, 0, headerCodeBinary.Length);
 
             // epochs
-            if (header.version == 2) {
+            if (header.version == 2 || header.version == 3) {
                 byte[] headerRunStartEpoch = BitConverter.GetBytes(header.runStartEpoch);
                 writer.Write(headerRunStartEpoch, 0, headerRunStartEpoch.Length);
 
                 byte[] headerFileStartEpoch = BitConverter.GetBytes(header.fileStartEpoch);
                 writer.Write(headerFileStartEpoch, 0, headerFileStartEpoch.Length);
+            }
+
+            // include source input time (only in source data-file)
+            if (headerCode.Equals("src") && header.version == 3) {
+                writer.WriteByte(Convert.ToByte(header.includesSourceInputTime));
             }
 
             // sample rate
@@ -100,7 +111,7 @@ namespace Palmtree.Core.DataIO {
             writer.Write(numPlaybackInputStreamsBinary, 0, numPlaybackInputStreamsBinary.Length);
 
             // # streams + streams details (V2)
-            if (header.version == 2) {
+            if (header.version == 2 || header.version == 3) {
                 byte[] numStreamsBinary = BitConverter.GetBytes(header.numStreams);
                 writer.Write(numStreamsBinary, 0, numStreamsBinary.Length);
                 for (int i = 0; i < header.numStreams; i++) {

@@ -36,90 +36,93 @@ namespace Palmtree.Core.DataIO {
     public static class Data {
 
         private const string CLASS_NAME                         = "Data";
-        private const int CLASS_VERSION                         = 3;
+        private const int CLASS_VERSION                         = 4;
 
-        private const string RUN_SUFFIX                         = "Run_";                       // suffix used to append to created files
-        private const int MAX_EVENT_LOGLEVELS                   = 3;                            // maximal event log level that is available
+        private const string RUN_SUFFIX                         = "Run_";                           // suffix used to append to created files
+        private const int MAX_EVENT_LOGLEVELS                   = 3;                                // maximal event log level that is available
 
         private static Logger logger                            = LogManager.GetLogger("Data");
         private static Parameters parameters = ParameterManager.GetParameters("Data", Parameters.ParamSetTypes.Data);
-        private static Random rand = new Random(Guid.NewGuid().GetHashCode());                  // setup a random number generator
-        private static double ticksPerMillisecond = Stopwatch.Frequency / 1000.0;               // calculate and set the ticks-per-millisecond (to be used later)
-        private static bool running                             = false;                        // flag whether the data class is running (logging/recording)
-        private static bool mCensorLogging                      = false;                        // flag whether the logging should be censored (zeros should be written instead)
+        private static Random rand = new Random(Guid.NewGuid().GetHashCode());                      // setup a random number generator
+        private static double ticksPerMillisecond = Stopwatch.Frequency / 1000.0;                   // calculate and set the ticks-per-millisecond (to be used later)
+        private static bool running                             = false;                            // flag whether the data class is running (logging/recording)
+        //private static bool censorLogging                       = false;                            // whether logging should be censored, meaning zeros should be written instead of values
 
-        private static string dataDir                           = "";                           // location of data directory
-        private static string sessionDir                        = null;                         // contains full path of directory all files of one sesison are written to
-        private static string identifier                        = "";                           // file identifier, prefix in filename
-        private static string fileName                          = "";                           // file name base, used as basis for all files created during life cycle of program    
-        private static bool subDirPerRun                        = false;                        // whether or not a sub-directory must be made in the session directory to hold the generated files per run
-        private static int run                                  = 0;                            // contains number of the current run
-        private static long runStartEpoch                       = 0;                            // the epoch in milliseconds at the start of the run
-        private static Stopwatch runStopWatch                   = new Stopwatch();              // creates stopwatch to measure the elapsed time since the start of the run
+        private static string dataDir                           = "";                               // location of data directory
+        private static string sessionDir                        = null;                             // contains full path of directory all files of one sesison are written to
+        private static string identifier                        = "";                               // file identifier, prefix in filename
+        private static string fileName                          = "";                               // file name base, used as basis for all files created during life cycle of program    
+        private static int run                                  = 0;                                // contains number of the current run
+        private static long runStartEpoch                       = 0;                                // the epoch in milliseconds at the start of the run
+        private static Stopwatch runStopWatch                   = new Stopwatch();                  // creates stopwatch to measure the elapsed time since the start of the run
 
         // event logging
-        private static bool mLogEvents                          = false;                 		// 
-        private static int[] mEventLoggingLevels                = new int[0];
-        private static List<FileStream> eventStreams            = new List<FileStream>(0);      // list of filestreams, one for each registered event level. Each filestream is fed to the binarywriter, containing the stream of events to be written to the .evt file
-        private static List<StreamWriter> eventStreamWriters    = new List<StreamWriter>(0);    // list of writers, each writes events of specific log level to the .evt file
+        private static bool mLogEvents                          = false;                 		    // (configuration parameter) whether to globally log events
+        private static int[] mEventLoggingLevels                = new int[0];                       // (configuration parameter) which event levels to log
+        private static List<FileStream> eventStreams            = new List<FileStream>(0);          // list of filestreams, one for each registered event level. Each filestream is fed to the binarywriter, containing the stream of events to be written to the .evt file
+        private static List<StreamWriter> eventStreamWriters    = new List<StreamWriter>(0);        // list of writers, each writes events of specific log level to the .evt file
 
         // source streams
-        private static bool mLogSourceInput                     = false;            			// source input logging enabled/disabled (by configuration parameter)
-        private static int numSourceInputStreams                = 0;                            // the number of streams coming from the source input
-        private static List<string> registeredSourceInputStreamNames = new List<string>(0);     // the names of the registered source input streams to store in the .src file
+        private static bool mLogSourceInput                     = false;            			    // (configuration parameter) whether to log the source input
+        private static int numSourceInputStreams                = 0;                                // the number of streams coming from the source input
+        private static List<string> registeredSourceInputStreamNames = new List<string>(0);                 // the names of the registered source input streams to store in the .src file
         private static List<StreamFormat> registeredSourceInputStreamFormat = new List<StreamFormat>(0);   // the formats of the registered source input streams to store in the .src file
-        private static FileStream sourceStream                  = null;                         // filestream to write values to the src file
-        private static uint sourceSamplePackageCounter          = 0;                            // the sample-package number that is being written to the .src file (acts as id)
-        private static double sourceRunElapsedTime              = 0;                            // amount of time [ms] elapsed since the start of the run
+        private static FileStream sourceStream                  = null;                             // filestream to write values to the src file
+        private static uint sourceSamplePackageCounter          = 0;                                // the sample-package number that is being written to the .src file (acts as id)
+        private static double sourceRunElapsedTime              = 0;                                // amount of time [ms] elapsed since the start of the run
+        private static bool includeSourceInputTime              = false;                            // flag whether the source module will pass an input-time that needs to be included in the source-data file
+        private static double sourceInputTime                   = 0;                                // timestamp passed by the input module that belongs to the package
+        
 
         // pipeline input streams
-        private static bool mLogPipelineInputStreams            = false;            			// stream logging for pipeline input enabled/disabled (by configuration parameter)
-        private static int numPipelineInputStreams              = 0;                            // amount of pipeline input streams
-        private static double pipelineSampleRate                = 0;                            // the sample rate of the pipeline (in Hz)
-
-        // filters and application streams
-        private static bool mLogFiltersAndApplicationStreams    = false;            			// stream logging for filters and application modules enabled/disabled (by configuration parameter)
-        private static bool bufferPipelineValues                = false;            			// whether or not to buffer the incoming pipeline values  (by configuration parameter)
-
+        private static bool mLogPipelineInputStreams            = false;            			    // (configuration parameter) whether to log the pipeline input
+        private static int numPipelineInputStreams              = 0;                                // amount of pipeline input streams
+        private static double pipelineSampleRate                = 0;                                // the sample rate of the pipeline (in Hz)
+        private static bool mLogFiltersAndApplicationStreams    = false;            			    // (configuration parameter) whether to log filters and application modules their data streams in general
+        private static bool mBufferPipelineData                 = false;          			        // (configuration parameter) whether to buffer the pipeline values
 
         // data streams (includes pipeline input, filter and application streams)
-        private static int numDataStreams                       = 0;                            // the total number of data streams to be logged in the .dat file
-        private static List<string> registeredDataStreamNames   = new List<string>(0);          // the names of the registered streams to store in the .dat file
-        private static List<StreamFormat> registeredDataStreamFormats = new List<StreamFormat>(0); // the formats of the registered streams to store in the .dat file
+        private static int numDataStreams                       = 0;                                // the total number of data streams to be logged in the .dat file
+        private static List<string> registeredDataStreamNames   = new List<string>(0);              // the names of the registered streams to store in the .dat file
+        private static List<StreamFormat> registeredDataStreamFormats = new List<StreamFormat>(0);  // the formats of the registered streams to store in the .dat file
 
-        private static FileStream dataStream                    = null;                         // filestream that writes values to the .dat file
-        private static uint dataSamplePackageCounter            = 0;                            // the sample-package number that is to be written to the .dat file (acts as id)
-        private static int dataStreamIndex                      = 0;                            // the index of the stream of which we are currently expecting samples
-        private static int pipelineExpectedSamplesPerTrip       = 0;                            // the total number of pipeline samples that is expected in one roundtrip
-        private static int pipelineMaxSamplesStream             = 0;                            // the highest number of samples that any data stream in the pipeline would want to log
-        private static int dataStreamsSampleCounter             = 0;                            // the total number of samples logged in the current pipeline tri
-        private static double dataRunElapsedTime                = 0;                            // amount of time [ms] elapsed since the start of the run
+        private static FileStream dataStream                    = null;                             // filestream that writes values to the .dat file
+        private static uint dataSamplePackageCounter            = 0;                                // the sample-package number that is to be written to the .dat file (acts as id)
+        private static int dataStreamIndex                      = 0;                                // the index of the stream of which we are currently expecting samples
+
+        private static int pipelineBufferSampleMargin           = 2;                                // the factor which which the data buffer is enlarged to accomodate fluctuations in the samples-per-package
+        private static int pipelineExpectedSamplesPerTrip       = 0;                                // total number of pipeline samples that is expected in one roundtrip
+        private static int pipelineSamplesPerTripLimit          = 0;                                // the limit to the number of pipeline samples that is expected in one roundtrip (the #expected * pipelineBufferSampleMargin)
+        private static int pipelineMaxSamplesStream             = 0;                                // the highest number of samples that any data stream in the pipeline would want to log
+        private static double dataRunElapsedTime                = 0;                                // amount of time [ms] elapsed since the start of the run
         
-        private static bool useDataStreamBuffer                 = false;                        // whether or not to use the data stream buffer     (buffer is only used if all streams log only one sample, or if pipeline buffering is set to enabled in the configuration)
-        private static byte[] dataStreamBuffer                  = null;                         // buffer to hold the package headers and the values as bytes(!) of all data streams that are registered to be logged   (only used with data buffering - useDataStreamBuffer)
-        private static int dataStreamBufferIndex                = 0;                            // the index of where to continue writing in the datastream buffer   (only used with data buffering - useDataStreamBuffer)
+        private static bool useDataStreamBuffer                 = false;                            // whether or not to use the data stream buffer (buffer is only used if all streams log only one sample, or if pipeline buffering is set to enabled in the configuration, so the mBufferPipelineData variable)
+        private static int dataStreamBufferSize                 = 0;                                // the size of dataStream buffer (based on the total number of pipeline samples that are expected in one roundtrip * pipelineBufferSampleMargin, to account for variation in samples)
+        private static byte[] dataStreamBuffer                  = null;                             // buffer to hold the package headers and the values as bytes(!) of all data streams that are registered to be logged   (only used with data buffering - useDataStreamBuffer)
+        private static int dataStreamBufferIndex                = 0;                                // the index of where to continue writing in the datastream buffer (only used with data buffering - useDataStreamBuffer)
+        private static int dataStreamsSampleCounter             = 0;                                // the total number of samples logged in the current pipeline trip
+        private static bool dataStreamBufferError               = false;                            // tracks whether an (integrity or overflow) error has occurred during a pipeline trip, used to flag whether to discard a data-chunk (the buffer content of one round-trip)
 
         // plugin streams
-        private static bool mLogPluginInput = false;            								// plugin input logging enabled/disabled (by configuration parameter)
-        private static int numPlugins = 0;                                                      // stores the amount of registered plugins
-        private static List<string> registeredPluginNames       = new List<string>(0);          // stores the names of the registered plugins
-        private static List<string> registeredPluginExtensions  = new List<string>(0);          // stores the extensions of the registered plugins
-        private static List<double> registeredPluginSampleRate  = new List<double>(0);          // stores the sample-rate of the registered plugins
+        private static bool mLogPluginInput = false;            								    // (configuration parameter) whether to log plugin input 
+        private static int numPlugins = 0;                                                          // stores the amount of registered plugins
+        private static List<string> registeredPluginNames       = new List<string>(0);              // stores the names of the registered plugins
+        private static List<string> registeredPluginExtensions  = new List<string>(0);              // stores the extensions of the registered plugins
+        private static List<double> registeredPluginSampleRate  = new List<double>(0);              // stores the sample-rate of the registered plugins
         private static List<List<string>> registeredPluginInputStreamNames = new List<List<string>>(0);                     // for each plugin, the names of the registered plugin input streams to store in the plugin data log file
         private static List<List<StreamFormat>> registeredPluginInputStreamFormats = new List<List<StreamFormat>>(0);       // for each plugin, the formats of the registered plugin input streams to store in the plugin data log file
-        private static List<int> numPluginInputStreams          = new List<int>(0);             // for each plugin, the number of streams that will be logged
+        private static List<int> numPluginInputStreams          = new List<int>(0);                 // for each plugin, the number of streams that will be logged
 
-        private static List<double[]> pluginDataValues          = new List<double[]>(0);        // list of two dimensional arrays to hold plugin data as it comes in 
-        private static int bufferSize                           = 10000;                        // TEMP size of buffer, ie amount of datavalues stored for each plugin before the buffer is flushed to the data file at sampleProcessingEnd
-        private static List<int> bufferPointers                 = new List<int>(0);
-
-        private static List<FileStream> pluginStreams           = new List<FileStream>(0);      // list of filestreams, one for each plugin, to be able to write to different files with different frequencies. Each filestream is fed to a binarywriter, containing the stream of values to be written to the plugin log file
+        private static List<double[]> pluginDataValues          = new List<double[]>(0);            // list of two dimensional arrays to hold plugin data as it comes in 
+        private static int pluginBufferSize                     = 10000;                            // TEMP size (in bytes) of plugin data buffer, ie amount of datavalues stored for each plugin before the buffer is flushed to the data file at sampleProcessingEnd
+        private static List<int> pluginBufferPointers           = new List<int>(0);
+        private static List<FileStream> pluginStreams           = new List<FileStream>(0);          // list of filestreams, one for each plugin, to be able to write to different files with different frequencies. Each filestream is fed to a binarywriter, containing the stream of values to be written to the plugin log file
 
         // visualization
-        private static bool mEnableDataVisualization            = false;                        // data visualization enabled/disabled
-        private static int numVisualizationStreams              = 0;                            // the total number of streams to visualize
-        private static List<string> registeredVisualizationStreamNames = new List<string>(0);   // the names of the registered streams to visualize
-        private static List<int> registeredVisualizationStreamTypes = new List<int>(0);         // the types of the registered streams to visualize
+        private static bool mEnableDataVisualization            = false;                            // data visualization enabled/disabled
+        private static int numVisualizationStreams              = 0;                                // the total number of streams to visualize
+        private static List<string> registeredVisualizationStreamNames = new List<string>(0);       // the names of the registered streams to visualize
+        private static List<int> registeredVisualizationStreamTypes = new List<int>(0);             // the types of the registered streams to visualize
         private static double[] visualizationStreamValues       = null;
         private static int visualizationStreamValueCounter      = 0;
 
@@ -136,30 +139,35 @@ namespace Palmtree.Core.DataIO {
 
 
         public static void construct() {
-
+            
+            /*
             parameters.addParameter<bool>(
                 "EnableDataVisualization",
                 "Enable/disable the visualization of data.\nNote: Only turn this is off for performance benefits",
                 "1");
+            */
 
             parameters.addParameter<string>(
                 "DataDirectory",
                 "Path to the directory to store the data in.\nThe path can be absolute (e.g. 'c:\\data\\') or relative (to the program executable, e.g. 'data\\').",
                 "", "", "data\\");
 
-            parameters.addParameter<bool>(
-                "SubDirectoryPerRun",
-                "Store all files generated during each run in a seperate sub-directory within the data directory.",
-                "1");
-
             parameters.addParameter<string>(
                 "Identifier",
                 "A textual identifier.\nThe ID will be incorporated into the filename of the data files.",
                 "", "", "test");
+            
+
+            //
+            //
+            //
+            parameters.addHeader("Source, filters and application");
 
             parameters.addParameter<bool>(
                 "LogSourceInput",
-                "Enable/disable source input logging.\n\nNote: when there is no source input (for example when the source is a signal generator) then no source input data file will be created nor will there be any logging of source input",
+                "Enable/disable source input logging.\n\n" +
+                    "Note: when there is no source input (e.g. when the source is a signal generator) then\n" +
+                    "no source data file (.src) will be created",
                 "1");
 
             /*
@@ -168,22 +176,21 @@ namespace Palmtree.Core.DataIO {
                 "The maximum filesize for a source input data file.\nIf the data file exceeds this maximum, the data logging will continue in a sequentally numbered file with the same name.\n(set to 0 for no maximum)",
                 "0");
             */
-
+            
             parameters.addParameter<bool>(
                 "LogPipelineInputStreams",
-                "Enable/disable pipeline input stream logging.\n\nNote: The pipeline input streams need to be logged in order to playback the .dat file.",
+                "Enable/disable the logging of the data streams at the start of the pipeline\n\n" +
+                    "Note: This needs to be enabled to playback a .dat file later",
                 "1");
 
             parameters.addParameter<bool>(
                 "LogFiltersAndApplicationStreams",
-                "Enable/disable filters and application data stream logging.\nThis option will enable or disable the logging of data streams for the filters and application modules.\nEnabling or disabling data stream for a specific filter or application module has to be done in the module's settings\n\nNote: whether the streams that are being logged have values or zeros is dependent on the runtime configuration of the modules. It is possible\nthat the user, though an application module user-interface, sets certain streams to be (values) or not be (zeros) logged.",
+                "Globally enable/disable the logging of data streams between the filter modules and/or the application module.\n" +
+                    "Each filter or application module offers it's specific log options in their own respective configuration tab\n\n" +
+                    "Note: whether the streams that are being logged have values or zeros dependens on the runtime configuration of the modules.\n" +
+                    "It is possible that the user, though an application module user-interface, sets certain streams to be (values) or not be (zeros) logged.",
                 "1");
-
-            parameters.addParameter<bool>(
-                "BufferPipelineValues",
-                "Whether or not to buffer the incoming pipeline values before writing.\nDisabling this options will result in more frequent (i.e. more spread out) disk write calls.\nBy enabling this option, all the pipeline values that need to be logged are\nbuffered with only a single write call at the end of the pipeline.\nIf all streams pass just a single sample (e.g. the number of samples per packages is 1), then the pipeline values are buffered by default.",
-                "1");
-
+            
             /*
             parameters.addParameter<int>(
                 "SampleStreamMaxFilesize",
@@ -192,18 +199,38 @@ namespace Palmtree.Core.DataIO {
             */
 
             parameters.addParameter<bool>(
+                "BufferPipelineData",
+                "Whether to buffer the pipeline data streams in memory before writing them to file.\n\n" +
+                    "- Disabling this option will result in more frequent disk write calls with relatively small amounts of data.\n" +
+                    "- Enabling this option will have all pipeline data streams buffered and only written to file at\n" +
+                    "   the end of the pipeline, resulting in less frequent disk write calls but with relatively large amounts of data.\n\n" +
+                    "Note: If all streams pass just a single sample (e.g. the number of samples per packages is 1), then the pipeline buffering is enabled by default.",
+                "1");
+
+
+            //
+            //
+            //
+            parameters.addHeader("Events");
+
+            parameters.addParameter<bool>(
                 "LogEvents",
-                "Enable/disable event logging.",
+                "Globally enable/disable the logging of events",
                 "1");
 
             parameters.addParameter<int[]>(
                 "EventLoggingLevels",
                 "Indicate which levels of event logging are allowed.\n(leave empty to log all levels)\n\nNote: whether events are logged or not is also dependent on the runtime configuration of the modules. It is possible\nthat the user, though an application module user-interface, sets certain events to be or not be logged.",
                 "0,1,2");
+            //
+            //
+            //
+            parameters.addHeader("Plugins");
 
             parameters.addParameter<bool>(
                 "LogPluginInput",
-                "Enable/disable plugin input logging.\n\nNote: when there is no plugin input then no plugin data file will be created nor will there be any logging of plugin input",
+                "Globally enable/disable the logging of plugin input data.\n\n" +
+                    "Note: when there is no plugin input then no plugin data file will be created nor will there be any logging of plugin input",
                 "1");
 
         }
@@ -228,6 +255,9 @@ namespace Palmtree.Core.DataIO {
             registeredSourceInputStreamNames.Clear();
             registeredSourceInputStreamFormat.Clear();
             numSourceInputStreams = 0;
+        
+            // clear the include source input time registration
+            includeSourceInputTime = false;
 
             // clear the registered data streams
             registeredDataStreamNames.Clear();
@@ -250,14 +280,14 @@ namespace Palmtree.Core.DataIO {
             numPluginInputStreams.Clear();
 
             // check and transfer visualization parameter settings
-            mEnableDataVisualization            = parameters.getValue<bool>("EnableDataVisualization");
+            //mEnableDataVisualization            = parameters.getValue<bool>("EnableDataVisualization");
             Globals.setValue<bool>("EnableDataVisualization", mEnableDataVisualization ? "1" : "0");
 
             // check and transfer file parameter settings
             mLogSourceInput                     = parameters.getValue<bool>("LogSourceInput");
             mLogPipelineInputStreams            = parameters.getValue<bool>("LogPipelineInputStreams");
             mLogFiltersAndApplicationStreams    = parameters.getValue<bool>("LogFiltersAndApplicationStreams");
-            bufferPipelineValues                = parameters.getValue<bool>("BufferPipelineValues");
+            mBufferPipelineData                 = parameters.getValue<bool>("BufferPipelineData");
             mLogEvents                          = parameters.getValue<bool>("LogEvents");
             mEventLoggingLevels                 = parameters.getValue<int[]>("EventLoggingLevels");
             mLogPluginInput                     = parameters.getValue<bool>("LogPluginInput");
@@ -279,10 +309,6 @@ namespace Palmtree.Core.DataIO {
                 logger.Warn("The logging of pipeline input streams is disabled, the resulting .dat file cannot be used for playback");
 
             }
-
-            //
-            subDirPerRun                        = parameters.getValue<bool>("SubDirectoryPerRun");
-
 
             // if there is data to store, create data (sub-)directory
             if (mLogSourceInput || mLogPipelineInputStreams || mLogFiltersAndApplicationStreams || mLogEvents || mLogPluginInput) {
@@ -342,7 +368,7 @@ namespace Palmtree.Core.DataIO {
             numSourceInputStreams++;
             
             // message
-            logger.Debug("Registered source input stream '" + streamName + "'.");
+            //logger.Debug("Registered source input stream '" + streamName + "'.");
 
         }
 
@@ -352,6 +378,12 @@ namespace Palmtree.Core.DataIO {
 
         public static string[] getSourceInputStreamNames() {
             return registeredSourceInputStreamNames.ToArray();
+        }
+
+        // register whether source input time will be passed by the source module and whether
+        // it should be included in the source-data file
+        public static void registerSourceInputTime(bool include) {    
+            includeSourceInputTime = include;
         }
         
         // register the pipeline input based on the output format of the source
@@ -416,7 +448,7 @@ namespace Palmtree.Core.DataIO {
             numDataStreams++;
 
             // message
-            logger.Debug("Registered data stream '" + streamName + "', expecting " + numSamples + " per logging call.");
+            //logger.Debug("Registered data stream '" + streamName + "', expecting " + numSamples + " per logging call.");
 
         }
 
@@ -500,15 +532,15 @@ namespace Palmtree.Core.DataIO {
 
             // create array to hold incoming data and set pointer in buffer to initital value
             // TODO: set size depending on difference in output frequency of plugin and source, now set to 10000 to be on the safe side
-            double[] pluginData = new double[bufferSize];
+            double[] pluginData = new double[pluginBufferSize];
             pluginDataValues.Add(pluginData);
-            bufferPointers.Add(0);
+            pluginBufferPointers.Add(0);
 
             // add one to the total number of registered plugins
             numPlugins++;
 
             // message
-            logger.Debug("Registered " + streamNames.Length + " streams for plugin " + pluginName + " with id " + pluginId + " and extension " + pluginExt);
+            //logger.Debug("Registered " + streamNames.Length + " streams for plugin " + pluginName + " with id " + pluginId + " and extension " + pluginExt);
 
             // return assigned id to plugin, so plugin can use this to uniquely identify the data sent to this class
             return pluginId;
@@ -522,7 +554,7 @@ namespace Palmtree.Core.DataIO {
             return registeredPluginInputStreamNames[pluginId].Count;
         }
 
-        // TODO: use parameterobject instead of paramterset (and name?)
+        // TODO: use parameterobject instead of parameterset (and name?)
         public static bool adjustXML(string parameterSet, string parameterName, string value) {
 
             // check if required input is given
@@ -615,6 +647,9 @@ namespace Palmtree.Core.DataIO {
                             sourceSamplePackageCounter = 0;
                             dataSamplePackageCounter = 0;
 
+                            // (re)set the source input time
+                            sourceInputTime = 0;
+
                             // create parameter file and save current parameters
                             Dictionary<string, Parameters> localParamSets = ParameterManager.getParameterSetsClone();
                             ParameterManager.saveParameterFile(Path.Combine(sessionDir, fileName + ".prm"), localParamSets);
@@ -687,15 +722,16 @@ namespace Palmtree.Core.DataIO {
                                 }
 
                                 // create header
-                                DataHeader header           = new DataHeader();
-                                header.version              = 2;
-                                header.code                 = "src";
-                                header.runStartEpoch        = runStartEpoch;
-                                header.fileStartEpoch       = runStartEpoch;
-                                header.sampleRate           = MainThread.getSource().getInputSamplesPerSecond();
-                                header.numPlaybackStreams   = numSourceInputStreams;
-                                header.numStreams           = numSourceInputStreams;
-                                header.columnNames          = registeredSourceInputStreamNames.ToArray();
+                                DataHeader header               = new DataHeader();
+                                header.version                  = 3;
+                                header.code                     = "src";
+                                header.includesSourceInputTime  = includeSourceInputTime;
+                                header.runStartEpoch            = runStartEpoch;
+                                header.fileStartEpoch           = runStartEpoch;
+                                header.sampleRate               = MainThread.getSource().getInputSamplesPerSecond();
+                                header.numPlaybackStreams       = numSourceInputStreams;
+                                header.numStreams               = numSourceInputStreams;
+                                header.columnNames              = registeredSourceInputStreamNames.ToArray();
                                 for (int i = 0; i < numSourceInputStreams; i++) {
 
                                     // currently not used, but set to 0 = double
@@ -736,7 +772,7 @@ namespace Palmtree.Core.DataIO {
 
                                 // create header
                                 DataHeader header           = new DataHeader();
-                                header.version              = 2;
+                                header.version              = 3;
                                 header.code                 = "dat";
                                 header.runStartEpoch        = runStartEpoch;
                                 header.fileStartEpoch       = runStartEpoch;
@@ -758,9 +794,8 @@ namespace Palmtree.Core.DataIO {
                                 if (dataStream != null)
                                     DataWriter.writeBinaryHeader(dataStream, header);
 
-
-                                // determine the expected samples per pipeline-trip and the maximum number of
-                                // samples that any stream is expected to log (this is used to initialize a buffer if needed)
+                                // determine the expected samples per pipeline-trip and
+                                // the maximum number of samples that any stream is expected to log
                                 pipelineExpectedSamplesPerTrip = 0;
                                 pipelineMaxSamplesStream = 0;
                                 for (int i = 0; i < numDataStreams; i++) {
@@ -768,33 +803,37 @@ namespace Palmtree.Core.DataIO {
                                     if (registeredDataStreamFormats[i].numSamples > pipelineMaxSamplesStream)
                                         pipelineMaxSamplesStream = registeredDataStreamFormats[i].numSamples;
                                 }
+
+                                // set the limit to the number of samples to the #expected samples per trip times the safety margin factor 
+                                pipelineSamplesPerTripLimit = pipelineExpectedSamplesPerTrip * pipelineBufferSampleMargin;
                                 
                                 // determine whether to use a data stream buffer (either if all streams log only one sample, or if pipeline buffering is set to enabled)
-                                useDataStreamBuffer = pipelineMaxSamplesStream == 1 || useDataStreamBuffer;
+                                useDataStreamBuffer = pipelineMaxSamplesStream == 1 || mBufferPipelineData;
 
                                 // initialize the data stream buffer (if needed)
                                 if (useDataStreamBuffer) {
 
                                     // determine the pipeline buffer size
                                     // for every pipeline-trip of a package the sample-package ID (ulong) + elapsed (double) will be stored
-                                    int pipelineSize = sizeof(ulong) + sizeof(double);
+                                    dataStreamBufferSize = sizeof(ulong) + sizeof(double);
                                     if (pipelineMaxSamplesStream == 1) {
                                         // each of the streams expects just one single sample
                                     
                                         // include size for the exact number of streams (doubles)
-                                        pipelineSize += numDataStreams * sizeof(double);
+                                        dataStreamBufferSize += numDataStreams * sizeof(double);
 
                                     } else {
                                         // if buffered (by config) with multiple samples per stream
 
-                                        // as the required size assume the maximum, that every stream will be logged seperately with the maximum number of samples per pipeline-trip
-                                        // include size for the number of pipeline streams (double) * (#streams (ushort) + #samples (ushort) + maxSamples (doubles))
-                                        pipelineSize += numDataStreams * (sizeof(ushort) + sizeof(ushort) + (pipelineMaxSamplesStream * sizeof(double)));
-
+                                        // determine the size of the buffer that should be able to hold all of pipeline data stream
+                                        // - to be safe, assume that every stream will be logged seperately with the maximum number of samples per pipeline-trip
+                                        // - make the buffer able to hold the number of maximum samples times a margin-factor (pipelineBufferSampleMargin) to account for variations in samples-per-package
+                                        dataStreamBufferSize += numDataStreams * (sizeof(ushort) + sizeof(ushort) + (pipelineMaxSamplesStream * pipelineBufferSampleMargin * sizeof(double)));
+                                        
                                     }
 
                                     // initialize the data stream array (in bytes)
-                                    dataStreamBuffer = new byte[pipelineSize];
+                                    dataStreamBuffer = new byte[dataStreamBufferSize];
 
                                 }
 
@@ -982,6 +1021,7 @@ namespace Palmtree.Core.DataIO {
                     // reset the sample counter and the buffer write cursor
                     dataStreamBufferIndex = 0;
                     dataStreamsSampleCounter = 0;
+                    dataStreamBufferError = false;
 
                     // store the milliseconds past since the start of the run
                     dataRunElapsedTime = runStopWatch.ElapsedTicks / ticksPerMillisecond;
@@ -1028,6 +1068,12 @@ namespace Palmtree.Core.DataIO {
                 
                 // check if data logging is enabled
                 if (mLogPipelineInputStreams || mLogFiltersAndApplicationStreams) {
+
+                    // check if an (integrity or overflow) error has occurred
+                    // on error, then not all values have stored and we will discard a data-chunk (the buffer content on this round-trip), so
+                    //           that the data file does not become contaminated with partial data or corrupted
+                    if (dataStreamBufferError)
+                        return;
                     
                     // integrity check of collected data stream values: if the pointer is not exactly at
                     // end of array, not all streams have been delivered or stored
@@ -1035,57 +1081,10 @@ namespace Palmtree.Core.DataIO {
                         logger.Error("A different number of data streams have been delivered this pipeline-trip (" + dataStreamIndex + ") than expected/registered (" + numDataStreams + "), unreliable .dat file, check code");
                         return;
                     }
-                    
-                    // integrity check of collected data values: if the sample counter is not exactly the same as
-                    // the expected number of samples per trip, then not all values have been delivered or stored
-                    if (dataStreamsSampleCounter != pipelineExpectedSamplesPerTrip) {
-                        logger.Error("A different total of sample-values have been delived this pipeline-trip (" + dataStreamsSampleCounter + ") than expected (" + pipelineExpectedSamplesPerTrip + "), unreliable .dat file, check code");
-                        return;
-                    }
-                    
+
                     // write the data in the buffer
                     if (useDataStreamBuffer && dataStream != null)
                         dataStream.Write(dataStreamBuffer, 0, dataStreamBufferIndex);
-
-                    /*
-                    // V1
-
-                    // integrity check of collected data stream values: if the pointer is not exactly at end of array, not all values have been
-                    // delivered or stored, else transform to bytes and write to file
-                    if (dataStreamIndex != numDataStreams) {
-
-                        // message
-                        logger.Error("Less data values have been logged (" + dataStreamIndex + ") than expected/registered (" + numDataStreams + ") for logging, unreliable .dat file, check code");
-
-                    } else {
-
-                        // transform variables that will be stored in .dat to binary arrays (except for dataStreamBuffer array which is copied directly)
-                        byte[] dataSampleCounterBinary = BitConverter.GetBytes(dataSampleCounter);
-                        byte[] dataElapsedTimeBinary = BitConverter.GetBytes(dataRunElapsedTime);
-
-                        // create new array to hold all bytes
-                        int l1 = dataSampleCounterBinary.Length;
-                        int l2 = dataElapsedTimeBinary.Length;
-                        int l3 = dataStreamBuffer.Length * sizeof(double);
-                        byte[] streamOut = new byte[l1 + l2 + l3];
-
-                        // blockcopy all bytes to this array
-                        Buffer.BlockCopy(dataSampleCounterBinary, 0, streamOut, 0, l1);
-                        Buffer.BlockCopy(dataElapsedTimeBinary, 0, streamOut, l1, l2);
-                        Buffer.BlockCopy(dataStreamBuffer, 0, streamOut, l1 + l2, l3);
-
-                        // write data to file
-                        if (dataStream != null) {
-                            dataStream.Write(streamOut, 0, streamOut.Length);
-                        }
-
-                    }
-
-                    // clear the array to 0
-                    for (int i = 0; i < dataStreamBuffer.Length; i++) {
-                        dataStreamBuffer[i] = 0;
-                    }
-                    */
 
                 }
 
@@ -1122,11 +1121,16 @@ namespace Palmtree.Core.DataIO {
             */
 
         }
-        
+
         /**
          * Log raw source input values and push them to be written to the source input file (.src) 
          * 
          **/
+        //
+        public static void logSourceInputValues(double[] values, double time) {
+            sourceInputTime = time;
+            logSourceInputValues(values);
+        }
         public static void logSourceInputValues(double[] values) {
             int totalNumValues = values.Length;
 
@@ -1136,6 +1140,11 @@ namespace Palmtree.Core.DataIO {
                 // check if source logging is enabled
                 if (mLogSourceInput) {
                     
+                    if (numSourceInputStreams == 0) {
+                        logger.Error("No source input stream(s) expected, make sure the source input stream(s) are registered.");
+                        return;
+                    }
+
                     // integrity check, the incoming number of samples should be at least a multiple of the number of expected streams
                     if (totalNumValues % numSourceInputStreams != 0) {
                         logger.Error("Deviant amount of source samples arrived to be logged: " + totalNumValues + " samples. This number is not a multiple of the number of expected/registered source input streams (" + numSourceInputStreams + "), unreliable .src file, check code.");
@@ -1143,7 +1152,7 @@ namespace Palmtree.Core.DataIO {
                     }
 
                     // if censorship should be applied, then create an array with zeros instead of values (do not change the size of the input)
-                    if (mCensorLogging)     values = new double[totalNumValues];
+                    //if (censorLogging)     values = new double[totalNumValues];
 
                     // get the time since the start of the run
                     sourceRunElapsedTime = runStopWatch.ElapsedTicks / ticksPerMillisecond;
@@ -1162,6 +1171,10 @@ namespace Palmtree.Core.DataIO {
                         // package start
                         sourceStream.Write(bSourceSamplePackageCounter, 0, bSourceSamplePackageCounter.Length);
                         sourceStream.Write(bSourceElapsedTime, 0, bSourceElapsedTime.Length);
+                        if (includeSourceInputTime) {
+                            byte[] bSourceInputTime = BitConverter.GetBytes(sourceInputTime);
+                            sourceStream.Write(bSourceInputTime, 0, bSourceInputTime.Length);
+                        }
                         sourceStream.Write(bSourceNumSamples, 0, bSourceNumSamples.Length);
 
                         // package data
@@ -1170,63 +1183,6 @@ namespace Palmtree.Core.DataIO {
                         sourceStream.Write(streamOut, 0, streamOut.Length);
 
                     }
-
-                    /*
-                    // old V1 data format
-
-                    // calculate the length in number of bytes for various counters
-                    lenSrcSmplCountBin          = BitConverter.GetBytes(sourceSamplePackageCounter).Length;
-                    lenSrcElapsedBin            = BitConverter.GetBytes(sourceRunElapsedTime).Length;
-                    lenSrcInSteamsBin           = numSourceInputStreams * sizeof(double);
-                    lenSrcSampleBin             = lenSrcSmplCountBin + lenSrcElapsedBin + lenSrcInSteamsBin;
-
-                    // create new array to hold the bytes for all of the incoming data
-                    byte[] streamOut = null;
-
-                    // check how many samples
-                    if (totalNumValues > numSourceInputStreams) {
-                        // multiple samples
-                            
-                        // initialize the array to be big enough for the multiple samples
-                        streamOut = new byte[lenSrcSampleBin * (totalNumValues / numSourceInputStreams)];
-
-                        // calculate the total number of bytes for all the incoming values
-                        int lenTotalValuesBin = totalNumValues * sizeof(double);
-
-                        // loop over the input values/samples (in steps of bytes of the total of the input-streams)
-                        int inputArrayIndex = 0;
-                        int outputArrayIndex = 0;
-                        while (inputArrayIndex != lenTotalValuesBin) {
-
-                            // copy all parts (counter, elapsed and sample-values) to the larger output array
-                            // and increase the byte-index for the output array with each part
-                            Buffer.BlockCopy(bSourceSamplePackageCounter, 0, streamOut, outputArrayIndex, lenSrcSmplCountBin);
-                            outputArrayIndex += lenSrcSmplCountBin;
-                            Buffer.BlockCopy(bSourceElapsedTime, 0, streamOut, outputArrayIndex, lenSrcElapsedBin);
-                            outputArrayIndex += lenSrcElapsedBin;
-                            Buffer.BlockCopy(sourceStreamValues, inputArrayIndex, streamOut, outputArrayIndex, lenSrcInSteamsBin);
-                            outputArrayIndex += lenSrcInSteamsBin;
-
-                            // increase the byte-index for the input array (to the next sample)
-                            inputArrayIndex += lenSrcInSteamsBin;
-
-                        }
-
-                    } else {
-                        // single sample
-
-                        // blockcopy all bytes to this array
-                        streamOut = new byte[lenSrcSampleBin];
-                        Buffer.BlockCopy(bSourceSamplePackageCounter, 0, streamOut, 0, lenSrcSmplCountBin);
-                        Buffer.BlockCopy(bSourceElapsedTime, 0, streamOut, lenSrcSmplCountBin, lenSrcElapsedBin);
-                        Buffer.BlockCopy(sourceStreamValues, 0, streamOut, lenSrcSmplCountBin + lenSrcElapsedBin, lenSrcInSteamsBin);
-
-                    }
-
-                    // write source to file
-                    if (sourceStream != null)
-                        sourceStream.Write(streamOut, 0, streamOut.Length);
-                    */
 
                 }
                 
@@ -1251,6 +1207,10 @@ namespace Palmtree.Core.DataIO {
             }   // end lock
         }
 
+        public static void logSourceInputValues(short[] values, double time) {
+            sourceInputTime = time;
+            logSourceInputValues(values);
+        }
         public static void logSourceInputValues(short[] values) {
 
             // TODO: temp until we have a standard format, we might want to store as short
@@ -1263,6 +1223,10 @@ namespace Palmtree.Core.DataIO {
 
         }
 
+        public static void logSourceInputValues(ushort[] values, double time) {
+            sourceInputTime = time;
+            logSourceInputValues(values);
+        }
         public static void logSourceInputValues(ushort[] values) {
 
             // TODO: temp until we have a standard format, we might want to store as ushort
@@ -1310,49 +1274,33 @@ namespace Palmtree.Core.DataIO {
                     // integrity check, check if the number of streams to be logged is within the range of expected streams
                     if (dataStreamIndex + numStreams > numDataStreams) {
                         logger.Error("More data streams are being delivered than have been registered for logging, discarded, check code (currently logging at " + dataStreamIndex + ")");
+                        dataStreamBufferError = true;
                         return;
                     }
                     
                     // integrity check, the incoming number of samples should be at least a multiple of the number of expected streams
                     if (values.Length % numStreams != 0) {
                         logger.Error("Deviant amount of data samples arrived to be logged: " + values.Length + " samples. This number of samples is not a multiple of the number of streams indicated in the function call (" + numStreams + "), unreliable .dat file, check code.");
+                        dataStreamBufferError = true;
                         return;
-                    }
-
-                    // prevent partial stream logging
-                    if (numStreams == 1) {
-                        // if only one stream is logged
-                        
-                        // the input values should hold the same amount of sample-values that are expected for that stream
-                        if (values.Length < registeredDataStreamFormats[dataStreamIndex].numSamples) {
-                            logger.Error("Trying to log more samples (" + values.Length + ") than were announced/expected for the current data stream (" + dataStreamIndex + " - " + registeredDataStreamNames[dataStreamIndex] + "). When logging for a single data stream, make sure the amount of values that are passed are equal to the amount of values that are expected for that stream.");
-                            return;
-                        }
-
-                    } else {
-                        // if multiple streams are logged
-
-                        // TODO: extra integrity check, on multiple streams, check if the values exactly fill out the number of samples expected over the streams
-                        //       requires looping from the current stream, check might have a performance hit when having a lot of streams
-                        //       the total will be an integrity check on this as well (total should be equal to expected)
-
                     }
 
                     // calculate the number of samples
                     int numSamples = values.Length / numStreams;
 
-                    // integrity check, check whether the total number of samples to be logged does not exceed the total number of expected samples
-                    if (dataStreamsSampleCounter + numSamples > pipelineExpectedSamplesPerTrip) {
-                        logger.Error("The total number of incoming data samples exceed the total number of samples that are expected, discarded, check code (currently logging at " + dataStreamIndex + " - " + registeredDataStreamNames[dataStreamIndex] + ")");
-                        return;
-                    }
-
                     // if censorship should be applied to logging, log 0's
-                    if (mCensorLogging)     values = new double[values.Length];
+                    //if (censorLogging)     values = new double[values.Length];
                     
                     // write the samples (to either the buffer or disk)
                     if (useDataStreamBuffer) {
                         // to buffer
+
+                        // check whether the total number of samples to be logged does not exceed limit of expected samples 
+                        if (dataStreamsSampleCounter + values.Length > pipelineSamplesPerTripLimit) {
+                            logger.Error("The total number of incoming samples exceeds the limit of the number of expected samples, this roundtrip of data will be discarded. Check source module (currently logging at " + dataStreamIndex + " - " + registeredDataStreamNames[dataStreamIndex] + ")");
+                            dataStreamBufferError = true;
+                            return;
+                        }
 
                         if (pipelineMaxSamplesStream > 1) {
                             // with multiple samples per stream (with sample-chunk-header)
@@ -1397,7 +1345,7 @@ namespace Palmtree.Core.DataIO {
 
                     }
 
-                    // raise the stream index and count the total number of sample in the pipeline-trip
+                    // raise the stream index and count the total number of samples in the pipeline-trip
                     dataStreamIndex += numStreams;
                     dataStreamsSampleCounter += values.Length;
 
@@ -1482,13 +1430,13 @@ namespace Palmtree.Core.DataIO {
                 if (mLogPluginInput) {
                     
                     // check if the buffer is full (+ 1 because of the sample-package id
-                    if ((bufferPointers[pluginId] + (values.Length + 1)) > bufferSize) {
+                    if ((pluginBufferPointers[pluginId] + (values.Length + 1)) > pluginBufferSize) {
                         logger.Error("Plugin " + pluginId + " is trying to log more values than the buffer can hold, data discarded");
                         return;
                     }
                     
                     // if censorship should be applied, then log 0's
-                    if (mCensorLogging)     values = new double[values.Length];
+                    //if (censorLogging)     values = new double[values.Length];
 
                     // TODO: lock for dataSampleCounter? Maybe no need to lock because nothing happens at this point (what about inbetween stop/start from other thread)
                     double dblDataSampleCounter;
@@ -1497,13 +1445,13 @@ namespace Palmtree.Core.DataIO {
                     //}
 
                     // store current sample-package id to be able to synchronize the plugin data
-                    pluginDataValues[pluginId][bufferPointers[pluginId]] = dblDataSampleCounter;
-                    bufferPointers[pluginId]++;
-                    //logger.Info("Logging input, logging sample counter: " + dblDataSampleCounter + "(" + bufferPointers[pluginId] + ")");
+                    pluginDataValues[pluginId][pluginBufferPointers[pluginId]] = dblDataSampleCounter;
+                    pluginBufferPointers[pluginId]++;
+                    //logger.Info("Logging input, logging sample counter: " + dblDataSampleCounter + "(" + pluginBufferPointers[pluginId] + ")");
 
                     // store plugin data values
-                    Buffer.BlockCopy(   values, 0, pluginDataValues[pluginId], bufferPointers[pluginId], values.Length * sizeof(double));
-                    bufferPointers[pluginId] += values.Length;
+                    Buffer.BlockCopy(   values, 0, pluginDataValues[pluginId], pluginBufferPointers[pluginId], values.Length * sizeof(double));
+                    pluginBufferPointers[pluginId] += values.Length;
                     
                 }
 
@@ -1512,6 +1460,7 @@ namespace Palmtree.Core.DataIO {
         }
 
         public static void writePluginData(int pluginId) {
+            if (!mLogPluginInput || numPlugins == 0)    return; 
 
             // lock plugin for thread safety
             lock (lockPlugin) { 
@@ -1530,20 +1479,20 @@ namespace Palmtree.Core.DataIO {
                 for (int plugin = beginFlush; plugin < endFlush; plugin++) {
 
                     // if there is data in the buffer (buffer can be empty if plugin has lower sampling frequency than pipeline)
-                    if (bufferPointers[plugin] != 0) {
+                    if (pluginBufferPointers[plugin] != 0) {
 
                         // create binary version of plugin data
-                        byte[] streamOut = new byte[bufferPointers[plugin] * sizeof(double)];
-                        Buffer.BlockCopy(pluginDataValues[plugin], 0, streamOut, 0, bufferPointers[plugin] * sizeof(double));
+                        byte[] streamOut = new byte[pluginBufferPointers[plugin] * sizeof(double)];
+                        Buffer.BlockCopy(pluginDataValues[plugin], 0, streamOut, 0, pluginBufferPointers[plugin] * sizeof(double));
 
                         // write to file
                         if (pluginStreams[plugin] != null)
                             pluginStreams[plugin].Write(streamOut, 0, streamOut.Length);
 
                         // clear buffer and reset buffer pointer
-                        Array.Clear(pluginDataValues[plugin], 0, bufferSize);
-                        bufferPointers[plugin] = 0;
-                        //logger.Info("Writing, writing done, plugin buffer flushed" + "(" + bufferPointers[plugin] + ")");
+                        Array.Clear(pluginDataValues[plugin], 0, pluginBufferSize);
+                        pluginBufferPointers[plugin] = 0;
+                        //logger.Info("Writing, writing done, plugin buffer flushed" + "(" + pluginBufferPointers[plugin] + ")");
 
                     }
 

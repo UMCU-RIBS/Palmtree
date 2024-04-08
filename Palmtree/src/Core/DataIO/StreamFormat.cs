@@ -22,7 +22,7 @@ namespace Palmtree.Core.DataIO {
     /// </summary>
     public class StreamFormat {
         
-        public int numSamples = 1;                                  // number of incoming samples in the stream
+        public int numSamples = 1;                                  // theoretical number of incoming samples in the stream (might vary because the number of samples per package might vary)
         public double rate = 5;                                     // estimated rate at which stream samples are passed (in stream-packages per second/hz)
         //private int types = null;                                 // 
 

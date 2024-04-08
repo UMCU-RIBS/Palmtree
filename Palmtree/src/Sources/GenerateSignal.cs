@@ -365,14 +365,8 @@ namespace Palmtree.Sources {
 			        // check if we are generating
 			        if (started) {
 
-                        /*
-                        // set the values for samples in the sample-package
-                        double[] sample = new double[outputChannels * samplesPerPackage];
-                        for (int i = 0; i < sample.Length; i++) {
-                            //sample[i] = rand.NextDouble();
-                            sample[i] = rand.Next(0, 10) + 100;
-                        }
-                        */
+                        // debug/test: vary package size
+                        //samplesPerPackage = rand.Next(0, 10) + 6;
 
                         // initialize an array
                         double[] samples = new double[outputChannels * samplesPerPackage];

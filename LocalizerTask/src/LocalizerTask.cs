@@ -4,7 +4,7 @@
  * ...
  * 
  * 
- * Copyright (C) 2022:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Copyright (C) 2024:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Concept:             UNP Team                    (neuroprothese@umcutrecht.nl)
  * Author(s):           Benny van der Vijgh         (benny@vdvijgh.nl)
  * 
@@ -386,8 +386,7 @@ namespace LocalizerTask {
             connectionLost = Globals.getValue<bool>("ConnectionLost");
             
             // process
-            int totalSamples = inputFormat.numSamples * inputFormat.numChannels;
-            for (int sample = 0; sample < totalSamples; sample += inputFormat.numChannels)
+            for (int sample = 0; sample < input.Length; sample += inputFormat.numChannels)
                 process();
             
         }

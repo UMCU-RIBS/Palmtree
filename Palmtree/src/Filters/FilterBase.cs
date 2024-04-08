@@ -72,6 +72,7 @@ namespace Palmtree.Filters {
 
             }
 
+            /*
             // retrieve and prepare the visualization of streams
             mEnableDataVisualization = Globals.getValue<bool>("EnableDataVisualization");
             if (mEnableDataVisualization) {
@@ -85,6 +86,7 @@ namespace Palmtree.Filters {
 
                 }
             }
+            */
 
         }
 

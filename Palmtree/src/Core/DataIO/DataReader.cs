@@ -314,7 +314,7 @@ namespace Palmtree.Core.DataIO {
                 header.version = BitConverter.ToInt32(bVersion, 0);
 
                 // check version
-                if (header.version != 1 && header.version != 2)
+                if (header.version != 1 && header.version != 2 && header.version != 3)
                     throw new Exception("Unknown data version");
 
                 // retrieve the code from the header
@@ -322,8 +322,8 @@ namespace Palmtree.Core.DataIO {
                 fileStream.Read(bCode, 0, bCode.Length);
                 header.code = Encoding.ASCII.GetString(bCode);
                 
-                // retrieve the epochs (V2)
-                if (header.version == 2) {
+                // retrieve the epochs (V2 & V3)
+                if (header.version == 2 || header.version == 3) {
                     byte[] bRunStartEpoch = new byte[8];
                     fileStream.Read(bRunStartEpoch, 0, bRunStartEpoch.Length);
                     header.runStartEpoch = BitConverter.ToInt64(bRunStartEpoch, 0);
@@ -332,7 +332,12 @@ namespace Palmtree.Core.DataIO {
                     fileStream.Read(bFileStartEpoch, 0, bFileStartEpoch.Length);
                     header.fileStartEpoch = BitConverter.ToInt64(bFileStartEpoch, 0);
                 }
-                
+    
+                // retrieve whether source input time is included (only in source data-file & V3)
+                if (header.code == "src" && header.version == 3) {
+                    header.includesSourceInputTime = fileStream.ReadByte() == 1;
+                }
+
                 // retrieve the sample rate
                 byte[] bSampleRate = new byte[8];
                 fileStream.Read(bSampleRate, 0, bSampleRate.Length);
@@ -343,8 +348,8 @@ namespace Palmtree.Core.DataIO {
                 fileStream.Read(bNumPlaybackStreams, 0, bNumPlaybackStreams.Length);
                 header.numPlaybackStreams = BitConverter.ToInt32(bNumPlaybackStreams, 0);
 
-                // # streams + streams details (V2)
-                if (header.version == 2) {
+                // # streams + streams details (V2 & V3)
+                if (header.version == 2 || header.version == 3) {
                     byte[] bNumStreams = new byte[4];
                     fileStream.Read(bNumStreams, 0, bNumStreams.Length);
                     header.numStreams = BitConverter.ToInt32(bNumStreams, 0);
@@ -397,7 +402,7 @@ namespace Palmtree.Core.DataIO {
                     // casting to integer will make numrows round down in case of incomplete rows
                     header.numRows = (fileStream.Length - header.posDataStart) / header.rowSize;
                 
-                } else if (header.version ==2) {
+                } else if (header.version == 2 || header.version == 3) {
 
                     // determine the highest number of samples that any data stream in the pipeline would want to log
                     header.maxSamplesStream = 0;

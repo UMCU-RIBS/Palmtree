@@ -1,10 +1,11 @@
 ﻿/**
  * ThresholdClassifierFilter class
  * 
- * This filter allows for the thresholding (binarizing) of specific channels, other channels pass through untouched.
+ * Filter to binarize the signal in specific channels; above a threshold value will become 1, else 0.
+ * Other channels can pass through untouched.
  * 
  * 
- * Copyright (C) 2022:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Copyright (C) 2024:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Author(s):           Max van den Boom            (info@maxvandenboom.nl)
  * 
  * Adapted from:        Patrik Andersson (andersson.j.p@gmail.com)
@@ -25,7 +26,7 @@ namespace Palmtree.Filters {
     /// <summary>
     /// ThresholdClassifierFilter class
     /// 
-    /// ...
+    /// Filter to binarize the signal in specific channels
     /// </summary>
     public class ThresholdClassifierFilter : FilterBase, IFilter {
 
@@ -307,7 +308,7 @@ namespace Palmtree.Filters {
                 // filter enabled and channels to threshold
                 
                 // create an output package
-                output = new double[outputFormat.numChannels * outputFormat.numSamples];
+                output = new double[input.Length];
 
                 // if there are channels that only need to pass through untouched, then make a copy of the input matrix and only threshold specific values
                 // if all channels need to be thresholded, then this copy can be skipped because all values will be overwritten anyway.
@@ -315,8 +316,7 @@ namespace Palmtree.Filters {
                     Buffer.BlockCopy(input, 0, output, 0, input.Length * sizeof(double));
 
                 // loop over the samples (in steps of the number of channels)
-                int totalSamples = inputFormat.numSamples * inputFormat.numChannels;
-                for (int sample = 0; sample < totalSamples; sample += inputFormat.numChannels) {
+                for (int sample = 0; sample < input.Length; sample += inputFormat.numChannels) {
 
 		            // threshold only the channels that are configured as such
 		            for (uint i = 0; i < mChannels.Length; ++i) {

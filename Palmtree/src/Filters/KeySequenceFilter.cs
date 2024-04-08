@@ -1,10 +1,10 @@
 ﻿/**
  * KeySequenceFilter class
  * 
- * ...
+ * Filter that monitors single channel and set the global variable 'KeySequenceActive' if a specific sequence occurs in the signal
  * 
  * 
- * Copyright (C) 2022:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Copyright (C) 2024:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Concept:             UNP Team                    (neuroprothese@umcutrecht.nl)
  * Author(s):           Max van den Boom            (info@maxvandenboom.nl)
  * 
@@ -27,7 +27,7 @@ namespace Palmtree.Filters {
     /// <summary>
     /// KeySequenceFilter class.
     /// 
-    /// ...
+    /// Filter that monitors single channel and set the global variable 'KeySequenceActive' if a specific sequence occurs in the signal
     /// </summary>
     public class KeySequenceFilter : FilterBase, IFilter {
 
@@ -70,6 +70,11 @@ namespace Palmtree.Filters {
                 "FilterInputChannel",
                 "Channel to take as input (1...n)",
                 "1", "", "1");
+
+            //
+            //
+            //
+            parameters.addHeader("Sequence");
 
             parameters.addParameter <double>  (
                 "Threshold",
@@ -343,8 +348,7 @@ namespace Palmtree.Filters {
             // if the filter is enabled
             if (mEnableFilter) {
                 
-                int totalSamples = inputFormat.numSamples * inputFormat.numChannels;
-                for (int sample = 0; sample < totalSamples; sample += inputFormat.numChannels) {
+                for (int sample = 0; sample < input.Length; sample += inputFormat.numChannels) {
 
                     double[] singleRow = new double[inputFormat.numChannels];
                     Buffer.BlockCopy(input, sample * sizeof(double), singleRow, 0, inputFormat.numChannels * sizeof(double));

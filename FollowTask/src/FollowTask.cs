@@ -4,7 +4,7 @@
  * ...
  * 
  * 
- * Copyright (C) 2022:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Copyright (C) 2024:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Concept:             UNP Team                    (neuroprothese@umcutrecht.nl)
  * Author(s):           Max van den Boom            (info@maxvandenboom.nl)
  *                      Benny van der Vijgh         (benny@vdvijgh.nl)
@@ -187,6 +187,12 @@ namespace FollowTask {
                 "0", "1", "1", new string[] {"Monitor 1", "Monitor 2"});
             */
 
+
+            //
+            // Timings and durations
+            //
+            parameters.addHeader("Timings and durations");
+            
             parameters.addParameter<int>(
                 "TaskFirstRunStartDelay",
                 "Amount of time before the task starts (on the first run of the task)",
@@ -201,6 +207,12 @@ namespace FollowTask {
                 "CountdownTime",
                 "Amount of time the countdown before the task takes",
                 "0", "", "3s");
+
+
+            //
+            // Task settings
+            //
+            parameters.addHeader("Task");            
 
             parameters.addParameter<int>(
                 "TaskInputChannel",
@@ -236,7 +248,14 @@ namespace FollowTask {
                 "CursorColorHitTime",
                 "Time that the cursor remains in hit color",
                 "0", "", "2s");
-            
+
+
+            //
+            // Conditions
+            //
+
+            parameters.addHeader("Conditions and trials sequence");
+
             parameters.addParameter<double[][]>(
                 "Targets",
                 "Target positions and widths in percentage coordinates\n\nY_perc: The y position of the block on the screen (in percentages of the screen height), note that the value specifies where the middle of the block will be.\nHeight_perc: The height of the block on the screen (in percentages of the screen height)\nWidth_secs: The width of the target block in seconds",
@@ -595,8 +614,7 @@ namespace FollowTask {
             connectionLost = Globals.getValue<bool>("ConnectionLost");
             
             // process
-            int totalSamples = inputFormat.numSamples * inputFormat.numChannels;
-            for (int sample = 0; sample < totalSamples; sample += inputFormat.numChannels)
+            for (int sample = 0; sample < input.Length; sample += inputFormat.numChannels)
                 process(sample + input[taskInputChannel - 1]);
 
         }
@@ -1380,7 +1398,6 @@ namespace FollowTask {
             newParameters.setValue("WindowLeft", parentParameters.getValue<int>("WindowLeft"));
             newParameters.setValue("WindowTop", parentParameters.getValue<int>("WindowTop"));
 
-            string imagePath = AppDomain.CurrentDomain.BaseDirectory;
             // set child task standard settings
             inputFormat.numChannels = 1;
             newParameters.setValue("WindowBackgroundColor", "0;0;0");
@@ -1400,7 +1417,7 @@ namespace FollowTask {
             newParameters.setValue("TargetWidthMode", 1);
             newParameters.setValue("TargetHeightMode", 1);
             newParameters.setValue("Targets", "25,25,25,75,75,75;50,50,50,50,50,50;2,2,2,3,5,7");
-            newParameters.setValue("TargetTextures", String.Format("{0}\\images\\sky.bmp,{0}\\images\\sky.bmp,{0}\\images\\sky.bmp,{0}\\images\\grass.bmp,{0}\\images\\grass.bmp,{0}\\images\\grass.bmp",imagePath));
+            newParameters.setValue("TargetTextures", "images\\sky.bmp,images\\sky.bmp,images\\sky.bmp,images\\grass.bmp,images\\grass.bmp,images\\grass.bmp");
             newParameters.setValue("TrialSequence", "");
 
             // get parameter values from app.config
