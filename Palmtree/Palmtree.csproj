@@ -132,6 +132,7 @@
     <Compile Include="src\Core\Params\ParamHeader.cs" />
     <Compile Include="src\Filters\RedistributionFilter.cs" />
     <Compile Include="src\Filters\FlexKeySequenceFilter.cs" />
+    <Compile Include="src\Filters\RereferenceFilter.cs" />
     <Compile Include="src\Filters\WSIOFilter.cs" />
     <Compile Include="src\GUI\GUIMore.cs">
       <SubType>Form</SubType>

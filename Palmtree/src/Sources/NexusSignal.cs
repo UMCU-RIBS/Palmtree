@@ -45,7 +45,7 @@ namespace Palmtree.Sources {
 
         // fundamentals
         private const string CLASS_NAME = "NexusSignal";
-        private const int CLASS_VERSION = 4;
+        private const int CLASS_VERSION = 5;
 
         private const double OUTPUT_SAMPLE_RATE = 5;                 // hold the amount of samples per second that the source outputs (used by the mainthead to convert seconds to number of samples)
         private const int NEXUS_POWERMODE_SAMPLES_PER_PACKAGE = 1;
@@ -150,6 +150,12 @@ namespace Palmtree.Sources {
                 "Communication protocol to use",
                 "0", "5", "4", new string[] { "Nexus protocol 1 (legacy)", "Nexus protocol 2 (legacy)", "Nexus protocol 3 (legacy)", "Nexus protocol 4 (legacy)", "Nexus protocol 5 power", "Nexus protocol 6 time" });
 
+
+            //
+            // 
+            //
+            parameters.addHeader("Channel mapping and (optionally) signal transformation");
+
             parameters.addParameter<int>(
                 "modelOrder",
                 "Order of prediction model used for time-frequency domain transform. Only relevant in case of input in time domain (device protocol 6).",
@@ -157,7 +163,9 @@ namespace Palmtree.Sources {
 
             parameters.addParameter<double[][]>(
                "InputOutput",
-               "Frequency bins for which the power in the input signal will be determined. Each bin will be outputted as a seperate output channel.\nEach row describes one bin by specifiying the id of the corresponding output channel, the lower and upper frequncy limit of the bin, and the amount of evaluations performed in this bin.\nOnly relevant in case of input in time domain (device protocol 6).",
+               "Mapping of input and output channels. Each row specifies the input-channel from the device and the output channel from this source module.\n\n" +
+               "If DeviceProtocol is set to 'Nexus protocol 6 time', then each row represents a frequency bin for which the power (after transformation) in the input signal will be determined.\n" +
+               "Upon binning, the lower and upper frequncy limit of the bin, and the amount of evaluations performed can be specified.\n",
                "", "", "1;1;15;25;10", new string[] { "Input", "Output", "Lower limit", "Upper limit", "Evaluations"  });
 
             // message
@@ -347,6 +355,9 @@ namespace Palmtree.Sources {
                 }
                 
             }
+            
+            // print configuration
+            printLocalConfiguration();
 
             // lock for thread safety
             lock (lockSerialPort) {
@@ -383,12 +394,34 @@ namespace Palmtree.Sources {
                 
             #endif
 
-
             // flag as configured
             configured = true;
 
             // return success
             return true;
+
+        }
+        
+        private void printLocalConfiguration() {
+
+            // debug output
+            logger.Debug("--- Source configuration: " + CLASS_NAME + " ---");
+            logger.Debug("Input port: " + comPort);
+
+            string deviceProtocolText = "Legacy";
+            if (deviceProtocol == 5) deviceProtocolText = "Power mode";
+            if (deviceProtocol == 6) deviceProtocolText = "Time-freq mode";
+            logger.Debug("Input device protocol: " + deviceProtocol + "(" + deviceProtocolText + ")");
+
+            logger.Debug("Frequen");
+
+
+            logger.Debug("Output");
+            logger.Debug("    Number of output channels: " + numOutputChannels);
+            logger.Debug("    Sample-package rate: " + OUTPUT_SAMPLE_RATE);
+            logger.Debug("    Number of samples per package: 1");
+            
+
 
         }
 

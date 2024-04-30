@@ -149,7 +149,6 @@ namespace Palmtree.Core.DataIO {
 
         public long readNextRows(long numRows, out byte[] buffer) {
 
-            // threadsafety
             lock (lockReader) {
 
                 // check if the reader has not been opened

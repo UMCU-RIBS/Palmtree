@@ -292,12 +292,33 @@ namespace Palmtree.Sources {
                 }
 
             }
+            
+            // print configuration
+            printLocalConfiguration();
 
             // flag as configured
             configured = true;
 
             // return success
             return true;
+
+        }
+
+        private void printLocalConfiguration() {
+
+            // debug output
+            logger.Debug("--- Source configuration: " + CLASS_NAME + " ---");
+            logger.Debug("Number of output channels: " + outputChannels);
+            logger.Debug("Sample package rate: " + samplePackageRate + "Hz");
+            logger.Debug("Sample package interval (calculated): " + samplePackageIntervalMs + "ms");
+            logger.Debug("High precision timing: " + (highPrecision ? "on" : "off"));
+            logger.Debug("Number of samples per package: " + samplesPerPackage);
+            for (int i = 0; i < mConfigKeys.Length; i++) {
+                logger.Debug("Key: " + mConfigKeys[i]);
+                logger.Debug("    Output-channel: " + mConfigOutputChannels[i]);
+                logger.Debug("    Value pressed: " + mConfigPressed[i]);
+                logger.Debug("    Value not pressed: " + mConfigNotPressed[i]);
+            }
 
         }
 

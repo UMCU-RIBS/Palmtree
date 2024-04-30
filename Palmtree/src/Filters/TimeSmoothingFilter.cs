@@ -298,7 +298,7 @@ namespace Palmtree.Filters {
             if (mEnableFilter) {
                 // filter enabled
             
-                // create the output package
+                // create the output package (no changes to #channels in this filter, so #output-samples is same as actual #input-samples)
                 output = new double[input.Length];
 
                 // loop over samples (by sets of channels)

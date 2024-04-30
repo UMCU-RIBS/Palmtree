@@ -975,8 +975,10 @@ namespace Palmtree.Sources.Wrappers {
             }
 
             // no channels have been recorded, return success
-            if (trialCont.count == 0)
+            if (trialCont.count == 0) {
+                //logger.Warn("No channels have been recorded by NSP");
                 return true;
+            }
 
             // TODO: check for any funky values, 0s in sampling or num_samples for each channel
 

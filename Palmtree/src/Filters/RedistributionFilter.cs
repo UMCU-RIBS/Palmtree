@@ -28,7 +28,7 @@ namespace Palmtree.Filters {
     /// </summary>
     public class RedistributionFilter : FilterBase, IFilter {
 
-        private new const int CLASS_VERSION = 2;
+        private new const int CLASS_VERSION = 3;
 
         private int[] mConfigInputChannels = null;
         private int[] mConfigOutputChannels = null;
@@ -363,9 +363,13 @@ namespace Palmtree.Filters {
             // check if the filter is enabled
             if (mEnableFilter) {
                 // filter enabled
-                
+
                 // create an output package
-                output = new double[input.Length];
+                // Note: the number of channels can change in this filter, so determine actual #samples and allocate according to number of output channels
+                int numSamples = input.Length / inputFormat.numChannels;
+                output = new double[outputFormat.numChannels * numSamples];
+
+                //
                 int outSample = 0;
                 for (int inSample = 0; inSample < input.Length; inSample += inputFormat.numChannels) {
                     

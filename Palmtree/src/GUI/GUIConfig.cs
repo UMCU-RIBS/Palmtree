@@ -204,7 +204,7 @@ namespace Palmtree.GUI {
                 newSep.Location = new Point(50, y + itemTopPadding);
                 newSep.Size = new System.Drawing.Size(panel.Width, 20);
                 newSep.Text = param.Name + "  ";
-                newSep.ForeColor = Color.FromArgb(30, 30 ,30);
+                newSep.ForeColor = Color.FromArgb(70, 70 ,70);
                 newSep.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
                 newSep.Parent = panel;
                 newSep.TextAlign = ContentAlignment.TopRight;
@@ -476,7 +476,7 @@ namespace Palmtree.GUI {
                     });
                     newRows.Name = panel.Name + "_num" + param.Name + "Rows";
                     newRows.Location = new Point(labelWidth + 75, newGrid.Location.Y + newGrid.Size.Height + 5);
-                    newRows.Size = new System.Drawing.Size(50, 20);
+                    newRows.Size = new System.Drawing.Size(60, 20);
                     newRows.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
                     newRows.ReadOnly = true;
                     newRows.GotFocus += (sender, e) => { newRows.Enabled = false; newRows.Enabled = true; };
@@ -502,7 +502,7 @@ namespace Palmtree.GUI {
                     });
                     newColumns.Name = panel.Name + "_num" + param.Name + "Columns";
                     newColumns.Location = new Point(labelWidth + 225, newGrid.Location.Y + newGrid.Size.Height + 5);
-                    newColumns.Size = new System.Drawing.Size(50, 20);
+                    newColumns.Size = new System.Drawing.Size(60, 20);
                     newColumns.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel, ((byte)(204)));
                     newColumns.ReadOnly = true;
                     newColumns.GotFocus += (sender, e) => { newColumns.Enabled = false; newColumns.Enabled = true; };
@@ -1214,7 +1214,7 @@ namespace Palmtree.GUI {
 
         protected override void OnPaint(PaintEventArgs e) {
             base.OnPaint(e);
-            e.Graphics.DrawLine(new Pen(Color.FromArgb(50, 50, 50)), 
+            e.Graphics.DrawLine(new Pen(Color.FromArgb(170, 170, 170)), 
                                 0, this.Height - 1, this.Width, this.Height - 1);
         }
     }

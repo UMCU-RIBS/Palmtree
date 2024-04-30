@@ -658,51 +658,6 @@ namespace Palmtree.Core.DataIO {
                             runStartEpoch = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
                             runStopWatch = Stopwatch.StartNew();
 
-                            // check if we want to log events
-                            if (mLogEvents) {
-
-                                // if no loglevels are defined, we log all events levels, otherwise get amount of event levels we are logging
-                                if (mEventLoggingLevels.Length == 0) {
-                                    mEventLoggingLevels = new int[MAX_EVENT_LOGLEVELS];
-                                    for (int i = 0; i < MAX_EVENT_LOGLEVELS; i++)   mEventLoggingLevels[i] = i + 1;
-                                }
-
-                                // for each desired logging level, create writer and attach id
-                                for (int i = 0; i < mEventLoggingLevels.Length; i++) {
-
-                                    // retrieve the log level
-                                    int logLevel = mEventLoggingLevels[i];
-
-                                    // construct filepath of event file, with current time and loglevel as filename 
-                                    string fileNameEvt = identifier + "_" + DateTime.Now.ToString("yyyyMMdd") + "_level" + logLevel + "_" + RUN_SUFFIX + run + ".evt";
-                                    string path = Path.Combine(sessionDir, fileNameEvt);
-
-                                    // create filestream: create file if it does not exists, allow to write, do not share with other processes and use buffer of 8192 bytes (roughly 1000 samples)
-                                    try {
-                                        eventStreams.Add(new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 8192));
-                                        eventStreamWriters.Add(new StreamWriter(eventStreams[i]));
-                                        eventStreamWriters[i].AutoFlush = true;                                         // ensures that after every write operation content of stream is flushed to file
-
-                                        logger.Info("Created event file for log level " + logLevel + " at " + path);
-
-                                    } catch (Exception e) {
-                                        logger.Error("Unable to create event file at " + path + " (" + e.ToString() + ")");
-                                    }
-
-                                    // build event header string
-                                    string eventHeader = "Time "+ "Elapsed " + "src_sample_ID " + "dat_sample_ID " + "Event_code " + "Event_value";
-
-                                    // write header to event file
-                                    try {
-                                        eventStreamWriters[i].WriteLine(eventHeader);
-                                    } catch (IOException e) {
-                                        logger.Error("Can't write header to event file: " + e.Message);
-                                    }
-
-                                }
-
-                            }
-
                             // check if we want to log the source input
                             if (mLogSourceInput && numSourceInputStreams > 0) {
 
@@ -873,6 +828,51 @@ namespace Palmtree.Core.DataIO {
                                     if (pluginStreams[i] != null) {
                                         DataWriter.writeBinaryHeader(pluginStreams[i], header);
                                     }
+                                }
+
+                            }
+
+                            // check if we want to log events
+                            if (mLogEvents) {
+
+                                // if no loglevels are defined, we log all events levels, otherwise get amount of event levels we are logging
+                                if (mEventLoggingLevels.Length == 0) {
+                                    mEventLoggingLevels = new int[MAX_EVENT_LOGLEVELS];
+                                    for (int i = 0; i < MAX_EVENT_LOGLEVELS; i++)   mEventLoggingLevels[i] = i + 1;
+                                }
+
+                                // for each desired logging level, create writer and attach id
+                                for (int i = 0; i < mEventLoggingLevels.Length; i++) {
+
+                                    // retrieve the log level
+                                    int logLevel = mEventLoggingLevels[i];
+
+                                    // construct filepath of event file, with current time and loglevel as filename 
+                                    string fileNameEvt = identifier + "_" + DateTime.Now.ToString("yyyyMMdd") + "_level" + logLevel + "_" + RUN_SUFFIX + run + ".evt";
+                                    string path = Path.Combine(sessionDir, fileNameEvt);
+
+                                    // create filestream: create file if it does not exists, allow to write, do not share with other processes and use buffer of 8192 bytes (roughly 1000 samples)
+                                    try {
+                                        eventStreams.Add(new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 8192));
+                                        eventStreamWriters.Add(new StreamWriter(eventStreams[i]));
+                                        eventStreamWriters[i].AutoFlush = true;                                         // ensures that after every write operation content of stream is flushed to file
+
+                                        logger.Info("Created event file for log level " + logLevel + " at " + path);
+
+                                    } catch (Exception e) {
+                                        logger.Error("Unable to create event file at " + path + " (" + e.ToString() + ")");
+                                    }
+
+                                    // build event header string
+                                    string eventHeader = "Time "+ "Elapsed " + "src_samplePackage_ID " + "dat_samplePackage_ID " + "Event_code " + "Event_value";
+
+                                    // write header to event file
+                                    try {
+                                        eventStreamWriters[i].WriteLine(eventHeader);
+                                    } catch (IOException e) {
+                                        logger.Error("Can't write header to event file: " + e.Message);
+                                    }
+
                                 }
 
                             }
@@ -1367,9 +1367,9 @@ namespace Palmtree.Core.DataIO {
             lock (lockSource) {
                 strsourceSamplePackageCounter = sourceSamplePackageCounter.ToString();
             }
-            string strDataSampleCounter = "";
+            string strDataSamplePackageCounter = "";
             lock (lockStream) {
-                strDataSampleCounter = dataSamplePackageCounter.ToString();
+                strDataSamplePackageCounter = dataSamplePackageCounter.ToString();
             }
 
             // check if event logging of this level is allowed
@@ -1389,7 +1389,7 @@ namespace Palmtree.Core.DataIO {
                     if (string.IsNullOrEmpty(value)) value = "-";
 
                     // construct event String    
-                    string eventOut = eventTime.ToString("yyyyMMdd_HHmmss_fff") + " " + eventRunElapsedTime + " " + strsourceSamplePackageCounter + " " + strDataSampleCounter + " " + text + " " + value;
+                    string eventOut = eventTime.ToString("yyyyMMdd_HHmmss_fff") + " " + eventRunElapsedTime + " " + strsourceSamplePackageCounter + " " + strDataSamplePackageCounter + " " + text + " " + value;
 
                     // write event to event file
                     if (eventStreamWriters.Count > levelIndex && eventStreamWriters[levelIndex] != null) {

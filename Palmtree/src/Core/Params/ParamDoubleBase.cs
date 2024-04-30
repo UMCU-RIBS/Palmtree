@@ -50,7 +50,7 @@ namespace Palmtree.Core.Params {
 
             // check if value is numeric and can be converted to a double
             // return false if unsucessful
-            if (!double.TryParse(value, NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign, Parameters.NumberCulture, out doubleValue)) return false;
+            if (!double.TryParse(value, NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign | NumberStyles.AllowExponent, Parameters.NumberCulture, out doubleValue)) return false;
             
             // successfull parsing, return true
             return true;

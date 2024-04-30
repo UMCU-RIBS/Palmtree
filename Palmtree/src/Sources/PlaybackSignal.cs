@@ -454,12 +454,9 @@ namespace Palmtree.Sources {
                 // check if the generator was not already started
                 if (started) return;
 
-                if (inputBuffer == null) {
-
-                    // initialize the input buffer and already fill it with the rows
+                // initialize the input buffer and already fill it with the rows
+                if (inputBuffer == null)
                     initInputBuffer();
-
-                }
 
                 // take the first sample from the input buffer
                 nextSample = getNextInputRow();
@@ -767,6 +764,10 @@ namespace Palmtree.Sources {
 
         }
 
+
+        //
+        //
+        //
         
         private void initInputBuffer() {
 

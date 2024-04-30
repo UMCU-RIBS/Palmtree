@@ -53,6 +53,7 @@ namespace Palmtree.Core {
                                                         new string[] { "KeySequenceFilter",         "Palmtree.Filters.KeySequenceFilter" },
                                                         new string[] { "NormalizerFilter",          "Palmtree.Filters.NormalizerFilter" },
                                                         new string[] { "RedistributionFilter",      "Palmtree.Filters.RedistributionFilter"},
+                                                        new string[] { "RereferenceFilter",         "Palmtree.Filters.RereferenceFilter"},
                                                         new string[] { "ThresholdClassifierFilter", "Palmtree.Filters.ThresholdClassifierFilter" },
                                                         new string[] { "TimeSmoothingFilter",       "Palmtree.Filters.TimeSmoothingFilter"},
                                                         new string[] { "FlexKeySequenceFilter",     "Palmtree.Filters.FlexKeySequenceFilter" },

@@ -210,11 +210,26 @@ namespace Palmtree.Sources {
             //for (int i = 0; i < outputChannels; i++)
             //    Data.registerSourceInputStream(("Ch" + i), samplesPerPackage, samplePackageRate);
 
+            // print configuration
+            printLocalConfiguration();
+
             // flag as configured
             configured = true;
 
             // return success
             return true;
+
+        }
+
+        private void printLocalConfiguration() {
+
+            // debug output
+            logger.Debug("--- Source configuration: " + CLASS_NAME + " ---");
+            logger.Debug("Number of output channels: " + outputChannels);
+            logger.Debug("Sample package rate: " + samplePackageRate + "Hz");
+            logger.Debug("Sample package interval (calculated): " + samplePackageIntervalMs + "ms");
+            logger.Debug("High precision timing: " + (highPrecision ? "on" : "off"));
+            logger.Debug("Number of samples per package: " + samplesPerPackage);
 
         }
 

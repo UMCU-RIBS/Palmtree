@@ -50,7 +50,7 @@ namespace Palmtree.Core.Params {
 
             // check if value is numeric and can be converted to an int
             // return false if unsucessful
-            if (!int.TryParse(value, NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign, Parameters.NumberCulture, out intValue)) return false;
+            if (!int.TryParse(value, NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign | NumberStyles.AllowExponent, Parameters.NumberCulture, out intValue)) return false;
 
             // successfull parsing, return true
             return true;

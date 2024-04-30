@@ -2,6 +2,7 @@
  * NormalizerFilter class
  * 
  * Filter to normalize each channel by subtracting an offset from the signal and multiplying the signal with a factor (gain)
+ * Normalization parameters can be adapted (conditionally or continously)
  * 
  * 
  * Copyright (C) 2024:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
@@ -20,6 +21,7 @@ using System.Collections.Generic;
 using Palmtree.Core;
 using Palmtree.Core.Helpers;
 using Palmtree.Core.Params;
+using Palmtree.Core.DataIO;
 
 namespace Palmtree.Filters {
 
@@ -36,7 +38,7 @@ namespace Palmtree.Filters {
             ZeroMeanUnitVar = 2,
         };
 
-        private new const int CLASS_VERSION = 2;
+        private new const int CLASS_VERSION = 3;
 
         private double[] mOffsets = null;                           // array to hold the offset for each channel
         private double[] mGains = null;                             // array to hold the gain for each channel
@@ -74,6 +76,11 @@ namespace Palmtree.Filters {
                 "Log the filter's intermediate and output data streams. See 'Data' tab for more settings on sample stream logging.",
                 "0");
 
+            //
+            //
+            //
+            parameters.addHeader("Initial offsets/gains");
+            
             parameters.addParameter <double[]>  (
                 "NormalizerOffsets",
                 "Normalizer offsets",
@@ -84,6 +91,12 @@ namespace Palmtree.Filters {
                 "Normalizer gain values",
                 "", "", "1,1");
 
+
+            //
+            //
+            //
+            parameters.addHeader("Adaptation");
+            
             parameters.addParameter<int[]>(
                 "Adaptation",
                 "Adaptation setting per channel: 0 no adaptation, 1 zero mean, 2 zero mean, unit variance",
@@ -91,7 +104,13 @@ namespace Palmtree.Filters {
 
             parameters.addParameter<string[][]>(
                 "Buffers",
-                "Defines the buffers.\nThe columns correspond to the output channels. The rows allow for one or more buffers per channel.\nInside the cells (for each buffer) it is possible to define expressions which are evaluated during runtime, global variables can be\nused and evaluated (e.g. [feedback] == 1). if an expression is evaluated as true then the sample will be added accordingly to that buffer.\n\nNote the variablenames in the expressions are case-sensitive",
+                "These buffers are used to calculate the statistics for adaptation.\n\n" +
+                "Each column represents an input channel, and each channel has a number of buffers equal to the number of rows.\n" +
+                "The statements in the cells are evaluated during runtime, and - if true - the sample of that input channel (column) is added to that specific buffer.\n" +
+                "Each of the separate buffers is sized to the BufferSize argument\n\n" +
+                "The statistics that are used to normalize the input-package per channel are based on the content of the buffers and are either updated:\n" +
+                " - continuously (if UpdateTrigger argument is empty)\n" +
+                " - conditionally (if the UpdateTrigger arguments evaluates true)",
                 "", "", "[Feedback] == 1 && [Target] == 1,[Feedback] == 1 && [Target] == 0;[Feedback] == 1 && [Target] == 1,[Feedback] == 1 && [Target] == 0");
 
             parameters.addParameter<double>(
@@ -285,7 +304,7 @@ namespace Palmtree.Filters {
                     for (int col = 0; col < newBuffers.Length; col++) {
                         for (int row = 0; row < newBuffers[col].Length; row++) {
                             if (!Globals.testExpression(newBuffers[col][row])) {
-                                logger.Error("The buffers parameter contains an invalid experession '" + newBuffers[col][row] + "', this expression should be corrected");
+                                logger.Error("The buffers parameter contains an invalid expression '" + newBuffers[col][row] + "', this expression should be corrected");
                                 return false;
                             }
                         }
@@ -451,21 +470,76 @@ namespace Palmtree.Filters {
             // check if the filter is enabled
             if (mEnableFilter) {
                 // filter enabled
-
-                // create an output package
+                
+                // create an output package (no changes to #channels in this filter, so #output-samples is same as actual #input-samples)
                 output = new double[input.Length];
 
-                // loop over samples (by sets of channels)
+                // check if adaptation is on for one of the channels
+                if (mDoAdapt) {
+
+                    // 
+                    // first iteration evaluates the expressions (only once per sample-package, fake precision otherwise)
+                    // and adds them to their respective buffers
+                    // 
+
+                    // loop over the (input) channels
+                    for (int channel = 0; channel < mBuffers.Length; ++channel) {
+
+                        // loop over all the buffers for this input-channel
+                        for (int buffer = 0; buffer < mBuffers[channel].Length; ++buffer) {
+
+                            // test cell expression
+                            if (Globals.evaluateConditionExpression(mBuffers[channel][buffer])) {
+
+                                // loop over samples (by sets of channels) and add to buffer
+                                for (int sample = 0; sample < input.Length; sample += inputFormat.numChannels)
+                                    mDataBuffers[channel][buffer].Put(input[sample + channel]);
+
+                            }
+                        }
+                    }
+
+                    //
+                    // check if there adaptation and update the statistics
+                    // 
+                    if (mUpdateTrigger != null) {
+                        // update trigger set
+
+                        // check the expression
+                        bool currentTrigger = Globals.evaluateConditionExpression(mUpdateTrigger);
+
+                        // check if the trigger expession result goes from 0 to 1
+                        if (currentTrigger && !mPreviousTrigger) {
+                            Data.logEvent(1, "NormalizeAdaptiveUpdate", "triggered_by_change");
+                            update();
+                        }
+
+                        mPreviousTrigger = currentTrigger;
+                    } else {
+                        // no update trigger, update every time
+                        
+                        // not logging to spare the events file (that this always happens can be derived from the prm files already)
+                        //Data.logEvent(1, "NormalizeAdaptiveUpdate", "continuous");    
+
+                        //
+                        update();
+                    }
+
+                }  // end mDoAdapt conditional
+
+
+                //
+                // second iteration normalizes every channel
+                //
+
+                // loop over samples (by sets of channels) and every channel
                 for (int sample = 0; sample < input.Length; sample += inputFormat.numChannels) {
+                    for (int channel = 0; channel < inputFormat.numChannels; ++channel) {
 
-                    double[] singleRow = new double[inputFormat.numChannels];
-                    Buffer.BlockCopy(input, sample * sizeof(double), singleRow, 0, inputFormat.numChannels * sizeof(double));
+                        // normalize each sample
+                        output[sample + channel] = (input[sample + channel] - mOffsets[channel]) * mGains[channel];
 
-                    double[] singleRowOut = new double[inputFormat.numChannels];
-                    processSample(singleRow, out singleRowOut);
-
-                    Buffer.BlockCopy(singleRowOut, 0, output, sample * sizeof(double), inputFormat.numChannels * sizeof(double));
-
+                    } 
                 }
 
             } else {
@@ -480,57 +554,6 @@ namespace Palmtree.Filters {
             processOutputLogging(output);
 
         }
-        
-        public void processSample(double[] input, out double[] output) {
-
-            // create an output sample
-            output = new double[outputFormat.numChannels];
-            
-            // check if adaptation is on for one of the channels
-            if (mDoAdapt) {
-
-                //logger.Error("-----");
-                for (int channel = 0; channel < mBuffers.Length; ++channel) {
-                    for (int buffer = 0; buffer < mBuffers[channel].Length; ++buffer) {
-                        bool testResult = Globals.evaluateConditionExpression(mBuffers[channel][buffer]);
-                        //logger.Debug("channel: " + channel + "   buffer: " + buffer + "    testResult = " + testResult);
-                        if (testResult) {
-                            mDataBuffers[channel][buffer].Put(input[channel]);
-                        }
-                    }
-                }
-
-                // check if there is an update trigger
-                if (mUpdateTrigger != null) {
-                    // update trigger set
-                        
-                    // check the expression
-                    bool currentTrigger = Globals.evaluateConditionExpression(mUpdateTrigger);
-                    //logger.Debug("mPreviousTrigger: " + mPreviousTrigger);
-                    //logger.Debug("currentTrigger: " + currentTrigger);
-
-                    // check if the trigger expession result goes from 0 to 1
-                    if (currentTrigger && !mPreviousTrigger) {
-                        //logger.Debug("Update");
-                        update();
-
-                    }
-                    mPreviousTrigger = currentTrigger;
-
-                } else {
-                    // no trigger, continuous update
-
-                    update();
-
-                }
-
-            }
-
-            // normalize every channel
-            for (int channel = 0; channel < inputFormat.numChannels; ++channel)
-                output[channel] = (input[channel] - mOffsets[channel]) * mGains[channel];
-            
-        }
 
         public void destroy() {
 
@@ -544,6 +567,7 @@ namespace Palmtree.Filters {
         }
 
         private void update() {
+            // calculate a number of statistics based on the values in each of the buffers
 
             // loop through the channels
             for (int channel = 0; channel < mDataBuffers.Length; channel++) {
@@ -559,7 +583,7 @@ namespace Palmtree.Filters {
                     List<double> bufferMeans = new List<double>();
                     List<double> bufferSqMeans = new List<double>();
 
-                    // loop through the buffers within the channel
+                    // loop through the buffers within each channel
                     for (int i = 0; i < mDataBuffers[channel].Length; ++i) {
 
                         // retrieve the samplebuffer and it's data

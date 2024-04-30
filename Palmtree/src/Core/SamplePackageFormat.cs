@@ -36,10 +36,10 @@ namespace Palmtree.Core {
         //private int[] types = null;                               // 
         //private string[] channelNames;                            // Channel names in package description?
 
-        public SamplePackageFormat(int channels, int samples, double rate, ValueOrder valueOrder) {
+        public SamplePackageFormat(int channels, int samples, double packageRate, ValueOrder valueOrder) {
             this.numChannels = channels;
             this.numSamples = samples;
-            this.packageRate = rate;
+            this.packageRate = packageRate;
             this.valueOrder = valueOrder;
         }
         

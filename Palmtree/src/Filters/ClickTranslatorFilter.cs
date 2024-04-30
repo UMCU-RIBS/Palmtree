@@ -453,7 +453,7 @@ namespace Palmtree.Filters {
             if (mEnableFilter && mChannels.Length > 0) {
                 // filter enabled and channels to translate
                 
-                // create an output package
+                // create an output package (no changes to #channels in this filter, so #output-samples is same as actual #input-samples)
                 output = new double[input.Length];
 
                 // if there are channels that only need to pass through untouched, then make a copy of the input matrix and only translate specific values
