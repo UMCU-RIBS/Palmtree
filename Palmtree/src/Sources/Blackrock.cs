@@ -939,19 +939,6 @@ namespace Palmtree.Sources {
                         return;
                     }
 
-#else
-                    
-                    int rndSamplesPerPackage = rand.Next(0, 10) + numSamplesPerRetrieval;           
-                    UInt32 time = (UInt32)DateTimeOffset.Now.ToUnixTimeMilliseconds();
-                    Int16[][] data = new Int16[numInputChannels][];
-                    for (int iChan = 0; iChan < numInputChannels; iChan++) {
-                        data[iChan] = new Int16[rndSamplesPerPackage];
-                        for (int iSmpl = 0; iSmpl < rndSamplesPerPackage; iSmpl++)
-                            data[iChan][iSmpl] = (Int16)(rand.Next(0, 1000) + 100000);
-                    }
-                    int numSamples = data[0].Length;            
-#endif
-
                     //
                     //Console.WriteLine("#samples: " + numSamples);
                     //Console.WriteLine("time: " + time);
