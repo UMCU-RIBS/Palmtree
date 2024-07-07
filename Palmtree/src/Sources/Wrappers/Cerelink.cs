@@ -7,7 +7,7 @@
  * Copyright (C) 2024:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Author(s):           Max van den Boom            (info@maxvandenboom.nl)
  * 
- * Adapted parts from:  Cerelink SDK, written by Kirk Korver and Ehsan Azar
+ * Adapted parts from:  Cerelink SDK, by Kirk Korver and Ehsan Azar
  * 
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software
  * Foundation, either version 3 of the License, or (at your option) any later version. This program is distributed in the hope that it will be useful, but

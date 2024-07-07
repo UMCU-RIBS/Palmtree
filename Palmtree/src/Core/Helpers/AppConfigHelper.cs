@@ -1,9 +1,9 @@
 ﻿/**
- * The AppConfig helper classes
-//
-// 
-//
-// Copyright © Lab of Nick Ramsey 2021  (neuroprothese@umcutrecht.nl)
+ * AppConfig helper classes
+ * 
+ * ....
+ * 
+ * Copyright (C) 2021:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Author(s):           Max van den Boom            (info@maxvandenboom.nl)
  * 
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software
