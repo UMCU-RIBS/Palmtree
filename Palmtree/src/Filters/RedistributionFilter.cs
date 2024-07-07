@@ -59,7 +59,11 @@ namespace Palmtree.Filters {
 
             parameters.addParameter <double[][]>  (
                 "Redistribution",
-                "Specifies which input channels are added together to one or more output channels.\nAlso specifies which weights are applied to the input values before addition\n\nInput: Input channel (1...n)\nOutput: output channel (1...n)\nWeight: Weight applied to input channel value",
+                "Specifies which input channels are added together to one or more output channels.\n" +
+                "Also specifies which weights are applied to the input values before addition\n\n" +
+                "Input: Input channel (1...n)\n" +
+                "Output: output channel (1...n)\n" +
+                "Weight: Weight applied to input channel value",
                 "", "", "1,2;1,2;1,1", new string[] { "Input", "Output", "Weight" });
 
             // message
@@ -326,15 +330,11 @@ namespace Palmtree.Filters {
             logger.Debug("Enabled: " + mEnableFilter);
             logger.Debug("Output channels: " + outputFormat.numChannels);
             if (mEnableFilter) {
-                string strRedistribution = "Redistribution: ";
+                logger.Debug("Redistribution:");
                 if (mConfigInputChannels != null) {
-                    for (int i = 0; i < mConfigInputChannels.Length; i++) {
-                        strRedistribution += "[" + mConfigInputChannels[i] + ", " + mConfigOutputChannels[i] + ", " + mConfigWeights[i] + "]";
-                    }
-                } else {
-                    strRedistribution += "-";
+                    for (int i = 0; i < mConfigInputChannels.Length; i++)
+                        logger.Debug("    In: " + mConfigInputChannels[i] + ", Out: " + mConfigOutputChannels[i] + ", weight: " + mConfigWeights[i]);
                 }
-                logger.Debug(strRedistribution);
             }
 
         }

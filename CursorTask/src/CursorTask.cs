@@ -665,11 +665,11 @@ namespace CursorTask {
             // process
             for (int sample = 0; sample < input.Length; sample += inputFormat.numChannels)
                 process(sample + input[taskInputChannel - 1]);
-
+            
         }
 
         private void process(double input) {
-
+            
             // lock for thread safety
             lock (lockView) {
 
@@ -1217,7 +1217,7 @@ namespace CursorTask {
 		        case TaskStates.Task:
                     // perform the task
 
-                    // log event countdown is started
+                    // log event trial is started
                     Data.logEvent(2, "TrialStart ", "");
 
 				    // hide text if present
