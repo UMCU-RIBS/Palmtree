@@ -1003,6 +1003,11 @@ namespace Palmtree.Core.DataIO {
 
         }
 
+
+        public static double getDataRunElapsedTime() {
+            return runStopWatch.ElapsedTicks / ticksPerMillisecond;
+        }
+
         /**
          * Called when a sample-package is at the beginning of the pipeline (before the first filter module)
          **/

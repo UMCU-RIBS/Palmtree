@@ -174,7 +174,7 @@ namespace PalmtreeLogReader {
                     double[][] values = null;
 
                     // read the next rows
-                    long rows = reader.readNextRows(readStep, out samples, out values);
+                    long rows = reader.readNextRows_V1(readStep, out samples, out values);
 
                     // check for error while reading
                     if (rows == -1) {

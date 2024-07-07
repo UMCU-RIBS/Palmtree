@@ -4,7 +4,7 @@
  * ...
  * 
  * 
- * Copyright (C) 2022:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
+ * Copyright (C) 2024:  RIBS group (Nick Ramsey Lab), University Medical Center Utrecht (The Netherlands) & external contributors
  * Author(s):           Max van den Boom            (info@maxvandenboom.nl)
  * 
  * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software
@@ -30,95 +30,153 @@ namespace Palmtree.Sources {
     /// </summary>
     public class PlaybackSignal : ISource {
 
-        private const string CLASS_NAME = "PlaybackSignal";
-        private const int CLASS_VERSION = 1;
+        private const string CLASS_NAME                         = "PlaybackSignal";
+        private const int CLASS_VERSION                         = 2;
 
-        private const int threadLoopDelayNoProc = 200;                                  // thread loop delay when not processing (1000ms / 5 run times per second = rest 200ms)
+        private const int constantThreadLoopDelayNoProc         = 200;                              // thread loop delay when not processing (1000ms / 5 run times per second = rest 200ms)
+        private const int updateBufferThreadDelay               = 200;                              // the interval at which the input buffer thread updates (1000ms / 5 run times per second = rest 200ms)
 
-        private const double INPUT_BUFFER_SIZE_SECONDS = 20.0;                          // the size of the input buffer, defined as the number of seconds of data it should hold
-        private const double INPUT_BUFFER_MIN_READ_SECONDS = 5.0;                       // the minimum to which the input buffer should be filled before another read, defined as the number of seconds of data
-
-        private static Logger logger = LogManager.GetLogger(CLASS_NAME);
-        private static Parameters parameters = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Source);
+        private static Logger logger                            = LogManager.GetLogger(CLASS_NAME);
+        private static Parameters parameters                    = ParameterManager.GetParameters(CLASS_NAME, Parameters.ParamSetTypes.Source);
         
-        private Thread signalThread = null;                                                     // the source thread
-        private bool running = true;                                                            // flag to define if the source thread should be running (setting to false will stop the source thread)
-        private ManualResetEvent playbackLoopManualResetEvent = new ManualResetEvent(false);    // Manual reset event to call the WaitOne event on (this allows - in contrast to the sleep wait - to cancel the wait period at any point when closing the source) 
-        private Stopwatch swTimePassed = new Stopwatch();                                       // stopwatch object to give an exact amount to time passed inbetween loops
-        private int sampleIntervalMs = 0;                                                       // interval between the samples in milliseconds
-        private long sampleIntervalTicks = 0;                                                   // interval between the samples in ticks (for high precision timing)
-        private int threadLoopDelay = 0;
-        private long highPrecisionWaitTillTime = 0;                                             // stores the time until which the high precision timing waits before continueing
+        // 
+        private Thread signalThread                             = null;                             // the replay source thread
+        private bool running                                    = true;                             // flag to define if the replay source thread should be running (setting to false will stop the source thread)
+        private ManualResetEvent replayLoopManualResetEvent     = new ManualResetEvent(false);      // replay's manual reset event to call the WaitOne event on (this allows - in contrast to the sleep wait - to cancel the wait period at any point when closing the source) 
+        private Stopwatch swTimePassed                          = new Stopwatch();                  // stopwatch object to give an exact amount to time passed inbetween loops
+        private long highPrecisionWaitTillTime                  = 0;                                // stores the high-precision tick time until which the high precision timing waits before continueing
 
-        private bool configured = false;
-        private bool initialized = false;
-        private bool started = false;				                                            // flag to define if the source is started or stopped
-        private Object lockStarted = new Object();
+        private SamplePackageFormat outputFormat                = null;
+        private bool configured                                 = false;
+        private bool initialized                                = false;
+        private bool started                                    = false;				            // flag to define if the source is started or stopped
+        private Object lockStarted                              = new Object();
 
-        private int outputChannels = 0;
-        private double sampleRate = 0;                                                          // hold the amount of samples per second that the source outputs (used by the mainthead to convert seconds to number of samples)
-        private bool timingByFile = false;                                                      // hold whether the timing of the samples is based on the elapsed time in the data file
-        private bool highPrecision = false;                                                     // hold whether the generator should have high precision intervals
-        private bool redistributeEnabled = false;                                               // hold whether redistribution of input to output channels is enabled
-        private int[] redistributeChannels = null;                                              // holds how the channels should be redistributed
+        // configuration variables
+        private string inputFile                                = "";                               // [config] filepath to the file to replay
+        private int inputFileType                               = -1;                               // type of file (src=0; dat=1) to replay
+        private bool readEntireFileInMemory                     = false;                            // whether the entire file should be read into memory (on initialization)
+
+        private double packageRate                              = 0;                                // store the amount of samples per second that the source outputs (used by the mainthread to convert seconds to number of samples)
+        private bool timingByFile                               = false;                            // [config] whether the timing of the samples is based on the elapsed time in the data file
+        private bool highPrecision                              = false;                            // whether the generator should have high precision intervals
+        private bool redistributeEnabled                        = false;                            // [config] whether redistribution of input to output channels is enabled
+        private int[] redistributeChannels                      = null;                             // [config] how the channels should be redistributed
         
+        private int numInputChannels                            = 0;
+        private int numOutputChannels                           = 0;
+        private double outputSampleRate                         = 0;                                // output sample rate of source
 
-        private string inputFile = "";                                                          // filepath to the file(s) to use for playback
-        private bool readEntireFileInMemory = false;                                            // whether the entire file should be read into memory (on initialization)
+        // V1 & V2 variables
+        private Thread fileBufferThread                         = null;                             // thread to read the file and keep the buffers 'full'
+        private ManualResetEvent fileBufferLoopManualResetEvent = new ManualResetEvent(false);      // file buffer's manual reset event to call the WaitOne event on (this allows - in contrast to the sleep wait - to cancel the wait period at any point when closing the source) 
 
-        private Thread bufferThread = null;                                                     // input buffer thread (checks the buffer fill, and read new data from the file
-        private ManualResetEvent bufferLoopManualResetEvent = new ManualResetEvent(false);      //The input buffer's manual reset event to call the WaitOne event on (this allows - in contrast to the sleep wait - to cancel the wait period at any point when closing the source) 
-        private long inputBufferSize = 0;                                                       // the total size of the input buffer in number of rows 
-        private long inputBufferMinTillRead = 0;                                                // the minimum amount of rows until additional read
-        private long inputBufferRowsPerRead = 0;                                                // the number of rows per read call
+        private double inputBufferSizeSeconds                   = 10.0;                             // [config] size of the memory buffer (seconds of data)
+        private double inputBufferMinimumSeconds                = 6.0;                              // [config] mimumum fill of the memory buffer (seconds of data)
+        
+        private long inputBufferSize                            = 0;                                // the total size of the input buffer in number of packages (V2+) or rows (V1) 
+        private long inputBufferMinTillRead                     = -1;                               // the minimum amount of rows until additional read
+        private long inputBufferReadSize                        = 0;                                // the number of rows/packages to read per update
 
-        private Object lockInputReader = new Object();                                          // threadsafety lock for input reader
-        private DataReader inputReader = null;
-        private DataHeader inputHeader = null;
+        private Object lockInputReader                          = new Object();                     // threadsafety lock for input reader
+        private DataReader inputReader                          = null;
+        private DataHeader inputHeader                          = null;
 
-        private Object lockInputBuffer = new Object();                                          // threadsafety lock for input buffer
-        private byte[] inputBuffer = null;                                                      // input (byte) ringbuffer
-        private int inputBufferRowSize = 0;                                                     // rowsize (in bytes). A copy of the value from the header. A copy because this way we do not have to (thread)lock the reader/header objects when we just want to read the data
-        private long inputBufferAddIndex = 0;                                                   // the index where in the (ring) input buffer the next row will be added
-        private long inputBufferReadIndex = 0;                                                  // the index where in the (ring) input buffer the next row is that should be read
-        private long numberOfRowsInBuffer = 0;                                                  // the number of added but unread rows in the (ring) input buffer
+        private Object lockInputBuffer                          = new Object();                     // thread lock for input buffer
+        private long inputBufferAddIndex                        = 0;                                // the index where in the (ring) input buffer the next row/package will be added
+        private long inputBufferReadIndex                       = 0;                                // the index where in the (ring) input buffer the next row/package is that should be read
 
-        private double[] nextSample = null;                                                     // next sample to send into the pipeline
+        private int constantIntervalMs                          = 0;                                // the interval (in ms) to wait before pushing the next package (i.e. to pauze the replay loop;if not taking timing into account)
+        private long constantIntervalTicks                      = 0;                                // the interval (in ticks for high precision timing) to wait before pushing the next package (i.e. to pauze the replay loop;if not taking timing into account)
+
+        private double[] nextSamplePackage                      = null;                             // next package (V2+) or row (V1; packed in a single package) ready to send into the pipeline
+
+        // V1 variables
+        private byte[] inputRowBuffer                           = null;                             // input (byte) ringbuffer
+        private int inputBufferRowSize                          = 0;                                // The size of a single row (in bytes) of values. This value is a copy from the input file header, so we do not have to (thread)lock the reader/header objects when we just want to read the data
+        private long numberOfRowsInBuffer                       = 0;                                // the number of rows in the (ring) input buffer
+
+        // V2+ variables
+        private double[][] inputPackageBuffer                   = null;                             // buffer to hold sample-packages read from the input file to send into the pipeline (sort of a ringbuffer)
+        private double[] inputPackageBufferElapsedStamps        = null;                             // buffer to hold elapsed time (from the start of the run) for the sample-packages in inputPackageBuffer (sort of a ringbuffer)
+        private long numberOfPackagesInBuffer                   = 0;                                // the number of sample-packages in the (ring-)buffer
+
+        private int nextThreadLoopDelayNoProc                   = -1;                               // variable that can set the next not-processing delay to a specific value (is used to stick the main thread in a long wait
+        private int nextSamplePackageElapsedMs                  = -1;                               // the elapsed time (in ms) at which to push the next package
+        
 
 
         public PlaybackSignal() {
             
             parameters.addParameter<ParamFileString>(
                 "Input",
-                "The data input file(s) that should be used for playback.\nWhich file of a set is irrelevant as long as the set has the same filename (the file extension is ignored as multiple files might be used).",
+                "The data input file(s) that should be used for playback.",
                 "", "", "");
 
             parameters.addParameter<int[]>(
                 "RedistributeChannels",
-                "Redistributes the channels.\nIf this field is set, then the number of values here determines the number of output channels of the source, where every value becomes one output channel.\nThe value given represents the input channel from the data file to take as output.\nFor example when a source has two input channels, entering '1 2' in this field would playback as recorded, however, entering '2 1' would switch the input channels for output.\n\nNote: if left empty it will playback the channels as specified in the data file",
+                "Using this parameter the channels from the input file can be selected and re-ordered.\n\n" +
+                "Each value indicates the index (1-based) of an input channel from the data file that will becomes a replayed output channel.\n" +
+                "The position of the value determines which output-channel it will become, as such the number of values here determines the number of output channels.\n" +
+                "For example: if an input file has two input channels, entering '1 2' in this field would playback as recorded. However, entering '2 1' would switch the input channels for output.\n\n" +
+                "Note: if left empty, all channels will be played back exactly as ordered in the input file",
                 "", "", "");
+
+
+            //
+            //
+            //
+            parameters.addHeader("File and buffer I/O");
 
             parameters.addParameter<bool>(
                 "ReadEntireFileInMemory",
-                "Read the entire data file into memory at initialization. Note: that - depending on the data file size - could cause high memory usage.",
+                "Read the entire data file into memory at initialization.\n\n" +
+                "Note: Dpending on the data file size, this could cause high memory usage.",
                 "", "", "0");
+
+            parameters.addParameter<double>(
+                "InputBufferSize",
+                "The size of the memory buffer (in number of seconds of data) to which the data from the input file is read and stored before being forwarded into the pipeline.\n" +
+                "This buffer will initiatially be filled with data and - as data moves out of the buffer and into the pipeline during playback - will be refilled when it falls below a certain minimum.\n" +
+                "In practice, the buffer is allocated to hold a number of sample-packages, which is calculated based on the number of seconds in this parameter and the input file (meta)data.\n\n" +
+                "Note: When the entire file is read into memory, then this parameter is unused",
+                "", "", "10s");
+
+            parameters.addParameter<double>(
+                "InputBufferMinimum",
+                "The minimum amount of data (in seconds) that should be held in the memory buffer while more data is available in the input file.\n" +
+                "Once the buffer - as data moves out of the buffer and into the pipeline during playback - reaches this minumum, new data will be read from the input file into the input buffer.\n\n" +
+                "Note: When the entire file is read into memory, then this parameter is unused",
+                "", "", "6s");
+
+
+            //
+            //
+            //
+            parameters.addHeader("Timing");
 
             parameters.addParameter<bool>(
                 "TimingByFile",
-                "Base the sample timing on the interval values of the data file instead of using the samplerate. Not recommended to switch this on.",
-                "", "", "0");
+                "The sample-packages stored in data format V2 or higher can be passed to the pipeline at (approximately) the same timing as they were recorded.\n" +
+                "If disabled, the first data-package will be passed to the pipeline immediately after the start, while the subsequent packages will be passed at the average sample-package interval.",
+                "", "", "1");
 
             parameters.addParameter<bool>(
                 "HighPrecision",
-                "Use high precision intervals when generating sample.\nNote 1: Enabling this option will claim one processor core entirely, possibly causing your system to slow down or hang.\nNote 2: High precision will be enabled automatically when a sample rate is set to more than 1000 hz.",
+                "Use high precision intervals when replaying the sample data.\n\n" +
+                "Note 1: Enabling this option will claim one processor core, which possibly has an impact on the overall performance of your system.\n" +
+                "Note 2: High precision will be enabled automatically when the sample rate (V1) or sample-package rate (V2+) is higher than 1000 hz.",
                 "", "", "0");
+
+
 
             // message
             logger.Info("Source created (version " + CLASS_VERSION + ")");
 
             // start a new thread
             signalThread = new Thread(this.run);
-            signalThread.Name = "PlaybackSignal Playback Run Thread";
+            signalThread.Name = "Replay source main thread";
+            signalThread.Priority = ThreadPriority.Highest;
             signalThread.Start();
 
         }
@@ -142,50 +200,71 @@ namespace Palmtree.Sources {
         /**
          * function to retrieve the number of samples per second
          * 
-         * This value could be requested by the main thread and is used to allow parameters
-         * to be converted from seconds to samples
+         * Note: This value could be requested by the main thread and can be
+         *       used to convert parameters from seconds to samples
          **/
         public double getOutputSamplesPerSecond() {
 
             // check if the source is not configured yet
             if (!configured) {
 
-                // message
+                // error message and return 0 samples
                 logger.Error("Trying to retrieve the samples per second before the source was configured, first configure the source, returning 0");
-
-                // return 0
                 return 0;
 
             }
 
             // return the samples per second
-            return sampleRate;
+            return outputSampleRate;
 
         }
 
         public bool configure(out SamplePackageFormat output) {
             #pragma warning disable 0162            // for constant checks, conscious ignore
-            
+            output = null;
+
+            // retrieve the input file and determine the extension
+            inputFile = parameters.getValue<string>("Input");
+            int extIndex = inputFile.LastIndexOf('.');
+            string ext = "";
+            if (extIndex != -1)     ext = inputFile.Substring(extIndex);
+
+            // check if the file exists
+            if (string.IsNullOrEmpty(inputFile) || !File.Exists(inputFile)) {
+                logger.Error("Could not find input file '" + inputFile + "'");
+                return false;
+            }
+
+
             // retrieve whether the file should be read into memory
             readEntireFileInMemory = parameters.getValue<bool>("ReadEntireFileInMemory");
 
-            // retrieve the input file and remove the extension
-            inputFile = parameters.getValue<string>("Input");
-            int extIndex = inputFile.LastIndexOf('.');
-            if (extIndex != -1)     inputFile = inputFile.Substring(0, extIndex);
+            // retrieve the buffer sizes
+            inputBufferSizeSeconds = parameters.getValue<double>("InputBufferSize");
+            inputBufferMinimumSeconds = parameters.getValue<double>("InputBufferMinimum");
+            if (!readEntireFileInMemory) {
 
-            // check if the .dat file exists
-            string inputDatFile = inputFile + ".dat";
-            if (string.IsNullOrEmpty(inputDatFile) || !File.Exists(inputDatFile)) {
-                
-                // message
-                logger.Error("Could not find playback input .dat file '" + inputDatFile + "'");
+                if (inputBufferSizeSeconds < 2) {
+                    logger.Error("The buffer size cannot be less than 2 seconds, provide a larger value for the 'InputBufferSize' parameter");
+                    return false;
+                }
+                if (inputBufferMinimumSeconds < 1) {
+                    logger.Error("The buffer minimum cannot be less than 1 seconds, provide a larger value for the 'InputBufferMinimum' parameter");
+                    return false;
 
-                // return
-                output = null;
-                return false;
+                }
+                if (inputBufferMinimumSeconds > inputBufferSizeSeconds) {
+                    logger.Error("The buffer minimum is larger than the buffer, either adjust the 'InputBufferSize' parameter or the 'InputBufferMinimum' parameter");
+                    return false;
+                }
 
             }
+
+            // retrieve the timing by file setting
+            timingByFile = parameters.getValue<bool>("TimingByFile");
+
+            // retrieve the high precision setting
+            highPrecision = parameters.getValue<bool>("HighPrecision");
 
             // thread safety
             lock (lockInputReader) {
@@ -200,54 +279,41 @@ namespace Palmtree.Sources {
                     }
 
                     // read the data header
-                    DataHeader header = DataReader.readHeader(inputDatFile);
-                    if (header == null) {
-
-                        // message
-                        logger.Error("Could not read header data from input .dat file '" + inputDatFile + "'");
-
-                        // return
-                        output = null;
+                    inputHeader = DataReader.readHeader(inputFile);
+                    if (inputHeader == null) {
+                        logger.Error("Could not read header data from input file '" + inputFile + "'");
                         return false;
-
+                    }
+                    
+                    // check if the internal code is 'src' or 'dat'
+                    if (string.Compare(inputHeader.code, "src") != 0 && string.Compare(inputHeader.code, "dat") != 0) {
+                        logger.Error("The input file is internally marked as '" + inputHeader.code + "', while either a source ('src') file or a data stream ('dat') file is required");
+                        return false;
                     }
 
-                    // check version
-                    if (header.version != 1) {
+                    // determine the file type
+                    inputFileType = inputHeader.code.Equals("src", StringComparison.OrdinalIgnoreCase) ? 0 : 1;
 
-                        // message
-                        logger.Error("Currently only .dat files stored in the V1 format can be playbacked. Higher versions are not implemented yet.");
-
-                        // return
-                        output = null;
+                    // check version 1 (exclude .src file)
+                    if (inputHeader.version == 1 && inputFileType == 0) {
+                        logger.Error("Source (.src) files stored in the V1 format cannot be replayed");
                         return false;
-
+                    }
+                     
+                    // check if the number of replay input streams is higher than 0
+                    if (inputFileType == 0 && inputHeader.numStreams <= 0) {
+                        logger.Error("The input .src file has no source streams, these are required for playback, make sure the LogSourceInput setting (data tab) is switched on while recording data for replay");
+                        return false;
+                    }
+                    if (inputFileType == 1 && inputHeader.numPlaybackStreams <= 0) {
+                        logger.Error("The input .dat file has no playback streams, these are required for playback, make sure the LogPipelineInputStream setting (data tab) is switched on while recording data for replay");
+                        return false;
                     }
 
-                    // check if the internal code is 'dat'
-                    if (string.Compare(header.code, "dat") != 0) {
-
-                        // message
-                        logger.Error("The input .dat file is internally marked as '" + header.code + "', while a data stream ('dat') file is required");
-
-                        // return
-                        output = null;
-                        return false;
-
-                    }
-
-                    // check if the number of playback input streams in the .dat is higher than 0
-                    if (header.numPlaybackStreams <= 0) {
-
-                        // message
-                        logger.Error("The input .dat file has no playback input streams, these are required for playback, make sure the LogPipelineInputStream setting (data tab) is switched on while recording data for replay");
-
-                        // return
-                        output = null;
-                        return false;
-
-                    }
-
+                    // determine the number of input streams
+                    if (inputFileType == 0)         numInputChannels = inputHeader.numStreams;
+                    else if (inputFileType == 1)    numInputChannels = inputHeader.numPlaybackStreams;
+                    
                     // retrieve the redistribution of channels
                     redistributeChannels = parameters.getValue<int[]>("RedistributeChannels");
                     redistributeEnabled = redistributeChannels.Length > 0;
@@ -255,12 +321,15 @@ namespace Palmtree.Sources {
 
                         if (redistributeChannels[i] < 1 || redistributeChannels[i] % 1 != 0) {
                             logger.Error("The values in the RedistributeChannels parameter should be positive integers (note that the channel numbering is 1-based)");
-                            output = null;
                             return false;
                         }
-                        if (redistributeChannels[i] > header.numPlaybackStreams) {
-                            logger.Error("One of the values in the RedistributeChannels parameter exceeds the number of playback (input) streams in the data file (#playbackStreams: " + header.numPlaybackStreams + ")");
-                            output = null;
+
+                        if (inputFileType == 0 && redistributeChannels[i] > numInputChannels) {
+                            logger.Error("One of the values in the RedistributeChannels parameter exceeds the number of (input) streams in the .src input file (#numStreams: " + numInputChannels + ")");
+                            return false;
+                        }
+                        if (inputFileType == 1 && redistributeChannels[i] > numInputChannels) {
+                            logger.Error("One of the values in the RedistributeChannels parameter exceeds the number of (input) streams in the .dat input file (#playbackStreams: " + numInputChannels + ")");
                             return false;
                         }
 
@@ -269,116 +338,169 @@ namespace Palmtree.Sources {
 
                     }
 
+
                     // check if the channels are redistributed
                     if (redistributeEnabled) {
 
                         // set the number of output channels to the number of redistributed channels
-                        outputChannels = redistributeChannels.Length;
+                        numOutputChannels = redistributeChannels.Length;
 
                     } else {
 
-                        // set the number of output channels for this source based on the playback streams in the .dat file
-                        outputChannels = header.numPlaybackStreams;
+                        // set the number of output channels for this source based on the streams in the file
+                        numOutputChannels = numInputChannels;
 
                     }
 
-                    // set the sample rate for this source based on the .dat file
-                    sampleRate = header.sampleRate;
+                    //
+                    // calculate and prepare intervals, rates, buffers etc
+                    //
 
-                    // check the sample rate
-                    if (sampleRate <= 0) {
-                        logger.Error("The sample rate in the (header of the) .dat file is 0 or lower, invalid sample rate");
-                        output = null;
-                        return false;
-                    }
+                    if (inputHeader.version == 2 || inputHeader.version == 3) {
 
-                    // create a sampleformat
-                    // (at this point we can only playback .dat files with the pipeline input streams, these always have 1 sample per package.
-                    // since the number of samples is 1 per package, the given samplerate is the packagerate)
-                    // TODO: support more samples per package
-                    output = new SamplePackageFormat(outputChannels, 1, sampleRate, SamplePackageFormat.ValueOrder.SampleMajor);      
+                        // calculate the sample-package interval
+                        constantIntervalMs = (int)Math.Floor(inputHeader.averagePackageInterval);
+                        
+                        // check average package interval
+                        if (constantIntervalMs <= 0) {
+                            logger.Error("The rounded average package interval in the input file <= 0.\nA valid average interval is required to estimate output package- and sample-rates.");
+                            return false;
+                        }
 
-                    // check the constants (buffer size in combination with buffer min read)
-                    if (INPUT_BUFFER_MIN_READ_SECONDS < 2) {
-                        logger.Error("The buffer minimum-till-read should not be less than two seconds, provide a larger value for INPUT_BUFFER_MIN_READ_SECONDS");
-                        return false;
+                        // calculate and check the package rate                       
+                        packageRate = (double)1000 / constantIntervalMs;
+                        if (packageRate <= 0) {
+                            logger.Error("The calculated package-rate (" + packageRate + "Hz) based on the average package interval <= 0.\nA valid package-rate is required to estimate output package- and sample-rates.");
+                            return false;
+                        }
 
-                    }
-                    if (INPUT_BUFFER_MIN_READ_SECONDS > INPUT_BUFFER_SIZE_SECONDS) {
-                        logger.Error("The buffer minimum-till-read is larger than the buffer, either adjust INPUT_BUFFER_SIZE_SECONDS or INPUT_BUFFER_MIN_READ_SECONDS");
-                        return false;
-                    }
+                        // create an output format
+                        int numSamplesPerPackage = (int)(inputHeader.sampleRate / packageRate);
+                        output = new SamplePackageFormat(numOutputChannels, numSamplesPerPackage, packageRate, SamplePackageFormat.ValueOrder.SampleMajor);
 
-                    // calculate the input buffer size (the size of the inputbuffer is defined as number of seconds of data to hold)
-                    inputBufferSize = (long)Math.Floor(INPUT_BUFFER_SIZE_SECONDS * header.sampleRate);
-                    if (inputBufferSize == 0) {
-                        logger.Error("The buffer size is too small when combined with the sample rate, provide a larger value for INPUT_BUFFER_SIZE_SECONDS");
-                        return false;
-                    }
+                        // calculate the input buffer size in packages
+                        if (!readEntireFileInMemory) {
+                            inputBufferSize = (long)Math.Floor(inputBufferSizeSeconds * packageRate);
+                            if (inputBufferSize == 0) {
+                                logger.Error("The buffer size of " + inputBufferSizeSeconds + "s at a package-rate of " + packageRate + "Hz is too small (" + inputBufferSize + " packages) when combined with the sample rate, provide a larger value for INPUT_BUFFER_SIZE_SECONDS");
+                                return false;
+                            }
+                        }
 
-                    // calculate the minimum amount of rows until additional read
-                    inputBufferMinTillRead = (long)Math.Floor(INPUT_BUFFER_MIN_READ_SECONDS * header.sampleRate);
-                    if (inputBufferMinTillRead == 0) {
-                        logger.Error("The buffer minimum-till-read is too small when combined with the sample rate, provide a larger value for INPUT_BUFFER_MIN_READ_SECONDS");
-                        return false;
-                    }
-                    if (inputBufferMinTillRead >= inputBufferSize) {
-                        logger.Error("The buffer minimum-till-read should be smaller than the input buffer size, provide a smaller value for INPUT_BUFFER_MIN_READ_SECONDS");
-                        return false;
-                    }
+                        // the entire file should be read into memory, or if the number of packages in the file is equal to or smaller than
+                        // the input buffer packages, then the buffer size will be based on the file package-size
+                        if (readEntireFileInMemory || inputHeader.totalPackages <= inputBufferSize) {
 
-                    // calculate the number of rows to read when the minimum is reached
-                    // (note: a smaller read step is also possible; current just refilling the buffer by taking the difference between the minimum-till-read and total buffer size)
-                    inputBufferRowsPerRead = inputBufferSize - inputBufferMinTillRead;
+                            // input buffer will be the same size as the data in the input file
+                            inputBufferSize = inputHeader.totalPackages;
 
-                    // the entire file should be read into memory, or if the number of rows in the file are equal to or smaller than the input buffer rows,
-                    // then the buffer size will be based on the file row-size
-                    if (readEntireFileInMemory || header.numRows <= inputBufferSize) {
+                            // not necessary as the entire file will be read in on initialize
+                            inputBufferMinTillRead = -1;
+                            inputBufferReadSize = -1;
 
-                        // input buffer will be the same size as the data in the input file
-                        inputBufferSize = header.numRows;
+                        } else { 
 
-                        // not necessary as the entire file will be read in on initialize
-                        inputBufferMinTillRead = 1;
-                        inputBufferRowsPerRead = 1;
+                            // calculate the minimum amount of packages until additional read
+                            inputBufferMinTillRead = (long)Math.Floor(inputBufferMinimumSeconds * packageRate);
+                            if (inputBufferMinTillRead == 0) {
+                                logger.Error("The buffer minimum (" + inputBufferMinimumSeconds + "s at a package-rate of " + packageRate + " = " + inputBufferMinTillRead + " packages) is too small when combined with the package-rate, provide a larger value for the 'InputBufferMinimum' parameter");
+                                return false;
+                            }
 
-                    }
+                            // calculate the number of packages to read when the minimum is reached
+                            // (note: a smaller read step is also possible; current just refilling the buffer by taking the difference between the minimum and total buffer size)
+                            inputBufferReadSize = inputBufferSize - inputBufferMinTillRead;
 
-                    // check if the number of rows per read is not too big
-                    // note: should not happen since it is calculated based on the buffer size and min-till-read, just in case)
-                    if (inputBufferRowsPerRead > inputBufferSize - inputBufferMinTillRead) {
-                        logger.Error("Number of rows per read (" + inputBufferRowsPerRead + ") should be smaller than the space in the buffer that is open when the buffer min-till-read is reached ('" + (inputBufferSize - inputBufferMinTillRead) + ")");
-                        return false;
-                    }
+                            // check if the number of rows per read is not too big
+                            // note: should not happen since it is calculated based on the buffer size and minimum, just in case)
+                            if (inputBufferReadSize > inputBufferSize - inputBufferMinTillRead) {
+                                logger.Error("Number of packages per read (" + inputBufferReadSize + ") should be smaller than the space in the buffer that is open when the buffer minimum is reached ('" + (inputBufferSize - inputBufferMinTillRead) + ")");
+                                return false;
+                            }
 
-                    // write some playback information
-                    logger.Info("Playback data file: " + inputDatFile);
-                    logger.Info("Data file version: " + header.version);
-                    logger.Info("Pipeline sample rate: " + sampleRate);
-                    logger.Info("Number of input streams in file: " + header.numPlaybackStreams);
-                    logger.Info("Number of output channels: " + outputChannels);
-                    logger.Info("Number of rows: " + header.numRows);
+                        }
+
+                    } else if (inputHeader.version == 1) {
+                        // data version 1
+
+                        // set the sample rate for this source based on the .dat file
+                        packageRate = inputHeader.sampleRate;
+
+                        // check the sample rate
+                        if (packageRate <= 0) {
+                            logger.Error("The sample rate in the (header of the) .dat file is 0 or lower, invalid sample rate");
+                            return false;
+                        }
+
+                        // create a sampleformat
+                        // Note: at this point we only playback .dat files with the pipeline input streams, in data format 1 these always have 1 single sample per package.
+                        //       since the number of samples is 1 per package, the given samplerate is the packagerate)
+                        output = new SamplePackageFormat(numOutputChannels, 1, packageRate, SamplePackageFormat.ValueOrder.SampleMajor);
+
+                        // calculate the input buffer size in rows
+                        if (!readEntireFileInMemory) {
+                            inputBufferSize = (long)Math.Floor(inputBufferSizeSeconds * inputHeader.sampleRate);
+                            if (inputBufferSize == 0) {
+                                logger.Error("The buffer size " + inputBufferSizeSeconds + "s at a sample rate of " + inputHeader.sampleRate + " is too small (" + inputBufferSize + " samples), provide a larger value for INPUT_BUFFER_SIZE_SECONDS");
+                                return false;
+                            }
+                        }
+
+                        // the entire file should be read into memory, or if the number of rows in the file are equal to or smaller than
+                        // the input buffer rows, then the buffer size will be based on the file row-size
+                        if (readEntireFileInMemory || inputHeader.numRows <= inputBufferSize) {
+
+                            // input buffer will be the same size as the data in the input file
+                            inputBufferSize = inputHeader.numRows;
+
+                            // not necessary as the entire file will be read in on initialize
+                            inputBufferMinTillRead = -1;
+                            inputBufferReadSize = -1;
+
+                        } else {
+
+                            // calculate the minimum amount of rows until additional read
+                            inputBufferMinTillRead = (long)Math.Floor(inputBufferMinimumSeconds * inputHeader.sampleRate);
+                            if (inputBufferMinTillRead == 0) {
+                                logger.Error("The buffer minimum is too small when combined with the sample-rate, provide a larger value for the 'InputBufferMinimum' parameter");
+                                return false;
+                            }
+
+                            // calculate the number of rows to read when the minimum is reached
+                            // (note: a smaller read step is also possible; current just refilling the buffer by taking the difference between the minimum-till-read and total buffer size)
+                            inputBufferReadSize = inputBufferSize - inputBufferMinTillRead;
+
+                            // check if the number of rows per read is not too big
+                            // note: should not happen since it is calculated based on the buffer size and min-till-read, just in case)
+                            if (inputBufferReadSize > inputBufferSize - inputBufferMinTillRead) {
+                                logger.Error("Number of rows per read (" + inputBufferReadSize + ") should be smaller than the space in the buffer that is open when the buffer min-till-read is reached ('" + (inputBufferSize - inputBufferMinTillRead) + ")");
+                                return false;
+                            }
+
+                        }
+                        
+                        // calculate the sample interval
+                        constantIntervalMs = (int)Math.Floor(1000.0 / packageRate);
+    
+                    }   // end V1 config
+
+
+                    // set (theoretical) output rate (hz) to what is in the header of the input file
+                    // Note: the sample-rate might not be the same as the package-rate
+                    outputSampleRate = inputHeader.sampleRate;
 
                 } // end lock
             } // end lock
 
-            // retrieve the timing by file setting
-            timingByFile = parameters.getValue<bool>("TimingByFile");
 
-            // retrieve the high precision setting
-            highPrecision = parameters.getValue<bool>("HighPrecision");
-
-            // calculate the sample interval
-            sampleIntervalMs = (int)Math.Floor(1000.0 / sampleRate);
-
-            // check if the samplerate is above 1000hz
-            if (sampleRate > 1000) {
+            // check if the packageRate is above 1000hz
+            if (packageRate > 1000) {
 
                 // enable the high precision timing
                 highPrecision = true;
 
                 // message
-                logger.Warn("Because the sample rate is larger than 1000hz, the high precision timer is used");
+                logger.Warn("Because the sample/package rate is larger than 1000hz, the high precision timer is used");
 
             }
 
@@ -386,12 +508,18 @@ namespace Palmtree.Sources {
             if (highPrecision) {
 
                 // calculate the sample interval for the high precision timing
-                sampleIntervalTicks = (long)Math.Round(Stopwatch.Frequency * (1.0 / sampleRate));
+                constantIntervalTicks = (long)Math.Round(Stopwatch.Frequency * (1.0 / packageRate));
 
                 // message
-                logger.Warn("High precision timer enabled, as one core will be claimed entirely this might have consequences for your system performance");
+                logger.Warn("High precision timer enabled, one core will be claimed entirely (which might have consequences for your overal system performance)");
 
             }
+
+            // store a reference to the output format
+            outputFormat = output;
+
+            // print configuration
+            printLocalConfiguration();
 
             // flag as configured
             configured = true;
@@ -401,9 +529,59 @@ namespace Palmtree.Sources {
 
         }
 
+        private void printLocalConfiguration() {
+
+            // debug output
+            logger.Debug("--- Source configuration: " + CLASS_NAME + " ---");
+
+            logger.Debug("Input file: " + inputFile);
+            logger.Debug("Input file version: " + inputHeader.version);
+            logger.Debug("Input file code: " + inputHeader.code);
+            logger.Debug("Input file sample-rate: " + inputHeader.sampleRate + "Hz");
+            if (inputHeader.version == 1) {
+                logger.Debug("Number of rows: " + inputHeader.numRows);
+            } else {
+                logger.Debug("Number of packages: " + inputHeader.totalPackages);
+            }
+
+            if (inputFileType == 0)     logger.Debug("Number of input channel streams in file: " + inputHeader.numStreams);
+            else                        logger.Debug("Number of input playback streams in file: " + inputHeader.numPlaybackStreams);
+
+            logger.Debug("Channel redistribution: " + (redistributeEnabled ? "Yes" : "No"));
+            if (redistributeEnabled) { 
+                logger.Debug("Redistribution (channels are 1-based):");
+                for (int i = 0; i < redistributeChannels.Length; i++)
+                    logger.Debug("    In-channel " + (redistributeChannels[i] + 1) + " -> Out-channel " + (i + 1));
+            }
+
+            logger.Debug("Output channels: " + outputFormat.numChannels);
+            logger.Debug("Output estimated package-rate: " + outputFormat.packageRate + "Hz");
+            logger.Debug("Output estimated #samples-per-package: " + outputFormat.numSamples);
+            logger.Debug("Output sample-rate: " + outputSampleRate + "Hz");
+
+            logger.Debug("Read entire input file to memory: " + (readEntireFileInMemory ? "Yes" : "No"));
+            if (!readEntireFileInMemory) {
+                if (inputHeader.version == 1) {
+                    logger.Debug("Input buffer size: " + inputBufferSize + " rows (" + inputBufferSizeSeconds + "s)");
+                    logger.Debug("Input buffer minimum: " + inputBufferMinTillRead + " rows (" + inputBufferMinimumSeconds + "s)");
+                    logger.Debug("Number of rows to read when minimum is reached: " + inputBufferReadSize);
+                    
+
+                } else {
+                    logger.Debug("Input buffer size: " + inputBufferSize + " sample-packages (" + inputBufferSizeSeconds + "s)");
+                    logger.Debug("Input buffer minimum: " + inputBufferMinTillRead + " sample-packages (" + inputBufferMinimumSeconds + "s)");
+                    logger.Debug("Number of sample-packages to read when minimum is reached: " + inputBufferReadSize);
+                }
+                
+            }
+            logger.Debug("Package timing by file: " + (timingByFile ? "Yes" : "No"));
+            logger.Debug("High-precision timing: " + (highPrecision ? "On" : "Off"));
+            
+
+        }
+
         public bool initialize() {
 
-            // thread safety
             lock (lockInputReader) {
 
                 // check if there is still an inputreader open, if so close
@@ -416,21 +594,22 @@ namespace Palmtree.Sources {
                 }
 
                 // open the input reader
-                string inputDatFile = inputFile + ".dat";
-                inputReader = new DataReader(inputDatFile);
+                inputReader = new DataReader(inputFile);
                 inputReader.open();
 
-                // retrieve the header
+                // (re-)retrieve the header (already read on open)
                 inputHeader = inputReader.getHeader();
 
-                // copy the rowsize to a local variable
-                // (A copy because this way we do not have to (thread)lock the reader/header objects when we just want to read the data)
-                inputBufferRowSize = inputHeader.rowSize;
+                // copy the row/package size to a local variable
+                // Note: a copy because this way we do not have to (thread)lock the reader/header objects when we just want to read the data
+                if (inputHeader.version == 1) {
+                    inputBufferRowSize = inputHeader.rowSize;
+                }
 
-            }
+            }   // end lock
 
-            // initialize the input buffer and already fill it with the rows
-            initInputBuffer();
+            // initialize the input buffer and already fill it with data
+            fillInputBuffer();
 
             // flag as initialized and return success
             initialized = true;
@@ -448,38 +627,76 @@ namespace Palmtree.Sources {
                 return;
             }
 
-            // lock for thread safety
-            lock(lockStarted) {
-
-                // check if the generator was not already started
+            // check if the playback was not already started
+            lock (lockStarted) {
                 if (started) return;
+            }
 
-                // initialize the input buffer and already fill it with the rows
-                if (inputBuffer == null)
-                    initInputBuffer();
+            // completely (re-)fill the input buffer
+            // Note: For V2+ data files, either initialize or stop() will have already have called 'fillInputBuffer' (to shift the read delay away from start)
+            //       For V1+ data files, on the first run, only the initialization will already have called 'fillInputBuffer'. However, after stopping a run, the
+            //                           buffer will be cleared. If another run is started the buffer needs to be re-filled before starting
+            if  (inputHeader.version == 1 && inputRowBuffer == null)
+                fillInputBuffer();
 
-                // take the first sample from the input buffer
-                nextSample = getNextInputRow();
+            //
+            Debug.Assert(nextThreadLoopDelayNoProc != constantThreadLoopDelayNoProc, "nextThreadLoopDelayNoProc cannot be the same as constantThreadLoopDelayNoProc");
+            Debug.Assert(nextThreadLoopDelayNoProc != 10000, "nextThreadLoopDelayNoProc cannot be 10000, this amount is reserved for a long delay to time the onset");
 
-                // start playback
-                started = true;
+            // set a relatively long delay for the main thread to fall into, this wait allows
+            // us later to trigger (i.e. interrupt the thread) on an exact moment
+            nextThreadLoopDelayNoProc = 10000;
 
-                // interrupt the loop wait, allowing the loop to continue (in case it was waiting the noproc interval)
-                // causing an immediate start and switching to the processing waittime
-                playbackLoopManualResetEvent.Set();
+            // interrupt any wait to ensure we fall into a long wait
+            if (highPrecision)  highPrecisionWaitTillTime = 0;
+            replayLoopManualResetEvent.Set();
 
-                // check if the entire file was not already read
-                if (!readEntireFileInMemory) {
+            // wait until the main thread has reset the delay, meaning it is in the long delay
+            Thread.Sleep(5);
+            while (nextThreadLoopDelayNoProc != -1) {
+                Thread.Sleep(1);
+            }
+                
+            // 
+            if (inputHeader.version == 2 || inputHeader.version == 3) {
 
-                    // start a new thread to keep the input buffer updated
-                    bufferThread = new Thread(this.runUpdateInputBuffer);
-                    bufferThread.Name = "PlaybackSignal Update Inputbuffer Run Thread";
-                    bufferThread.Start();
+                // take the first package from the input buffer
+                double dblNextSamplePackageElapsedMs = -1;
+                getNextInputPackage(ref dblNextSamplePackageElapsedMs, ref nextSamplePackage);
 
-                }
+                // warning if start is late
+                if (Data.getDataRunElapsedTime() >= dblNextSamplePackageElapsedMs)
+                    logger.Warn("The playback start-time has already passed the first-package elapsed time, the onset of the replay will be off");
+                
+                // if timing by file, set the elapsedMs (causing the loop not to use a constant value)
+                if (timingByFile)
+                    nextSamplePackageElapsedMs = (int)dblNextSamplePackageElapsedMs;
+
+            } else if (inputHeader.version == 1) {
+
+                // take the first row from the input buffer
+                nextSamplePackage = getNextInputRow_v1();
+                
+            }
+        
+            // flag as started playback
+            started = true;
+
+            // interrupt the no-proc loop wait
+            //   In V1 data files, causing an immediate start and switching to the processing waittime
+            //   In V2+ data files, causing an interrupt in the long wait
+            replayLoopManualResetEvent.Set();
+
+            // check if we need to update the buffer (i.e. if the file is not entirely read into memory)
+            if (!readEntireFileInMemory) {
+
+                // start a new thread to keep the input buffer updated
+                fileBufferThread = new Thread(this.runUpdateInputBuffer);
+                fileBufferThread.Name = "Replay source file buffer thread";
+                fileBufferThread.Start();
 
             }
-		
+
         }
 
 
@@ -490,53 +707,73 @@ namespace Palmtree.Sources {
 
             // if not initialized than nothing needs to be stopped
             if (!initialized)   return;
-
-            // lock for thread safety
+            
             lock (lockStarted) {
 
-                // check if the source is generating signals
-                if (started) {
+                // clear any specific timing delays
+                nextThreadLoopDelayNoProc = -1;
+                nextSamplePackageElapsedMs = -1;
 
-                    // stop playback
-                    started = false;
-
-                }
-
+                // stop playback
+                started = false;
             }
 
-            // interrupt the playback loop wait, allowing the loop to continue (in case it was waiting the proc interval)
+            // interrupt the high precision loop if one is running
+            if (highPrecision)
+                highPrecisionWaitTillTime = 0;
+
+            // interrupt the playback loop wait, allowing the loop to continue (in case it was waiting the threadLoopDelay interval)
             // switching to the no-processing waittime
-            playbackLoopManualResetEvent.Set();
+            replayLoopManualResetEvent.Set();
 
             // check if there is a update input buffer thread
-            if (bufferThread != null) {
+            if (fileBufferThread != null) {
 
                 // interrupt the loop wait, allowing the loop to continue and exit
-                bufferLoopManualResetEvent.Set();
+                fileBufferLoopManualResetEvent.Set();
 
                 // wait until the buffer input thread stopped
-                // try to stop the main loop using running
                 int waitCounter = 5000;
-                while (bufferThread.IsAlive && waitCounter > 0) {
+                while (fileBufferThread.IsAlive && waitCounter > 0) {
                     Thread.Sleep(1);
                     waitCounter--;
                 }
 
-                // clear the buffer thread reference
-                bufferThread = null;
+                // clear the input buffer thread reference
+                fileBufferThread = null;
 
             }
 
-            // thread safety
             lock (lockInputBuffer) {
 
-                // clear the input buffer and input buffer variables
-                inputBuffer = null;
-                numberOfRowsInBuffer = 0;
-                inputBufferReadIndex = 0;
-                inputBufferAddIndex = 0;
+                if (inputHeader.version == 2 || inputHeader.version == 3) {
+                    
+                    // clear the input buffer and input buffer variables
+                    inputPackageBuffer = null;
+                    inputPackageBufferElapsedStamps = null;
+                    numberOfPackagesInBuffer = 0;
+                    inputBufferReadIndex = 0;
+                    inputBufferAddIndex = 0;
 
-            }
+                } else if (inputHeader.version == 1) {
+
+                    // clear the input buffer and input buffer variables
+                    inputRowBuffer = null;
+                    numberOfRowsInBuffer = 0;
+                    inputBufferReadIndex = 0;
+                    inputBufferAddIndex = 0;
+
+                }
+
+            }   // end lock
+
+
+            // On V2+ data files, completely (re-)fill the input buffer after stopping
+            // Note: When stopping the buffer will be reset. If we would refill the buffer on start(), there is a delay in the start.
+            //       Since we want (in V2+ data files) the first-package to be pushed on the elapsed time, we need to minimize any delay
+            //       during the start; which is why we fill the buffer at stop already
+            if  ((inputHeader.version == 2 || inputHeader.version == 3) && inputPackageBuffer == null)
+                fillInputBuffer();
 
         }
 
@@ -546,14 +783,9 @@ namespace Palmtree.Sources {
 	     * @return Whether the signal generator is started
 	     */
 	    public bool isStarted() {
-
-            // lock for thread safety
             lock(lockStarted) {
-
                 return started;
-
             }
-
 	    }
 
 
@@ -573,11 +805,10 @@ namespace Palmtree.Sources {
             running = false;
 
             // interrupt the wait in the loop
-            // (this is done because if the sample rate is low, we might have to wait for a long time for the thread to end)
-            playbackLoopManualResetEvent.Set();
+            // (because if the sample rate is low, we might have to wait for a long time for the thread to end)
+            replayLoopManualResetEvent.Set();
 
             // wait until the thread stopped
-            // try to stop the main loop using running
             int waitCounter = 500;
             while (signalThread.IsAlive && waitCounter > 0) {
                 Thread.Sleep(10);
@@ -616,27 +847,26 @@ namespace Palmtree.Sources {
                 // 
                 // Note: not using AutoResetEvent because it could happen that .Set is called while not in WaitOne yet, when
                 // using AutoResetEvent this will cause it to skip the next WaitOne call
-                bufferLoopManualResetEvent.Reset();
+                fileBufferLoopManualResetEvent.Reset();
 
-                // Sleep wait
-                bufferLoopManualResetEvent.WaitOne(threadLoopDelayNoProc);      // using WaitOne because this wait is interruptable (in contrast to sleep)
+                // wait (using WaitOne, making it interruptable)
+                fileBufferLoopManualResetEvent.WaitOne(updateBufferThreadDelay);
 
             }
 
         }
+
 
         /**
 	     * Source playback thread
 	     */
         private void run() {
 
-            // name this thread
-            if (Thread.CurrentThread.Name == null) {
-                Thread.CurrentThread.Name = "Source Thread";
-            }
-
             // log message
             logger.Debug("Thread started");
+
+            // should prevent "normal" processes from interrupting
+            Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.RealTime;  	
 
             // set an initial start for the stopwatch
             swTimePassed.Start();
@@ -644,159 +874,338 @@ namespace Palmtree.Sources {
 		    // loop while running
 		    while(running) {
 
-                // lock for thread safety
+                // lock start
                 lock(lockStarted) {
 
-			        // check if we are generating
+			        // check if we are playing-back packages
 			        if (started) {
-
-                        // check if there is a next sample
-                        if (nextSample == null) {
+                        
+                        // check if there is a next sample/package
+                        if (nextSamplePackage == null) {
                             // no next sample
 
                             // message
-                            logger.Info("Playback of the file is finished, calling stop.");
+                            logger.Info("Playback of the file is finished (or read buffer was found empty), calling stop");
 
                             // send a stop signal to the mainThread
                             MainThread.stop(false);
 
 
                         } else {
-                            // there is a next sample (previously retrieved)
+                            // there is a next sample/package (previously retrieved)
 
+                            if (inputHeader.version == 2 || inputHeader.version == 3) {
+
+                                if (redistributeEnabled) {
+                                    // redistribute
+
+                                    int outCounter = 0;
+
+                                    // determine the number of samples in the package
+                                    int numSamples = nextSamplePackage.Length / numInputChannels;
+
+                                    // create sample-package to return
+                                    double[] reSamplePackage = new double[numOutputChannels * numSamples];
+
+                                    // loop over each sample
+                                    for (int iSample = 0; iSample < nextSamplePackage.Length; iSample += numInputChannels) {
+
+                                        // loop through the redistrubution channels
+                                        for (int iChan = 0; iChan < numOutputChannels; iChan++) {
+
+                                            // 
+                                            reSamplePackage[outCounter] = nextSamplePackage[iSample + redistributeChannels[iChan]];
+                                            outCounter++;
+                                        }
+
+                                    }
+
+                                    // pass the sample-package with redistributed channels
+                                    MainThread.eventNewSample(reSamplePackage);
                             
-                            // create sample to return
-                            double[] sample = new double[outputChannels];
+                                } else {
 
-                            // check if redistribution of channels is enabled
-                            if (redistributeEnabled) {
+                                    // pass the sample
+                                    MainThread.eventNewSample(nextSamplePackage);
 
-                                // redistribute
-                                for (int i = 0; i < outputChannels; i++) {
-                                    sample[i] = nextSample[redistributeChannels[i] + 1];        // '+ 1' = skip the elapsed time column
                                 }
 
-                            } else {
-                                // set values for the generated sample
-                                
-                                for (int i = 0; i < outputChannels; i++) {
-                                    sample[i] = nextSample[i + 1];                              // '+ 1' = skip the elapsed time column
+                            } else if (inputHeader.version == 1) {
+
+                                // create sample-package to return
+                                double[] rowSamplePackage = new double[numOutputChannels];
+
+                                if (redistributeEnabled) {
+                                    // redistribute
+
+                                    // pick and copy
+                                    for (int i = 0; i < numOutputChannels; i++) {
+                                        rowSamplePackage[i] = nextSamplePackage[redistributeChannels[i] + 1];        // '+ 1' = skip the elapsed time column
+                                    }
+
+                                } else {
+                                    // set values for the generated sample
+
+                                    // copy values
+                                    for (int i = 0; i < numOutputChannels; i++) {
+                                        rowSamplePackage[i] = nextSamplePackage[i + 1];                              // '+ 1' = skip the elapsed time column
+                                    }
+
                                 }
+
+                                // pass the sample-package
+                                MainThread.eventNewSample(rowSamplePackage);
 
                             }
-
-
-                            // pass the sample
-                            MainThread.eventNewSample(sample);
-                            
 
 
                         }
 
                         // (try to) retrieve the next sample
-                        nextSample = getNextInputRow();
+                        if (inputHeader.version == 2 || inputHeader.version == 3) {
 
-                    }
+                            double dblNextSamplePackageElapsedMs = -1;
+                            getNextInputPackage(ref dblNextSamplePackageElapsedMs, ref nextSamplePackage);
 
-                }
+                            // if timing by file, set the elapsedMs (causing the loop not to use a constant value)
+                            if (timingByFile)
+                                nextSamplePackageElapsedMs = (int)dblNextSamplePackageElapsedMs;
+
+                        } else if (inputHeader.version == 1)
+                            nextSamplePackage = getNextInputRow_v1();
+
+                    }   // end conditional started
+                }   // end lock started
 
                 
 			    // if still running then wait to allow other processes
 			    if (running) {
                     
                     // check if we are generating
-                    // (note: we deliberately do not lock the started variable here, the locking will delay/lock out 'start()' during the wait here
-                    //  and if these are not in sync, the worst thing that can happen is that it does waits one loop extra, which is no problem)
+                    // Note: we deliberately do not lock the started variable here, locking will delay/lock out 'start()' during the wait here, and
+                    //       if these are out-of-sync, the worst thing that can happen is that it does waits one loop extra, which is no problem)
                     if (started) {
-
-                        if (highPrecision) {
-                            // high precision timing
-
-                            // spin for the required amount of ticks
-                            highPrecisionWaitTillTime = Stopwatch.GetTimestamp() + sampleIntervalTicks;     // choose not to correct for elapsed ticks. This result in a slightly higher wait time, which at lower Hz comes closer to the expected samplecount per second
-                            //highPrecisionWaitTillTime = Stopwatch.GetTimestamp() + sampleIntervalTicks - swTimePassed.ElapsedTicks;
-                            while (Stopwatch.GetTimestamp() <= highPrecisionWaitTillTime) ;
+                        
+                        if (nextSamplePackageElapsedMs != -1) {
+                            loopWaitOneTillDataElapsed(ref nextSamplePackageElapsedMs);
 
                         } else {
-                            // low precision timing
 
-                            threadLoopDelay = sampleIntervalMs;     // choose not to correct for elapsed ms. This result in a slightly higher wait time, which at lower Hz comes closer to the expected samplecount per second
-                            //threadLoopDelay = sampleIntervalMs - (int)swTimePassed.ElapsedMilliseconds;
-
-                            // wait for the remainder of the sample interval to get as close to the sample rate as possible (if there is a remainder)
-                            if (threadLoopDelay >= 0) {
-
-                                // reset the manual reset event, so it is sure to block on the next call to WaitOne
-                                // 
-                                // Note: not using AutoResetEvent because it could happen that .Set is called while not in WaitOne yet, when
-                                // using AutoResetEvent this will cause it to skip the next WaitOne call
-                                playbackLoopManualResetEvent.Reset();
-
-                                // Sleep wait
-                                playbackLoopManualResetEvent.WaitOne(threadLoopDelay);      // using WaitOne because this wait is interruptable (in contrast to sleep)
-                                
-                            }
+                            if (highPrecision)
+                                loopWaitOneHP(ref constantIntervalTicks, ref nextSamplePackageElapsedMs);
+                            else
+                                loopWaitOne(constantIntervalMs, ref nextSamplePackageElapsedMs); // nextSamplePackageElapsedMs is not used here
 
                         }
-
+                        
                     } else {
 
-                        // reset the manual reset event, so it is sure to block on the next call to WaitOne
-                        // 
-                        // Note: not using AutoResetEvent because it could happen that .Set is called while not in WaitOne yet, when
-                        // using AutoResetEvent this will cause it to skip the next WaitOne call
-                        playbackLoopManualResetEvent.Reset();
+                        // wait
+                        loopWaitOne(constantThreadLoopDelayNoProc, ref nextThreadLoopDelayNoProc);
 
-                        // Sleep wait
-                        playbackLoopManualResetEvent.WaitOne(threadLoopDelayNoProc);      // using WaitOne because this wait is interruptable (in contrast to sleep)
+                        // a specific delay interval is available
+                        if (nextSamplePackageElapsedMs != -1)
+                            loopWaitOneTillDataElapsed(ref nextSamplePackageElapsedMs);
 
                     }
 
                     // restart the timer to measure the loop time
                     swTimePassed.Restart();
 
-                }
+                }   // end check if-running
 
-            }
+            }   // end run loop (while running)
             
             // log message
             logger.Debug("Thread stopped");
 
         }
 
+        private void loopWaitOne(int constIntervalMs, ref int nextIntervalMs) {
+            int threadLoopDelay;
 
-        //
-        //
-        //
-        
-        private void initInputBuffer() {
+            if (nextIntervalMs > -1) {
+                // a specific delay interval is available
+                
+                threadLoopDelay = nextIntervalMs;
 
-            // thread safety
+                // reset the specific delay
+                nextIntervalMs = -1;
+
+            } else {
+                // constant delay
+
+                //threadLoopDelay = constIntervalMs;     // choose not to correct for elapsed ms. This result in a slightly higher wait time, which at lower Hz comes closer to the expected samplecount per second
+                threadLoopDelay = constIntervalMs - (int)swTimePassed.ElapsedMilliseconds;
+
+            }
+            
+            // wait for the remainder of the sample interval to get as close to the sample rate as possible (if there is a remainder)
+            if (threadLoopDelay >= 0) {
+
+                // reset the manual reset event, so it is sure to block on the next call to WaitOne
+                // 
+                // Note: not using AutoResetEvent because it could happen that .Set is called while not in WaitOne yet, when
+                //       using AutoResetEvent this will cause it to skip the next WaitOne call
+                replayLoopManualResetEvent.Reset();
+                                
+                // wait (using WaitOne, making it interruptable)
+                replayLoopManualResetEvent.WaitOne(threadLoopDelay);
+                                
+            }
+
+        }
+
+        private void loopWaitOneHP(ref long constIntervalTicks, ref int nextIntervalMs) {
+            
+            if (nextIntervalMs > -1) {
+                // a specific delay interval (in ms!) is available
+
+                // convert from ms to ticks and set an end time (in ticks)
+                highPrecisionWaitTillTime = Stopwatch.GetTimestamp() + ((long)(nextIntervalMs * (Stopwatch.Frequency / 1000.0)));
+                
+                // reset the specific delay
+                nextIntervalMs = -1;
+
+            } else {
+                // constant delay
+
+                // determine the tick delay
+                highPrecisionWaitTillTime = Stopwatch.GetTimestamp() + constIntervalTicks;     // choose not to correct for elapsed ticks. This result in a slightly higher wait time, which at lower Hz comes closer to the expected samplecount per second
+                //highPrecisionWaitTillTime = Stopwatch.GetTimestamp() + constIntervalTicks - swTimePassed.ElapsedTicks;
+
+            }
+
+            // wait (spin until)
+            while (Stopwatch.GetTimestamp() <= highPrecisionWaitTillTime) ;
+
+        }
+
+        private void loopWaitOneTillDataElapsed(ref int nextDataElapsedTimeMs) {
+            
+            int threadLoopDelay = nextDataElapsedTimeMs - (int)Data.getDataRunElapsedTime();
+
+            // reset the specific delay
+            nextDataElapsedTimeMs = -1;
+
+            // check if there is a need to wait
+            if (threadLoopDelay >= 0) {
+
+                if (highPrecision) {
+
+                    // convert from ms to ticks and set an end time (in ticks)
+                    highPrecisionWaitTillTime = Stopwatch.GetTimestamp() + ((long)(threadLoopDelay * (Stopwatch.Frequency / 1000.0)));
+                
+                    // reset the specific delay
+                    nextDataElapsedTimeMs = -1;
+
+                    // wait (spin until)
+                    while (Stopwatch.GetTimestamp() <= highPrecisionWaitTillTime) ;
+
+                } else {
+                    // low precision
+
+                    // reset the manual reset event, so it is sure to block on the next call to WaitOne
+                    // 
+                    // Note: not using AutoResetEvent because it could happen that .Set is called while not in WaitOne yet, when
+                    //       using AutoResetEvent this will cause it to skip the next WaitOne call
+                    replayLoopManualResetEvent.Reset();
+                                
+                    // wait (using WaitOne, making it interruptable)
+                    replayLoopManualResetEvent.WaitOne(threadLoopDelay);
+                                
+                }
+            }
+
+        }
+
+
+        /// <summary>
+        /// Fill the input buffer with as many packages/rows as possible for replay
+        /// Note: the number of packages/rows is only limited by the size of buffer or number available in the input file
+        /// </summary>
+        private void fillInputBuffer() {
+
             lock (lockInputReader) {
                 lock (lockInputBuffer) {
 
                     // set the data pointer of the input reader to the start
                     inputReader.resetDataPointer();
 
-                    // read the input buffer (full)
-                    long rowsRead = inputReader.readNextRows(inputBufferSize, out inputBuffer);
+                    // 
+                    if (inputHeader.version == 2 || inputHeader.version == 3) {
+                        
+                        // read from the input file and fill the package input-buffer
+                        long packagesRead = inputReader.readNextPackages(inputBufferSize, out inputPackageBuffer, out inputPackageBufferElapsedStamps);
 
-                    // set the input ringbuffer variables
-                    inputBufferAddIndex = rowsRead * inputHeader.rowSize;
-                    numberOfRowsInBuffer = rowsRead;
+                        // set the input ringbuffer variables
+                        inputBufferAddIndex = 0;
+                        //inputBufferAddIndex = packagesRead;
+                        //if (inputBufferAddIndex >= inputPackageBuffer.Length)   inputBufferAddIndex -= inputPackageBuffer.Length;
+                        numberOfPackagesInBuffer = packagesRead;
+                        
+                    } else if (inputHeader.version == 1) {
+
+                        // read from the input file and fill the row input-buffer (full)
+                        long rowsRead = inputReader.readNextRows_V1(inputBufferSize, out inputRowBuffer);
+
+                        // set the input ringbuffer variables
+                        inputBufferAddIndex = rowsRead * inputHeader.rowSize;
+                        if (inputBufferAddIndex >= inputRowBuffer.Length) inputBufferAddIndex -= inputRowBuffer.Length;
+                        numberOfRowsInBuffer = rowsRead;
+
+                    }
 
                     // set the input buffer read index at the start (since the buffer was filled from 0)
                     inputBufferReadIndex = 0;
 
-                }
-
-            }
-
+                }   // end of lock
+            }   // end of lock
         }
 
-        private double[] getNextInputRow() {
+        
+        /// <summary>
+        /// Retrieve the next package from the package input-buffer (used for data files V2 or higher)
+        /// </summary>
+        /// <returns>The next sample-package from the buffer, or null no next package is available</returns>
+        private void getNextInputPackage(ref double elapsed, ref double[] data) {
+            elapsed = -1;
+            data = null;
 
-            // thread safety
+            lock (lockInputBuffer) {
+
+                // if there are no packages in the buffer, return null
+                if (numberOfPackagesInBuffer == 0)      return;
+
+                // pass the package reference
+                double[] retData = inputPackageBuffer[inputBufferReadIndex];
+                double retElapsed = inputPackageBufferElapsedStamps[inputBufferReadIndex];
+
+                // clear the packages reference
+                inputPackageBuffer[inputBufferReadIndex] = null;
+                inputPackageBufferElapsedStamps[inputBufferReadIndex] = -1;
+
+                // set the read index to the next package
+                inputBufferReadIndex++;
+                if (inputBufferReadIndex == inputPackageBuffer.Length) inputBufferReadIndex = 0;
+
+                // decrease the amount of packages in the buffer as this package will be processed
+                numberOfPackagesInBuffer--;
+
+                // return the data (last)
+                data = retData;
+                elapsed = retElapsed;
+
+            }   // end of lock
+        }
+
+
+        /// <summary>
+        /// Retrieve the next row of samples from the input-buffer (used for data files V1, can be considered a sample-package with a single sample)
+        /// </summary>
+        /// <returns>The next sample-row from the buffer, or null if no further data is available</returns>
+        private double[] getNextInputRow_v1() {
+
             lock (lockInputBuffer) {
 
                 // if there are no rows in the buffer, return null
@@ -804,11 +1213,11 @@ namespace Palmtree.Sources {
 
                 // read the values
                 double[] values = new double[inputHeader.numColumns - 1];
-                Buffer.BlockCopy(inputBuffer, (int)(inputBufferReadIndex + sizeof(uint)), values, 0, inputBufferRowSize - (sizeof(uint)));
+                Buffer.BlockCopy(inputRowBuffer, (int)(inputBufferReadIndex + sizeof(uint)), values, 0, inputBufferRowSize - (sizeof(uint)));
 
                 // set the read index to the next row
                 inputBufferReadIndex += inputBufferRowSize;
-                if (inputBufferReadIndex == inputBuffer.Length) inputBufferReadIndex = 0;
+                if (inputBufferReadIndex == inputRowBuffer.Length) inputBufferReadIndex = 0;
 
                 // decrease the amount of rows in the buffer as this row will be processed (to make space for another row in the input buffer)
                 numberOfRowsInBuffer--;
@@ -816,9 +1225,10 @@ namespace Palmtree.Sources {
                 // return the data
                 return values;
 
-            }
-
+            }   // end of lock
         }
+
+
 
         private void updateInputBuffer() {
 
@@ -836,88 +1246,130 @@ namespace Palmtree.Sources {
                     if (inputReader.reachedEnd())   return;
 
                     // check if the minimum amount of rows in the buffer has been reached
-                    if (numberOfRowsInBuffer <= inputBufferMinTillRead) {
-
-                        // retrieve 
-                        doUpdate = true;
+                    if (inputHeader.version == 2 || inputHeader.version == 3) {
+                        doUpdate = numberOfPackagesInBuffer <= inputBufferMinTillRead;
+                    } else if (inputHeader.version == 1) {
+                        doUpdate = numberOfRowsInBuffer <= inputBufferMinTillRead;
 
                     }
+
                 }
             }
 
             // if an update is required
             if (doUpdate) {
+                if (inputHeader.version == 2 || inputHeader.version == 3) {
 
-                // check if the buffer is not big enough to contain the rows that are set to be read
-                // (note, extra since the stepsize should be smaller than 
-                if ((inputBufferSize - numberOfRowsInBuffer) < inputBufferRowsPerRead) {
-
-                    // message
-                    logger.Warn("Input buffer is not empty enough to update with new rows, skipping update now until buffer is more empty");
-
-                    // return without updating
-                    return;
-
-                }
-
-                // create variables for reading
-                byte[] rowData = null;
-                long rowsRead = -1;
-
-                // thread safety (seperate here because with big data, a read action could some time and 
-                // doing it like this prevents keeps the inputBuffer available for reading during that time).
-                lock (lockInputReader) {
+                    // check if the buffer is not big enough to contain the rows that are set to be read
+                    if ((inputBufferSize - numberOfPackagesInBuffer) < inputBufferReadSize) {
+                        logger.Warn("Input buffer is not empty enough to update with new sample-packages, skipping update now until buffer is more empty");
+                        return;
+                    }
+                     
+                    // create variables for reading
+                    double[][] packageData = null;
+                    double[] packageElapsedStamps = null;
+                    long packagesRead = -1;
 
                     // read new data from file
-                    rowsRead = inputReader.readNextRows(inputBufferRowsPerRead, out rowData);
-
-                }
-
-                // check if the reading was succesfull
-                if (rowsRead == -1) {
-                    // error while reading (end of file is also possible, but is checked before using 'reachedEnd')
-
-                    // message
-                    logger.Error("Error while updating buffer, reading inputrows from file failed");
-
-                } else {
-                    // successfully retrieved new input rows
+                    // Note: thread safety (seperate here because with big data, a read action could some time and 
+                    //       doing it like this prevents keeps the inputRowBuffer available for reading during that time).
+                    lock (lockInputReader) {
+                        packagesRead = inputReader.readNextPackages(inputBufferReadSize, out packageData, out packageElapsedStamps);
+                    }
                     
-                    // thread safety (seperate here, so the inputbuffer will be locked as short as possible to allow the least
-                    // interruption/wait while reading)
+                    // check if the reading was succesfull
+                    if (packagesRead == -1) {
+                        // error while reading (end of file is also possible, but is checked before using 'reachedEnd')
+                        logger.Error("Error while updating buffer, reading sample-packages from file failed");
+                        return;
+                    }
+
+                    // successfully retrieved new input packages
+                    // Note: thread safety (seperate here, so the inputPackageBuffer will be locked as
+                    //       short as possible to allow the least interruption/wait while reading)
+                    lock (lockInputBuffer) {
+
+                        // move the sample-packages into the buffer
+                        for (int i = 0; i < packagesRead; i++) {
+                            inputPackageBuffer[inputBufferAddIndex] = packageData[i];
+                            inputPackageBufferElapsedStamps[inputBufferAddIndex] = packageElapsedStamps[i];
+
+                            // move the input to add buffer
+                            inputBufferAddIndex++;
+                            if (inputBufferAddIndex >= inputPackageBuffer.Length)   inputBufferAddIndex -= inputPackageBuffer.Length;
+
+                        }
+
+                        // count to the total number of packages in the buffer
+                        numberOfPackagesInBuffer += packagesRead;
+
+                    } // end lock
+
+
+                } else if (inputHeader.version == 1) {
+
+                    // check if the buffer is not big enough to contain the rows that are set to be read
+                    if ((inputBufferSize - numberOfRowsInBuffer) < inputBufferReadSize) {
+                        logger.Warn("Input buffer is not empty enough to update with new rows, skipping update now until buffer is more empty");
+                        return;
+                    }
+
+                    // create variables for reading
+                    byte[] rowData = null;
+                    long rowsRead = -1;
+
+                    // read new data from file
+                    // Note: thread safety (seperate here because with big data, a read action could some time and 
+                    //       doing it like this prevents keeps the inputRowBuffer available for reading during that time).
+                    lock (lockInputReader) {
+                        rowsRead = inputReader.readNextRows_V1(inputBufferReadSize, out rowData);
+                    }
+
+                    // check if the reading was succesfull
+                    if (rowsRead == -1) {
+                        // error while reading (end of file is also possible, but is checked before using 'reachedEnd')
+
+                        logger.Error("Error while updating buffer, reading input-rows from file failed");
+                        return;
+
+                    }
+
+                    // successfully retrieved new input rows
+                    // Note: thread safety (seperate here, so the inputRowBuffer will be locked as
+                    //       short as possible to allow the least interruption/wait while reading)
                     lock (lockInputBuffer) {
 
                         // determine how much fits in the buffer from the add pointer (inputBufferAddIndex) till the end of the buffer
                         // and determine how goes after wrapping around
                         long length = rowData.Length;
                         long lengthLeft = 0;
-                        if (inputBuffer.Length - inputBufferAddIndex < length) {
-                            length = inputBuffer.Length - inputBufferAddIndex;
+                        if (inputRowBuffer.Length - inputBufferAddIndex < length) {
+                            length = inputRowBuffer.Length - inputBufferAddIndex;
                             lengthLeft = rowData.Length - length;
                         }
 
                         // write the first part to the buffer
-                        Buffer.BlockCopy(rowData, 0, inputBuffer, (int)inputBufferAddIndex, (int)(length));
+                        Buffer.BlockCopy(rowData, 0, inputRowBuffer, (int)inputBufferAddIndex, (int)(length));
 
                         // if it needs to wrap around, write the second past from the start of the buffer
                         if (lengthLeft != 0)
-                            Buffer.BlockCopy(rowData, (int)length, inputBuffer, 0, (int)(lengthLeft));
-                        
+                            Buffer.BlockCopy(rowData, (int)length, inputRowBuffer, 0, (int)(lengthLeft));
+
                         // update input buffer variables
                         inputBufferAddIndex += rowsRead * inputBufferRowSize;
-                        if (inputBufferAddIndex > inputBuffer.Length) inputBufferAddIndex = inputBufferAddIndex - inputBuffer.Length;
+                        if (inputBufferAddIndex >= inputRowBuffer.Length) inputBufferAddIndex -= inputRowBuffer.Length;
                         numberOfRowsInBuffer += rowsRead;
 
                     } // end lock
 
-                }
+                }  // end of data-version conditional
 
-            } // end function
+            }   // end of doUpdate conditional
+
+        }   // end function
 
 
-        }
-
-
-    }
+    }   // end of class
 
 }
