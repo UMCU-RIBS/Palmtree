@@ -486,6 +486,7 @@ namespace Palmtree.Sources {
             logger.Debug("Output channels: " + outputFormat.numChannels);
             logger.Debug("Output estimated package-rate: " + outputFormat.packageRate + "Hz");
             logger.Debug("Output estimated #samples-per-package: " + outputFormat.numSamples);
+            logger.Debug("Output sample-rate: " + outputSampleRate + "Hz");
 
         }
 
@@ -839,6 +840,9 @@ namespace Palmtree.Sources {
 
             // log message
             logger.Debug("Thread started");
+
+            // should prevent "normal" processes from interrupting
+            Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.RealTime;  	
 
             // set an initial start for the stopwatch
             swTimePassed.Start();
