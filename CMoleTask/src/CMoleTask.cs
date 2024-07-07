@@ -53,7 +53,7 @@ namespace CMoleTask {
             FalseNegativeEscape
         };
 
-        private const int CLASS_VERSION = 5;
+        private const int CLASS_VERSION = 6;
         private const string CLASS_NAME = "CMoleTask";
         private const string CONNECTION_LOST_SOUND = "sounds\\connectionLost.wav";
 
@@ -94,8 +94,8 @@ namespace CMoleTask {
         private int columnSelectedDelay = 0;
         private int[] fixedTrialSequence = new int[0];                              // target sequence (input parameter)
         private bool showScore = false;
-        private int taskMode = 0;                                                   // the mode used: 1: Continuous WAM, 2: Continuous WAM with computer help, 3: Dynamic mode
-        private int dynamicParameter = 0;                                           // Parameter to be optimised in Dynamic Mode. 1: Threshold, 2: Active Rate, 3: Active Period, 4: Mean, 5: ColumnSelectDelay  
+        private int taskMode = 0;                                                   // the mode used: 0: Continuous WAM, 1: Continuous WAM with computer help, 2: Dynamic mode
+        private int dynamicParameter = 0;                                           // Parameter to be optimised in Dynamic Mode. 0: None, 1: Threshold, 2: Active Rate, 3: Active Period, 4: Mean, 5: ColumnSelectDelay
 
 
         // task (active) variables
@@ -119,7 +119,7 @@ namespace CMoleTask {
         private int countdownCounter = 0;					                        // the countdown timer
         private int score = 0;						                                // the score of the user hitting a mole
         private int scoreEscape = 0;						                        // the score of the user creating escapes
-        private int scoreType = 0;
+        private int scoringType = 0;
         private bool seperateEscapes = false;
         private List<scoreTypes> posAndNegs = new List<scoreTypes>(0);                  // list holding the different scores aggregated
 
@@ -165,6 +165,7 @@ namespace CMoleTask {
 
         private void defineParameters(ref Parameters parameters) {
 
+
             // define the parameters
             parameters.addParameter<int>(
                 "WindowLeft",
@@ -196,36 +197,13 @@ namespace CMoleTask {
                 "Window background color",
                 "", "", "0");
 
-            parameters.addParameter<int>(
-                "Mode",
-                "1: Continuous WAM (CWAM), 2: CWAM with computer help, 3: Dynamic mode",
-                "0", "", "1");
 
-            parameters.addParameter<int>(
-               "PositiveHelpPercentage",
-               "Only in CWAM with computer help: percentage of samples during cell selection that will be corrected if a false negative no-click is made during that sample",
-               "0", "", "5");
+            //
+            // Timings and durations
+            //
 
-            parameters.addParameter<int>(
-               "NegativeHelpPercentage",
-               "Only in CWAM with computer help: percentage of samples during cell selection that will be corrected if a false positive click is made during that sample",
-               "0", "", "10");
-
-            parameters.addParameter<int>(
-                "DynamicParameter",
-                "Only in Dynamic Mode: parameter to be optimised. 1: Threshold, 2: Active Rate, 3: Active Period, 4: Mean, 5: ColumnSelectDelay",
-                "0", "", "1");
-
-            parameters.addParameter<double>(
-                "Stepsize",
-                "Only in Dynamic Mode: absolute stepsize with which dynamic parameter is adjusted per step, given in unit of specific parameter, with the exception of dynamic parameter 4: here the stepsize is relative, defined as a fraction of the initial standard deviation.",
-                "0", "", "5");
-
-            parameters.addParameter<int>(
-               "StopOrUpdateAfterCorrect",
-               "Only in Dynamic Mode: for dynamic parameters 1-4 this parameter determines after how many correct responses in a row the task will end. Set to 0 to not end task based on amount of correct responses. \n For parameter 5, this parameter determines after how many consecutive true positives or false negatives the parameter is adjusted. Setting to 0 is not allowed in this case.",
-               "0", "", "1");
-
+            parameters.addHeader("Timings and durations");
+            
             parameters.addParameter<int>(
                 "TaskFirstRunStartDelay",
                 "Amount of time before the task starts (on the first run of the task)",
@@ -241,11 +219,6 @@ namespace CMoleTask {
                 "Amount of time the countdown before the task takes",
                 "0", "", "3s");
 
-            parameters.addParameter<int>(
-                "TaskInputChannel",
-                "Channel to base the cursor position on  (1...n)",
-                "1", "", "1");
-
             parameters.addParameter<double>(
                 "ColumnSelectDelay",
                 "Amount of time before continuing to next column",
@@ -256,11 +229,70 @@ namespace CMoleTask {
                 "Amount of time after selecting a column to wait",
                 "0", "", "1s");
 
+            parameters.addParameter<double>(
+                "EscapeDuration",
+                "Amount of time an escape trial is presented",
+                "0", "", "3s");
+
+
+            //
+            // Task settings
+            //
+
+            parameters.addHeader("Task");            
+
+            parameters.addParameter<int>(
+                "TaskInputChannel",
+                "Input channel to use as click",
+                "1", "", "1");
+
             parameters.addParameter<int>(
                 "NumberOfMoles",
                 "Amount of moles presented",
                 "1", "", "10");
 
+            parameters.addParameter<int>(
+                "TaskMode",
+                "Select the mode in which the task operates",
+                "0", "2", "0", new string[] { "Continuous WAM (CWAM)", "CWAM with computer help", "Dynamic" });
+            
+            parameters.addParameter<int>(
+               "PositiveHelpPercentage",
+               "Only in CWAM with computer help: percentage of samples during cell selection that will be corrected if a false negative no-click is made during that sample",
+               "0", "", "5");
+
+            parameters.addParameter<int>(
+               "NegativeHelpPercentage",
+               "Only in CWAM with computer help: percentage of samples during cell selection that will be corrected if a false positive click is made during that sample",
+               "0", "", "10");
+
+            parameters.addParameter<int>(
+                "DynamicParameter",
+                "The parameter to dynamically optimze.\n\nNote: only used when TaskMode is set to 'Dynamic'",
+                "0", "5", "0", new string[] { "None", "Threshold Classifier - Threshold", "Click Translator - Active Rate Click Threshold", "Click Translator - Active Period" , "Adaptation - Initial Channel Means", "CMole Task - Column Select Delay"});
+
+            parameters.addParameter<double>(
+                "Stepsize",
+                "Only in Dynamic Mode: absolute stepsize with which dynamic parameter is adjusted per step, given in unit of specific parameter, with the exception of dynamic parameter 4: here the stepsize is relative, defined as a fraction of the initial standard deviation.",
+                "0", "", "5");
+
+            parameters.addParameter<int>(
+               "StopOrUpdateAfterCorrect",
+               "Only in Dynamic Mode: for dynamic parameters 1-4 this parameter determines after how many correct responses in a row the task will end. Set to 0 to not end task based on amount of correct responses. \n For parameter 5, this parameter determines after how many consecutive true positives or false negatives the parameter is adjusted. Setting to 0 is not allowed in this case.",
+               "0", "", "1");
+
+
+
+            //
+            // Conditions
+            //
+
+            parameters.addHeader("Conditions and trials sequence");
+
+            parameters.addParameter<int[]>(
+                "TrialSequence",
+                "Fixed sequence in which moles and escapes should be presented (leave empty for random).\nNote. the parameters ('NumberOfMoles', 'MinimalMoleDistance', 'MinimalMoleDistance'\n'NumberOfMoles') that are normally used to generate the trials sequence will be ignored",
+                "0", "", "");
             parameters.addParameter<int>(
                 "MinimalMoleDistance",
                 "Minimal distance, expressed in cells, from currently selected cell to appearing mole",
@@ -281,31 +313,27 @@ namespace CMoleTask {
                 "Minimum amount of moles between consecutive escape trials",
                 "1", "", "2");
 
-            parameters.addParameter<double>(
-                "EscapeDuration",
-                "Amount of time an escape trial is presented",
-                "0", "", "3s");
+            //
+            // Display
+            //
 
-            parameters.addParameter<int[]>(
-                "TrialSequence",
-                "Fixed sequence in which moles and escapes should be presented (leave empty for random).\nNote. the parameters ('NumberOfMoles', 'MinimalMoleDistance', 'MinimalMoleDistance'\n'NumberOfMoles') that are normally used to generate the trials sequence will be ignored",
-                "0", "", "");
+            parameters.addHeader("Display");
 
             parameters.addParameter<bool>(
                 "ShowScore",
                 "Enable/disable showing of scoring",
                 "1");
-
+            
             parameters.addParameter<int>(
-                "ScoreType",
-                "Type of scoring used. 1: Score = TP/(TP+FP+FN) 2: Score = (TP+TN)/(TP+TN+FP+FN)",
-                "1", "", "1");
-
+                "ScoringType",
+                "Type of scoring used",
+                "0", "1", "0", new string[] { "Score = TP / (TP + FP + FN)", "Score = (TP + TN) / (TP + TN + FP + FN)" });
+            
             parameters.addParameter<bool>(
                 "ShowEscapeScoreSeperate",
                 "If enabled, shows scores for presented escapes seperately/",
                 "1");
-
+            
         }
 
         public Parameters getParameters() {
@@ -382,9 +410,9 @@ namespace CMoleTask {
             }
 
             // retrieve the task mode
-            taskMode = newParameters.getValue<int>("Mode");
-            if (taskMode < 1 || taskMode > 3) {
-                logger.Error("Only task modes between 1 and 3 are allowed.");
+            taskMode = newParameters.getValue<int>("TaskMode");
+            if (taskMode < 0 || taskMode > 2) {
+                logger.Error("Unknown taskMode parameter value: " + taskMode);
                 return false;
             }
 
@@ -449,9 +477,9 @@ namespace CMoleTask {
 
             // retrieve whether to show score, how to calculate score, and whether to show the escape score seperate
             showScore = newParameters.getValue<bool>("ShowScore");
-            scoreType = newParameters.getValue<int>("ScoreType");
-            if (!(scoreType == 1 || scoreType == 2)) {
-                logger.Error("Only score types 1 and 2 can be used.");
+            scoringType = newParameters.getValue<int>("ScoringType");
+            if (!(scoringType == 0 || scoringType == 1)) {
+                logger.Error("Unknown scoringType parameter value: " + scoringType);
                 return false;
             }
             seperateEscapes = newParameters.getValue<bool>("ShowEscapeScoreSeperate");
@@ -474,7 +502,7 @@ namespace CMoleTask {
             }
 
             // configure buffers for computer help mode
-            if (taskMode == 2) {
+            if (taskMode == 1) {
 
                 // create help click vector to hold help clicks
                 helpClickVector = new List<bool>(new bool[columnSelectDelay]);
@@ -495,14 +523,19 @@ namespace CMoleTask {
             stopOrUpdateAfterCorrect = newParameters.getValue<int>("StopOrUpdateAfterCorrect");
 
             // perform checks on parameters for dynamic mode, if mode is set to dynamic mode
-            if (taskMode == 3) {
+            if (taskMode == 2) {
 
                 // amount of correct responses should be positive, but less than total amount of moles presented         
                 if (stopOrUpdateAfterCorrect < 0 || stopOrUpdateAfterCorrect > numberOfMoles) {
                     logger.Error("The required amount of correct responses to end the task needs to be larger than 0, and less than the total amount of moles presented.");
                     return false;
-                } else if (stopOrUpdateAfterCorrect == 0 && taskMode == 3 && dynamicParameter == 5) {
+                } else if (stopOrUpdateAfterCorrect == 0 && taskMode == 2 && dynamicParameter == 5) {
                     logger.Error("When adjusting parameter 5 in dynamic mode, the parameter stopOrUpdateAfterCorrect can not be 0, as this would result in never updating the parameter.");
+                    return false;
+                }
+                
+                if (dynamicParameter == 0) {
+                    logger.Error("No 'DynamicParameter' parameter cannot be None, select one of the options");
                     return false;
                 }
 
@@ -823,7 +856,7 @@ namespace CMoleTask {
                         //logger.Info("At cell " + curIndex + ", at sample " + waitCounter + " with value: " + input);
 
                         // if in computer help mode and we are not moving on to next column, combine click with computer help (no-)click
-                        if (taskMode == 2) {
+                        if (taskMode == 1) {
 
                             // get computer help click or no click
                             bool helpclick = helpClickVector[columnSelectDelay - (waitCounter + 1)];
@@ -877,7 +910,7 @@ namespace CMoleTask {
                                     else                                                setCueAndState(trialSequencePositions[currentTrial]);
 
                                     // if in dynamic mode, adjust dynamic parameter and check if we need to stop task because enough correct responses have been given
-                                    if (taskMode == 3) updateParameter();
+                                    if (taskMode == 2) updateParameter();
 
                                 // if no mole was missed, store a true negative, go to next cell and reset time 
                                 } else {
@@ -933,7 +966,7 @@ namespace CMoleTask {
                                 }
 
                                 // if in dynamic mode, adjust dynamic parameter and check if we need to stop task because enough correct responses have been given
-                                if (taskMode == 3) updateParameter();
+                                if (taskMode == 2) updateParameter();
 
                             // no hit, store false positive
                             } else {
@@ -948,7 +981,7 @@ namespace CMoleTask {
                                 setState(TaskStates.ColumnSelect);
 
                                 // if in dynamic mode, adjust dynamic parameter and check if we need to stop task because enough correct responses have been given
-                                if (taskMode == 3) updateParameter();
+                                if (taskMode == 2) updateParameter();
                             }
 
 			            } else
@@ -980,7 +1013,7 @@ namespace CMoleTask {
                             else                                                setCueAndState(trialSequencePositions[currentTrial]);
 
                             // if in dynamic mode, adjust dynamic parameter and check if we need to stop task because enough correct responses have been given
-                            if (taskMode == 3) updateParameter();
+                            if (taskMode == 2) updateParameter();
 
                         } else
                             waitCounter--;
@@ -1102,7 +1135,7 @@ namespace CMoleTask {
         public void updateParameter() {
 
             // if not in dynamic mode or if there no scores to base parameter update on, exit
-            if (taskMode != 3 && posAndNegs.Count > 0)      return;
+            if (taskMode != 2 && posAndNegs.Count > 0)      return;
 
             // retrieve last score to base parameter update on
             scoreTypes lastScore = posAndNegs[posAndNegs.Count - 1];
@@ -1134,7 +1167,7 @@ namespace CMoleTask {
                         paramType = "double[][]";
                         increaseType = scoreTypes.FalsePositive;
                         decreaseType = scoreTypes.FalseNegative;
-                        addInfo = 2;                                    // column in the parameter matrix holding threshold paramter
+                        addInfo = 1;                                    // column in the parameter matrix holding threshold paramter
 
                         break;
 
@@ -1343,11 +1376,11 @@ namespace CMoleTask {
             }
 
             // calculate score, based on required scoreType
-            if (scoreType == 1) {
+            if (scoringType == 0) {
                 if (tp + fp + fn > 0) score = (int)Math.Floor((tp / (tp + fp + fn)) * 100.0);
-            } else if (scoreType == 2) {
+            } else if (scoringType == 1) {
                 if (tp + tn + fp + fn > 0) score = (int)Math.Floor(((tp + tn) / (tp + tn + fp + fn)) * 100.0);
-            } else logger.Error("Undefined score type, check code");
+            }
 
             // calculate escapeScore
             if (tpEsc + fnEsc > 0)      scoreEscape = (int)Math.Floor((tpEsc / (tpEsc + fnEsc)) * 100.0);
@@ -1426,7 +1459,7 @@ namespace CMoleTask {
                     bool containsMole = currentMoleIndex == holeColumns * currentRowID + currentColumnID;
 
                     // during computer help, create help click vector
-                    if (taskMode == 2) {
+                    if (taskMode == 1) {
 
                         // create empty click vector, length equal to the amount of samples a column is selected, all default to no-click (false)
                         helpClickVector = new List<bool>(new bool[columnSelectDelay]);
@@ -1522,8 +1555,8 @@ namespace CMoleTask {
             // print (escape) score to console
             logger.Info("Score: " + score + " Escape score: " + scoreEscape);
 
-            // If taskmode is 3, reset dynamic paramters to original value
-            if (taskMode == 3) {
+            // If taskmode is in dynamic mode, reset dynamic paramters to original value
+            if (taskMode == 2) {
 
                 // give feedback on final value of dynamic parameter
                 if (localParam != null) logger.Info("Final value " + param + ": " + Extensions.arrayToString(localParam) );
@@ -1531,7 +1564,7 @@ namespace CMoleTask {
                 // reset filter with original parameter values (not needed for param 5 because this does not involve updating filters)
                 if (dynamicParameter != 5)  MainThread.configureRunningFilter(filter, originalParameterSet);
 
-                // reset vars related to taskmode 3
+                // reset vars related to dynamic taskmode
                 firstUpdate = true;
                 localParam = null;
                 currentCorrect = 0;
@@ -1679,7 +1712,7 @@ namespace CMoleTask {
             inputFormat.numChannels = 1;
             //allowExit = true;                  // child task, allow exit
             newParameters.setValue("WindowBackgroundColor", "0;0;0");
-            newParameters.setValue("Mode", 3);
+            newParameters.setValue("TaskMode", 2);
             newParameters.setValue("DynamicParameter", 4);
             newParameters.setValue("Stepsize", 0.1);
             newParameters.setValue("StopOrUpdateAfterCorrect", 0);
@@ -1695,7 +1728,7 @@ namespace CMoleTask {
             newParameters.setValue("NumberOfEscapes", 0);
             newParameters.setValue("ShowScore", true);
             newParameters.setValue("ShowEscapeScoreSeperate", false);       
-            newParameters.setValue("ScoreType", 1);
+            newParameters.setValue("ScoringType", 1);
             newParameters.setValue("PositiveHelpPercentage", 5);
             newParameters.setValue("NegativeHelpPercentage", 10);
             newParameters.setValue("EscapeInterval", 2);
